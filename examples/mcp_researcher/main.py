@@ -21,8 +21,7 @@ async def example_usage():
                 name="research",
                 instruction="""You are a research assistant, with access to internet search (via Brave),
                 website fetch, a python interpreter (you can install packages with uv) and a filesystem.
-                The working directory for the Python Interpreter is shared by the 'Filesystem' tool.
-                You can use the working directory to save and create files, and to process them with the Python Interpreter""",
+                Use the current working directory to save and create files with both the Interpreter and Filesystem tools.""",
                 server_names=["brave", "interpreter", "filesystem", "fetch"],
             )
 
@@ -36,11 +35,10 @@ async def example_usage():
                 Todays date is 05 February 2025. Include the main data sources consulted in presenting the report."""
 
             try:
-                llm_oai = await interpreter_agent.attach_llm(OpenAIAugmentedLLM)
-                #               llm_anthr = await interpreter_agent.attach_llm(AnthropicAugmentedLLM)  # noqa: F841
+                # llm_oai = await interpreter_agent.attach_llm(OpenAIAugmentedLLM)
+                llm_anthr = await interpreter_agent.attach_llm(AnthropicAugmentedLLM)  # noqa: F841
 
-                result = await llm_oai.generate_str(research_prompt)
-                print(result)
+                await llm_anthr.generate_str(research_prompt)
 
             finally:
                 # Clean up the agent

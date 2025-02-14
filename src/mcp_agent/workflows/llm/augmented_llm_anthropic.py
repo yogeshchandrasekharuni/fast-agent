@@ -28,8 +28,11 @@ from mcp.types import (
     TextResourceContents,
 )
 
-# from mcp_agent import console
-# from mcp_agent.agents.agent import HUMAN_INPUT_TOOL_NAME
+from mcp_agent import console
+from mcp_agent.agents.agent import HUMAN_INPUT_TOOL_NAME
+from rich.panel import Panel
+from rich.text import Text
+from mcp_agent.mcp.mcp_aggregator import SEP
 from mcp_agent.workflows.llm.augmented_llm import (
     AugmentedLLM,
     ModelT,
@@ -149,6 +152,28 @@ class AnthropicAugmentedLLM(AugmentedLLM[MessageParam, Message]):
             responses.append(response)
 
             if response.stop_reason == "end_turn":
+                message_text = ""
+                for block in response_as_message["content"]:
+                    if isinstance(block, dict) and block.get("type") == "text":
+                        message_text += block.get("text", "")
+                    elif hasattr(block, "type") and block.type == "text":
+                        message_text += block.text
+
+                tool_list = Text()
+                for server_name in await self.aggregator.list_servers():
+                    tool_list.append(f" [{server_name}]", style="dark_green")
+
+                panel = Panel(
+                    message_text,
+                    title="[ASSISTANT]",
+                    title_align="right",
+                    style="green",
+                    border_style="bold white",
+                    padding=(1, 2),
+                    subtitle=tool_list,
+                    subtitle_align="left",
+                )
+                console.console.print(panel)
                 self.logger.debug(
                     f"Iteration {i}: Stopping because finish_reason is 'end_turn'"
                 )
@@ -166,34 +191,44 @@ class AnthropicAugmentedLLM(AugmentedLLM[MessageParam, Message]):
                 )
                 # TODO: saqadri - would be useful to return the reason for stopping to the caller
                 break
-            else:  # response.stop_reason == "tool_use":
+            else:
+                message_text = ""
+                for block in response_as_message["content"]:
+                    if isinstance(block, dict) and block.get("type") == "text":
+                        message_text += block.get("text", "")
+                    elif hasattr(block, "type") and block.type == "text":
+                        message_text += block.text
+
+                # response.stop_reason == "tool_use":
                 for content in response.content:
                     if content.type == "tool_use":
                         tool_name = content.name
                         tool_args = content.input
                         tool_use_id = content.id
 
-                        # TODO -- productionize this
-                        # if tool_name == HUMAN_INPUT_TOOL_NAME:
-                        #     # Get the message from the content list
-                        #     message_text = ""
-                        #     for block in response_as_message["content"]:
-                        #         if (
-                        #             isinstance(block, dict)
-                        #             and block.get("type") == "text"
-                        #         ):
-                        #             message_text += block.get("text", "")
-                        #         elif hasattr(block, "type") and block.type == "text":
-                        #             message_text += block.text
+                        tool_list = Text()
+                        prefix = (
+                            tool_name.split(SEP)[0] if SEP in tool_name else tool_name
+                        )
+                        for server_name in await self.aggregator.list_servers():
+                            style = (
+                                "black on green"
+                                if server_name == prefix
+                                else "dark_green"
+                            )
+                            tool_list.append(f"[{server_name}]", style=style)
 
-                        # panel = Panel(
-                        #     message_text,
-                        #     title="MESSAGE",
-                        #     style="green",
-                        #     border_style="bold white",
-                        #     padding=(1, 2),
-                        # )
-                        # console.console.print(panel)
+                        panel = Panel(
+                            message_text,
+                            title="[ASSISTANT]",
+                            title_align="right",
+                            style="green",
+                            border_style="bold white",
+                            padding=(1, 2),
+                            subtitle=tool_list,
+                            subtitle_align="left",
+                        )
+                        console.console.print(panel)
 
                         tool_call_request = CallToolRequest(
                             method="tools/call",
