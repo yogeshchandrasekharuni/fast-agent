@@ -115,6 +115,20 @@ class AnthropicAugmentedLLM(AugmentedLLM[MessageParam, Message]):
 
         responses: List[Message] = []
         model = await self.select_model(params)
+        chat_turn = (len(messages) + 1) // 2
+        self._log_chat_progress(chat_turn, model=model)
+        panel = Panel(
+            message,
+            title="[USER]",
+            title_align="right",
+            style="blue",
+            border_style="bold white",
+            padding=(1, 2),
+            subtitle=Text(f"{model} turn {chat_turn}", style="dim white"),
+            subtitle_align="left",
+        )
+        console.console.print(panel)
+        print("\n")
 
         for i in range(params.max_iterations):
             arguments = {
@@ -130,7 +144,6 @@ class AnthropicAugmentedLLM(AugmentedLLM[MessageParam, Message]):
                 arguments = {**arguments, **params.metadata}
 
             self.logger.debug(f"{arguments}")
-            self._log_chat_progress(chat_turn=(len(messages) + 1) // 2, model=model)
 
             executor_result = await self.executor.execute(
                 anthropic.messages.create, **arguments
@@ -161,12 +174,12 @@ class AnthropicAugmentedLLM(AugmentedLLM[MessageParam, Message]):
 
                 tool_list = Text()
                 for server_name in await self.aggregator.list_servers():
-                    tool_list.append(f" [{server_name}]", style="dark_green")
+                    tool_list.append(f" [{server_name}]", style="dim white")
 
                 panel = Panel(
                     message_text,
                     title="[ASSISTANT]",
-                    title_align="right",
+                    title_align="left",
                     style="green",
                     border_style="bold white",
                     padding=(1, 2),
@@ -174,6 +187,7 @@ class AnthropicAugmentedLLM(AugmentedLLM[MessageParam, Message]):
                     subtitle_align="left",
                 )
                 console.console.print(panel)
+                print("\n")
                 self.logger.debug(
                     f"Iteration {i}: Stopping because finish_reason is 'end_turn'"
                 )
@@ -212,16 +226,16 @@ class AnthropicAugmentedLLM(AugmentedLLM[MessageParam, Message]):
                         )
                         for server_name in await self.aggregator.list_servers():
                             style = (
-                                "black on green"
+                                "bold bright_green"
                                 if server_name == prefix
-                                else "dark_green"
+                                else "dim white"
                             )
                             tool_list.append(f"[{server_name}]", style=style)
 
                         panel = Panel(
                             message_text,
                             title="[ASSISTANT]",
-                            title_align="right",
+                            title_align="left",
                             style="green",
                             border_style="bold white",
                             padding=(1, 2),
@@ -229,7 +243,18 @@ class AnthropicAugmentedLLM(AugmentedLLM[MessageParam, Message]):
                             subtitle_align="left",
                         )
                         console.console.print(panel)
+                        print("\n")
 
+                        panel = Panel(
+                            str(tool_args),
+                            title="[TOOL CALL]",
+                            title_align="right",
+                            style="magenta",
+                            border_style="bold white",
+                            padding=(1, 2),
+                        )
+                        console.console.print(panel)
+                        print("\n")
                         tool_call_request = CallToolRequest(
                             method="tools/call",
                             params=CallToolRequestParams(
@@ -241,6 +266,16 @@ class AnthropicAugmentedLLM(AugmentedLLM[MessageParam, Message]):
                             request=tool_call_request, tool_call_id=tool_use_id
                         )
 
+                        panel = Panel(
+                            str(result),
+                            title="[TOOL RESULT]",
+                            title_align="left",
+                            style="magenta",
+                            border_style="bold white",
+                            padding=(1, 2),
+                        )
+                        print("\n")
+                        console.console.print(panel)
                         messages.append(
                             MessageParam(
                                 role="user",

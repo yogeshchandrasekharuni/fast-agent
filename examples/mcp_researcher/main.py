@@ -21,7 +21,8 @@ async def example_usage():
                 name="research",
                 instruction="""You are a research assistant, with access to internet search (via Brave),
                 website fetch, a python interpreter (you can install packages with uv) and a filesystem.
-                Use the current working directory to save and create files with both the Interpreter and Filesystem tools.""",
+                Use the current working directory (./) to save and create files with both the Interpreter and Filesystem tools.
+                The interpreter has numpy, pandas, matplotlib and seaborn already installed""",
                 server_names=["brave", "interpreter", "filesystem", "fetch"],
             )
 
@@ -37,7 +38,9 @@ async def example_usage():
             try:
                 # llm_oai = await interpreter_agent.attach_llm(OpenAIAugmentedLLM)
                 llm_anthr = await interpreter_agent.attach_llm(AnthropicAugmentedLLM)  # noqa: F841
-
+                await llm_anthr.generate_str(
+                    "install the yfinance package, and produce (and save) a chart of a popular stock"
+                )
                 await llm_anthr.generate_str(research_prompt)
 
             finally:
