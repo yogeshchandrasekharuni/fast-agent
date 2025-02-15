@@ -117,18 +117,7 @@ class AnthropicAugmentedLLM(AugmentedLLM[MessageParam, Message]):
         model = await self.select_model(params)
         chat_turn = (len(messages) + 1) // 2
         self._log_chat_progress(chat_turn, model=model)
-        panel = Panel(
-            message,
-            title="[USER]",
-            title_align="right",
-            style="blue",
-            border_style="bold white",
-            padding=(1, 2),
-            subtitle=Text(f"{model} turn {chat_turn}", style="dim white"),
-            subtitle_align="left",
-        )
-        console.console.print(panel)
-        print("\n")
+        self.show_user_message(message, model, chat_turn)
 
         for i in range(params.max_iterations):
             arguments = {
@@ -172,22 +161,8 @@ class AnthropicAugmentedLLM(AugmentedLLM[MessageParam, Message]):
                     elif hasattr(block, "type") and block.type == "text":
                         message_text += block.text
 
-                display_server_list = Text()
-                for server_name in await self.aggregator.list_servers():
-                    display_server_list.append(f" [{server_name}]", style="dim white")
+                await self.show_assistant_message(message_text)
 
-                panel = Panel(
-                    message_text,
-                    title="[ASSISTANT]",
-                    title_align="left",
-                    style="green",
-                    border_style="bold white",
-                    padding=(1, 2),
-                    subtitle=display_server_list,
-                    subtitle_align="left",
-                )
-                console.console.print(panel)
-                print("\n")
                 self.logger.debug(
                     f"Iteration {i}: Stopping because finish_reason is 'end_turn'"
                 )
@@ -220,64 +195,9 @@ class AnthropicAugmentedLLM(AugmentedLLM[MessageParam, Message]):
                         tool_args = content.input
                         tool_use_id = content.id
 
-                        display_server_list = Text()
-                        parts = (
-                            tool_name.split(SEP) if SEP in tool_name else [tool_name]
-                        )
-                        prefix = parts[0]
-                        suffix = parts[1] if len(parts) > 1 else tool_name
-                        for server_name in await self.aggregator.list_servers():
-                            style = (
-                                "reverse default"
-                                if server_name == prefix
-                                else "dim default"
-                            )
-                            display_server_list.append(f"[{server_name}] ", style=style)
+                        await self.show_assistant_message(message_text, tool_name)
 
-                        panel = Panel(
-                            message_text,
-                            title="[ASSISTANT]",
-                            title_align="left",
-                            style="green",
-                            border_style="bold white",
-                            padding=(1, 2),
-                            subtitle=display_server_list,
-                            subtitle_align="left",
-                        )
-                        console.console.print(panel)
-                        print("\n")
-
-                        display_tool_list = Text()
-                        for display_tool in available_tools:
-                            parts = (
-                                display_tool["name"].split(SEP)
-                                if SEP in display_tool["name"]
-                                else [display_tool["name"]]
-                            )
-                            if parts[0] == prefix:
-                                display_tool_name = (
-                                    parts[1] if len(parts) > 1 else parts[0]
-                                )
-                                if display_tool["name"] == tool_name:
-                                    style = "reverse dim magenta"
-                                else:
-                                    style = "dim magenta"
-                                display_tool_list.append(
-                                    f"[{display_tool_name}] ", style=style
-                                )
-
-                        panel = Panel(
-                            str(tool_args),
-                            title="[TOOL CALL]",
-                            title_align="right",
-                            style="magenta",
-                            border_style="bold white",
-                            subtitle=display_tool_list,
-                            subtitle_align="left",
-                            padding=(1, 2),
-                        )
-                        console.console.print(panel)
-                        print("\n")
+                        self.show_tool_call(available_tools, tool_name, tool_args)
                         tool_call_request = CallToolRequest(
                             method="tools/call",
                             params=CallToolRequestParams(
@@ -288,17 +208,7 @@ class AnthropicAugmentedLLM(AugmentedLLM[MessageParam, Message]):
                         result = await self.call_tool(
                             request=tool_call_request, tool_call_id=tool_use_id
                         )
-
-                        panel = Panel(
-                            str(result),
-                            title="[TOOL RESULT]",
-                            title_align="left",
-                            style="magenta",
-                            border_style="bold white",
-                            padding=(1, 2),
-                        )
-                        print("\n")
-                        console.console.print(panel)
+                        self.show_tool_result(result)
                         messages.append(
                             MessageParam(
                                 role="user",
@@ -319,6 +229,89 @@ class AnthropicAugmentedLLM(AugmentedLLM[MessageParam, Message]):
         self._log_chat_finished(model=model)
 
         return responses
+
+    def show_tool_result(self, result):
+        if result.isError:
+            style = "red"
+        else:
+            style = "magenta"
+
+        panel = Panel(
+            str(result.content),  # TODO support multi-model/multi-part responses
+            title="[TOOL RESULT]",
+            title_align="left",
+            style=style,
+            border_style="bold white",
+            padding=(1, 2),
+        )
+        print("\n")
+        console.console.print(panel)
+
+    def show_tool_call(self, available_tools, tool_name, tool_args):
+        display_tool_list = Text()
+        for display_tool in available_tools:
+            parts = (
+                display_tool["name"].split(SEP)
+                if SEP in display_tool["name"]
+                else [display_tool["name"]]
+            )
+            if tool_name.split(SEP)[0] == parts[0]:
+                if display_tool["name"] == tool_name:
+                    style = "magenta"
+                else:
+                    style = "dim white"
+
+                display_tool_list.append(f"[{parts[1]}] ", style=style)
+
+        panel = Panel(
+            str(tool_args),
+            title="[TOOL CALL]",
+            title_align="right",
+            style="magenta",
+            border_style="bold white",
+            subtitle=display_tool_list,
+            subtitle_align="left",
+            padding=(1, 2),
+        )
+        console.console.print(panel)
+
+    async def show_assistant_message(
+        self, message_text, highlight_namespaced_tool: str = ""
+    ):
+        mcp_server_name = (
+            highlight_namespaced_tool.split(SEP)
+            if SEP in highlight_namespaced_tool
+            else [highlight_namespaced_tool]
+        )
+        display_server_list = Text()
+        for server_name in await self.aggregator.list_servers():
+            style = "green" if server_name == mcp_server_name[0] else "dim white"
+            display_server_list.append(f" [{server_name}]", style)
+
+        panel = Panel(
+            message_text,
+            title="[ASSISTANT]",
+            title_align="left",
+            style="green",
+            border_style="bold white",
+            padding=(1, 2),
+            subtitle=display_server_list,
+            subtitle_align="left",
+        )
+        console.console.print(panel)
+
+    def show_user_message(self, message, model, chat_turn):
+        panel = Panel(
+            message,
+            title="[USER]",
+            title_align="right",
+            style="blue",
+            border_style="bold white",
+            padding=(1, 2),
+            subtitle=Text(f"{model} turn {chat_turn}", style="dim white"),
+            subtitle_align="left",
+        )
+        console.console.print(panel)
 
     async def generate_str(
         self,
