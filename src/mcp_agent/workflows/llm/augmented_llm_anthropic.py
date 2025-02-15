@@ -172,9 +172,9 @@ class AnthropicAugmentedLLM(AugmentedLLM[MessageParam, Message]):
                     elif hasattr(block, "type") and block.type == "text":
                         message_text += block.text
 
-                tool_list = Text()
+                display_server_list = Text()
                 for server_name in await self.aggregator.list_servers():
-                    tool_list.append(f" [{server_name}]", style="dim white")
+                    display_server_list.append(f" [{server_name}]", style="dim white")
 
                 panel = Panel(
                     message_text,
@@ -183,7 +183,7 @@ class AnthropicAugmentedLLM(AugmentedLLM[MessageParam, Message]):
                     style="green",
                     border_style="bold white",
                     padding=(1, 2),
-                    subtitle=tool_list,
+                    subtitle=display_server_list,
                     subtitle_align="left",
                 )
                 console.console.print(panel)
@@ -220,17 +220,19 @@ class AnthropicAugmentedLLM(AugmentedLLM[MessageParam, Message]):
                         tool_args = content.input
                         tool_use_id = content.id
 
-                        tool_list = Text()
-                        prefix = (
-                            tool_name.split(SEP)[0] if SEP in tool_name else tool_name
+                        display_server_list = Text()
+                        parts = (
+                            tool_name.split(SEP) if SEP in tool_name else [tool_name]
                         )
+                        prefix = parts[0]
+                        suffix = parts[1] if len(parts) > 1 else tool_name
                         for server_name in await self.aggregator.list_servers():
                             style = (
-                                "bold bright_green"
+                                "reverse default"
                                 if server_name == prefix
-                                else "dim white"
+                                else "dim default"
                             )
-                            tool_list.append(f"[{server_name}]", style=style)
+                            display_server_list.append(f"[{server_name}] ", style=style)
 
                         panel = Panel(
                             message_text,
@@ -239,11 +241,30 @@ class AnthropicAugmentedLLM(AugmentedLLM[MessageParam, Message]):
                             style="green",
                             border_style="bold white",
                             padding=(1, 2),
-                            subtitle=tool_list,
+                            subtitle=display_server_list,
                             subtitle_align="left",
                         )
                         console.console.print(panel)
                         print("\n")
+
+                        display_tool_list = Text()
+                        for display_tool in available_tools:
+                            parts = (
+                                display_tool["name"].split(SEP)
+                                if SEP in display_tool["name"]
+                                else [display_tool["name"]]
+                            )
+                            if parts[0] == prefix:
+                                display_tool_name = (
+                                    parts[1] if len(parts) > 1 else parts[0]
+                                )
+                                if display_tool["name"] == tool_name:
+                                    style = "reverse dim magenta"
+                                else:
+                                    style = "dim magenta"
+                                display_tool_list.append(
+                                    f"[{display_tool_name}] ", style=style
+                                )
 
                         panel = Panel(
                             str(tool_args),
@@ -251,6 +272,8 @@ class AnthropicAugmentedLLM(AugmentedLLM[MessageParam, Message]):
                             title_align="right",
                             style="magenta",
                             border_style="bold white",
+                            subtitle=display_tool_list,
+                            subtitle_align="left",
                             padding=(1, 2),
                         )
                         console.console.print(panel)
