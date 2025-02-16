@@ -4,7 +4,7 @@ import time
 from mcp_agent.app import MCPApp
 from mcp_agent.agents.agent import Agent
 from mcp_agent.workflows.llm.augmented_llm_anthropic import AnthropicAugmentedLLM  # noqa: F401
-from mcp_agent.workflows.llm.augmented_llm_openai import OpenAIAugmentedLLM
+from mcp_agent.workflows.llm.augmented_llm_openai import OpenAIAugmentedLLM  # noqa: F401
 from rich import print
 
 app = MCPApp(name="mcp_basic_agent")
@@ -33,7 +33,7 @@ async def example_usage():
             # logger.info(f"Result: {result}")
 
             # Let's switch the same agent to a different LLM
-            llm = await finder_agent.attach_llm(OpenAIAugmentedLLM)
+            llm = await finder_agent.attach_llm(AnthropicAugmentedLLM)
 
             await llm.generate_str(
                 message="Print the first 2 paragraphs of https://www.anthropic.com/research/building-effective-agents",

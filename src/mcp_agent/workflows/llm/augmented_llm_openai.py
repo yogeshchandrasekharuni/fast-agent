@@ -35,6 +35,7 @@ from mcp_agent.workflows.llm.augmented_llm import (
     RequestParams,
 )
 from mcp_agent.logging.logger import get_logger
+from rich.text import Text
 
 
 class OpenAIAugmentedLLM(
@@ -148,6 +149,8 @@ class OpenAIAugmentedLLM(
 
         responses: List[ChatCompletionMessage] = []
         model = await self.select_model(params)
+        chat_turn = len(messages) // 2
+        self.show_user_message(str(message), model, chat_turn)
 
         for i in range(params.max_iterations):
             arguments = {
@@ -171,8 +174,6 @@ class OpenAIAugmentedLLM(
                 arguments = {**arguments, **params.metadata}
 
             self.logger.debug(f"{arguments}")
-            chat_turn = len(messages) // 2
-            self.show_user_message(str(message), model, chat_turn)
             self._log_chat_progress(chat_turn, model=model)
 
             executor_result = await self.executor.execute(
@@ -219,7 +220,8 @@ class OpenAIAugmentedLLM(
                     )
                 else:
                     await self.show_assistant_message(
-                        "(tool calls only)", message.tool_calls[0].function.name
+                        Text("tool calls only", style="dim green italic"),
+                        message.tool_calls[0].function.name,
                     )
 
                 # Execute all tool calls in parallel.

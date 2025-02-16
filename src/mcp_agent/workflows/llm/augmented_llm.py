@@ -324,46 +324,69 @@ class AugmentedLLM(ContextDependent, AugmentedLLMProtocol[MessageParamT, Message
 
     def show_tool_result(self, result: CallToolResult):
         """Display a tool result in a formatted panel."""
+
+        if not self.context.config.logger.show_tools:
+            return
+
         if result.isError:
             style = "red"
         else:
             style = "magenta"
 
         panel = Panel(
-            str(result.content),  # TODO support multi-model/multi-part responses
+            Text(
+                str(result), overflow="ellipsis"
+            ),  # TODO support multi-model/multi-part responses
             title="[TOOL RESULT]",
             title_align="left",
             style=style,
             border_style="bold white",
             padding=(1, 2),
         )
-        print("\n")
-        console.console.print(panel)
 
-    def show_oai_tool_result(self, result: str):
+        if self.context.config.logger.truncate_tools:
+            if len(str(result.content)) > 360:
+                panel.height = 8
+
+        console.console.print(panel)
+        console.console.print("\n")
+
+    def show_oai_tool_result(self, result):
         """Display a tool result in a formatted panel."""
+
+        if not self.context.config.logger.show_tools:
+            return
+
         panel = Panel(
-            str(result),  # TODO update openai support
+            Text(str(result), overflow="ellipsis"),  # TODO update openai support
             title="[TOOL RESULT]",
             title_align="left",
             style="magenta",
             border_style="bold white",
             padding=(1, 2),
         )
-        print("\n")
+
+        if self.context.config.logger.truncate_tools:
+            if len(str(result)) > 360:
+                panel.height = 8
+
         console.console.print(panel)
+        console.console.print("\n")
 
     def show_tool_call(self, available_tools, tool_name, tool_args):
         """Display a tool call in a formatted panel."""
+
+        if not self.context.config.logger.show_tools:
+            return
+
         display_tool_list = Text()
         for display_tool in available_tools:
+            tool_call_name = display_tool.get("function").get("name")
             parts = (
-                display_tool["name"].split(SEP)
-                if SEP in display_tool["name"]
-                else [display_tool["name"]]
+                tool_call_name.split(SEP) if SEP in tool_call_name else tool_call_name
             )
             if tool_name.split(SEP)[0] == parts[0]:
-                if display_tool["name"] == tool_name:
+                if tool_call_name == tool_name:
                     style = "magenta"
                 else:
                     style = "dim white"
@@ -371,7 +394,7 @@ class AugmentedLLM(ContextDependent, AugmentedLLMProtocol[MessageParamT, Message
                 display_tool_list.append(f"[{parts[1]}] ", style=style)
 
         panel = Panel(
-            str(tool_args),
+            Text(str(tool_args), overflow="ellipsis"),
             title="[TOOL CALL]",
             title_align="right",
             style="magenta",
@@ -380,12 +403,22 @@ class AugmentedLLM(ContextDependent, AugmentedLLMProtocol[MessageParamT, Message
             subtitle_align="left",
             padding=(1, 2),
         )
+
+        if self.context.config.logger.truncate_tools:
+            if len(str(tool_args)) > 360:
+                panel.height = 8
+
         console.console.print(panel)
+        console.console.print("\n")
 
     async def show_assistant_message(
-        self, message_text: str, highlight_namespaced_tool: str = ""
+        self, message_text: str | Text, highlight_namespaced_tool: str = ""
     ):
         """Display an assistant message in a formatted panel."""
+
+        if not self.context.config.logger.show_chat:
+            return
+
         mcp_server_name = (
             highlight_namespaced_tool.split(SEP)
             if SEP in highlight_namespaced_tool
@@ -407,9 +440,14 @@ class AugmentedLLM(ContextDependent, AugmentedLLMProtocol[MessageParamT, Message
             subtitle_align="left",
         )
         console.console.print(panel)
+        console.console.print("\n")
 
     def show_user_message(self, message, model: str | None, chat_turn: int):
         """Display a user message in a formatted panel."""
+
+        if not self.context.config.logger.show_chat:
+            return
+
         panel = Panel(
             message,
             title="[USER]",
@@ -421,6 +459,7 @@ class AugmentedLLM(ContextDependent, AugmentedLLMProtocol[MessageParamT, Message
             subtitle_align="left",
         )
         console.console.print(panel)
+        console.console.print("\n")
 
     async def pre_tool_call(
         self, tool_call_id: str | None, request: CallToolRequest
