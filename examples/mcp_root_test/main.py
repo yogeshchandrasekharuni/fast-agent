@@ -14,7 +14,6 @@ app = MCPApp(name="Testing MCP Server roots")
 
 async def example_usage():
     async with app.run() as agent_app:
-        logger = agent_app.logger
         context = agent_app.context
 
         async with MCPConnectionManager(context.server_registry):
@@ -34,12 +33,10 @@ async def example_usage():
                     + "Produce a detailed description of the data, and any patterns it contains. "
                 )
 
-                result = await llm.generate_str(
+                await llm.generate_str(
                     "Consider the data, and how to usefully group it for presentation to a Human. Find insights, using the Python Interpreter as needed.\n"
                     + "Use MatPlotLib to produce insightful visualisations. Save them as '.png' files in the current directory. Be sure to run the code and save the files "
                 )
-                print(result)
-                logger.info(result)
 
             finally:
                 # Clean up the agent

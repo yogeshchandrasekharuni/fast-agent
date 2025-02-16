@@ -381,9 +381,25 @@ class AugmentedLLM(ContextDependent, AugmentedLLMProtocol[MessageParamT, Message
 
         display_tool_list = Text()
         for display_tool in available_tools:
-            tool_call_name = display_tool.get("function").get("name")
+            # Handle both OpenAI and Anthropic tool formats
+            # TODO -- this should really be using the ToolCall abstraction and converting at the concrete layer??
+            if isinstance(display_tool, dict):
+                if "function" in display_tool:
+                    # OpenAI format
+                    tool_call_name = display_tool["function"]["name"]
+                else:
+                    # Anthropic format
+                    tool_call_name = display_tool["name"]
+            else:
+                # Handle potential object format (e.g., Pydantic models)
+                tool_call_name = (
+                    display_tool.function.name
+                    if hasattr(display_tool, "function")
+                    else display_tool.name
+                )
+
             parts = (
-                tool_call_name.split(SEP) if SEP in tool_call_name else tool_call_name
+                tool_call_name.split(SEP) if SEP in tool_call_name else [tool_call_name]
             )
             if tool_name.split(SEP)[0] == parts[0]:
                 if tool_call_name == tool_name:

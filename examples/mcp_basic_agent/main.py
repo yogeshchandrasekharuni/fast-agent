@@ -33,7 +33,7 @@ async def example_usage():
             # logger.info(f"Result: {result}")
 
             # Let's switch the same agent to a different LLM
-            llm = await finder_agent.attach_llm(AnthropicAugmentedLLM)
+            llm = await finder_agent.attach_llm(OpenAIAugmentedLLM)
 
             await llm.generate_str(
                 message="Print the first 2 paragraphs of https://www.anthropic.com/research/building-effective-agents",
