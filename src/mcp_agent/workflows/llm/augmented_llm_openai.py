@@ -107,6 +107,8 @@ class OpenAIAugmentedLLM(
         Override this method to use a different LLM.
         """
         config = self.context.config
+        if not config.openai.api_key:
+            raise "OpenAI API key is not set"
         openai_client = OpenAI(
             api_key=config.openai.api_key, base_url=config.openai.base_url
         )

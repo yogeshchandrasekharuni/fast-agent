@@ -2,6 +2,7 @@ import asyncio
 
 from mcp_agent.app import MCPApp
 from mcp_agent.agents.agent import Agent
+from mcp_agent.workflows.llm.augmented_llm_anthropic import AnthropicAugmentedLLM
 from mcp_agent.workflows.llm.augmented_llm_openai import OpenAIAugmentedLLM
 
 # from mcp_agent.workflows.parallel.fan_in import FanIn
@@ -11,6 +12,8 @@ from rich import print
 # To illustrate a parallel workflow, we will build a student assignment grader,``
 # which will use a fan-out agent to grade the assignment in parallel using multiple agents,
 # and a fan-in agent to aggregate the results and provide a final grade.
+
+# TODO -- this crashes horribly if an API key isn't set.
 
 SHORT_STORY = """
 The Battle of Glimmerwood
@@ -73,7 +76,7 @@ async def example_usage():
         parallel = ParallelLLM(
             fan_in_agent=grader,
             fan_out_agents=[proofreader, fact_checker, style_enforcer],
-            llm_factory=OpenAIAugmentedLLM,
+            llm_factory=AnthropicAugmentedLLM,
         )
 
         result = await parallel.generate_str(

@@ -253,7 +253,10 @@ class FanIn(ContextDependent):
                     agent_message_strings.append(f"Agent {agent_name}: {msg}")
                 else:
                     # Assume it's a Message/MessageParamT and add attribution
-                    agent_message_strings.append(f"Agent {agent_name}: {str(msg)}")
+                    # TODO -- this should really unpack the text from the message
+                    agent_message_strings.append(
+                        f"Agent {agent_name}: {str(msg.content[0])}"
+                    )
 
             aggregated_messages.append("\n".join(agent_message_strings))
 
