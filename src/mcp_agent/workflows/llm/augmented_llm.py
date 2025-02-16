@@ -338,7 +338,7 @@ class AugmentedLLM(ContextDependent, AugmentedLLMProtocol[MessageParamT, Message
                 str(result), overflow="ellipsis"
             ),  # TODO support multi-model/multi-part responses
             title="[TOOL RESULT]",
-            title_align="left",
+            title_align="right",
             style=style,
             border_style="bold white",
             padding=(1, 2),
@@ -360,7 +360,7 @@ class AugmentedLLM(ContextDependent, AugmentedLLMProtocol[MessageParamT, Message
         panel = Panel(
             Text(str(result), overflow="ellipsis"),  # TODO update openai support
             title="[TOOL RESULT]",
-            title_align="left",
+            title_align="right",
             style="magenta",
             border_style="bold white",
             padding=(1, 2),
@@ -414,7 +414,7 @@ class AugmentedLLM(ContextDependent, AugmentedLLMProtocol[MessageParamT, Message
         panel = Panel(
             Text(str(tool_args), overflow="ellipsis"),
             title="[TOOL CALL]",
-            title_align="right",
+            title_align="left",
             style="magenta",
             border_style="bold white",
             subtitle=display_tool_list,

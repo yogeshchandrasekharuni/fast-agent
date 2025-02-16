@@ -12,7 +12,7 @@ agent_app = MCPAgentDecorator("root-test")
 # Define the agent
 @agent_app.agent(
     name="basic_agent",
-    instruction="A simple agent that helps with basic tasks.",
+    instruction="A simple agent that helps with basic tasks. Ask the Human to resolve any uncertainties.",
     servers=["mcp_root"],
 )
 async def main():
