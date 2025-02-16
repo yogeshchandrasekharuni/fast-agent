@@ -41,13 +41,14 @@ We welcome all kinds of [contributions](/CONTRIBUTING.md), feedback and your hel
 
 ### llmindset.co.uk fork:
 
-- user/assistant and tool call message display
-- environment variable support
-- roots support
-- comprehensive progress display
-- JSONL logging with secret revokation
+- "FastAgent" style prototyping
+- User/Assistant and Tool Call message display
+- MCP Sever Environment Variable support
+- MCP Roots support
+- Comprehensive Progress display
+- JSONL file logging with secret revokation
 - OpenAI o1/o3-mini support with reasoning level
-- human input messaging/handling
+- Enhaned Human Input Messaging and Handling
 
 ## Get Started
 
