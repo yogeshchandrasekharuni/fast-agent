@@ -1,66 +1,37 @@
 import asyncio
-import time
 
-from mcp_agent.app import MCPApp
-from mcp_agent.agents.agent import Agent
-from mcp_agent.mcp.mcp_connection_manager import MCPConnectionManager
-from mcp_agent.workflows.llm.augmented_llm_anthropic import AnthropicAugmentedLLM  # noqa: F401
-from mcp_agent.workflows.llm.augmented_llm_openai import OpenAIAugmentedLLM  # noqa: F401
-from mcp_agent.logging.logger import LoggingConfig
-from rich import print
+from mcp_agent.core.decorator_app import MCPAgentDecorator
+# from rich import print
 
-app = MCPApp(name="mcp_root_test")
+agents = MCPAgentDecorator(name="Researcher")
 
 
-async def example_usage():
-    async with app.run() as agent_app:
-        context = agent_app.context
+@agents.agent(
+    name="Researcher",
+    instruction="""You are a research assistant, with access to internet search (via Brave),
+    website fetch, a python interpreter (you can install packages with uv) and a filesystem.
+    Use the current working directory (./) to save and create files with both the Interpreter and Filesystem tools.
+    The interpreter has numpy, pandas, matplotlib and seaborn already installed""",
+    servers=["brave", "interpreter", "filesystem", "fetch"],
+)
+async def main():
+    research_prompt = """
+Produce an investment report for the company Eutelsat. The final report should be saved in the filesystem in markdown format, and
+contain at least the following: 
+1 - A brief description of the company
+2 - Current financial position (find data, create and incorporate charts)
+3 - A PESTLE analysis
+4 - An investment thesis for the next 3 years. Include both 'buy side' and 'sell side' arguments, and a final 
+summary and recommendation.
+Todays date is 15 February 2025. Include the main data sources consulted in presenting the report."""
 
-        async with MCPConnectionManager(context.server_registry):
-            interpreter_agent = Agent(
-                name="research",
-                instruction="""You are a research assistant, with access to internet search (via Brave),
-                website fetch, a python interpreter (you can install packages with uv) and a filesystem.
-                Use the current working directory (./) to save and create files with both the Interpreter and Filesystem tools.
-                The interpreter has numpy, pandas, matplotlib and seaborn already installed""",
-                server_names=["brave", "interpreter", "filesystem", "fetch"],
-            )
+    async with agents.run() as agent:
+        # await agent(
+        #     "install the yfinance package, and produce (and save) a chart of a popular stock"
+        # )
 
-            research_prompt = """Produce an investment report for the company Eutelsat. The final report should be saved in the filesystem in markdown format, and
-                contain at least the following: 
-                1 - A brief description of the company
-                2 - Current financial position (find data, create and incorporate charts)
-                3 - A PESTLE analysis
-                4 - An investment thesis for the next 3 years. Include both 'buy side' and 'sell side' arguments, and a final 
-                summary and recommendation.
-                Todays date is 05 February 2025. Include the main data sources consulted in presenting the report."""
-
-            try:
-                # llm_oai = await interpreter_agent.attach_llm(OpenAIAugmentedLLM)
-                llm_anthr = await interpreter_agent.attach_llm(AnthropicAugmentedLLM)  # noqa: F841
-                await llm_anthr.generate_str(
-                    "install the yfinance package, and produce (and save) a chart of a popular stock"
-                )
-                await llm_anthr.generate_str(research_prompt)
-
-            finally:
-                # Clean up the agent
-                await interpreter_agent.close()
-
-    # Ensure logging is properly shutdown
-    await LoggingConfig.shutdown()
+        await agent.prompt(default=research_prompt)
 
 
 if __name__ == "__main__":
-    start = time.time()
-    try:
-        asyncio.run(example_usage())
-    except KeyboardInterrupt:
-        print("\nReceived keyboard interrupt, shutting down gracefully...")
-    except Exception as e:
-        print(f"Error during execution: {e}")
-        raise
-    finally:
-        end = time.time()
-        t = end - start
-        print(f"Total run time: {t:.2f}s")
+    asyncio.run(main())

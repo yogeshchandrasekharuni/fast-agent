@@ -12,6 +12,9 @@ from mcp_agent.agents.agent import Agent
 from mcp_agent.workflows.llm.augmented_llm_anthropic import AnthropicAugmentedLLM  # noqa: F401
 from mcp_agent.workflows.llm.augmented_llm_openai import OpenAIAugmentedLLM  # noqa: F401
 from mcp_agent.config import Settings
+from rich.prompt import Prompt
+from rich import print
+from mcp_agent.progress_display import progress_display
 
 
 class MCPAgentDecorator:
@@ -151,3 +154,39 @@ class AgentAppWrapper:
         if not target_agent:
             raise ValueError("No agents available")
         return await self.send(target_agent, message)
+
+    async def prompt(self, agent_name: Optional[str] = None, default: str = "") -> None:
+        """
+        Interactive prompt for sending messages to an agent using rich.
+
+        Args:
+            agent_name: Optional name of agent to send to. Uses first agent if None.
+            default: Default input value
+        """
+
+        target_agent = agent_name or self._default_agent
+        if not target_agent:
+            raise ValueError("No agents available")
+
+        while True:
+            with progress_display.paused():
+                if default == "STOP":
+                    print("Press <ENTER> to finish")
+                elif default != "":
+                    print("Enter a prompt, or [red]STOP[/red] to finish")
+                    print(
+                        f"Press <ENTER> to use the default prompt:\n[cyan]{default}[/cyan]"
+                    )
+
+                else:
+                    print("Enter a prompt, or enter [red]STOP[/red] to finish")
+
+                prompt_text = f"[blue]{target_agent}[/blue] >"
+                user_input = Prompt.ask(
+                    prompt=prompt_text, default=default, show_default=False
+                )
+
+                if user_input.upper() == "STOP":
+                    return
+
+            await self.send(target_agent, user_input)

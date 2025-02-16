@@ -12,7 +12,7 @@ agent_app = MCPAgentDecorator("root-test")
 # Define the agent
 @agent_app.agent(
     name="basic_agent",
-    instruction="A simple agent that helps with basic tasks. Ask the Human to resolve any uncertainties.",
+    instruction="A simple agent that helps with basic tasks. Request Human Input whenever needed.",
     servers=["mcp_root"],
 )
 async def main():
@@ -28,7 +28,8 @@ async def main():
         # )
         # print(result)
 
-        await agent("print the next number in the sequence")
+        #  await agent("print the next number in the sequence")
+        await agent.prompt()
 
 
 if __name__ == "__main__":
