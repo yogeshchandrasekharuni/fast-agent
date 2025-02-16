@@ -202,6 +202,13 @@ class LoggerSettings(BaseModel):
     http_timeout: float = 5.0
     """HTTP timeout seconds for event transport"""
 
+    show_chat: bool = True
+    """Show chat User/Assistant on the console"""
+    show_tools: bool = True
+    """Show MCP Sever tool calls on the console"""
+    truncate_tools: bool = True
+    """Truncate display of long tool calls"""
+
 
 class Settings(BaseSettings):
     """

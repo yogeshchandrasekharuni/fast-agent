@@ -35,6 +35,7 @@ from mcp_agent.workflows.llm.augmented_llm import (
     RequestParams,
 )
 from mcp_agent.logging.logger import get_logger
+from rich.text import Text
 
 
 class OpenAIAugmentedLLM(
@@ -148,6 +149,8 @@ class OpenAIAugmentedLLM(
 
         responses: List[ChatCompletionMessage] = []
         model = await self.select_model(params)
+        chat_turn = len(messages) // 2
+        self.show_user_message(str(message), model, chat_turn)
 
         for i in range(params.max_iterations):
             arguments = {
@@ -171,7 +174,7 @@ class OpenAIAugmentedLLM(
                 arguments = {**arguments, **params.metadata}
 
             self.logger.debug(f"{arguments}")
-            self._log_chat_progress(chat_turn=len(messages) // 2, model=model)
+            self._log_chat_progress(chat_turn, model=model)
 
             executor_result = await self.executor.execute(
                 openai_client.chat.completions.create, **arguments
@@ -202,16 +205,34 @@ class OpenAIAugmentedLLM(
                 message, name=self.name
             )
             messages.append(converted_message)
+            message_text = converted_message["content"]
 
             if (
                 choice.finish_reason in ["tool_calls", "function_call"]
                 and message.tool_calls
             ):
+                if message_text:
+                    await self.show_assistant_message(
+                        message_text,
+                        message["tool_calls"][
+                            0
+                        ].function.name,  # TODO support multiple tool calls
+                    )
+                else:
+                    await self.show_assistant_message(
+                        Text("tool calls only", style="dim green italic"),
+                        message.tool_calls[0].function.name,
+                    )
+
                 # Execute all tool calls in parallel.
-                tool_tasks = [
-                    self.execute_tool_call(tool_call)
-                    for tool_call in message.tool_calls
-                ]
+                tool_tasks = []
+                for tool_call in message.tool_calls:
+                    self.show_tool_call(
+                        available_tools,
+                        tool_call.function.name,
+                        tool_call.function.arguments,
+                    )
+                    tool_tasks.append(self.execute_tool_call(tool_call))
                 # Wait for all tool calls to complete.
                 tool_results = await self.executor.execute(*tool_tasks)
                 self.logger.debug(
@@ -225,6 +246,7 @@ class OpenAIAugmentedLLM(
                         )
                         continue
                     if result is not None:
+                        self.show_oai_tool_result(str(result["content"]))
                         messages.append(result)
             elif choice.finish_reason == "length":
                 # We have reached the max tokens limit
@@ -244,6 +266,8 @@ class OpenAIAugmentedLLM(
                 self.logger.debug(
                     f"Iteration {i}: Stopping because finish_reason is 'stop'"
                 )
+                if message_text:
+                    await self.show_assistant_message(message_text, "")
                 break
 
         if params.use_history:
@@ -298,7 +322,10 @@ class OpenAIAugmentedLLM(
 
         # Next we pass the text through instructor to extract structured data
         client = instructor.from_openai(
-            OpenAI(api_key=self.context.config.openai.api_key),
+            OpenAI(
+                api_key=self.context.config.openai.api_key,
+                base_url=self.context.config.openai.base_url,
+            ),
             mode=instructor.Mode.TOOLS_STRICT,
         )
 

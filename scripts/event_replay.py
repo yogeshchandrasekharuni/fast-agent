@@ -48,9 +48,10 @@ def main(log_file: str):
         for event in events:
             progress_event = convert_log_event(event)
             if progress_event:
+                # Add agent info to the progress event target from data
                 progress.update(progress_event)
                 # Add a small delay to make the replay visible
-                time.sleep(0.5)
+                time.sleep(1)
     except KeyboardInterrupt:
         pass
     finally:

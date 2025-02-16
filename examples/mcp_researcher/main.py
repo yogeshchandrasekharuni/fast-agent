@@ -5,7 +5,7 @@ from mcp_agent.app import MCPApp
 from mcp_agent.agents.agent import Agent
 from mcp_agent.mcp.mcp_connection_manager import MCPConnectionManager
 from mcp_agent.workflows.llm.augmented_llm_anthropic import AnthropicAugmentedLLM  # noqa: F401
-from mcp_agent.workflows.llm.augmented_llm_openai import OpenAIAugmentedLLM
+from mcp_agent.workflows.llm.augmented_llm_openai import OpenAIAugmentedLLM  # noqa: F401
 from mcp_agent.logging.logger import LoggingConfig
 from rich import print
 
@@ -14,7 +14,6 @@ app = MCPApp(name="mcp_root_test")
 
 async def example_usage():
     async with app.run() as agent_app:
-        logger = agent_app.logger
         context = agent_app.context
 
         async with MCPConnectionManager(context.server_registry):
@@ -22,8 +21,8 @@ async def example_usage():
                 name="research",
                 instruction="""You are a research assistant, with access to internet search (via Brave),
                 website fetch, a python interpreter (you can install packages with uv) and a filesystem.
-                The working directory for the Python Interpreter is shared by the 'Filesystem' tool.
-                You can use the working directory to save and create files, and to process them with the Python Interpreter""",
+                Use the current working directory (./) to save and create files with both the Interpreter and Filesystem tools.
+                The interpreter has numpy, pandas, matplotlib and seaborn already installed""",
                 server_names=["brave", "interpreter", "filesystem", "fetch"],
             )
 
@@ -37,15 +36,12 @@ async def example_usage():
                 Todays date is 05 February 2025. Include the main data sources consulted in presenting the report."""
 
             try:
-                llm_oai = await interpreter_agent.attach_llm(OpenAIAugmentedLLM)
+                # llm_oai = await interpreter_agent.attach_llm(OpenAIAugmentedLLM)
                 llm_anthr = await interpreter_agent.attach_llm(AnthropicAugmentedLLM)  # noqa: F841
-
-                #                result = await llm_oai.generate_str(research_prompt)
-                ##               logger.info(result)
-
-                #
-                result = await llm_oai.generate_str(research_prompt)
-                logger.info(result)
+                await llm_anthr.generate_str(
+                    "install the yfinance package, and produce (and save) a chart of a popular stock"
+                )
+                await llm_anthr.generate_str(research_prompt)
 
             finally:
                 # Clean up the agent

@@ -2,41 +2,18 @@ $schema: ../../schema/mcp-agent.config.schema.json
 
 execution_engine: asyncio
 logger:
-  type: file
-  level: debug
-  path: "./mcp_agent.jsonl"
+  type: console
+  level: error
+  path: "./mcp_agent.log"
 
 mcp:
   servers:
-    brave:
-      command: "npx"
-      args: ["-y", "@modelcontextprotocol/server-brave-search"]
-    interpreter:
-      command: "docker"
-      args:
-        [
-          "run",
-          "-i",
-          "--rm",
-          "--pull=always",
-          "-v",
-          "./mapped_root:/mnt/data/",
-          "ghcr.io/evalstate/mcp-py-repl:latest",
-        ]
-      roots:
-        - uri: "file://./mapped_root/"
-          name: "test_data"
-          server_uri_alias: "file:///mnt/data/"
-    filesystem:
-      command: "npx"
-      args: ["-y", "@modelcontextprotocol/server-filesystem", "./mapped_root/"]
-    fetch:
-      command: "uvx"
-      args: ["mcp-server-fetch"]
+    mcp_root:
+      type: "mcp_root"
+      command: "uv"
+      args: ["run", "../mcp_root_test/root_test_server.py"]
 
 openai:
   # Secrets (API keys, etc.) are stored in an mcp_agent.secrets.yaml file
   default_model: o3-mini
   reasoning_effort: low
-anthropic:
-  max_tokens: 8192

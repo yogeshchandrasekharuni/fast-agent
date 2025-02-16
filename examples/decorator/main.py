@@ -6,16 +6,17 @@ import asyncio
 from mcp_agent.core.decorator_app import MCPAgentDecorator
 
 # Create the application
-agent_app = MCPAgentDecorator("Decorator Analysis Example")
+agent_app = MCPAgentDecorator("root-test")
 
 
+# Define the agent
 @agent_app.agent(
-    name="file_reader",
-    instruction="An agent that can help with basic tasks, and access the filesystem. Request human input for things that are ambiguous or need clarification.",
-    servers=[],
+    name="basic_agent",
+    instruction="A simple agent that helps with basic tasks.",
+    servers=["mcp_root"],
 )
 async def main():
-    # Use the app's context manager - note we capture the yielded agent wrapper
+    # Use the app's context manager
     async with agent_app.run() as agent:
         # result = await agent(
         #     "read the persona descriptions from 'persona.md' and rate their suitability for a junior PM job",

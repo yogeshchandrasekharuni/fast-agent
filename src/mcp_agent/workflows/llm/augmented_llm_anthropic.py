@@ -2,7 +2,6 @@ import json
 from typing import Iterable, List, Type
 
 from pydantic import BaseModel
-from rich.panel import Panel
 
 import instructor
 from anthropic import Anthropic
@@ -29,8 +28,6 @@ from mcp.types import (
     TextResourceContents,
 )
 
-from mcp_agent import console
-from mcp_agent.agents.agent import HUMAN_INPUT_TOOL_NAME
 from mcp_agent.workflows.llm.augmented_llm import (
     AugmentedLLM,
     ModelT,
@@ -113,6 +110,9 @@ class AnthropicAugmentedLLM(AugmentedLLM[MessageParam, Message]):
 
         responses: List[Message] = []
         model = await self.select_model(params)
+        chat_turn = (len(messages) + 1) // 2
+        self._log_chat_progress(chat_turn, model=model)
+        self.show_user_message(str(message), model, chat_turn)
 
         for i in range(params.max_iterations):
             arguments = {
@@ -128,7 +128,6 @@ class AnthropicAugmentedLLM(AugmentedLLM[MessageParam, Message]):
                 arguments = {**arguments, **params.metadata}
 
             self.logger.debug(f"{arguments}")
-            self._log_chat_progress(chat_turn=(len(messages) + 1) // 2, model=model)
 
             executor_result = await self.executor.execute(
                 anthropic.messages.create, **arguments
@@ -150,6 +149,15 @@ class AnthropicAugmentedLLM(AugmentedLLM[MessageParam, Message]):
             responses.append(response)
 
             if response.stop_reason == "end_turn":
+                message_text = ""
+                for block in response_as_message["content"]:
+                    if isinstance(block, dict) and block.get("type") == "text":
+                        message_text += block.get("text", "")
+                    elif hasattr(block, "type") and block.type == "text":
+                        message_text += block.text
+
+                await self.show_assistant_message(message_text)
+
                 self.logger.debug(
                     f"Iteration {i}: Stopping because finish_reason is 'end_turn'"
                 )
@@ -167,46 +175,35 @@ class AnthropicAugmentedLLM(AugmentedLLM[MessageParam, Message]):
                 )
                 # TODO: saqadri - would be useful to return the reason for stopping to the caller
                 break
-            else:  # response.stop_reason == "tool_use":
+            else:
+                message_text = ""
+                for block in response_as_message["content"]:
+                    if isinstance(block, dict) and block.get("type") == "text":
+                        message_text += block.get("text", "")
+                    elif hasattr(block, "type") and block.type == "text":
+                        message_text += block.text
+
+                # response.stop_reason == "tool_use":
                 for content in response.content:
                     if content.type == "tool_use":
                         tool_name = content.name
                         tool_args = content.input
                         tool_use_id = content.id
 
-                        # TODO -- productionize this
-                        if tool_name == HUMAN_INPUT_TOOL_NAME:
-                            # Get the message from the content list
-                            message_text = ""
-                            for block in response_as_message["content"]:
-                                if (
-                                    isinstance(block, dict)
-                                    and block.get("type") == "text"
-                                ):
-                                    message_text += block.get("text", "")
-                                elif hasattr(block, "type") and block.type == "text":
-                                    message_text += block.text
+                        await self.show_assistant_message(message_text, tool_name)
 
-                            panel = Panel(
-                                message_text,
-                                title="MESSAGE",
-                                style="green",
-                                border_style="bold white",
-                                padding=(1, 2),
-                            )
-                            console.console.print(panel)
-
+                        self.show_tool_call(available_tools, tool_name, tool_args)
                         tool_call_request = CallToolRequest(
                             method="tools/call",
                             params=CallToolRequestParams(
                                 name=tool_name, arguments=tool_args
                             ),
                         )
-
+                        # TODO -- support MCP isError etc.
                         result = await self.call_tool(
                             request=tool_call_request, tool_call_id=tool_use_id
                         )
-
+                        self.show_tool_result(result)
                         messages.append(
                             MessageParam(
                                 role="user",

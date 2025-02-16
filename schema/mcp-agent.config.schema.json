@@ -130,6 +130,24 @@
           "title": "Http Timeout",
           "type": "number",
           "description": "HTTP timeout seconds for event transport"
+        },
+        "show_chat": {
+          "default": true,
+          "title": "Show Chat",
+          "type": "boolean",
+          "description": "Show chat User/Assistant on the console"
+        },
+        "show_tools": {
+          "default": true,
+          "title": "Show Tools",
+          "type": "boolean",
+          "description": "Show MCP Sever tool calls on the console"
+        },
+        "truncate_tools": {
+          "default": true,
+          "title": "Truncate Tools",
+          "type": "boolean",
+          "description": "Truncate display of long tool calls"
         }
       },
       "title": "LoggerSettings",
@@ -633,7 +651,10 @@
         "max_queue_size": 2048,
         "http_endpoint": null,
         "http_headers": null,
-        "http_timeout": 5.0
+        "http_timeout": 5.0,
+        "show_chat": true,
+        "show_tools": true,
+        "truncate_tools": true
       },
       "description": "Logger settings for the MCP Agent application"
     },
