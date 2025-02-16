@@ -20,7 +20,8 @@ async def console_input_callback(request: HumanInputRequest) -> HumanInputRespon
     # Create a panel with the prompt
     panel = Panel(
         prompt_text,
-        title="HUMAN INPUT NEEDED",
+        title="[HUMAN INPUT NEEDED]",
+        title_align="left",
         style="blue",
         border_style="bold white",
         padding=(1, 2),

@@ -28,7 +28,7 @@ async def main():
         # )
         # print(result)
 
-        await agent("print the next number in the sequence")
+        await agent.send("basic_agent", "print the next number in the sequence")
 
 
 if __name__ == "__main__":

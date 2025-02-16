@@ -399,7 +399,9 @@ class AugmentedLLM(ContextDependent, AugmentedLLMProtocol[MessageParamT, Message
                 )
 
             parts = (
-                tool_call_name.split(SEP) if SEP in tool_call_name else [tool_call_name]
+                tool_call_name.split(SEP)
+                if SEP in tool_call_name
+                else [tool_call_name, tool_call_name]
             )
             if tool_name.split(SEP)[0] == parts[0]:
                 if tool_call_name == tool_name:
