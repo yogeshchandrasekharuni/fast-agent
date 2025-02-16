@@ -28,11 +28,6 @@ from mcp.types import (
     TextResourceContents,
 )
 
-from mcp_agent import console
-from mcp_agent.agents.agent import HUMAN_INPUT_TOOL_NAME
-from rich.panel import Panel
-from rich.text import Text
-from mcp_agent.mcp.mcp_aggregator import SEP
 from mcp_agent.workflows.llm.augmented_llm import (
     AugmentedLLM,
     ModelT,
@@ -117,7 +112,7 @@ class AnthropicAugmentedLLM(AugmentedLLM[MessageParam, Message]):
         model = await self.select_model(params)
         chat_turn = (len(messages) + 1) // 2
         self._log_chat_progress(chat_turn, model=model)
-        self.show_user_message(message, model, chat_turn)
+        self.show_user_message(str(message), model, chat_turn)
 
         for i in range(params.max_iterations):
             arguments = {
@@ -204,7 +199,7 @@ class AnthropicAugmentedLLM(AugmentedLLM[MessageParam, Message]):
                                 name=tool_name, arguments=tool_args
                             ),
                         )
-
+                        # TODO -- support MCP isError etc.
                         result = await self.call_tool(
                             request=tool_call_request, tool_call_id=tool_use_id
                         )
@@ -229,89 +224,6 @@ class AnthropicAugmentedLLM(AugmentedLLM[MessageParam, Message]):
         self._log_chat_finished(model=model)
 
         return responses
-
-    def show_tool_result(self, result):
-        if result.isError:
-            style = "red"
-        else:
-            style = "magenta"
-
-        panel = Panel(
-            str(result.content),  # TODO support multi-model/multi-part responses
-            title="[TOOL RESULT]",
-            title_align="left",
-            style=style,
-            border_style="bold white",
-            padding=(1, 2),
-        )
-        print("\n")
-        console.console.print(panel)
-
-    def show_tool_call(self, available_tools, tool_name, tool_args):
-        display_tool_list = Text()
-        for display_tool in available_tools:
-            parts = (
-                display_tool["name"].split(SEP)
-                if SEP in display_tool["name"]
-                else [display_tool["name"]]
-            )
-            if tool_name.split(SEP)[0] == parts[0]:
-                if display_tool["name"] == tool_name:
-                    style = "magenta"
-                else:
-                    style = "dim white"
-
-                display_tool_list.append(f"[{parts[1]}] ", style=style)
-
-        panel = Panel(
-            str(tool_args),
-            title="[TOOL CALL]",
-            title_align="right",
-            style="magenta",
-            border_style="bold white",
-            subtitle=display_tool_list,
-            subtitle_align="left",
-            padding=(1, 2),
-        )
-        console.console.print(panel)
-
-    async def show_assistant_message(
-        self, message_text, highlight_namespaced_tool: str = ""
-    ):
-        mcp_server_name = (
-            highlight_namespaced_tool.split(SEP)
-            if SEP in highlight_namespaced_tool
-            else [highlight_namespaced_tool]
-        )
-        display_server_list = Text()
-        for server_name in await self.aggregator.list_servers():
-            style = "green" if server_name == mcp_server_name[0] else "dim white"
-            display_server_list.append(f" [{server_name}]", style)
-
-        panel = Panel(
-            message_text,
-            title="[ASSISTANT]",
-            title_align="left",
-            style="green",
-            border_style="bold white",
-            padding=(1, 2),
-            subtitle=display_server_list,
-            subtitle_align="left",
-        )
-        console.console.print(panel)
-
-    def show_user_message(self, message, model, chat_turn):
-        panel = Panel(
-            message,
-            title="[USER]",
-            title_align="right",
-            style="blue",
-            border_style="bold white",
-            padding=(1, 2),
-            subtitle=Text(f"{model} turn {chat_turn}", style="dim white"),
-            subtitle_align="left",
-        )
-        console.console.print(panel)
 
     async def generate_str(
         self,
