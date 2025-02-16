@@ -28,8 +28,8 @@ async def main():
         # )
         # print(result)
 
-        #  await agent("print the next number in the sequence")
-        await agent.prompt()
+        await agent("print the next number in the sequence")
+        await agent.prompt(default="STOP")
 
 
 if __name__ == "__main__":

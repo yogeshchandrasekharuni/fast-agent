@@ -93,7 +93,7 @@ class MCPAgentDecorator:
                 agent_contexts.append((agent, ctx))
 
                 # Attach LLM to each agent
-                llm = await agent.attach_llm(AnthropicAugmentedLLM)
+                llm = await agent.attach_llm(OpenAIAugmentedLLM)
                 # Store LLM reference on agent
                 agent._llm = llm
 
