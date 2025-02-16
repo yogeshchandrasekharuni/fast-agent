@@ -90,7 +90,7 @@ class MCPAgentDecorator:
                 agent_contexts.append((agent, ctx))
 
                 # Attach LLM to each agent
-                llm = await agent.attach_llm(OpenAIAugmentedLLM)
+                llm = await agent.attach_llm(AnthropicAugmentedLLM)
                 # Store LLM reference on agent
                 agent._llm = llm
 
@@ -112,6 +112,8 @@ class AgentAppWrapper:
     def __init__(self, app: MCPApp, agents: Dict[str, Agent]):
         self.app = app
         self.agents = agents
+        # Store first agent name for default calls
+        self._default_agent = next(iter(agents)) if agents else None
 
     async def send(self, agent_name: str, message: str) -> Any:
         """
@@ -132,3 +134,20 @@ class AgentAppWrapper:
             raise RuntimeError(f"Agent {agent_name} has no LLM attached")
         result = await agent._llm.generate_str(message)
         return result
+
+    async def __call__(self, message: str, agent_name: Optional[str] = None) -> Any:
+        """
+        Send a message to an agent using direct call syntax.
+        Uses the first registered agent if no agent_name is specified.
+
+        Args:
+            message: Message to send to the agent
+            agent_name: Optional name of agent to send to. Uses first agent if None.
+
+        Returns:
+            Agent's response
+        """
+        target_agent = agent_name or self._default_agent
+        if not target_agent:
+            raise ValueError("No agents available")
+        return await self.send(target_agent, message)
