@@ -47,6 +47,7 @@ We welcome all kinds of [contributions](/CONTRIBUTING.md), feedback and your hel
 - instructions support
 - comprehensive progress display
 - JSONL logging with secret revokation
+- OpenAI o1/o3-mini support with reasoning level
 
 ## Get Started
 
