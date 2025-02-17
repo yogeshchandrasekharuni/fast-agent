@@ -10,7 +10,7 @@ agents = MCPAgentDecorator(name="Researcher")
     name="Researcher",
     instruction="""You are a research assistant, with access to internet search (via Brave),
     website fetch, a python interpreter (you can install packages with uv) and a filesystem.
-    Use the current working directory (./) to save and create files with both the Interpreter and Filesystem tools.
+    Use the current working directory to save and create files with both the Interpreter and Filesystem tools.
     The interpreter has numpy, pandas, matplotlib and seaborn already installed""",
     servers=["brave", "interpreter", "filesystem", "fetch"],
 )
@@ -30,6 +30,7 @@ Todays date is 15 February 2025. Include the main data sources consulted in pres
         #     "install the yfinance package, and produce (and save) a chart of a popular stock"
         # )
 
+        # await agent.prompt(default="STOP")
         await agent.prompt(default=research_prompt)
 
 
