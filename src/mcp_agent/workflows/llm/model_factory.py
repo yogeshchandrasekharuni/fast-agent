@@ -70,6 +70,8 @@ class ModelFactory:
         "sonnet": "claude-3-5-sonnet-latest",
         "sonnet35": "claude-3-5-sonnet-latest",
         "claude": "claude-3-5-sonnet-latest",
+        "haiku": "claude-3-haiku-20240307",
+        "haiku3": "claude-3-haiku-20240307",
     }
 
     # Mapping of providers to their LLM classes

@@ -66,7 +66,7 @@ class AnthropicAugmentedLLM(AugmentedLLM[MessageParam, Message]):
             intelligencePriority=0.3,
         )
         self.default_request_params = self.default_request_params or RequestParams(
-            model=DEFAULT_ANTHROPIC_MODEL,
+            model=kwargs.get("model", DEFAULT_ANTHROPIC_MODEL),
             modelPreferences=self.model_preferences,
             maxTokens=2048,
             systemPrompt=self.instruction,
