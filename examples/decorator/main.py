@@ -14,6 +14,7 @@ agent_app = MCPAgentDecorator("root-test")
     name="basic_agent",
     instruction="A simple agent that helps with basic tasks. Request Human Input whenever needed.",
     servers=["mcp_root"],
+    model="openai.o3-mini.low",
 )
 async def main():
     # Use the app's context manager

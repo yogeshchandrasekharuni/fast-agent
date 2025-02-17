@@ -38,6 +38,10 @@ from mcp_agent.logging.logger import get_logger
 from rich.text import Text
 
 
+DEFAULT_OPENAI_MODEL = "gpt-4o"
+DEFAULT_REASONING_EFFORT = "medium"
+
+
 class OpenAIAugmentedLLM(
     AugmentedLLM[ChatCompletionMessageParam, ChatCompletionMessage]
 ):
@@ -59,18 +63,17 @@ class OpenAIAugmentedLLM(
             speedPriority=0.4,
             intelligencePriority=0.3,
         )
-        # Get default model from config if available
-        chosen_model = "gpt-4o"  # Fallback default
+        chosen_model = kwargs.get("model", DEFAULT_OPENAI_MODEL)
 
-        self._reasoning_effort = "medium"
+        self._reasoning_effort = kwargs.get("reasoning_effort", "medium")
         if self.context and self.context.config and self.context.config.openai:
+            # Get default model from config if available
             if hasattr(self.context.config.openai, "default_model"):
                 chosen_model = self.context.config.openai.default_model
             if hasattr(self.context.config.openai, "reasoning_effort"):
                 self._reasoning_effort = self.context.config.openai.reasoning_effort
 
-        # o1 does not have tool support
-        self._reasoning = chosen_model.startswith("o3")
+        self._reasoning = chosen_model.startswith("o3") or chosen_model.startswith("o1")
         if self._reasoning:
             self.logger.info(
                 f"Using reasoning model '{chosen_model}' with '{self._reasoning_effort}' reasoning effort"
@@ -156,7 +159,7 @@ class OpenAIAugmentedLLM(
 
         for i in range(params.max_iterations):
             arguments = {
-                "model": model,
+                "model": model or "gpt-4o",
                 "messages": messages,
                 "stop": params.stopSequences,
                 "tools": available_tools,

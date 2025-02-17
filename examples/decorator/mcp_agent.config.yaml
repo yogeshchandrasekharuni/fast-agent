@@ -3,7 +3,7 @@ $schema: ../../schema/mcp-agent.config.schema.json
 execution_engine: asyncio
 logger:
   type: console
-  level: error
+  level: info
   path: "./mcp_agent.log"
   progress_display: false
 
@@ -16,5 +16,5 @@ mcp:
 
 openai:
   # Secrets (API keys, etc.) are stored in an mcp_agent.secrets.yaml file
-  default_model: o3-mini
-  reasoning_effort: medium
+  # default_model: o3-mini
+#  reasoning_effort: medium

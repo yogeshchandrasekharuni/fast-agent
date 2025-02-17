@@ -335,7 +335,7 @@ class AugmentedLLM(ContextDependent, AugmentedLLMProtocol[MessageParamT, Message
 
         panel = Panel(
             Text(
-                str(result), overflow="ellipsis"
+                str(result.content), overflow="ellipsis"
             ),  # TODO support multi-model/multi-part responses
             title="[TOOL RESULT]",
             title_align="right",

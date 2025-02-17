@@ -15,6 +15,7 @@ from mcp_agent.config import Settings
 from rich.prompt import Prompt
 from rich import print
 from mcp_agent.progress_display import progress_display
+from mcp_agent.workflows.llm.model_factory import ModelFactory
 
 import readline  # noqa: F401
 
@@ -48,7 +49,13 @@ class MCPAgentDecorator:
             with open(self.config_path) as f:
                 self.config = yaml.safe_load(f)
 
-    def agent(self, name: str, instruction: str, servers: List[str]) -> Callable:
+    def agent(
+        self,
+        name: str,
+        instruction: str,
+        servers: List[str],
+        model: str = "gpt-4o",
+    ) -> Callable:
         """
         Decorator to create and register an agent.
 
@@ -56,11 +63,16 @@ class MCPAgentDecorator:
             name: Name of the agent
             instruction: Base instruction for the agent
             servers: List of server names the agent should connect to
+            model: Model specification string (default: "claude-2")
         """
 
         def decorator(func: Callable) -> Callable:
             # Store the agent configuration for later instantiation
-            self.agents[name] = {"instruction": instruction, "servers": servers}
+            self.agents[name] = {
+                "instruction": instruction,
+                "servers": servers,
+                "model": model,
+            }
 
             async def wrapper(*args, **kwargs):
                 return await func(*args, **kwargs)
@@ -94,10 +106,12 @@ class MCPAgentDecorator:
                 ctx = await agent.__aenter__()
                 agent_contexts.append((agent, ctx))
 
-                # Attach LLM to each agent
-                llm = await agent.attach_llm(AnthropicAugmentedLLM)
-                # Store LLM reference on agent
-                agent._llm = llm
+                # Create factory function for the specified model
+                model_spec = self.agents[name]["model"]
+                llm_factory = ModelFactory.create_factory(model_spec)
+                
+                # Use the standard attach_llm pattern
+                agent._llm = await agent.attach_llm(llm_factory)
 
             # Create a wrapper object with simplified interface
             wrapper = AgentAppWrapper(agent_app, active_agents)
