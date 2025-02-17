@@ -13,7 +13,12 @@ mcp:
       type: "mcp_root"
       command: "uv"
       args: ["run", "../mcp_root_test/root_test_server.py"]
-
+    filesystem:
+      command: "npx"
+      args: ["-y", "@modelcontextprotocol/server-filesystem", "."]
+    fetch:
+      command: "uvx"
+      args: ["mcp-server-fetch"]
 openai:
   # Secrets (API keys, etc.) are stored in an mcp_agent.secrets.yaml file
   # default_model: o3-mini
