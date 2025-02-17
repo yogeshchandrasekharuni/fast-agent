@@ -229,6 +229,11 @@ class Settings(BaseSettings):
     execution_engine: Literal["asyncio", "temporal"] = "asyncio"
     """Execution engine for the MCP Agent application"""
 
+    default_model: str | None = "haiku"
+    """
+    Default model for agents. Format is provider.model_name.<reasoning_effort>, for example openai.o3-mini.low
+    Aliases are provided for common models e.g. sonnet, haiku, gpt-4o, o3-mini etc.
+    """
     temporal: TemporalSettings | None = None
     """Settings for Temporal workflow orchestration"""
 

@@ -6,7 +6,7 @@ import asyncio
 from mcp_agent.core.decorator_app import MCPAgentDecorator
 
 # Create the application
-agent_app = MCPAgentDecorator("root-test")
+agent_app = MCPAgentDecorator("Interactive Agent Example")
 
 
 # Define the agent
@@ -14,21 +14,11 @@ agent_app = MCPAgentDecorator("root-test")
     name="basic_agent",
     instruction="A simple agent that helps with basic tasks. Request Human Input whenever needed.",
     servers=["mcp_root"],
-    model="haiku",
+    #    model="haiku",
 )
 async def main():
     # Use the app's context manager
     async with agent_app.run() as agent:
-        # result = await agent(
-        #     "read the persona descriptions from 'persona.md' and rate their suitability for a junior PM job",
-        # )
-        # print(result)
-
-        # result = await agent(
-        #     "can you write a letter to each candidate, informing them of the outcome of their application",
-        # )
-        # print(result)
-
         await agent("print the next number in the sequence")
         await agent.prompt(default="STOP")
 

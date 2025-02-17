@@ -5,10 +5,12 @@ Provides a simplified way to create and manage agents using decorators.
 
 from typing import List, Optional, Any, Dict, Callable
 import yaml
+import argparse
 from contextlib import asynccontextmanager
 
 from mcp_agent.app import MCPApp
 from mcp_agent.agents.agent import Agent
+from mcp_agent.context_dependent import ContextDependent
 from mcp_agent.workflows.llm.augmented_llm_anthropic import AnthropicAugmentedLLM  # noqa: F401
 from mcp_agent.workflows.llm.augmented_llm_openai import OpenAIAugmentedLLM  # noqa: F401
 from mcp_agent.config import Settings
@@ -20,7 +22,7 @@ from mcp_agent.workflows.llm.model_factory import ModelFactory
 import readline  # noqa: F401
 
 
-class MCPAgentDecorator:
+class MCPAgentDecorator(ContextDependent):
     """
     A decorator-based interface for MCP Agent applications.
     Provides a simplified way to create and manage agents using decorators.
@@ -34,6 +36,14 @@ class MCPAgentDecorator:
             name: Name of the application
             config_path: Optional path to config file
         """
+        # Initialize ContextDependent
+        super().__init__()
+
+        # Setup command line argument parsing
+        parser = argparse.ArgumentParser(description="MCP Agent Application")
+        parser.add_argument("--model", help="Override the default model for all agents")
+        self.args = parser.parse_args()
+
         self.name = name
         self.config_path = config_path
         self._load_config()
@@ -42,6 +52,11 @@ class MCPAgentDecorator:
             settings=Settings(**self.config) if hasattr(self, "config") else None,
         )
         self.agents: Dict[str, Dict[str, Any]] = {}
+
+    @property
+    def context(self):
+        """Access the application context"""
+        return self.app.context
 
     def _load_config(self):
         """Load configuration, properly handling YAML without dotenv processing"""
@@ -54,7 +69,7 @@ class MCPAgentDecorator:
         name: str,
         instruction: str,
         servers: List[str],
-        model: str = "gpt-4o",
+        model: str = None,
     ) -> Callable:
         """
         Decorator to create and register an agent.
@@ -107,9 +122,11 @@ class MCPAgentDecorator:
                 agent_contexts.append((agent, ctx))
 
                 # Create factory function for the specified model
-                model_spec = self.agents[name]["model"]
+                model_spec = self.agents[name]["model"] or self.args.model
+                if not model_spec:
+                    model_spec = self.context.config.default_model
                 llm_factory = ModelFactory.create_factory(model_spec)
-                
+
                 # Use the standard attach_llm pattern
                 agent._llm = await agent.attach_llm(llm_factory)
 

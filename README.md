@@ -43,6 +43,7 @@ We welcome all kinds of [contributions](/CONTRIBUTING.md), feedback and your hel
 
 - "FastAgent" style prototyping
 - Interactive Mode
+- Simple Model Selection with aliases
 - User/Assistant and Tool Call message display
 - MCP Sever Environment Variable support
 - MCP Roots support

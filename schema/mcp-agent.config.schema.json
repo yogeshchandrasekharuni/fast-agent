@@ -564,6 +564,18 @@
       "type": "string",
       "description": "Execution engine for the MCP Agent application"
     },
+    "default_model": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": "haiku",
+      "title": "Default Model"
+    },
     "temporal": {
       "anyOf": [
         {
