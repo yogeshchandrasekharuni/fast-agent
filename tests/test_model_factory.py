@@ -3,7 +3,6 @@ from mcp_agent.workflows.llm.model_factory import (
     ModelFactory,
     Provider,
     ReasoningEffort,
-    ModelConfig,
 )
 from mcp_agent.workflows.llm.augmented_llm_anthropic import AnthropicAugmentedLLM
 from mcp_agent.workflows.llm.augmented_llm_openai import OpenAIAugmentedLLM
