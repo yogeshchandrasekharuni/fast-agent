@@ -16,6 +16,8 @@ from rich.prompt import Prompt
 from rich import print
 from mcp_agent.progress_display import progress_display
 
+import readline  # noqa: F401
+
 
 class MCPAgentDecorator:
     """
