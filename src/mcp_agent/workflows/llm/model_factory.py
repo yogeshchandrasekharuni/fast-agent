@@ -20,9 +20,9 @@ class Provider(Enum):
 class ReasoningEffort(Enum):
     """Optional reasoning effort levels"""
 
-    LOW = auto()
-    MEDIUM = auto()
-    HIGH = auto()
+    LOW = "low"
+    MEDIUM = "medium"
+    HIGH = "high"
 
 
 @dataclass
@@ -59,6 +59,7 @@ class ModelFactory:
         "o1-mini": Provider.OPENAI,
         "o1": Provider.OPENAI,
         "o1-preview": Provider.OPENAI,
+        "o3-mini": Provider.OPENAI,
         "claude-3-haiku-20240307": Provider.ANTHROPIC,
         "claude-3-5-sonnet-20240620": Provider.ANTHROPIC,
         "claude-3-5-sonnet-20241022": Provider.ANTHROPIC,
@@ -118,23 +119,25 @@ class ModelFactory:
     def create_factory(cls, model_string: str) -> Callable[[Agent], LLMClass]:
         """
         Creates a factory function that follows the attach_llm protocol.
-        
+
         Args:
             model_string: The model specification string (e.g. "gpt-4o.high")
-            
+
         Returns:
             A callable that takes an agent parameter and returns an LLM instance
         """
         # Parse configuration up front
         config = cls.parse_model_string(model_string)
         llm_class = cls.PROVIDER_CLASSES[config.provider]
-        print(f"MODEL STRING:::{config.model_name} -- {config.reasoning_effort}")
+
         # Create a factory function matching the attach_llm protocol
         def factory(agent: Agent) -> LLMClass:
             return llm_class(
                 agent=agent,
                 model=config.model_name,
-                reasoning_effort=config.reasoning_effort
+                reasoning_effort=config.reasoning_effort.value
+                if config.reasoning_effort
+                else None,
             )
-            
+
         return factory

@@ -65,12 +65,15 @@ class OpenAIAugmentedLLM(
         )
         chosen_model = kwargs.get("model", DEFAULT_OPENAI_MODEL)
 
-        self._reasoning_effort = kwargs.get("reasoning_effort", "medium")
+        self._reasoning_effort = kwargs.get("reasoning_effort", None)
+
         if self.context and self.context.config and self.context.config.openai:
-            # Get default model from config if available
+            # Get default model from config if available. this serves as an override at the moment.
             if hasattr(self.context.config.openai, "default_model"):
                 chosen_model = self.context.config.openai.default_model
-            if hasattr(self.context.config.openai, "reasoning_effort"):
+            if self._reasoning_effort is None and hasattr(
+                self.context.config.openai, "reasoning_effort"
+            ):
                 self._reasoning_effort = self.context.config.openai.reasoning_effort
 
         self._reasoning = chosen_model.startswith("o3") or chosen_model.startswith("o1")
@@ -155,7 +158,12 @@ class OpenAIAugmentedLLM(
         responses: List[ChatCompletionMessage] = []
         model = await self.select_model(params)
         chat_turn = len(messages) // 2
-        self.show_user_message(str(message), model, chat_turn)
+        if self._reasoning:
+            self.show_user_message(
+                str(message), f"{model} ({self._reasoning_effort})", chat_turn
+            )
+        else:
+            self.show_user_message(str(message), model, chat_turn)
 
         for i in range(params.max_iterations):
             arguments = {
