@@ -11,8 +11,6 @@ from contextlib import asynccontextmanager
 from mcp_agent.app import MCPApp
 from mcp_agent.agents.agent import Agent
 from mcp_agent.context_dependent import ContextDependent
-from mcp_agent.workflows.llm.augmented_llm_anthropic import AnthropicAugmentedLLM  # noqa: F401
-from mcp_agent.workflows.llm.augmented_llm_openai import OpenAIAugmentedLLM  # noqa: F401
 from mcp_agent.workflows.orchestrator.orchestrator import Orchestrator
 from mcp_agent.config import Settings
 from rich.prompt import Prompt
@@ -76,7 +74,7 @@ class MCPAgentDecorator(ContextDependent):
         self,
         name: str,
         instruction: str,
-        servers: List[str],
+        servers: List[str] = [],
         model: str = None,
     ) -> Callable:
         """
@@ -129,6 +127,41 @@ class MCPAgentDecorator(ContextDependent):
                 "child_agents": agents,
                 "model": model,
                 "type": "orchestrator",
+            }
+
+            async def wrapper(*args, **kwargs):
+                return await func(*args, **kwargs)
+
+            return wrapper
+
+        return decorator
+
+    def parallel(
+        self,
+        name: str,
+        fan_in: str,
+        fan_out: List[str],
+        instruction: str = "",
+        model: str = None,
+    ) -> Callable:
+        """
+        Decorator to create and register a parallel
+
+        Args:
+            name: Name of the parallel executing agent
+            fan_in: Name of collecting agent
+            fan_out: List of parallel execution agents
+            model: Model specification string
+        """
+
+        def decorator(func: Callable) -> Callable:
+            # Store the orchestrator configuration like any other agent
+            self.agents[name] = {
+                "instruction": instruction,
+                "fan_out": fan_out,
+                "fan_in": fan_in,
+                "model": model,
+                "type": "parallel",
             }
 
             async def wrapper(*args, **kwargs):
