@@ -44,18 +44,21 @@ and whispers of a hidden agenda linger among the villagers.
 )
 @agent_app.agent(
     name="fact_checker",
+    model="gpt-4o",
     instruction="""Verify the factual consistency within the story. Identify any contradictions,
     logical inconsistencies, or inaccuracies in the plot, character actions, or setting. 
     Highlight potential issues with reasoning or coherence.""",
 )
 @agent_app.agent(
     name="style_enforcer",
+    model="sonnet-latest",
     instruction="""Analyze the story for adherence to style guidelines.
     Evaluate the narrative flow, clarity of expression, and tone. Suggest improvements to 
     enhance storytelling, readability, and engagement.""",
 )
 @agent_app.agent(
     name="grader",
+    model="o3-mini.high",
     instruction="""Compile the feedback from the Proofreader, Fact Checker, and Style Enforcer
     into a structured report. Summarize key issues and categorize them by type. 
     Provide actionable recommendations for improving the story, 

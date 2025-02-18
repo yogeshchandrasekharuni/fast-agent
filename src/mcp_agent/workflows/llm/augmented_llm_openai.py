@@ -227,7 +227,7 @@ class OpenAIAugmentedLLM(
                 if message_text:
                     await self.show_assistant_message(
                         message_text,
-                        message["tool_calls"][
+                        message.tool_calls[
                             0
                         ].function.name,  # TODO support multiple tool calls
                     )

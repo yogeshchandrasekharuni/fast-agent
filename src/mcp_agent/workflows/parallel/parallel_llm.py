@@ -1,6 +1,5 @@
 from typing import Any, Callable, List, Optional, Type, TYPE_CHECKING
 import asyncio
-import contextlib
 
 from mcp_agent.agents.agent import Agent
 from mcp_agent.workflows.llm.augmented_llm import (
@@ -41,10 +40,10 @@ class ParallelLLM(AugmentedLLM[MessageParamT, MessageT]):
         """Ensure an agent has an LLM attached, using existing or creating new."""
         if isinstance(agent, AugmentedLLM):
             return agent
-            
-        if not hasattr(agent, '_llm') or agent._llm is None:
+
+        if not hasattr(agent, "_llm") or agent._llm is None:
             return await agent.attach_llm(self.llm_factory)
-        
+
         return agent._llm
 
     async def generate(
@@ -118,8 +117,10 @@ class ParallelLLM(AugmentedLLM[MessageParamT, MessageT]):
 
         # Run fan-out operations in parallel
         responses = await asyncio.gather(
-            *[llm.generate_structured(message, response_model, request_params) 
-              for llm in fan_out_llms]
+            *[
+                llm.generate_structured(message, response_model, request_params)
+                for llm in fan_out_llms
+            ]
         )
 
         # Run fan-in to aggregate results

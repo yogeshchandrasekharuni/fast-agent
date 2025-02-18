@@ -18,7 +18,7 @@ from rich import print
 from mcp_agent.progress_display import progress_display
 from mcp_agent.workflows.llm.model_factory import ModelFactory
 
-import readline
+import readline  # noqa: F401
 
 from mcp_agent.workflows.parallel.parallel_llm import ParallelLLM  # noqa: F401
 

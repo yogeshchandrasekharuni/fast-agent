@@ -209,7 +209,7 @@ class Agent(MCPAggregator):
     ) -> CallToolResult:
         # Handle human input request
         try:
-            request = HumanInputRequest(**arguments["request"])
+            request = HumanInputRequest(**arguments.get("request"))
             result: HumanInputResponse = await self.request_human_input(request=request)
             return CallToolResult(
                 content=[
