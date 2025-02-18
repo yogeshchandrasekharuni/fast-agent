@@ -3,6 +3,7 @@ Manages the lifecycle of multiple MCP server connections.
 """
 
 from datetime import timedelta
+import asyncio
 from typing import (
     AsyncGenerator,
     Callable,
@@ -139,6 +140,7 @@ async def _server_lifecycle_task(server_conn: ServerConnection) -> None:
     Runs inside the MCPConnectionManager's shared TaskGroup.
     """
     server_name = server_conn.server_name
+    print(f"SERVER {server_name}: Starting lifecycle task in {asyncio.current_task().get_name()}")
     try:
         transport_context = server_conn._transport_context_factory()
 
@@ -149,18 +151,18 @@ async def _server_lifecycle_task(server_conn: ServerConnection) -> None:
             async with server_conn.session:
                 # Initialize the session
                 await server_conn.initialize_session()
+                print(f"SERVER {server_name}: Initialized and running")
 
                 # Wait until we're asked to shut down
                 await server_conn.wait_for_shutdown_request()
+                print(f"SERVER {server_name}: Received shutdown request")
 
     except Exception as exc:
-        logger.error(
-            f"{server_name}: Lifecycle task encountered an error: {exc}", exc_info=True
-        )
-        # If there's an error, we should also set the event so that
-        # 'get_server' won't hang
+        print(f"SERVER {server_name}: Error in lifecycle: {exc}")
         server_conn._initialized_event.set()
         raise
+    finally:
+        print(f"SERVER {server_name}: Lifecycle task ending")
 
 
 class MCPConnectionManager:
@@ -175,16 +177,28 @@ class MCPConnectionManager:
         self._tg: TaskGroup | None = None
 
     async def __aenter__(self):
-        # We create a task group to manage all server lifecycle tasks
-        self._tg = create_task_group()
-        await self._tg.__aenter__()
+        if not hasattr(self, '_enter_count'):
+            self._enter_count = 0
+        self._enter_count += 1
+        
+        # Only create task group on first enter
+        if self._enter_count == 1:
+            self._tg = create_task_group()
+            await self._tg.__aenter__()
         return self
 
     async def __aexit__(self, exc_type, exc_val, exc_tb):
-        logger.debug("MCPConnectionManager: shutting down all server tasks...")
-        if self._tg:
-            await self._tg.__aexit__(exc_type, exc_val, exc_tb)
-        self._tg = None
+        """Ensure clean shutdown of all connections before exiting."""
+        self._enter_count -= 1
+        
+        # Only cleanup on last exit
+        if self._enter_count == 0:
+            try:
+                if self._tg:
+                    await self._tg.__aexit__(exc_type, exc_val, exc_tb)
+                self._tg = None
+            except Exception as e:
+                logger.error(f"Error during connection manager shutdown: {e}")
 
     async def launch_server(
         self,
@@ -298,10 +312,12 @@ class MCPConnectionManager:
     async def disconnect_all(self) -> None:
         """
         Disconnect all servers that are running under this connection manager.
+        Only performs the disconnection if there are running servers.
         """
-        logger.info("Disconnecting all persistent server connections...")
         async with self._lock:
+            if not self.running_servers:
+                return
+                
             for conn in self.running_servers.values():
                 conn.request_shutdown()
             self.running_servers.clear()
-        logger.info("All persistent server connections signaled to disconnect.")

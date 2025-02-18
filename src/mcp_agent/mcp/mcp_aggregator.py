@@ -62,10 +62,13 @@ class MCPAggregator(ContextDependent):
 
         # Keep a connection manager to manage persistent connections for this aggregator
         if self.connection_persistence:
-            self._persistent_connection_manager = MCPConnectionManager(
-                self.context.server_registry
-            )
-            await self._persistent_connection_manager.__aenter__()
+            # Try to get existing connection manager from context
+            if not hasattr(self.context, '_connection_manager'):
+                self.context._connection_manager = MCPConnectionManager(
+                    self.context.server_registry
+                )
+                await self.context._connection_manager.__aenter__()
+            self._persistent_connection_manager = self.context._connection_manager
 
         await self.load_servers()
 
@@ -115,11 +118,15 @@ class MCPAggregator(ContextDependent):
         """
         if self.connection_persistence and self._persistent_connection_manager:
             try:
-                logger.info("Shutting down all persistent connections...")
-                await self._persistent_connection_manager.disconnect_all()
+                # Only attempt cleanup if we own the connection manager
+                if hasattr(self.context, '_connection_manager') and self.context._connection_manager == self._persistent_connection_manager:
+                    logger.info("Shutting down all persistent connections...")
+                    await self._persistent_connection_manager.disconnect_all()
+                    await self._persistent_connection_manager.__aexit__(None, None, None)
+                    delattr(self.context, '_connection_manager')
                 self.initialized = False
-            finally:
-                await self._persistent_connection_manager.__aexit__(None, None, None)
+            except Exception as e:
+                logger.error(f"Error during connection manager cleanup: {e}")
 
     @classmethod
     async def create(
