@@ -450,7 +450,7 @@ class AugmentedLLM(ContextDependent, AugmentedLLMProtocol[MessageParamT, Message
 
         panel = Panel(
             message_text,
-            title="[ASSISTANT]",
+            title=f"[ASSISTANT]{f' ({self.name})' if self.name else ''}",
             title_align="left",
             style="green",
             border_style="bold white",
@@ -469,7 +469,7 @@ class AugmentedLLM(ContextDependent, AugmentedLLMProtocol[MessageParamT, Message
 
         panel = Panel(
             message,
-            title="[USER]",
+            title=f"{f'({self.name}) [USER]' if self.name else '[USER]'}",
             title_align="right",
             style="blue",
             border_style="bold white",

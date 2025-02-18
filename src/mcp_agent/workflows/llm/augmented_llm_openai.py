@@ -233,7 +233,10 @@ class OpenAIAugmentedLLM(
                     )
                 else:
                     await self.show_assistant_message(
-                        Text("tool calls only", style="dim green italic"),
+                        Text(
+                            "the assistant requested tool calls",
+                            style="dim green italic",
+                        ),
                         message.tool_calls[0].function.name,
                     )
 

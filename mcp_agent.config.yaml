@@ -3,18 +3,23 @@ $schema: ../../schema/mcp-agent.config.schema.json
 execution_engine: asyncio
 logger:
   type: file
-  level: debug
+  level: error
+  path: "./mcp_agent.log"
+  progress_display: false
 
 mcp:
   servers:
-    fetch:
-      command: "uvx"
-      args: ["mcp-server-fetch"]
+    mcp_root:
+      type: "mcp_root"
+      command: "uv"
+      args: ["run", "../mcp_root_test/root_test_server.py"]
     filesystem:
       command: "npx"
       args: ["-y", "@modelcontextprotocol/server-filesystem", "."]
-
+    fetch:
+      command: "uvx"
+      args: ["mcp-server-fetch"]
 openai:
-  # Secrets (API keys, etc.) are stored in an mcp_agent.secrets.yaml file which can be gitignored
-  #  default_model: "o3-mini"
-  default_model: "gpt-4o-mini"
+  # Secrets (API keys, etc.) are stored in an mcp_agent.secrets.yaml file
+  # default_model: o3-mini
+#  reasoning_effort: medium

@@ -4,6 +4,7 @@ import os
 from mcp_agent.app import MCPApp
 from mcp_agent.agents.agent import Agent
 from mcp_agent.workflows.llm.augmented_llm import RequestParams
+from mcp_agent.workflows.llm.augmented_llm_anthropic import AnthropicAugmentedLLM
 from mcp_agent.workflows.llm.augmented_llm_openai import OpenAIAugmentedLLM
 from mcp_agent.workflows.orchestrator.orchestrator import Orchestrator
 from rich import print
@@ -148,7 +149,7 @@ async def example_usage():
         Write the graded report to graded_report.md in the same directory as short_story.md"""
 
         orchestrator = Orchestrator(
-            llm_factory=OpenAIAugmentedLLM,
+            llm_factory=AnthropicAugmentedLLM,
             available_agents=[
                 finder_agent,
                 writer_agent,
@@ -161,7 +162,7 @@ async def example_usage():
         )
 
         result = await orchestrator.generate_str(
-            message=task, request_params=RequestParams(model="o3-mini")
+            message=task, request_params=RequestParams(model="claude-3-5-sonnet-latest")
         )
         logger.info(f"{result}")
 

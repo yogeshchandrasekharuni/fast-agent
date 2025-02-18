@@ -175,6 +175,7 @@ class MCPAgentDecorator(ContextDependent):
                         available_agents=child_agents,
                         context=agent_app.context,
                         llm_factory=llm_factory,
+                        plan_type="full",
                     )
 
                     active_agents[name] = orchestrator

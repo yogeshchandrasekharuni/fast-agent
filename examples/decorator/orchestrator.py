@@ -19,6 +19,7 @@ agent_app = MCPAgentDecorator("Orchestrator Example")
             the closest match to a user's request, make the appropriate tool calls, 
             and return the URI and CONTENTS of the closest match.""",
     servers=["fetch", "filesystem"],
+    model="gpt-4o",
 )
 @agent_app.agent(
     name="writer",
@@ -26,6 +27,7 @@ agent_app = MCPAgentDecorator("Orchestrator Example")
             You are tasked with taking the user's input, addressing it, and 
             writing the result to disk in the appropriate location.""",
     servers=["filesystem"],
+    model="gpt-4o",
 )
 @agent_app.agent(
     name="proofreader",
@@ -33,6 +35,7 @@ agent_app = MCPAgentDecorator("Orchestrator Example")
             Identify any awkward phrasing or structural issues that could improve clarity. 
             Provide detailed feedback on corrections.""",
     servers=["fetch"],
+    model="gpt-4o",
 )
 # Define the orchestrator to coordinate the other agents
 @agent_app.orchestrator(
@@ -44,7 +47,7 @@ agent_app = MCPAgentDecorator("Orchestrator Example")
     https://apastyle.apa.org/learn/quick-guide-on-references.
     Write the graded report to graded_report.md in the same directory as short_story.md""",
     agents=["finder", "writer", "proofreader"],
-    model="haiku",  # Orchestrators typically need more capable models
+    model="o3-mini",  # Orchestrators typically need more capable models
 )
 async def main():
     async with agent_app.run() as agent:
@@ -60,7 +63,7 @@ async def main():
 
         # Send the task
         await agent.agents["document_processor"].generate_str(
-            task, request_params=RequestParams(model="claude-3-5-sonnet-latest")
+            task, request_params=RequestParams(model="o3-mini")
         )
 
 
