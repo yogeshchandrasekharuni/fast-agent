@@ -99,7 +99,8 @@ class Orchestrator(AugmentedLLM[MessageParamT, MessageT]):
             # History tracking is not yet supported for orchestrator workflows
             use_history=False,
             # We set a higher default maxTokens value to allow for longer responses
-            maxTokens=16384,
+            # TODO -- as other comment about max_tokens
+            maxTokens=8192,
         )
 
     async def generate(
@@ -165,11 +166,10 @@ class Orchestrator(AugmentedLLM[MessageParamT, MessageT]):
     ) -> PlanResult:
         """Execute task with result chaining between steps"""
         iterations = 0
+        # TODO -- make maxtokens sensitive to the model configuration (or don't specify/use default unless known)
         params = self.get_request_params(
             request_params,
-            default=RequestParams(
-                use_history=False, max_iterations=30, maxTokens=16384
-            ),
+            default=RequestParams(use_history=False, max_iterations=30, maxTokens=8192),
         )
 
         plan_result = PlanResult(objective=objective, step_results=[])

@@ -13,6 +13,7 @@ from mcp_agent.agents.agent import Agent
 from mcp_agent.context_dependent import ContextDependent
 from mcp_agent.workflows.llm.augmented_llm_anthropic import AnthropicAugmentedLLM  # noqa: F401
 from mcp_agent.workflows.llm.augmented_llm_openai import OpenAIAugmentedLLM  # noqa: F401
+from mcp_agent.workflows.orchestrator.orchestrator import Orchestrator
 from mcp_agent.config import Settings
 from rich.prompt import Prompt
 from rich import print
@@ -64,6 +65,13 @@ class MCPAgentDecorator(ContextDependent):
             with open(self.config_path) as f:
                 self.config = yaml.safe_load(f)
 
+    def _get_model_factory(self, model: Optional[str] = None) -> Any:
+        """Get model factory using specified or default model"""
+        model_spec = model or self.args.model
+        if not model_spec:
+            model_spec = self.context.config.default_model
+        return ModelFactory.create_factory(model_spec)
+
     def agent(
         self,
         name: str,
@@ -78,7 +86,7 @@ class MCPAgentDecorator(ContextDependent):
             name: Name of the agent
             instruction: Base instruction for the agent
             servers: List of server names the agent should connect to
-            model: Model specification string (default: "claude-2")
+            model: Model specification string (default: None, uses app default)
         """
 
         def decorator(func: Callable) -> Callable:
@@ -87,6 +95,40 @@ class MCPAgentDecorator(ContextDependent):
                 "instruction": instruction,
                 "servers": servers,
                 "model": model,
+                "type": "agent",
+            }
+
+            async def wrapper(*args, **kwargs):
+                return await func(*args, **kwargs)
+
+            return wrapper
+
+        return decorator
+
+    def orchestrator(
+        self,
+        name: str,
+        instruction: str,
+        agents: List[str],
+        model: str = None,
+    ) -> Callable:
+        """
+        Decorator to create and register an orchestrator.
+
+        Args:
+            name: Name of the orchestrator
+            instruction: Base instruction for the orchestrator
+            agents: List of agent names this orchestrator can use
+            model: Model specification string (required for orchestrator)
+        """
+
+        def decorator(func: Callable) -> Callable:
+            # Store the orchestrator configuration like any other agent
+            self.agents[name] = {
+                "instruction": instruction,
+                "child_agents": agents,
+                "model": model,
+                "type": "orchestrator",
             }
 
             async def wrapper(*args, **kwargs):
@@ -105,37 +147,52 @@ class MCPAgentDecorator(ContextDependent):
         async with self.app.run() as agent_app:
             active_agents = {}
 
-            # Create and initialize all registered agents with proper context
+            # First pass - create all basic agents
             for name, config in self.agents.items():
-                agent = Agent(
-                    name=name,
-                    instruction=config["instruction"],
-                    server_names=config["servers"],
-                    context=agent_app.context,
-                )
-                active_agents[name] = agent
+                if config["type"] == "agent":
+                    agent = Agent(
+                        name=name,
+                        instruction=config["instruction"],
+                        server_names=config["servers"],
+                        context=agent_app.context,
+                    )
+                    active_agents[name] = agent
 
-            # Start all agents within their context managers
+            # Second pass - create orchestrators now that we have agents
+            for name, config in self.agents.items():
+                if config["type"] == "orchestrator":
+                    # Get the child agents
+                    child_agents = [
+                        active_agents[agent_name]
+                        for agent_name in config["child_agents"]
+                    ]
+
+                    # Create orchestrator with its agents and model
+                    llm_factory = self._get_model_factory(config["model"])
+                    orchestrator = Orchestrator(
+                        name=name,
+                        instruction=config["instruction"],
+                        available_agents=child_agents,
+                        context=agent_app.context,
+                        llm_factory=llm_factory,
+                    )
+
+                    active_agents[name] = orchestrator
+
+            # Start all agents
             agent_contexts = []
             for name, agent in active_agents.items():
-                ctx = await agent.__aenter__()
-                agent_contexts.append((agent, ctx))
+                if isinstance(agent, Agent):  # Basic agents need LLM setup
+                    ctx = await agent.__aenter__()
+                    agent_contexts.append((agent, ctx))
+                    llm_factory = self._get_model_factory(self.agents[name]["model"])
+                    agent._llm = await agent.attach_llm(llm_factory)
 
-                # Create factory function for the specified model
-                model_spec = self.agents[name]["model"] or self.args.model
-                if not model_spec:
-                    model_spec = self.context.config.default_model
-                llm_factory = ModelFactory.create_factory(model_spec)
-
-                # Use the standard attach_llm pattern
-                agent._llm = await agent.attach_llm(llm_factory)
-
-            # Create a wrapper object with simplified interface
+            # Create wrapper with all agents
             wrapper = AgentAppWrapper(agent_app, active_agents)
             try:
                 yield wrapper
             finally:
-                # Cleanup agents
                 for agent, _ in agent_contexts:
                     await agent.__aexit__(None, None, None)
 
@@ -145,58 +202,30 @@ class AgentAppWrapper:
     Wrapper class providing a simplified interface to the agent application.
     """
 
-    def __init__(self, app: MCPApp, agents: Dict[str, Agent]):
+    def __init__(self, app: MCPApp, agents: Dict[str, Any]):
         self.app = app
         self.agents = agents
-        # Store first agent name for default calls
         self._default_agent = next(iter(agents)) if agents else None
 
     async def send(self, agent_name: str, message: str) -> Any:
-        """
-        Send a message to a specific agent and get the response.
-
-        Args:
-            agent_name: Name of the agent to send message to
-            message: Message to send
-
-        Returns:
-            Agent's response
-        """
+        """Send a message to a specific agent and get the response."""
         if agent_name not in self.agents:
             raise ValueError(f"Agent {agent_name} not found")
 
         agent = self.agents[agent_name]
         if not hasattr(agent, "_llm") or agent._llm is None:
             raise RuntimeError(f"Agent {agent_name} has no LLM attached")
-        result = await agent._llm.generate_str(message)
-        return result
+        return await agent._llm.generate_str(message)
 
     async def __call__(self, message: str, agent_name: Optional[str] = None) -> Any:
-        """
-        Send a message to an agent using direct call syntax.
-        Uses the first registered agent if no agent_name is specified.
-
-        Args:
-            message: Message to send to the agent
-            agent_name: Optional name of agent to send to. Uses first agent if None.
-
-        Returns:
-            Agent's response
-        """
+        """Send a message using direct call syntax."""
         target_agent = agent_name or self._default_agent
         if not target_agent:
             raise ValueError("No agents available")
         return await self.send(target_agent, message)
 
     async def prompt(self, agent_name: Optional[str] = None, default: str = "") -> None:
-        """
-        Interactive prompt for sending messages to an agent using rich.
-
-        Args:
-            agent_name: Optional name of agent to send to. Uses first agent if None.
-            default: Default input value
-        """
-
+        """Interactive prompt for sending messages."""
         target_agent = agent_name or self._default_agent
         if not target_agent:
             raise ValueError("No agents available")
@@ -210,7 +239,6 @@ class AgentAppWrapper:
                     print(
                         f"Press <ENTER> to use the default prompt:\n[cyan]{default}[/cyan]"
                     )
-
                 else:
                     print("Enter a prompt, or enter [red]STOP[/red] to finish")
 

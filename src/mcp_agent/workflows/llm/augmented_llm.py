@@ -253,6 +253,7 @@ class AugmentedLLM(ContextDependent, AugmentedLLMProtocol[MessageParamT, Message
             if model:
                 return model
 
+        ## TODO -- can't have been tested, returns invalid model strings (e.g. claude-35-sonnet)
         if not self.model_selector:
             self.model_selector = ModelSelector()
 
