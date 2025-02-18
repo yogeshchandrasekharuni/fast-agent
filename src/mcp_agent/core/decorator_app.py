@@ -18,7 +18,9 @@ from rich import print
 from mcp_agent.progress_display import progress_display
 from mcp_agent.workflows.llm.model_factory import ModelFactory
 
-import readline  # noqa: F401
+import readline
+
+from mcp_agent.workflows.parallel.parallel_llm import ParallelLLM  # noqa: F401
 
 
 class MCPAgentDecorator(ContextDependent):
@@ -212,6 +214,41 @@ class MCPAgentDecorator(ContextDependent):
                     )
 
                     active_agents[name] = orchestrator
+
+            for name, config in self.agents.items():
+                if config["type"] == "parallel":
+                    # Get the fan-out agents
+                    fan_out_agents = [
+                        active_agents[agent_name] for agent_name in config["fan_out"]
+                    ]
+
+                    # Get the fan-in agent
+                    fan_in_agent = active_agents[config["fan_in"]]
+
+                    # Create the parallel workflow
+                    llm_factory = self._get_model_factory(config["model"])
+                    parallel = ParallelLLM(
+                        name=name,
+                        instruction=config["instruction"],
+                        fan_out_agents=fan_out_agents,
+                        fan_in_agent=fan_in_agent,
+                        context=agent_app.context,
+                        llm_factory=llm_factory,
+                    )
+
+                    # Create a wrapper that makes it behave like other agents
+                    class ParallelAgentWrapper:
+                        def __init__(self, parallel_llm):
+                            self._llm = parallel_llm
+                            self.name = parallel_llm.name
+
+                        async def __aenter__(self):
+                            return self
+
+                        async def __aexit__(self, exc_type, exc_val, exc_tb):
+                            pass
+
+                    active_agents[name] = ParallelAgentWrapper(parallel)
 
             # Start all agents
             agent_contexts = []
