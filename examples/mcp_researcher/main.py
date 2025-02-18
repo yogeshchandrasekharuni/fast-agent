@@ -26,12 +26,10 @@ summary and recommendation.
 Todays date is 15 February 2025. Include the main data sources consulted in presenting the report."""
 
     async with agents.run() as agent:
-        # await agent(
-        #     "install the yfinance package, and produce (and save) a chart of a popular stock"
-        # )
+        await agent.prompt()
 
         # await agent.prompt(default="STOP")
-        await agent.prompt(default=research_prompt)
+        #        await agent.prompt(default=research_prompt)
 
 
 if __name__ == "__main__":

@@ -14,7 +14,6 @@ agent_app = MCPAgentDecorator("Interactive Agent Example")
     name="basic_agent",
     instruction="A simple agent that helps with basic tasks. Request Human Input whenever needed.",
     servers=["mcp_root"],
-    #    model="haiku",
 )
 async def main():
     # Use the app's context manager

@@ -42,7 +42,10 @@ class MCPAgentDecorator(ContextDependent):
 
         # Setup command line argument parsing
         parser = argparse.ArgumentParser(description="MCP Agent Application")
-        parser.add_argument("--model", help="Override the default model for all agents")
+        parser.add_argument(
+            "--model",
+            help="Override the default model for all agents. Precedence is default < config_file < command line < constructor",
+        )
         self.args = parser.parse_args()
 
         self.name = name
