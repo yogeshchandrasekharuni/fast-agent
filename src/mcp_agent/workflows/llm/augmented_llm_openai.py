@@ -350,7 +350,7 @@ class OpenAIAugmentedLLM(
 
         # Extract structured data from natural language
         structured_response = client.chat.completions.create(
-            model=model or "gpt-4o",
+            model=model,
             response_model=response_model,
             messages=[
                 {"role": "user", "content": response},
