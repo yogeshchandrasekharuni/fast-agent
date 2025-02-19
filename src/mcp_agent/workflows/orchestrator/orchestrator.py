@@ -95,13 +95,13 @@ class Orchestrator(AugmentedLLM[MessageParamT, MessageT]):
         self.server_registry = self.context.server_registry
         self.agents = {agent.name: agent for agent in available_agents or []}
 
-        self.default_request_params = self.default_request_params or RequestParams(
-            # History tracking is not yet supported for orchestrator workflows
-            use_history=False,
-            # We set a higher default maxTokens value to allow for longer responses
-            # TODO -- as other comment about max_tokens
-            maxTokens=8192,
-        )
+        # self.default_request_params = self.default_request_params or RequestParams(
+        #     # History tracking is not yet supported for orchestrator workflows
+        #     use_history=False,
+        #     # We set a higher default maxTokens value to allow for longer responses
+        #     # TODO -- as other comment about max_tokens
+        #     maxTokens=8192,
+        # )
 
     async def generate(
         self,
@@ -113,10 +113,11 @@ class Orchestrator(AugmentedLLM[MessageParamT, MessageT]):
 
         # TODO: saqadri - history tracking is complicated in this multi-step workflow, so we will ignore it for now
         if params.use_history:
-            raise NotImplementedError(
-                "History tracking is not yet supported for orchestrator workflows"
-            )
-
+            # raise NotImplementedError(
+            #     "History tracking is not yet supported for orchestrator workflows"
+            # )
+            # TODO -- fix this properly
+            params.use_history = False
         objective = str(message)
         plan_result = await self.execute(objective=objective, request_params=params)
 
@@ -168,9 +169,10 @@ class Orchestrator(AugmentedLLM[MessageParamT, MessageT]):
         iterations = 0
         # TODO -- make maxtokens sensitive to the model configuration (or don't specify/use default unless known)
         params = self.get_request_params(
-            request_params,
-            default=RequestParams(use_history=False, max_iterations=30, maxTokens=8192),
+            request_params
+            #            default=RequestParams(use_history=False, max_iterations=30, maxTokens=8192),
         )
+        request_params.use_history = False
 
         plan_result = PlanResult(objective=objective, step_results=[])
 
@@ -245,18 +247,18 @@ class Orchestrator(AugmentedLLM[MessageParamT, MessageT]):
                 agent = self.agents.get(task.agent)
                 if not agent:
                     raise ValueError(f"No agent found matching {task.agent}")
-                
+
                 if isinstance(agent, AugmentedLLM):
                     llm = agent
                 else:
                     # Use existing LLM if agent has one
-                    if hasattr(agent, '_llm') and agent._llm:
+                    if hasattr(agent, "_llm") and agent._llm:
                         llm = agent._llm
                     else:
                         # Only create new context if needed
                         ctx_agent = await stack.enter_async_context(agent)
                         llm = await ctx_agent.attach_llm(self.llm_factory)
-                
+
                 task_llms.append((task, llm))
 
             # Execute all tasks within the same context
@@ -267,7 +269,9 @@ class Orchestrator(AugmentedLLM[MessageParamT, MessageT]):
                     task=task.description,
                     context=context,
                 )
-                futures.append(llm.generate_str(message=task_description, request_params=params))
+                futures.append(
+                    llm.generate_str(message=task_description, request_params=params)
+                )
 
             # Wait for all tasks, including any tool calls they make
             results = await self.executor.execute(*futures)

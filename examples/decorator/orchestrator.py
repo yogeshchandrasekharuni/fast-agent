@@ -19,7 +19,7 @@ agent_app = MCPAgentDecorator("Orchestrator Example")
             the closest match to a user's request, make the appropriate tool calls, 
             and return the URI and CONTENTS of the closest match.""",
     servers=["fetch", "filesystem"],
-    model="gpt-4o",
+    model="gpt-4o-mini",
 )
 @agent_app.agent(
     name="writer",
@@ -47,7 +47,7 @@ agent_app = MCPAgentDecorator("Orchestrator Example")
     https://apastyle.apa.org/learn/quick-guide-on-references.
     Write the graded report to graded_report.md in the same directory as short_story.md""",
     agents=["finder", "writer", "proofreader"],
-    model="gpt-4o",  # Orchestrators typically need more capable models
+    model="o3-mini.medium",  # Orchestrators typically need more capable models
 )
 async def main():
     async with agent_app.run() as agent:

@@ -8,10 +8,12 @@ agents = MCPAgentDecorator(name="Researcher")
 
 @agents.agent(
     name="Researcher",
-    instruction="""You are a research assistant, with access to internet search (via Brave),
-    website fetch, a python interpreter (you can install packages with uv) and a filesystem.
-    Use the current working directory to save and create files with both the Interpreter and Filesystem tools.
-    The interpreter has numpy, pandas, matplotlib and seaborn already installed""",
+    instruction="""
+You are a research assistant, with access to internet search (via Brave),
+website fetch, a python interpreter (you can install packages with uv) and a filesystem.
+Use the current working directory to save and create files with both the Interpreter and Filesystem tools.
+The interpreter has numpy, pandas, matplotlib and seaborn already installed
+    """,
     servers=["brave", "interpreter", "filesystem", "fetch"],
 )
 async def main():
