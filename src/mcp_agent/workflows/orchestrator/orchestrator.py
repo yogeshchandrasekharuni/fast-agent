@@ -100,6 +100,7 @@ class Orchestrator(AugmentedLLM[MessageParamT, MessageT]):
         self.llm_factory = llm_factory
 
         # Create default planner with AgentConfig
+        request_params = self.get_request_params(kwargs.get('request_params'))
         planner_config = AgentConfig(
             name="LLM Orchestration Planner",
             instruction="""
@@ -108,6 +109,8 @@ class Orchestrator(AugmentedLLM[MessageParamT, MessageT]):
             which can be performed by LLMs with access to the servers or agents.
             """,
             servers=[],  # Planner doesn't need direct server access
+            default_request_params=request_params,
+            model=request_params.model if request_params else None
         )
 
         self.planner = planner or llm_factory(agent=Agent(config=planner_config))
@@ -122,10 +125,7 @@ class Orchestrator(AugmentedLLM[MessageParamT, MessageT]):
         request_params: RequestParams | None = None,
     ) -> List[MessageT]:
         """Request an LLM generation, which may run multiple iterations, and return the result"""
-        # Get merged parameters but ensure use_history is False
         params = self.get_request_params(request_params)
-        params = params.model_copy(update={"use_history": False})
-        
         objective = str(message)
         plan_result = await self.execute(objective=objective, request_params=params)
 
@@ -138,7 +138,6 @@ class Orchestrator(AugmentedLLM[MessageParamT, MessageT]):
     ) -> str:
         """Request an LLM generation and return the string representation of the result"""
         params = self.get_request_params(request_params)
-        params = params.model_copy(update={"use_history": False})
         
         result = await self.generate(
             message=message,
@@ -155,7 +154,6 @@ class Orchestrator(AugmentedLLM[MessageParamT, MessageT]):
     ) -> ModelT:
         """Request a structured LLM generation and return the result as a Pydantic model."""
         params = self.get_request_params(request_params)
-        params = params.model_copy(update={"use_history": False})
         
         result_str = await self.generate_str(message=message, request_params=params)
 
@@ -181,9 +179,7 @@ class Orchestrator(AugmentedLLM[MessageParamT, MessageT]):
         """Execute task with result chaining between steps"""
         iterations = 0
         
-        # Get merged parameters and ensure use_history is False
         params = self.get_request_params(request_params)
-        params = params.model_copy(update={"use_history": False})
 
         plan_result = PlanResult(objective=objective, step_results=[])
 
@@ -197,12 +193,16 @@ class Orchestrator(AugmentedLLM[MessageParamT, MessageT]):
                 )
                 logger.debug(f"Iteration {iterations}: Iterative plan:", data=next_step)
                 plan = Plan(steps=[next_step], is_complete=next_step.is_complete)
+                print(f"\nIterative Plan: {plan}")
             elif self.plan_type == "full":
                 plan = await self._get_full_plan(
                     objective=objective, 
                     plan_result=plan_result, 
                     request_params=params
                 )
+                print(f"\nFull Plan: {plan}")
+                print(f"Plan steps: {plan.steps}")
+                print(f"Plan is_complete: {plan.is_complete}")
                 logger.debug(f"Iteration {iterations}: Full Plan:", data=plan)
             else:
                 raise ValueError(f"Invalid plan type {self.plan_type}")
@@ -210,12 +210,14 @@ class Orchestrator(AugmentedLLM[MessageParamT, MessageT]):
             plan_result.plan = plan
 
             if plan.is_complete:
+                print(f"\nPlan marked as complete. Steps executed so far: {len(plan_result.step_results)}")
                 plan_result.is_complete = True
 
                 # Synthesize final result into a single message
                 synthesis_prompt = SYNTHESIZE_PLAN_PROMPT_TEMPLATE.format(
                     plan_result=format_plan_result(plan_result)
                 )
+                print(f"\nSynthesis prompt: {synthesis_prompt}")
 
                 plan_result.result = await self.planner.generate_str(
                     message=synthesis_prompt,
@@ -226,12 +228,17 @@ class Orchestrator(AugmentedLLM[MessageParamT, MessageT]):
 
             # Execute each step, collecting results
             # Note that in iterative mode this will only be a single step
+            print(f"\nExecuting {len(plan.steps)} steps...")
             for step in plan.steps:
+                print(f"\nStep details: {step}")
+                print(f"Step tasks: {step.tasks}")
                 step_result = await self._execute_step(
                     step=step,
                     previous_result=plan_result,
                     request_params=params,
                 )
+
+                plan_result.add_step_result(step_result)
 
                 plan_result.add_step_result(step_result)
 
@@ -253,7 +260,6 @@ class Orchestrator(AugmentedLLM[MessageParamT, MessageT]):
         """Execute a step's subtasks in parallel and synthesize results"""
         print(f"\nExecuting step: {step}")
         params = self.get_request_params(request_params)
-        params = params.model_copy(update={"use_history": False})
         
         step_result = StepResult(step=step, task_results=[])
         context = format_plan_result(previous_result)
@@ -300,7 +306,6 @@ class Orchestrator(AugmentedLLM[MessageParamT, MessageT]):
                 # Get the agent's config for task execution
                 agent = self.agents.get(task.agent)
                 task_params = agent.config.default_request_params if hasattr(agent, 'config') else params
-                task_params = task_params.model_copy(update={"use_history": False})
                 print(f"\nExecuting task for {task.agent} with params: {task_params}")
                 futures.append(
                     llm.generate_str(message=task_description, request_params=task_params)
@@ -327,6 +332,9 @@ class Orchestrator(AugmentedLLM[MessageParamT, MessageT]):
         request_params: RequestParams | None = None,
     ) -> Plan:
         """Generate full plan considering previous results"""
+        print(f"\nStarting plan generation. Current step results: {len(plan_result.step_results)}")
+        print(f"Current plan status: {plan_result.plan.is_complete if plan_result.plan else 'No plan yet'}")
+        
         params = self.get_request_params(request_params)
         params = params.model_copy(update={"use_history": False})
 
@@ -342,12 +350,19 @@ class Orchestrator(AugmentedLLM[MessageParamT, MessageT]):
             plan_result=format_plan_result(plan_result),
             agents=agents,
         )
+        print(f"\nGenerating plan with prompt: {prompt}")
+        print(f"Using planner: {self.planner}")
+        print(f"Planner params: {params}")
+        print(f"Available agents: {[a for a in self.agents.keys()]}")
 
         plan = await self.planner.generate_structured(
             message=prompt,
             response_model=Plan,
             request_params=params,
         )
+        print(f"\nGenerated plan: {plan}")
+        print(f"Plan steps: {plan.steps}")
+        print(f"Raw plan model dump: {plan.model_dump()}")
 
         return plan
 

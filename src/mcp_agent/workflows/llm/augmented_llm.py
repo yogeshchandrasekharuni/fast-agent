@@ -289,7 +289,7 @@ class AugmentedLLM(ContextDependent, AugmentedLLMProtocol[MessageParamT, Message
         Should be overridden by provider implementations to set provider-specific defaults."""
         return RequestParams(
             modelPreferences=self.model_preferences,
-            maxTokens=2048,
+            #            maxTokens=2048, # TODO -- make this configurable/default, why so low?
             systemPrompt=self.instruction,
             parallel_tool_calls=True,
             max_iterations=10,

@@ -61,7 +61,7 @@ class AnthropicAugmentedLLM(AugmentedLLM[MessageParam, Message]):
         return RequestParams(
             model=kwargs.get("model", DEFAULT_ANTHROPIC_MODEL),
             modelPreferences=self.model_preferences,
-            maxTokens=2048,
+            #            maxTokens=2048,
             systemPrompt=self.instruction,
             parallel_tool_calls=True,
             max_iterations=10,

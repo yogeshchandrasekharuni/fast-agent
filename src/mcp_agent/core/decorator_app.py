@@ -350,9 +350,25 @@ class MCPAgentDecorator(ContextDependent):
                 config = agent_data["config"]
                 
                 # Create orchestrator with its agents and model
+                # Resolve model alias if present
+                model_config = ModelFactory.parse_model_string(config.model)
+                resolved_model = model_config.model_name
+                
+                # Start with existing params if available
+                if config.default_request_params:
+                    base_params = config.default_request_params.model_copy()
+                    # Update with orchestrator-specific settings
+                    base_params.use_history = config.use_history
+                    base_params.model = resolved_model
+                else:
+                    base_params = RequestParams(
+                        use_history=config.use_history,
+                        model=resolved_model
+                    )
+                
                 llm_factory = self._get_model_factory(
-                    model=config.model,
-                    request_params=config.default_request_params
+                    model=config.model,  # Use original model string for factory creation
+                    request_params=base_params
                 )
 
                 # Get the child agents
@@ -367,7 +383,7 @@ class MCPAgentDecorator(ContextDependent):
                     available_agents=child_agents,
                     context=agent_app.context,
                     llm_factory=llm_factory,
-                    default_request_params=config.default_request_params,
+                    request_params=base_params,  # Use our base params that include model
                     plan_type="full",
                 )
 

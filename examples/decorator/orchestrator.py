@@ -46,7 +46,7 @@ agent_app = MCPAgentDecorator("Orchestrator Example")
     https://apastyle.apa.org/learn/quick-guide-on-references.
     Write the graded report to graded_report.md in the same directory as short_story.md""",
     agents=["finder", "writer", "proofreader"],
-    model="o3-mini.medium",  # Orchestrators typically need more capable models
+    model="sonnet",  # Orchestrators typically need more capable models
 )
 async def main():
     async with agent_app.run() as agent:
