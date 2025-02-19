@@ -140,7 +140,6 @@ async def _server_lifecycle_task(server_conn: ServerConnection) -> None:
     Runs inside the MCPConnectionManager's shared TaskGroup.
     """
     server_name = server_conn.server_name
-    task_name = asyncio.current_task().get_name()
     try:
         transport_context = server_conn._transport_context_factory()
 
@@ -153,9 +152,13 @@ async def _server_lifecycle_task(server_conn: ServerConnection) -> None:
                 await server_conn.wait_for_shutdown_request()
 
     except Exception as exc:
+        logger.error(
+            f"{server_name}: Lifecycle task encountered an error: {exc}", exc_info=True
+        )
+        # If there's an error, we should also set the event so that
+        # 'get_server' won't hang
         server_conn._initialized_event.set()
         raise
-    finally:
 
 
 class MCPConnectionManager(ContextDependent):

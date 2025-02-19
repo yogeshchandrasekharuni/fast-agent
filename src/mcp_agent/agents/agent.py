@@ -36,33 +36,22 @@ HUMAN_INPUT_TOOL_NAME = "__human_input__"
 @dataclass
 class AgentConfig:
     """Configuration for an Agent instance"""
+
     name: str
     instruction: Union[str, Callable[[Dict], str]]
     servers: List[str]
     model: Optional[str] = None
     use_history: bool = True
     default_request_params: Optional[RequestParams] = None
-    
+
     def __post_init__(self):
         """Ensure default_request_params exists with proper history setting"""
-        from mcp_agent.debug import dev_print
-        
-        dev_print("yellow", f"\nAgentConfig post_init for {self.name}")
-        dev_print("yellow", "Initial state:", {
-            "use_history": self.use_history,
-            "default_request_params": self.default_request_params.model_dump() if self.default_request_params else None
-        })
-        
+
         if self.default_request_params is None:
             self.default_request_params = RequestParams(use_history=self.use_history)
         else:
             # Override the request params history setting if explicitly configured
             self.default_request_params.use_history = self.use_history
-            
-        dev_print("yellow", "Final AgentConfig state:", {
-            "use_history": self.use_history,
-            "default_request_params": self.default_request_params.model_dump()
-        })
 
 
 class Agent(MCPAggregator):
@@ -73,7 +62,9 @@ class Agent(MCPAggregator):
 
     def __init__(
         self,
-        config: Union[AgentConfig, str],  # Can be AgentConfig or backward compatible str name
+        config: Union[
+            AgentConfig, str
+        ],  # Can be AgentConfig or backward compatible str name
         instruction: Optional[Union[str, Callable[[Dict], str]]] = None,
         server_names: Optional[List[str]] = None,
         functions: Optional[List[Callable]] = None,
@@ -143,8 +134,7 @@ class Agent(MCPAggregator):
             An instance of AugmentedLLM or one of its subclasses.
         """
         return llm_factory(
-            agent=self,
-            default_request_params=self._default_request_params
+            agent=self, default_request_params=self._default_request_params
         )
 
     async def shutdown(self):
