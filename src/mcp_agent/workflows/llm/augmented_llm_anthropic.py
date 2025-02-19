@@ -50,22 +50,15 @@ class AnthropicAugmentedLLM(AugmentedLLM[MessageParam, Message]):
     """
 
     def __init__(self, *args, **kwargs):
-        super().__init__(
-            *args,
-            type_converter=AnthropicMCPTypeConverter,
-            **kwargs,
-        )
+        super().__init__(*args, type_converter=AnthropicMCPTypeConverter, **kwargs)
 
         self.provider = "Anthropic"
         # Initialize logger with name if available
         self.logger = get_logger(f"{__name__}.{self.name}" if self.name else __name__)
 
-        self.model_preferences = self.model_preferences or ModelPreferences(
-            costPriority=0.3,
-            speedPriority=0.4,
-            intelligencePriority=0.3,
-        )
-        self.default_request_params = self.default_request_params or RequestParams(
+    def _initialize_default_params(self, kwargs: dict) -> RequestParams:
+        """Initialize Anthropic-specific default parameters"""
+        return RequestParams(
             model=kwargs.get("model", DEFAULT_ANTHROPIC_MODEL),
             modelPreferences=self.model_preferences,
             maxTokens=2048,
@@ -89,6 +82,12 @@ class AnthropicAugmentedLLM(AugmentedLLM[MessageParam, Message]):
         anthropic = Anthropic(api_key=config.anthropic.api_key)
         messages: List[MessageParam] = []
         params = self.get_request_params(request_params)
+
+        from rich import print as rprint
+
+        rprint(f"\n[blue]Generating response in {self.__class__.__name__}[/blue]")
+        rprint("[blue]Using params:[/blue]", params.model_dump())
+        rprint("[blue]Current history:[/blue]", self.history.get())
 
         if params.use_history:
             messages.extend(self.history.get())

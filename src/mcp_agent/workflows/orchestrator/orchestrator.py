@@ -8,7 +8,7 @@ from typing import (
     TYPE_CHECKING,
 )
 
-from mcp_agent.agents.agent import Agent
+from mcp_agent.agents.agent import Agent, AgentConfig
 from mcp_agent.workflows.llm.augmented_llm import (
     AugmentedLLM,
     MessageParamT,
@@ -33,6 +33,7 @@ from mcp_agent.workflows.orchestrator.orchestrator_prompts import (
     TASK_PROMPT_TEMPLATE,
 )
 from mcp_agent.logging.logger import get_logger
+from mcp_agent.debug import dev_print, dev_debug
 
 if TYPE_CHECKING:
     from mcp_agent.context import Context
@@ -78,15 +79,19 @@ class Orchestrator(AugmentedLLM[MessageParamT, MessageT]):
 
         self.llm_factory = llm_factory
 
+        # Create default planner with AgentConfig
+        planner_config = AgentConfig(
+            name="LLM Orchestration Planner",
+            instruction="""
+            You are an expert planner. Given an objective task and a list of MCP servers (which are collections of tools)
+            or Agents (which are collections of servers), your job is to break down the objective into a series of steps,
+            which can be performed by LLMs with access to the servers or agents.
+            """,
+            servers=[],  # Planner doesn't need direct server access
+        )
+        
         self.planner = planner or llm_factory(
-            agent=Agent(
-                name="LLM Orchestration Planner",
-                instruction="""
-                You are an expert planner. Given an objective task and a list of MCP servers (which are collections of tools)
-                or Agents (which are collections of servers), your job is to break down the objective into a series of steps,
-                which can be performed by LLMs with access to the servers or agents.
-                """,
-            )
+            agent=Agent(config=planner_config)
         )
 
         self.plan_type: Literal["full", "iterative"] = plan_type
@@ -145,11 +150,14 @@ class Orchestrator(AugmentedLLM[MessageParamT, MessageT]):
         params = self.get_request_params(request_params)
         result_str = await self.generate_str(message=message, request_params=params)
 
+        structured_config = AgentConfig(
+            name="Structured Output",
+            instruction="Produce a structured output given a message",
+            servers=[],  # No server access needed for structured output
+        )
+        
         llm = self.llm_factory(
-            agent=Agent(
-                name="Structured Output",
-                instruction="Produce a structured output given a message",
-            )
+            agent=Agent(config=structured_config)
         )
 
         structured_result = await llm.generate_structured(

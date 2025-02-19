@@ -1,6 +1,7 @@
 import asyncio
 import uuid
-from typing import Callable, Dict, List, Optional, TypeVar, TYPE_CHECKING
+from dataclasses import dataclass
+from typing import Callable, Dict, List, Optional, TypeVar, Union, TYPE_CHECKING
 
 from mcp.server.fastmcp.tools import Tool as FastTool
 from mcp.types import (
@@ -11,6 +12,7 @@ from mcp.types import (
 )
 
 from mcp_agent.mcp.mcp_aggregator import MCPAggregator
+from mcp_agent.workflows.llm.augmented_llm import RequestParams
 from mcp_agent.human_input.types import (
     HumanInputCallback,
     HumanInputRequest,
@@ -31,6 +33,38 @@ LLM = TypeVar("LLM", bound=AugmentedLLM)
 HUMAN_INPUT_TOOL_NAME = "__human_input__"
 
 
+@dataclass
+class AgentConfig:
+    """Configuration for an Agent instance"""
+    name: str
+    instruction: Union[str, Callable[[Dict], str]]
+    servers: List[str]
+    model: Optional[str] = None
+    use_history: bool = True
+    default_request_params: Optional[RequestParams] = None
+    
+    def __post_init__(self):
+        """Ensure default_request_params exists with proper history setting"""
+        from mcp_agent.debug import dev_print
+        
+        dev_print("yellow", f"\nAgentConfig post_init for {self.name}")
+        dev_print("yellow", "Initial state:", {
+            "use_history": self.use_history,
+            "default_request_params": self.default_request_params.model_dump() if self.default_request_params else None
+        })
+        
+        if self.default_request_params is None:
+            self.default_request_params = RequestParams(use_history=self.use_history)
+        else:
+            # Override the request params history setting if explicitly configured
+            self.default_request_params.use_history = self.use_history
+            
+        dev_print("yellow", "Final AgentConfig state:", {
+            "use_history": self.use_history,
+            "default_request_params": self.default_request_params.model_dump()
+        })
+
+
 class Agent(MCPAggregator):
     """
     An Agent is an entity that has access to a set of MCP servers and can interact with them.
@@ -39,28 +73,41 @@ class Agent(MCPAggregator):
 
     def __init__(
         self,
-        name: str,  # agent name
-        instruction: str | Callable[[Dict], str] = "You are a helpful agent.",
-        server_names: List[str] = None,
-        functions: List[Callable] = None,
+        config: Union[AgentConfig, str],  # Can be AgentConfig or backward compatible str name
+        instruction: Optional[Union[str, Callable[[Dict], str]]] = None,
+        server_names: Optional[List[str]] = None,
+        functions: Optional[List[Callable]] = None,
         connection_persistence: bool = True,
-        human_input_callback: HumanInputCallback = None,
+        human_input_callback: Optional[HumanInputCallback] = None,
         context: Optional["Context"] = None,
         **kwargs,
     ):
+        # Handle backward compatibility where first arg was name
+        if isinstance(config, str):
+            self.config = AgentConfig(
+                name=config,
+                instruction=instruction or "You are a helpful agent.",
+                servers=server_names or [],
+            )
+        else:
+            self.config = config
+
         super().__init__(
             context=context,
-            server_names=server_names or [],
+            server_names=self.config.servers,
             connection_persistence=connection_persistence,
-            name=name,
+            name=self.config.name,
             **kwargs,
         )
 
-        self.name = name
-        self.instruction = instruction
+        self.name = self.config.name
+        self.instruction = self.config.instruction
         self.functions = functions or []
         self.executor = self.context.executor
-        self.logger = get_logger(f"{__name__}.{name}")
+        self.logger = get_logger(f"{__name__}.{self.name}")
+
+        # Store the default request params from config
+        self._default_request_params = self.config.default_request_params
 
         # Map function names to tools
         self._function_tool_map: Dict[str, FastTool] = {}
@@ -87,7 +134,7 @@ class Agent(MCPAggregator):
         """
         Create an LLM instance for the agent.
 
-         Args:
+        Args:
             llm_factory: A callable that constructs an AugmentedLLM or its subclass.
                         The factory should accept keyword arguments matching the
                         AugmentedLLM constructor parameters.
@@ -95,7 +142,10 @@ class Agent(MCPAggregator):
         Returns:
             An instance of AugmentedLLM or one of its subclasses.
         """
-        return llm_factory(agent=self)
+        return llm_factory(
+            agent=self,
+            default_request_params=self._default_request_params
+        )
 
     async def shutdown(self):
         """

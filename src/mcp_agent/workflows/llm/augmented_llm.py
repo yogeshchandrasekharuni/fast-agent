@@ -9,6 +9,7 @@ from mcp.types import (
     CallToolResult,
     CreateMessageRequestParams,
     CreateMessageResult,
+    ModelPreferences,
     SamplingMessage,
     TextContent,
 )
@@ -16,9 +17,10 @@ from mcp.types import (
 from mcp_agent.context_dependent import ContextDependent
 from mcp_agent.mcp.mcp_aggregator import MCPAggregator, SEP
 from mcp_agent.workflows.llm.llm_selector import ModelSelector
+from mcp_agent.debug import dev_debug
 from rich.panel import Panel
 from rich.text import Text
-from mcp_agent import console
+from mcp_agent import console, mcp
 
 if TYPE_CHECKING:
     from mcp_agent.agents.agent import Agent
@@ -184,7 +186,7 @@ class AugmentedLLM(ContextDependent, AugmentedLLMProtocol[MessageParamT, Message
         server_names: List[str] | None = None,
         instruction: str | None = None,
         name: str | None = None,
-        default_request_params: RequestParams | None = None,
+        request_params: RequestParams | None = None,
         type_converter: Type[ProviderToMCPConverter[MessageParamT, MessageT]] = None,
         context: Optional["Context"] = None,
         **kwargs,
@@ -194,7 +196,10 @@ class AugmentedLLM(ContextDependent, AugmentedLLMProtocol[MessageParamT, Message
         If a name is provided, it will be used to identify the LLM.
         If an agent is provided, all other properties are optional
         """
+        # Extract request_params before super() call
+        self._init_request_params = request_params
         super().__init__(context=context, **kwargs)
+
         self.executor = self.context.executor
         self.aggregator = (
             agent if agent is not None else MCPAggregator(server_names or [])
@@ -204,12 +209,29 @@ class AugmentedLLM(ContextDependent, AugmentedLLMProtocol[MessageParamT, Message
             agent.instruction if agent and isinstance(agent.instruction, str) else None
         )
         self.history: Memory[MessageParamT] = SimpleMemory[MessageParamT]()
-        self.default_request_params = default_request_params
-        self.model_preferences = (
-            self.default_request_params.modelPreferences
-            if self.default_request_params
-            else None
+
+        # Set initial model preferences
+        self.model_preferences = ModelPreferences(
+            costPriority=0.3,
+            speedPriority=0.4,
+            intelligencePriority=0.3,
         )
+
+        # Initialize default parameters
+        self.default_request_params = self._initialize_default_params(kwargs)
+
+        # Update model preferences from default params
+        if self.default_request_params and self.default_request_params.modelPreferences:
+            self.model_preferences = self.default_request_params.modelPreferences
+
+        # Merge with provided params if any
+        if self._init_request_params:
+            self.default_request_params = self._merge_request_params(
+                self.default_request_params, self._init_request_params
+            )
+            # Update model preferences again if they changed in the merge
+            if self.default_request_params.modelPreferences:
+                self.model_preferences = self.default_request_params.modelPreferences
 
         self.model_selector = self.context.model_selector
         self.type_converter = type_converter
@@ -263,6 +285,42 @@ class AugmentedLLM(ContextDependent, AugmentedLLMProtocol[MessageParamT, Message
 
         return model_info.name
 
+    @dev_debug("green")
+    def _initialize_default_params(self, kwargs: dict) -> RequestParams:
+        """Initialize default parameters for the LLM.
+        Should be overridden by provider implementations to set provider-specific defaults."""
+        return RequestParams(
+            modelPreferences=self.model_preferences,
+            maxTokens=2048,
+            systemPrompt=self.instruction,
+            parallel_tool_calls=True,
+            max_iterations=10,
+            use_history=True,
+        )
+
+    def _merge_request_params(
+        self, default_params: RequestParams, provided_params: RequestParams
+    ) -> RequestParams:
+        """Merge default and provided request parameters"""
+        # Log parameter merging if debug logging is enabled
+        # self.context.config.logger.debug(
+        #     "Merging provided request params with defaults",
+        #     extra={
+        #         "defaults": default_params.model_dump(),
+        #         "provided": provided_params.model_dump(),
+        #     },
+        # )
+
+        merged = default_params.model_dump()
+        merged.update(provided_params.model_dump(exclude_unset=True))
+        final_params = RequestParams(**merged)
+
+        # self.logger.debug(
+        #     "Final merged params:", extra={"params": final_params.model_dump()}
+        # )
+
+        return final_params
+
     def get_request_params(
         self,
         request_params: RequestParams | None = None,
@@ -278,13 +336,14 @@ class AugmentedLLM(ContextDependent, AugmentedLLMProtocol[MessageParamT, Message
         # Start with the defaults
         default_request_params = default or self.default_request_params
 
-        params = default_request_params.model_dump() if default_request_params else {}
-        # If user provides overrides, update the defaults
-        if request_params:
-            params.update(request_params.model_dump(exclude_unset=True))
+        if not default_request_params:
+            default_request_params = self._initialize_default_params({})
 
-        # Create a new RequestParams object with the updated values
-        return RequestParams(**params)
+        # If user provides overrides, merge them with defaults
+        if request_params:
+            return self._merge_request_params(default_request_params, request_params)
+
+        return default_request_params
 
     def to_mcp_message_result(self, result: MessageT) -> MCPMessageResult:
         """Convert an LLM response to an MCP message result type."""

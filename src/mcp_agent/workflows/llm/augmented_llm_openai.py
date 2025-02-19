@@ -52,37 +52,42 @@ class OpenAIAugmentedLLM(
     """
 
     def __init__(self, *args, **kwargs):
-        super().__init__(*args, type_converter=MCPOpenAITypeConverter, **kwargs)
+        super().__init__(*args, **kwargs)
 
         self.provider = "OpenAI"
         # Initialize logger with name if available
         self.logger = get_logger(f"{__name__}.{self.name}" if self.name else __name__)
 
-        self.model_preferences = self.model_preferences or ModelPreferences(
-            costPriority=0.3,
-            speedPriority=0.4,
-            intelligencePriority=0.3,
-        )
-        chosen_model = kwargs.get("model", DEFAULT_OPENAI_MODEL)
-
+        # Set up reasoning-related attributes
         self._reasoning_effort = kwargs.get("reasoning_effort", None)
-
         if self.context and self.context.config and self.context.config.openai:
-            # Get default model from config if available. this serves as an override at the moment.
-            if hasattr(self.context.config.openai, "default_model"):
-                chosen_model = self.context.config.openai.default_model
             if self._reasoning_effort is None and hasattr(
                 self.context.config.openai, "reasoning_effort"
             ):
                 self._reasoning_effort = self.context.config.openai.reasoning_effort
 
-        self._reasoning = chosen_model.startswith("o3") or chosen_model.startswith("o1")
+        # Determine if we're using a reasoning model
+        chosen_model = (
+            self.default_request_params.model if self.default_request_params else None
+        )
+        self._reasoning = chosen_model and (
+            chosen_model.startswith("o3") or chosen_model.startswith("o1")
+        )
         if self._reasoning:
             self.logger.info(
                 f"Using reasoning model '{chosen_model}' with '{self._reasoning_effort}' reasoning effort"
             )
 
-        self.default_request_params = self.default_request_params or RequestParams(
+    def _initialize_default_params(self, kwargs: dict) -> RequestParams:
+        """Initialize OpenAI-specific default parameters"""
+        chosen_model = kwargs.get("model", DEFAULT_OPENAI_MODEL)
+
+        # Get default model from config if available
+        if self.context and self.context.config and self.context.config.openai:
+            if hasattr(self.context.config.openai, "default_model"):
+                chosen_model = self.context.config.openai.default_model
+
+        return RequestParams(
             model=chosen_model,
             modelPreferences=self.model_preferences,
             maxTokens=4096,
@@ -90,20 +95,6 @@ class OpenAIAugmentedLLM(
             parallel_tool_calls=True,
             max_iterations=10,
             use_history=True,
-        )
-
-    @classmethod
-    def convert_message_to_message_param(
-        cls, message: ChatCompletionMessage, **kwargs
-    ) -> ChatCompletionMessageParam:
-        """Convert a response object to an input parameter object to allow LLM calls to be chained."""
-        return ChatCompletionAssistantMessageParam(
-            role="assistant",
-            content=message.content,
-            tool_calls=message.tool_calls,
-            audio=message.audio,
-            refusal=message.refusal,
-            **kwargs,
         )
 
     async def generate(self, message, request_params: RequestParams | None = None):
@@ -218,8 +209,7 @@ class OpenAIAugmentedLLM(
                 message, name=self.name
             )
             messages.append(converted_message)
-            message_text = converted_message["content"]
-
+            message_text = converted_message.content
             if (
                 choice.finish_reason in ["tool_calls", "function_call"]
                 and message.tool_calls

@@ -5,6 +5,7 @@ from typing import Optional, Type, Dict, Union, Callable
 from mcp_agent.agents.agent import Agent
 from mcp_agent.workflows.llm.augmented_llm_anthropic import AnthropicAugmentedLLM
 from mcp_agent.workflows.llm.augmented_llm_openai import OpenAIAugmentedLLM
+from mcp_agent.workflows.llm.augmented_llm import RequestParams
 
 # Type alias for LLM classes
 LLMClass = Union[Type[AnthropicAugmentedLLM], Type[OpenAIAugmentedLLM]]
@@ -118,12 +119,15 @@ class ModelFactory:
         )
 
     @classmethod
-    def create_factory(cls, model_string: str) -> Callable[[Agent], LLMClass]:
+    def create_factory(
+        cls, model_string: str, request_params: Optional[RequestParams] = None
+    ) -> Callable[..., LLMClass]:
         """
         Creates a factory function that follows the attach_llm protocol.
 
         Args:
             model_string: The model specification string (e.g. "gpt-4o.high")
+            request_params: Optional parameters to configure LLM behavior
 
         Returns:
             A callable that takes an agent parameter and returns an LLM instance
@@ -133,13 +137,25 @@ class ModelFactory:
         llm_class = cls.PROVIDER_CLASSES[config.provider]
 
         # Create a factory function matching the attach_llm protocol
-        def factory(agent: Agent) -> LLMClass:
+        def factory(agent: Agent, **kwargs) -> LLMClass:
+            # Merge any default_request_params from kwargs with factory request_params
+            merged_params = request_params
+            if 'default_request_params' in kwargs and kwargs['default_request_params']:
+                if merged_params:
+                    # Create a new params instance with merged values
+                    param_dict = merged_params.model_dump()
+                    param_dict.update(kwargs['default_request_params'].model_dump(exclude_unset=True))
+                    merged_params = RequestParams(**param_dict)
+                else:
+                    merged_params = kwargs['default_request_params']
+
             return llm_class(
                 agent=agent,
                 model=config.model_name,
                 reasoning_effort=config.reasoning_effort.value
                 if config.reasoning_effort
                 else None,
+                request_params=merged_params,
             )
 
         return factory
