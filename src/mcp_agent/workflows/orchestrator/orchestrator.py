@@ -236,72 +236,50 @@ class Orchestrator(AugmentedLLM[MessageParamT, MessageT]):
         """Execute a step's subtasks in parallel and synthesize results"""
         params = self.get_request_params(request_params)
         step_result = StepResult(step=step, task_results=[])
-
-        # Format previous results
         context = format_plan_result(previous_result)
 
-        # Execute subtasks in parallel
-        futures: List[Coroutine[Any, Any, str]] = []
-        results = []
-
+        # Prepare tasks and LLMs
+        task_llms = []
         async with contextlib.AsyncExitStack() as stack:
-            # Set up all the tasks with their agents and LLMs
             for task in step.tasks:
                 agent = self.agents.get(task.agent)
                 if not agent:
-                    # TODO: saqadri - should we fail the entire workflow in this case?
                     raise ValueError(f"No agent found matching {task.agent}")
-                elif isinstance(agent, AugmentedLLM):
+                
+                if isinstance(agent, AugmentedLLM):
                     llm = agent
                 else:
-                    # Enter agent context
-                    ctx_agent = await stack.enter_async_context(agent)
-                    llm = await ctx_agent.attach_llm(self.llm_factory)
+                    # Use existing LLM if agent has one
+                    if hasattr(agent, '_llm') and agent._llm:
+                        llm = agent._llm
+                    else:
+                        # Only create new context if needed
+                        ctx_agent = await stack.enter_async_context(agent)
+                        llm = await ctx_agent.attach_llm(self.llm_factory)
+                
+                task_llms.append((task, llm))
 
+            # Execute all tasks within the same context
+            futures = []
+            for task, llm in task_llms:
                 task_description = TASK_PROMPT_TEMPLATE.format(
                     objective=previous_result.objective,
                     task=task.description,
                     context=context,
                 )
+                futures.append(llm.generate_str(message=task_description, request_params=params))
 
-                futures.append(
-                    llm.generate_str(
-                        message=task_description,
-                        request_params=params,
-                    )
-                )
-
-            # Wait for all tasks to complete
+            # Wait for all tasks, including any tool calls they make
             results = await self.executor.execute(*futures)
 
-        # Store task results
-        for task, result in zip(step.tasks, results):
-            step_result.add_task_result(
-                TaskWithResult(**task.model_dump(), result=str(result))
-            )
+            # Process results while contexts are still active
+            for (task, _), result in zip(task_llms, results):
+                step_result.add_task_result(
+                    TaskWithResult(**task.model_dump(), result=str(result))
+                )
 
-        # Synthesize overall step result
-        # TODO: saqadri - instead of running through an LLM,
-        # we set the step result to the formatted results of the subtasks
-        # From empirical evidence, running it through an LLM at this step can
-        # lead to compounding errors since some information gets lost in the synthesis
-        # synthesis_prompt = SYNTHESIZE_STEP_PROMPT_TEMPLATE.format(
-        #     step_result=format_step_result(step_result)
-        # )
-        # synthesizer_llm = self.llm_factory(
-        #     agent=Agent(
-        #         name="Synthesizer",
-        #         instruction="Your job is to concatenate the results of parallel tasks into a single result.",
-        #     )
-        # )
-        # step_result.result = await synthesizer_llm.generate_str(
-        #     message=synthesis_prompt,
-        #     max_iterations=1,
-        #     model=model,
-        #     stop_sequences=stop_sequences,
-        #     max_tokens=max_tokens,
-        # )
-        step_result.result = format_step_result(step_result)
+            # Format final result while contexts are still active
+            step_result.result = format_step_result(step_result)
 
         return step_result
 

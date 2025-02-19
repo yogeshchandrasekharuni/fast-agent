@@ -51,7 +51,7 @@ and whispers of a hidden agenda linger among the villagers.
 )
 @agent_app.agent(
     name="style_enforcer",
-    model="sonnet-latest",
+    model="sonnet",
     instruction="""Analyze the story for adherence to style guidelines.
     Evaluate the narrative flow, clarity of expression, and tone. Suggest improvements to 
     enhance storytelling, readability, and engagement.""",
