@@ -61,7 +61,7 @@ class AnthropicAugmentedLLM(AugmentedLLM[MessageParam, Message]):
         return RequestParams(
             model=kwargs.get("model", DEFAULT_ANTHROPIC_MODEL),
             modelPreferences=self.model_preferences,
-            #            maxTokens=2048,
+            maxTokens=4096,  # default haiku3
             systemPrompt=self.instruction,
             parallel_tool_calls=True,
             max_iterations=10,
@@ -112,12 +112,14 @@ class AnthropicAugmentedLLM(AugmentedLLM[MessageParam, Message]):
         for i in range(params.max_iterations):
             arguments = {
                 "model": model,
-                "max_tokens": params.maxTokens,
                 "messages": messages,
                 "system": self.instruction or params.systemPrompt,
                 "stop_sequences": params.stopSequences,
                 "tools": available_tools,
             }
+
+            if params.maxTokens is not None:
+                arguments["max_tokens"] = params.maxTokens
 
             if params.metadata:
                 arguments = {**arguments, **params.metadata}

@@ -21,7 +21,6 @@ from mcp.types import (
     CallToolResult,
     EmbeddedResource,
     ImageContent,
-    ModelPreferences,
     TextContent,
     TextResourceContents,
 )
@@ -90,7 +89,6 @@ class OpenAIAugmentedLLM(
         return RequestParams(
             model=chosen_model,
             modelPreferences=self.model_preferences,
-            maxTokens=4096,
             systemPrompt=self.instruction,
             parallel_tool_calls=True,
             max_iterations=10,

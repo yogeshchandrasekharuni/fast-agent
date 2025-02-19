@@ -65,6 +65,8 @@ class ModelFactory:
         "claude-3-5-sonnet-20240620": Provider.ANTHROPIC,
         "claude-3-5-sonnet-20241022": Provider.ANTHROPIC,
         "claude-3-5-sonnet-latest": Provider.ANTHROPIC,
+        "claude-3-opus-20240229": Provider.ANTHROPIC,
+        "claude-3-opus-latest": Provider.ANTHROPIC,
     }
 
     MODEL_ALIASES = {
@@ -73,6 +75,7 @@ class ModelFactory:
         "claude": "claude-3-5-sonnet-latest",
         "haiku": "claude-3-haiku-20240307",
         "haiku3": "claude-3-haiku-20240307",
+        "opus": "claude-3-opus-latest",
     }
 
     # Mapping of providers to their LLM classes
@@ -144,16 +147,24 @@ class ModelFactory:
             print(f"\nFactory creating LLM for agent {agent.name}")
             print(f"Factory kwargs: {kwargs}")
             # Create merged params with parsed model name
-            factory_params = request_params.model_copy() if request_params else RequestParams()
-            factory_params.model = config.model_name  # Use the parsed model name, not the alias
-            
+            factory_params = (
+                request_params.model_copy() if request_params else RequestParams()
+            )
+            factory_params.model = (
+                config.model_name
+            )  # Use the parsed model name, not the alias
+
             # Merge with any provided default_request_params
-            if 'default_request_params' in kwargs and kwargs['default_request_params']:
+            if "default_request_params" in kwargs and kwargs["default_request_params"]:
                 params_dict = factory_params.model_dump()
-                params_dict.update(kwargs['default_request_params'].model_dump(exclude_unset=True))
+                params_dict.update(
+                    kwargs["default_request_params"].model_dump(exclude_unset=True)
+                )
                 factory_params = RequestParams(**params_dict)
-                factory_params.model = config.model_name  # Ensure parsed model name isn't overwritten
-            
+                factory_params.model = (
+                    config.model_name
+                )  # Ensure parsed model name isn't overwritten
+
             print(f"Final merged request params: {factory_params}")
 
             llm = llm_class(

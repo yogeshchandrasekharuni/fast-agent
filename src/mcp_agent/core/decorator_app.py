@@ -119,30 +119,32 @@ class MCPAgentDecorator(ContextDependent):
         Returns:
             ModelFactory instance for the specified or default model
         """
-        print(f"\n_get_model_factory called with model={model}, request_params={request_params}")
-        
+        print(
+            f"\n_get_model_factory called with model={model}, request_params={request_params}"
+        )
+
         # Config has lowest precedence
         model_spec = self.context.config.default_model
         print(f"Starting with config default: {model_spec}")
-        
+
         # Command line override has next precedence
         if self.args.model:
             model_spec = self.args.model
             print(f"Applied command line override: {model_spec}")
-            
+
         # Model from decorator has highest precedence
         if model:
             model_spec = model
             print(f"Applied decorator model: {model_spec}")
-            
+
         print(f"Creating factory with final model_spec: {model_spec}")
-        
+
         # Update or create request_params with the final model choice
         if request_params:
             request_params = request_params.model_copy(update={"model": model_spec})
         else:
             request_params = RequestParams(model=model_spec)
-            
+
         # Let model factory handle the model string parsing and setup
         return ModelFactory.create_factory(model_spec, request_params=request_params)
 
@@ -167,13 +169,14 @@ class MCPAgentDecorator(ContextDependent):
             request_params: Additional request parameters for the LLM
         """
         print(f"\nDecorating agent {name} with model={model}")
-        
+
         def decorator(func: Callable) -> Callable:
             # Create base request params with model included
             base_params = RequestParams(
                 use_history=use_history,
                 model=model,  # Include model in initial params
-                **(request_params or {})
+                maxTokens=4096,  # Default to larger context for agents
+                **(request_params or {}),
             )
             print(f"Created base_params for {name}: {base_params}")
 
@@ -226,8 +229,7 @@ class MCPAgentDecorator(ContextDependent):
         def decorator(func: Callable) -> Callable:
             # Create base request params
             base_params = RequestParams(
-                use_history=use_history,
-                **(request_params or {})
+                use_history=use_history, **(request_params or {})
             )
 
             # Create agent configuration
@@ -348,12 +350,12 @@ class MCPAgentDecorator(ContextDependent):
         for name, agent_data in self.agents.items():
             if agent_data["type"] == AgentType.ORCHESTRATOR.value:
                 config = agent_data["config"]
-                
+
                 # Create orchestrator with its agents and model
                 # Resolve model alias if present
                 model_config = ModelFactory.parse_model_string(config.model)
                 resolved_model = model_config.model_name
-                
+
                 # Start with existing params if available
                 if config.default_request_params:
                     base_params = config.default_request_params.model_copy()
@@ -362,13 +364,12 @@ class MCPAgentDecorator(ContextDependent):
                     base_params.model = resolved_model
                 else:
                     base_params = RequestParams(
-                        use_history=config.use_history,
-                        model=resolved_model
+                        use_history=config.use_history, model=resolved_model
                     )
-                
+
                 llm_factory = self._get_model_factory(
                     model=config.model,  # Use original model string for factory creation
-                    request_params=base_params
+                    request_params=base_params,
                 )
 
                 # Get the child agents
@@ -521,7 +522,7 @@ class MCPAgentDecorator(ContextDependent):
                 if agent_data["type"] == AgentType.BASIC.value:
                     config = agent_data["config"]
                     print(f"\nSetting up agent {name} with config: {config}")
-                    
+
                     # Create agent with configuration
                     agent = Agent(config=config, context=agent_app.context)
                     active_agents[name] = agent
@@ -530,8 +531,7 @@ class MCPAgentDecorator(ContextDependent):
                     ctx = await agent.__aenter__()
                     print(f"Creating LLM factory for {name} with model={config.model}")
                     llm_factory = self._get_model_factory(
-                        model=config.model,
-                        request_params=config.default_request_params
+                        model=config.model, request_params=config.default_request_params
                     )
                     agent._llm = await agent.attach_llm(llm_factory)
                     print(f"Created LLM for {name}: {agent._llm}")
@@ -621,14 +621,14 @@ class AgentAppWrapper:
         while True:
             with progress_display.paused():
                 if default == "STOP":
-                    print("Press <ENTER> to finish")
+                    print("Press <ENTER> to finish.")
                 elif default != "":
-                    print("Enter a prompt, or [red]STOP[/red] to finish")
+                    print("Enter a prompt, or [red]STOP[/red] to finish.")
                     print(
                         f"Press <ENTER> to use the default prompt:\n[cyan]{default}[/cyan]"
                     )
                 else:
-                    print("Enter a prompt, or enter [red]STOP[/red] to finish")
+                    print("Enter a prompt, or [red]STOP[/red] to finish")
 
                 prompt_text = f"[blue]{target_agent}[/blue] >"
                 user_input = Prompt.ask(

@@ -85,6 +85,7 @@ class Orchestrator(AugmentedLLM[MessageParamT, MessageT]):
             maxTokens=8192,    # Higher default for planning
             parallel_tool_calls=True
         )
+        print(f"Orchestrator using maxTokens: {orchestrator_params.maxTokens}")
         
         # If kwargs contains request_params, merge with our defaults but force use_history False
         if 'request_params' in kwargs:
@@ -92,6 +93,7 @@ class Orchestrator(AugmentedLLM[MessageParamT, MessageT]):
             merged = base_params.model_copy()
             merged.use_history = False  # Force this setting
             kwargs['request_params'] = merged
+            print(f"Orchestrator using merged maxTokens: {merged.maxTokens}")
         else:
             kwargs['request_params'] = orchestrator_params
 
@@ -193,16 +195,12 @@ class Orchestrator(AugmentedLLM[MessageParamT, MessageT]):
                 )
                 logger.debug(f"Iteration {iterations}: Iterative plan:", data=next_step)
                 plan = Plan(steps=[next_step], is_complete=next_step.is_complete)
-                print(f"\nIterative Plan: {plan}")
             elif self.plan_type == "full":
                 plan = await self._get_full_plan(
                     objective=objective, 
                     plan_result=plan_result, 
                     request_params=params
                 )
-                print(f"\nFull Plan: {plan}")
-                print(f"Plan steps: {plan.steps}")
-                print(f"Plan is_complete: {plan.is_complete}")
                 logger.debug(f"Iteration {iterations}: Full Plan:", data=plan)
             else:
                 raise ValueError(f"Invalid plan type {self.plan_type}")
@@ -210,28 +208,28 @@ class Orchestrator(AugmentedLLM[MessageParamT, MessageT]):
             plan_result.plan = plan
 
             if plan.is_complete:
-                print(f"\nPlan marked as complete. Steps executed so far: {len(plan_result.step_results)}")
-                plan_result.is_complete = True
+                # Only mark as complete if we have actually executed some steps
+                if len(plan_result.step_results) > 0:
+                    plan_result.is_complete = True
 
-                # Synthesize final result into a single message
-                synthesis_prompt = SYNTHESIZE_PLAN_PROMPT_TEMPLATE.format(
-                    plan_result=format_plan_result(plan_result)
-                )
-                print(f"\nSynthesis prompt: {synthesis_prompt}")
+                    # Synthesize final result into a single message
+                    synthesis_prompt = SYNTHESIZE_PLAN_PROMPT_TEMPLATE.format(
+                        plan_result=format_plan_result(plan_result)
+                    )
 
-                plan_result.result = await self.planner.generate_str(
-                    message=synthesis_prompt,
-                    request_params=params.model_copy(update={"max_iterations": 1}),
-                )
+                    plan_result.result = await self.planner.generate_str(
+                        message=synthesis_prompt,
+                        request_params=params.model_copy(update={"max_iterations": 1}),
+                    )
 
-                return plan_result
+                    return plan_result
+                else:
+                    # Don't allow completion without executing steps
+                    plan.is_complete = False
 
             # Execute each step, collecting results
             # Note that in iterative mode this will only be a single step
-            print(f"\nExecuting {len(plan.steps)} steps...")
             for step in plan.steps:
-                print(f"\nStep details: {step}")
-                print(f"Step tasks: {step.tasks}")
                 step_result = await self._execute_step(
                     step=step,
                     previous_result=plan_result,
@@ -332,9 +330,6 @@ class Orchestrator(AugmentedLLM[MessageParamT, MessageT]):
         request_params: RequestParams | None = None,
     ) -> Plan:
         """Generate full plan considering previous results"""
-        print(f"\nStarting plan generation. Current step results: {len(plan_result.step_results)}")
-        print(f"Current plan status: {plan_result.plan.is_complete if plan_result.plan else 'No plan yet'}")
-        
         params = self.get_request_params(request_params)
         params = params.model_copy(update={"use_history": False})
 
@@ -350,19 +345,12 @@ class Orchestrator(AugmentedLLM[MessageParamT, MessageT]):
             plan_result=format_plan_result(plan_result),
             agents=agents,
         )
-        print(f"\nGenerating plan with prompt: {prompt}")
-        print(f"Using planner: {self.planner}")
-        print(f"Planner params: {params}")
-        print(f"Available agents: {[a for a in self.agents.keys()]}")
 
         plan = await self.planner.generate_structured(
             message=prompt,
             response_model=Plan,
             request_params=params,
         )
-        print(f"\nGenerated plan: {plan}")
-        print(f"Plan steps: {plan.steps}")
-        print(f"Raw plan model dump: {plan.model_dump()}")
 
         return plan
 

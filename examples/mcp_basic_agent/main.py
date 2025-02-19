@@ -2,7 +2,7 @@ import asyncio
 import time
 
 from mcp_agent.app import MCPApp
-from mcp_agent.agents.agent import Agent
+from mcp_agent.agents.agent import Agent, AgentConfig
 from mcp_agent.workflows.llm.augmented_llm_anthropic import AnthropicAugmentedLLM  # noqa: F401
 from mcp_agent.workflows.llm.augmented_llm_openai import OpenAIAugmentedLLM  # noqa: F401
 from rich import print
@@ -12,14 +12,16 @@ app = MCPApp(name="mcp_basic_agent")
 
 async def example_usage():
     async with app.run():
-        finder_agent = Agent(
+        finder_config = AgentConfig(
             name="finder",
             instruction="""You are an agent with access to the filesystem, 
             as well as the ability to fetch URLs. Your job is to identify 
             the closest match to a user's request, make the appropriate tool calls, 
             and return the URI and CONTENTS of the closest match.""",
-            server_names=["fetch", "filesystem"],
+            servers=["fetch", "filesystem"],
         )
+        
+        finder_agent = Agent(config=finder_config)
 
         async with finder_agent:
             # logger.info("finder: Connected to server, calling list_tools...")
