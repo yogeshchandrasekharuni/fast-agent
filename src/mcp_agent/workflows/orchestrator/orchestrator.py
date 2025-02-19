@@ -33,7 +33,6 @@ from mcp_agent.workflows.orchestrator.orchestrator_prompts import (
     TASK_PROMPT_TEMPLATE,
 )
 from mcp_agent.logging.logger import get_logger
-from mcp_agent.debug import dev_print, dev_debug
 
 if TYPE_CHECKING:
     from mcp_agent.context import Context
@@ -89,10 +88,8 @@ class Orchestrator(AugmentedLLM[MessageParamT, MessageT]):
             """,
             servers=[],  # Planner doesn't need direct server access
         )
-        
-        self.planner = planner or llm_factory(
-            agent=Agent(config=planner_config)
-        )
+
+        self.planner = planner or llm_factory(agent=Agent(config=planner_config))
 
         self.plan_type: Literal["full", "iterative"] = plan_type
         self.server_registry = self.context.server_registry
@@ -155,10 +152,8 @@ class Orchestrator(AugmentedLLM[MessageParamT, MessageT]):
             instruction="Produce a structured output given a message",
             servers=[],  # No server access needed for structured output
         )
-        
-        llm = self.llm_factory(
-            agent=Agent(config=structured_config)
-        )
+
+        llm = self.llm_factory(agent=Agent(config=structured_config))
 
         structured_result = await llm.generate_structured(
             message=result_str,

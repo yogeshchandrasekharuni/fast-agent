@@ -141,29 +141,21 @@ async def _server_lifecycle_task(server_conn: ServerConnection) -> None:
     """
     server_name = server_conn.server_name
     task_name = asyncio.current_task().get_name()
-    print(f"SERVER {server_name}: Starting lifecycle task in {task_name}")
     try:
         transport_context = server_conn._transport_context_factory()
 
         async with transport_context as (read_stream, write_stream):
-            print(f"SERVER {server_name}: Created transport context")
             server_conn.create_session(read_stream, write_stream)
-            print(f"SERVER {server_name}: Created session")
 
             async with server_conn.session:
                 await server_conn.initialize_session()
-                print(f"SERVER {server_name}: Initialized and running")
 
                 await server_conn.wait_for_shutdown_request()
-                print(f"SERVER {server_name}: Received shutdown request")
-                print(f"SERVER {server_name}: Beginning cleanup in {task_name}")
 
     except Exception as exc:
-        print(f"SERVER {server_name}: Error in lifecycle: {exc}")
         server_conn._initialized_event.set()
         raise
     finally:
-        print(f"SERVER {server_name}: Lifecycle task ending in {task_name}")
 
 
 class MCPConnectionManager(ContextDependent):

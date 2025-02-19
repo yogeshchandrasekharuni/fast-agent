@@ -1,19 +1,21 @@
 ## The Battle of Glimmerwood
 
-In the heart of Glimmerwood, a mystical forest knowed for its radiant trees, a small village thrived.
-The villagers, who were live peacefully, shared their home with the forest's magical creatures,
-especially the Glimmerfoxes whose fur shimmer like moonlight.
+In the heart of Glimmerwood, a mystical forest known for its radiant trees, a small village thrived.
 
-One fateful evening, the peace was shaterred when the infamous Dark Marauders attack.
-Lead by the cunning Captain Thorn, the bandits aim to steal the precious Glimmerstones which was believed to grant immortality.
+   The villagers, who lived peacefully, shared their home with the forest's magical creatures, especially the Glimmerfoxes, whose fur shimmered like moonlight.
 
-Amidst the choas, a young girl named Elara stood her ground, she rallied the villagers and devised a clever plan.
-Using the forests natural defenses they lured the marauders into a trap.
-As the bandits aproached the village square, a herd of Glimmerfoxes emerged, blinding them with their dazzling light,
-the villagers seized the opportunity to captured the invaders.
+One fateful evening, the peace was shattered when the infamous Dark Marauders attacked.
 
-Elara's bravery was celebrated and she was hailed as the "Guardian of Glimmerwood".
-The Glimmerstones were secured in a hidden grove protected by an ancient spell.
+   Led by the cunning Captain Thorn, the bandits aimed to steal the precious Glimmerstones, which were believed to grant immortality.
 
-However, not all was as it seemed. The Glimmerstones true power was never confirm,
-and whispers of a hidden agenda linger among the villagers.
+Amidst the chaos, a young girl named Elara stood her ground.
+
+   She rallied the villagers and devised a clever plan. Using the forest's natural defenses, they lured the marauders into a trap.
+
+   As the bandits approached the village square, a herd of Glimmerfoxes emerged, blinding them with their dazzling light. The villagers seized the opportunity to capture the invaders.
+
+Elara's bravery was celebrated, and she was hailed as the "Guardian of Glimmerwood."
+
+   The Glimmerstones were secured in a hidden grove protected by an ancient spell.
+
+However, not all was as it seemed. The Glimmerstones' true power was never confirmed, and whispers of a hidden agenda lingered among the villagers.

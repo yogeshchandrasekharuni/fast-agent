@@ -83,12 +83,6 @@ class AnthropicAugmentedLLM(AugmentedLLM[MessageParam, Message]):
         messages: List[MessageParam] = []
         params = self.get_request_params(request_params)
 
-        from rich import print as rprint
-
-        rprint(f"\n[blue]Generating response in {self.__class__.__name__}[/blue]")
-        rprint("[blue]Using params:[/blue]", params.model_dump())
-        rprint("[blue]Current history:[/blue]", self.history.get())
-
         if params.use_history:
             messages.extend(self.history.get())
 

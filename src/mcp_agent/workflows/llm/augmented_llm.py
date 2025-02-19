@@ -17,10 +17,9 @@ from mcp.types import (
 from mcp_agent.context_dependent import ContextDependent
 from mcp_agent.mcp.mcp_aggregator import MCPAggregator, SEP
 from mcp_agent.workflows.llm.llm_selector import ModelSelector
-from mcp_agent.debug import dev_debug
 from rich.panel import Panel
 from rich.text import Text
-from mcp_agent import console, mcp
+from mcp_agent import console
 
 if TYPE_CHECKING:
     from mcp_agent.agents.agent import Agent
@@ -285,7 +284,6 @@ class AugmentedLLM(ContextDependent, AugmentedLLMProtocol[MessageParamT, Message
 
         return model_info.name
 
-    @dev_debug("green")
     def _initialize_default_params(self, kwargs: dict) -> RequestParams:
         """Initialize default parameters for the LLM.
         Should be overridden by provider implementations to set provider-specific defaults."""
