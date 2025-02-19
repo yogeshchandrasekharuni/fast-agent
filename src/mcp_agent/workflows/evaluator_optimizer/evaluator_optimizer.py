@@ -99,7 +99,12 @@ class EvaluatorOptimizerLLM(AugmentedLLM[MessageParamT, MessageT]):
             if not llm_factory:
                 raise ValueError("llm_factory is required when using an Agent")
 
-            self.optimizer_llm = llm_factory(agent=optimizer)
+            # Only create new LLM if agent doesn't have one
+            if hasattr(optimizer, "_llm") and optimizer._llm:
+                self.optimizer_llm = optimizer._llm
+            else:
+                self.optimizer_llm = llm_factory(agent=optimizer)
+            
             self.aggregator = optimizer
             self.instruction = (
                 optimizer.instruction
@@ -126,7 +131,11 @@ class EvaluatorOptimizerLLM(AugmentedLLM[MessageParamT, MessageT]):
                     "llm_factory is required when using an Agent evaluator"
                 )
 
-            self.evaluator_llm = llm_factory(agent=evaluator)
+            # Only create new LLM if agent doesn't have one
+            if hasattr(evaluator, "_llm") and evaluator._llm:
+                self.evaluator_llm = evaluator._llm
+            else:
+                self.evaluator_llm = llm_factory(agent=evaluator)
         elif isinstance(evaluator, str):
             # If a string is passed as the evaluator, we use it as the evaluation criteria
             # and create an evaluator agent with that instruction
@@ -262,7 +271,27 @@ class EvaluatorOptimizerLLM(AugmentedLLM[MessageParamT, MessageT]):
             request_params=request_params,
         )
 
-        return "\n".join(self.optimizer_llm.message_str(r) for r in response)
+        # Handle case where response is a single message
+        if not isinstance(response, list):
+            return str(response)
+            
+        # Convert all messages to strings, handling different message types
+        result_strings = []
+        for r in response:
+            if hasattr(r, 'text'):
+                result_strings.append(r.text)
+            elif hasattr(r, 'content'):
+                # Handle ToolUseBlock and similar
+                if isinstance(r.content, list):
+                    # Typically content is a list of blocks
+                    result_strings.extend(str(block) for block in r.content)
+                else:
+                    result_strings.append(str(r.content))
+            else:
+                # Fallback to string representation
+                result_strings.append(str(r))
+                
+        return "\n".join(result_strings)
 
     async def generate_structured(
         self,

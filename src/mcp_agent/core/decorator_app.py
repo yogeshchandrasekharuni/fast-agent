@@ -23,6 +23,10 @@ from mcp_agent.workflows.llm.augmented_llm import RequestParams
 import readline  # noqa: F401
 
 from mcp_agent.workflows.parallel.parallel_llm import ParallelLLM  # noqa: F401
+from mcp_agent.workflows.evaluator_optimizer.evaluator_optimizer import (
+    EvaluatorOptimizerLLM,
+    QualityRating,
+)
 
 
 class AgentType(Enum):
@@ -31,6 +35,7 @@ class AgentType(Enum):
     BASIC = "agent"
     ORCHESTRATOR = "orchestrator"
     PARALLEL = "parallel"
+    EVALUATOR_OPTIMIZER = "evaluator_optimizer"
 
 
 T = TypeVar("T")  # For the wrapper classes
@@ -172,6 +177,11 @@ class MCPAgentDecorator(ContextDependent):
 
         def decorator(func: Callable) -> Callable:
             # Create base request params with model included
+            print(f"\nDecorating {name} with params:")
+            print(f"  model={model}")
+            print(f"  use_history={use_history}")
+            print(f"  request_params={request_params}")
+            
             base_params = RequestParams(
                 use_history=use_history,
                 model=model,  # Include model in initial params
@@ -197,6 +207,7 @@ class MCPAgentDecorator(ContextDependent):
                 "type": AgentType.BASIC.value,
                 "func": func,
             }
+            print(f"Stored agent {name} with config: {self.agents[name]}")
 
             async def wrapper(*args, **kwargs):
                 return await func(*args, **kwargs)
@@ -311,6 +322,56 @@ class MCPAgentDecorator(ContextDependent):
 
         return decorator
 
+    def evaluator_optimizer(
+        self,
+        name: str,
+        optimizer: str,
+        evaluator: str,
+        min_rating: str = "GOOD",
+        max_refinements: int = 3,
+        use_history: bool = True,
+        request_params: Optional[Dict] = None,
+    ) -> Callable:
+        """
+        Decorator to create and register an evaluator-optimizer workflow.
+
+        Args:
+            name: Name of the workflow
+            optimizer: Name of the optimizer agent
+            evaluator: Name of the evaluator agent
+            min_rating: Minimum acceptable quality rating (EXCELLENT, GOOD, FAIR, POOR)
+            max_refinements: Maximum number of refinement iterations
+            use_history: Whether to maintain conversation history
+            request_params: Additional request parameters for the LLM
+        """
+        def decorator(func: Callable) -> Callable:
+            # Create workflow configuration
+            config = AgentConfig(
+                name=name,
+                instruction="",  # Uses optimizer's instruction
+                servers=[],  # Uses agents' server access
+                use_history=use_history,
+                default_request_params=request_params,
+            )
+
+            # Store the workflow configuration
+            self.agents[name] = {
+                "config": config,
+                "optimizer": optimizer,
+                "evaluator": evaluator,
+                "min_rating": min_rating,
+                "max_refinements": max_refinements,
+                "type": AgentType.EVALUATOR_OPTIMIZER.value,
+                "func": func,
+            }
+
+            async def wrapper(*args, **kwargs):
+                return await func(*args, **kwargs)
+
+            return wrapper
+
+        return decorator
+
     def _create_basic_agents(self, agent_app: MCPApp) -> Dict[str, Agent]:
         """
         Create and initialize basic agents with their configurations.
@@ -390,6 +451,52 @@ class MCPAgentDecorator(ContextDependent):
 
                 orchestrators[name] = BaseAgentWrapper(orchestrator)
         return orchestrators
+
+    async def _create_evaluator_optimizers(
+        self, 
+        agent_app: MCPApp, 
+        active_agents: Dict[str, Any]
+    ) -> Dict[str, BaseAgentWrapper]:
+        """
+        Create evaluator-optimizer workflows.
+
+        Args:
+            agent_app: The main application instance
+            active_agents: Dictionary of already created agents
+
+        Returns:
+            Dictionary of initialized evaluator-optimizer workflows
+        """
+        workflows = {}
+        for name, agent_data in self.agents.items():
+            if agent_data["type"] == AgentType.EVALUATOR_OPTIMIZER.value:
+                config = agent_data["config"]
+                
+                # Get the referenced agents
+                optimizer = active_agents.get(agent_data["optimizer"])
+                evaluator = active_agents.get(agent_data["evaluator"])
+                
+                if not optimizer or not evaluator:
+                    raise ValueError(
+                        f"Missing agents for workflow {name}: "
+                        f"optimizer={agent_data['optimizer']}, "
+                        f"evaluator={agent_data['evaluator']}"
+                    )
+
+                # Create the workflow - use optimizer's model for the factory
+                optimizer_model = optimizer.config.model if isinstance(optimizer, Agent) else None
+                workflow = EvaluatorOptimizerLLM(
+                    optimizer=optimizer,
+                    evaluator=evaluator,
+                    min_rating=QualityRating[agent_data["min_rating"]],
+                    max_refinements=agent_data["max_refinements"],
+                    llm_factory=self._get_model_factory(model=optimizer_model),  # Use optimizer's model
+                    context=agent_app.context,
+                )
+
+                workflows[name] = BaseAgentWrapper(workflow)
+                
+        return workflows
 
     def _get_parallel_dependencies(
         self, name: str, visited: set, path: set
@@ -518,6 +625,7 @@ class MCPAgentDecorator(ContextDependent):
 
             # Set up basic agents with their configurations
             print("\nCreating basic agents:")
+            active_agents = {}
             for name, agent_data in self.agents.items():
                 if agent_data["type"] == AgentType.BASIC.value:
                     config = agent_data["config"]
@@ -526,24 +634,33 @@ class MCPAgentDecorator(ContextDependent):
                     # Create agent with configuration
                     agent = Agent(config=config, context=agent_app.context)
                     active_agents[name] = agent
+                    print(f"\nCreated agent {name} with config: {config}")
 
                     # Set up LLM with proper configuration
-                    ctx = await agent.__aenter__()
-                    print(f"Creating LLM factory for {name} with model={config.model}")
-                    llm_factory = self._get_model_factory(
-                        model=config.model, request_params=config.default_request_params
-                    )
-                    agent._llm = await agent.attach_llm(llm_factory)
-                    print(f"Created LLM for {name}: {agent._llm}")
+                    async with agent:
+                        print(f"Creating LLM factory for {name}:")
+                        print(f"  Using config model: {config.model}")
+                        print(f"  Using request params: {config.default_request_params}")
+                        llm_factory = self._get_model_factory(
+                            model=config.model, 
+                            request_params=config.default_request_params
+                        )
+                        print(f"  Created factory: {llm_factory}")
+                        agent._llm = await agent.attach_llm(llm_factory)
+                        print(f"  Created LLM: {agent._llm}")
 
             print("\nCreating orchestrators:")
-            # Create orchestrators and parallel agents
+            # Create workflow agents
             orchestrators = self._create_orchestrators(agent_app, active_agents)
+            print("\nCreating parallel workflows:")
             parallel_agents = self._create_parallel_agents(agent_app, active_agents)
+            print("\nCreating evaluator-optimizer workflows:")
+            evaluator_optimizers = await self._create_evaluator_optimizers(agent_app, active_agents)
 
             # Merge all agents into active_agents
             active_agents.update(orchestrators)
             active_agents.update(parallel_agents)
+            active_agents.update(evaluator_optimizers)
 
             # Create wrapper with all agents
             wrapper = AgentAppWrapper(agent_app, active_agents)
