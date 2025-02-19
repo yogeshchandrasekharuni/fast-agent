@@ -4,7 +4,7 @@ A central context object to store global state that is shared across the applica
 
 import asyncio
 import concurrent.futures
-from typing import Any, Optional, TYPE_CHECKING
+from typing import Any, Optional, Union, TYPE_CHECKING
 
 from pydantic import BaseModel, ConfigDict
 
@@ -169,13 +169,15 @@ async def configure_executor(config: "Settings"):
 
 
 async def initialize_context(
-    config: Optional["Settings"] = None, store_globally: bool = False
+    config: Optional[Union["Settings", str]] = None, store_globally: bool = False
 ):
     """
     Initialize the global application context.
     """
     if config is None:
         config = get_settings()
+    elif isinstance(config, str):
+        config = get_settings(config_path=config)
 
     context = Context()
     context.config = config
