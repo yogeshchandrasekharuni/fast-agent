@@ -207,6 +207,8 @@ class MCPAgentDecorator(ContextDependent):
 
                     # Create orchestrator with its agents and model
                     llm_factory = self._get_model_factory(config["model"])
+                    print(f"ORCHESTRATOR MODEL {config['model']}")
+
                     orchestrator = Orchestrator(
                         name=name,
                         instruction=config["instruction"],
@@ -216,7 +218,19 @@ class MCPAgentDecorator(ContextDependent):
                         plan_type="full",
                     )
 
-                    active_agents[name] = orchestrator
+                    # Create a wrapper that makes it behave like other agents
+                    class OrchestratorWrapper:
+                        def __init__(self, orchestrator):
+                            self._llm = orchestrator
+                            self.name = orchestrator.name
+
+                        async def __aenter__(self):
+                            return self
+
+                        async def __aexit__(self, exc_type, exc_val, exc_tb):
+                            pass
+
+                    active_agents[name] = OrchestratorWrapper(orchestrator)
 
             for name, config in self.agents.items():
                 if config["type"] == "parallel":

@@ -62,9 +62,7 @@ async def main():
         )
 
         # Send the task
-        await agent.agents["document_processor"].generate_str(
-            task, request_params=RequestParams(model="gpt-4o")
-        )
+        await agent.send("document_processor", task)
 
 
 if __name__ == "__main__":
