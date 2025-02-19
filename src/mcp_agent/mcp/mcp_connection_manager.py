@@ -13,7 +13,6 @@ from typing import (
 )
 
 from anyio import Event, create_task_group, Lock
-from anyio.abc import TaskGroup
 from anyio.streams.memory import MemoryObjectReceiveStream, MemoryObjectSendStream
 
 from mcp import ClientSession
@@ -24,13 +23,14 @@ from mcp.client.stdio import (
 from mcp.client.sse import sse_client
 from mcp.types import JSONRPCMessage
 
-
 from mcp_agent.config import MCPServerSettings
 from mcp_agent.logging.logger import get_logger
 from mcp_agent.mcp.stdio import stdio_client_with_rich_stderr
+from mcp_agent.context_dependent import ContextDependent
 
 if TYPE_CHECKING:
     from mcp_agent.mcp_server_registry import InitHookCallable, ServerRegistry
+    from mcp_agent.context import Context
 
 logger = get_logger(__name__)
 
@@ -140,65 +140,83 @@ async def _server_lifecycle_task(server_conn: ServerConnection) -> None:
     Runs inside the MCPConnectionManager's shared TaskGroup.
     """
     server_name = server_conn.server_name
-    print(f"SERVER {server_name}: Starting lifecycle task in {asyncio.current_task().get_name()}")
+    task_name = asyncio.current_task().get_name()
+    print(f"SERVER {server_name}: Starting lifecycle task in {task_name}")
     try:
         transport_context = server_conn._transport_context_factory()
 
         async with transport_context as (read_stream, write_stream):
-            # Build a session
+            print(f"SERVER {server_name}: Created transport context")
             server_conn.create_session(read_stream, write_stream)
+            print(f"SERVER {server_name}: Created session")
 
             async with server_conn.session:
-                # Initialize the session
                 await server_conn.initialize_session()
                 print(f"SERVER {server_name}: Initialized and running")
 
-                # Wait until we're asked to shut down
                 await server_conn.wait_for_shutdown_request()
                 print(f"SERVER {server_name}: Received shutdown request")
+                print(f"SERVER {server_name}: Beginning cleanup in {task_name}")
 
     except Exception as exc:
         print(f"SERVER {server_name}: Error in lifecycle: {exc}")
         server_conn._initialized_event.set()
         raise
     finally:
-        print(f"SERVER {server_name}: Lifecycle task ending")
+        print(f"SERVER {server_name}: Lifecycle task ending in {task_name}")
 
 
-class MCPConnectionManager:
+class MCPConnectionManager(ContextDependent):
     """
     Manages the lifecycle of multiple MCP server connections.
+    Integrates with the application context system for proper resource management.
     """
 
-    def __init__(self, server_registry: "ServerRegistry"):
+    def __init__(
+        self, server_registry: "ServerRegistry", context: Optional["Context"] = None
+    ):
+        super().__init__(context=context)
         self.server_registry = server_registry
         self.running_servers: Dict[str, ServerConnection] = {}
         self._lock = Lock()
-        self._tg: TaskGroup | None = None
 
     async def __aenter__(self):
-        if not hasattr(self, '_enter_count'):
-            self._enter_count = 0
-        self._enter_count += 1
-        
-        # Only create task group on first enter
-        if self._enter_count == 1:
-            self._tg = create_task_group()
-            await self._tg.__aenter__()
+        current_task = asyncio.current_task()
+        print(f"CONNECTION MANAGER: Entering in task {current_task.get_name()}")
+
+        # Get or create task group from context
+        if not hasattr(self.context, "_connection_task_group"):
+            print(
+                f"CONNECTION MANAGER: Creating new task group in task {current_task.get_name()}"
+            )
+            self.context._connection_task_group = create_task_group()
+            self.context._connection_task_group_context = current_task.get_name()
+            await self.context._connection_task_group.__aenter__()
+
+        self._tg = self.context._connection_task_group
         return self
 
     async def __aexit__(self, exc_type, exc_val, exc_tb):
         """Ensure clean shutdown of all connections before exiting."""
-        self._enter_count -= 1
-        
-        # Only cleanup on last exit
-        if self._enter_count == 0:
-            try:
-                if self._tg:
-                    await self._tg.__aexit__(exc_type, exc_val, exc_tb)
-                self._tg = None
-            except Exception as e:
-                logger.error(f"Error during connection manager shutdown: {e}")
+        current_task = asyncio.current_task()
+
+        try:
+            # First request all servers to shutdown
+            await self.disconnect_all()
+
+            # Only clean up task group if we're in the original context
+            if (
+                hasattr(self.context, "_connection_task_group")
+                and current_task.get_name()
+                == self.context._connection_task_group_context
+            ):
+                await self.context._connection_task_group.__aexit__(
+                    exc_type, exc_val, exc_tb
+                )
+                delattr(self.context, "_connection_task_group")
+                delattr(self.context, "_connection_task_group_context")
+        except Exception as e:
+            logger.error(f"Error during connection manager shutdown: {e}")
 
     async def launch_server(
         self,
@@ -310,14 +328,12 @@ class MCPConnectionManager:
             )
 
     async def disconnect_all(self) -> None:
-        """
-        Disconnect all servers that are running under this connection manager.
-        Only performs the disconnection if there are running servers.
-        """
+        """Disconnect all servers that are running under this connection manager."""
         async with self._lock:
             if not self.running_servers:
                 return
-                
-            for conn in self.running_servers.values():
+
+            for name, conn in self.running_servers.items():
                 conn.request_shutdown()
+
             self.running_servers.clear()
