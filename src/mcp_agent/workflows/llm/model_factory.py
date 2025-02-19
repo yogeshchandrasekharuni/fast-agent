@@ -132,30 +132,39 @@ class ModelFactory:
         Returns:
             A callable that takes an agent parameter and returns an LLM instance
         """
+        print(f"\nModelFactory.create_factory called with model_string={model_string}")
         # Parse configuration up front
         config = cls.parse_model_string(model_string)
+        print(f"Parsed model config: {config}")
         llm_class = cls.PROVIDER_CLASSES[config.provider]
+        print(f"Selected LLM class: {llm_class}")
 
         # Create a factory function matching the attach_llm protocol
         def factory(agent: Agent, **kwargs) -> LLMClass:
-            # Merge any default_request_params from kwargs with factory request_params
-            merged_params = request_params
+            print(f"\nFactory creating LLM for agent {agent.name}")
+            print(f"Factory kwargs: {kwargs}")
+            # Create merged params with parsed model name
+            factory_params = request_params.model_copy() if request_params else RequestParams()
+            factory_params.model = config.model_name  # Use the parsed model name, not the alias
+            
+            # Merge with any provided default_request_params
             if 'default_request_params' in kwargs and kwargs['default_request_params']:
-                if merged_params:
-                    # Create a new params instance with merged values
-                    param_dict = merged_params.model_dump()
-                    param_dict.update(kwargs['default_request_params'].model_dump(exclude_unset=True))
-                    merged_params = RequestParams(**param_dict)
-                else:
-                    merged_params = kwargs['default_request_params']
+                params_dict = factory_params.model_dump()
+                params_dict.update(kwargs['default_request_params'].model_dump(exclude_unset=True))
+                factory_params = RequestParams(**params_dict)
+                factory_params.model = config.model_name  # Ensure parsed model name isn't overwritten
+            
+            print(f"Final merged request params: {factory_params}")
 
-            return llm_class(
+            llm = llm_class(
                 agent=agent,
                 model=config.model_name,
                 reasoning_effort=config.reasoning_effort.value
                 if config.reasoning_effort
                 else None,
-                request_params=merged_params,
+                request_params=factory_params,
             )
+            print(f"Created LLM: {llm}")
+            return llm
 
         return factory

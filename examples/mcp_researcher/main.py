@@ -15,8 +15,6 @@ Use the current working directory to save and create files with both the Interpr
 The interpreter has numpy, pandas, matplotlib and seaborn already installed
     """,
     servers=["brave", "interpreter", "filesystem", "fetch"],
-    model="gpt-4o",
-    use_history=False,
 )
 async def main():
     research_prompt = """

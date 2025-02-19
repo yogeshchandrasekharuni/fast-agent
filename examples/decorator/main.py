@@ -13,8 +13,7 @@ agent_app = MCPAgentDecorator("Interactive Agent Example")
 @agent_app.agent(
     name="basic_agent",
     instruction="A simple agent that helps with basic tasks. Request Human Input whenever needed.",
-    #   servers=["mcp_root"],
-    model="gpt-4o",
+    servers=["mcp_root"],
 )
 async def main():
     # Use the app's context manager

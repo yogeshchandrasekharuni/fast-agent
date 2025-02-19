@@ -110,6 +110,7 @@ class MCPAgentDecorator(ContextDependent):
     ) -> Any:
         """
         Get model factory using specified or default model.
+        Model string is parsed by ModelFactory to determine provider and reasoning effort.
 
         Args:
             model: Optional model specification string
@@ -118,9 +119,31 @@ class MCPAgentDecorator(ContextDependent):
         Returns:
             ModelFactory instance for the specified or default model
         """
-        model_spec = model or self.args.model
-        if not model_spec:
-            model_spec = self.context.config.default_model
+        print(f"\n_get_model_factory called with model={model}, request_params={request_params}")
+        
+        # Config has lowest precedence
+        model_spec = self.context.config.default_model
+        print(f"Starting with config default: {model_spec}")
+        
+        # Command line override has next precedence
+        if self.args.model:
+            model_spec = self.args.model
+            print(f"Applied command line override: {model_spec}")
+            
+        # Model from decorator has highest precedence
+        if model:
+            model_spec = model
+            print(f"Applied decorator model: {model_spec}")
+            
+        print(f"Creating factory with final model_spec: {model_spec}")
+        
+        # Update or create request_params with the final model choice
+        if request_params:
+            request_params = request_params.model_copy(update={"model": model_spec})
+        else:
+            request_params = RequestParams(model=model_spec)
+            
+        # Let model factory handle the model string parsing and setup
         return ModelFactory.create_factory(model_spec, request_params=request_params)
 
     def agent(
@@ -139,25 +162,31 @@ class MCPAgentDecorator(ContextDependent):
             name: Name of the agent
             instruction: Base instruction for the agent
             servers: List of server names the agent should connect to
-            model: Model specification string
+            model: Model specification string (highest precedence)
             use_history: Whether to maintain conversation history
             request_params: Additional request parameters for the LLM
         """
-
+        print(f"\nDecorating agent {name} with model={model}")
+        
         def decorator(func: Callable) -> Callable:
-            # Create request params with history setting
-            params = RequestParams(**(request_params or {}))
-            params.use_history = use_history
+            # Create base request params with model included
+            base_params = RequestParams(
+                use_history=use_history,
+                model=model,  # Include model in initial params
+                **(request_params or {})
+            )
+            print(f"Created base_params for {name}: {base_params}")
 
             # Create agent configuration
             config = AgentConfig(
                 name=name,
                 instruction=instruction,
                 servers=servers,
-                model=model,
+                model=model,  # Highest precedence
                 use_history=use_history,
-                default_request_params=params,
+                default_request_params=base_params,
             )
+            print(f"Created config for {name}: {config}")
 
             # Store the agent configuration
             self.agents[name] = {
@@ -189,24 +218,26 @@ class MCPAgentDecorator(ContextDependent):
             name: Name of the orchestrator
             instruction: Base instruction for the orchestrator
             agents: List of agent names this orchestrator can use
-            model: Model specification string
+            model: Model specification string (highest precedence)
             use_history: Whether to maintain conversation history
             request_params: Additional request parameters for the LLM
         """
 
         def decorator(func: Callable) -> Callable:
-            # Create request params with history setting
-            params = RequestParams(**(request_params or {}))
-            params.use_history = use_history
+            # Create base request params
+            base_params = RequestParams(
+                use_history=use_history,
+                **(request_params or {})
+            )
 
             # Create agent configuration
             config = AgentConfig(
                 name=name,
                 instruction=instruction,
                 servers=[],  # Orchestrators don't need servers
-                model=model,
+                model=model,  # Highest precedence
                 use_history=use_history,
-                default_request_params=params,
+                default_request_params=base_params,
             )
 
             # Store the orchestrator configuration
@@ -316,15 +347,19 @@ class MCPAgentDecorator(ContextDependent):
         orchestrators = {}
         for name, agent_data in self.agents.items():
             if agent_data["type"] == AgentType.ORCHESTRATOR.value:
+                config = agent_data["config"]
+                
+                # Create orchestrator with its agents and model
+                llm_factory = self._get_model_factory(
+                    model=config.model,
+                    request_params=config.default_request_params
+                )
+
                 # Get the child agents
                 child_agents = [
                     active_agents[agent_name]
                     for agent_name in agent_data["child_agents"]
                 ]
-
-                config = agent_data["config"]
-                # Create orchestrator with its agents and model
-                llm_factory = self._get_model_factory(config.model)
 
                 orchestrator = Orchestrator(
                     name=config.name,
@@ -462,8 +497,30 @@ class MCPAgentDecorator(ContextDependent):
         """
         async with self.app.run() as agent_app:
             # Create all types of agents
-            active_agents = self._create_basic_agents(agent_app)
+            active_agents = {}
 
+            # Set up basic agents with their configurations
+            print("\nCreating basic agents:")
+            for name, agent_data in self.agents.items():
+                if agent_data["type"] == AgentType.BASIC.value:
+                    config = agent_data["config"]
+                    print(f"\nSetting up agent {name} with config: {config}")
+                    
+                    # Create agent with configuration
+                    agent = Agent(config=config, context=agent_app.context)
+                    active_agents[name] = agent
+
+                    # Set up LLM with proper configuration
+                    ctx = await agent.__aenter__()
+                    print(f"Creating LLM factory for {name} with model={config.model}")
+                    llm_factory = self._get_model_factory(
+                        model=config.model,
+                        request_params=config.default_request_params
+                    )
+                    agent._llm = await agent.attach_llm(llm_factory)
+                    print(f"Created LLM for {name}: {agent._llm}")
+
+            print("\nCreating orchestrators:")
             # Create orchestrators and parallel agents
             orchestrators = self._create_orchestrators(agent_app, active_agents)
             parallel_agents = self._create_parallel_agents(agent_app, active_agents)
@@ -472,27 +529,15 @@ class MCPAgentDecorator(ContextDependent):
             active_agents.update(orchestrators)
             active_agents.update(parallel_agents)
 
-            # Start all basic agents with LLM
-            agent_contexts = []
-            for name, agent in active_agents.items():
-                if isinstance(agent, Agent):  # Basic agents need LLM setup
-                    ctx = await agent.__aenter__()
-                    agent_contexts.append((agent, ctx))
-
-                    # Get the agent's configuration
-                    agent_data = self.agents[name]
-                    if agent_data["type"] == AgentType.BASIC.value:
-                        config = agent_data["config"]
-                        llm_factory = self._get_model_factory(config.model)
-                        agent._llm = await agent.attach_llm(llm_factory)
-
             # Create wrapper with all agents
             wrapper = AgentAppWrapper(agent_app, active_agents)
             try:
                 yield wrapper
             finally:
-                for agent, _ in agent_contexts:
-                    await agent.__aexit__(None, None, None)
+                # Clean up basic agents
+                for name, agent in active_agents.items():
+                    if isinstance(agent, Agent):
+                        await agent.__aexit__(None, None, None)
 
 
 class AgentAppWrapper:
