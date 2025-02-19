@@ -336,7 +336,7 @@ class AugmentedLLM(ContextDependent, AugmentedLLMProtocol[MessageParamT, Message
 
         panel = Panel(
             Text(
-                str(result.content), overflow="ellipsis"
+                str(result.content), overflow="..."
             ),  # TODO support multi-model/multi-part responses
             title="[TOOL RESULT]",
             title_align="right",
@@ -359,7 +359,7 @@ class AugmentedLLM(ContextDependent, AugmentedLLMProtocol[MessageParamT, Message
             return
 
         panel = Panel(
-            Text(str(result), overflow="ellipsis"),  # TODO update openai support
+            Text(str(result), overflow="..."),  # TODO update openai support
             title="[TOOL RESULT]",
             title_align="right",
             style="magenta",
@@ -410,7 +410,10 @@ class AugmentedLLM(ContextDependent, AugmentedLLMProtocol[MessageParamT, Message
                 else:
                     style = "dim white"
 
-                display_tool_list.append(f"[{parts[1]}] ", style=style)
+                shortened_name = (
+                    parts[1] if len(parts[1]) <= 12 else parts[1][:11] + "…"
+                )
+                display_tool_list.append(f"[{shortened_name}] ", style)
 
         panel = Panel(
             Text(str(tool_args), overflow="ellipsis"),
@@ -446,7 +449,7 @@ class AugmentedLLM(ContextDependent, AugmentedLLMProtocol[MessageParamT, Message
         display_server_list = Text()
         for server_name in await self.aggregator.list_servers():
             style = "green" if server_name == mcp_server_name[0] else "dim white"
-            display_server_list.append(f" [{server_name}]", style)
+            display_server_list.append(f"[{server_name}] ", style)
 
         panel = Panel(
             message_text,
