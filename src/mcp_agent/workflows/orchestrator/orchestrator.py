@@ -1,3 +1,7 @@
+"""
+Orchestrator implementation for MCP Agent applications.
+"""
+
 import contextlib
 from typing import (
     Callable,
@@ -8,7 +12,7 @@ from typing import (
     TYPE_CHECKING,
 )
 
-from mcp_agent.agents.agent import Agent
+from mcp_agent.agents.agent import Agent, AgentConfig
 from mcp_agent.workflows.llm.augmented_llm import (
     AugmentedLLM,
     MessageParamT,
@@ -16,6 +20,7 @@ from mcp_agent.workflows.llm.augmented_llm import (
     ModelT,
     RequestParams,
 )
+from mcp_agent.workflows.llm.model_factory import ModelFactory
 from mcp_agent.workflows.orchestrator.orchestrator_models import (
     format_plan_result,
     format_step_result,
@@ -47,7 +52,7 @@ class Orchestrator(AugmentedLLM[MessageParamT, MessageT]):
     in a loop until the task is complete.
 
     When to use this workflow:
-        - This workflow is well-suited for complex tasks where you can’t predict the
+        - This workflow is well-suited for complex tasks where you can't predict the
         subtasks needed (in coding, for example, the number of files that need to be
         changed and the nature of the change in each file likely depend on the task).
 
@@ -74,32 +79,46 @@ class Orchestrator(AugmentedLLM[MessageParamT, MessageT]):
             available_agents: List of agents available to tasks executed by this orchestrator
             context: Application context
         """
+        # Initialize with orchestrator-specific defaults
+        orchestrator_params = RequestParams(
+            use_history=False,  # Orchestrator doesn't support history
+            max_iterations=30,  # Higher default for complex tasks
+            maxTokens=8192,  # Higher default for planning TODO this will break some models - make configurable.
+            parallel_tool_calls=True,
+        )
+
+        # If kwargs contains request_params, merge with our defaults but force use_history False
+        if "request_params" in kwargs:
+            base_params = kwargs["request_params"]
+            merged = base_params.model_copy()
+            merged.use_history = False  # Force this setting
+            kwargs["request_params"] = merged
+        else:
+            kwargs["request_params"] = orchestrator_params
+
         super().__init__(context=context, **kwargs)
 
         self.llm_factory = llm_factory
 
-        self.planner = planner or llm_factory(
-            agent=Agent(
-                name="LLM Orchestration Planner",
-                instruction="""
-                You are an expert planner. Given an objective task and a list of MCP servers (which are collections of tools)
-                or Agents (which are collections of servers), your job is to break down the objective into a series of steps,
-                which can be performed by LLMs with access to the servers or agents.
-                """,
-            )
+        # Create default planner with AgentConfig
+        request_params = self.get_request_params(kwargs.get("request_params"))
+        planner_config = AgentConfig(
+            name="LLM Orchestration Planner",
+            instruction="""
+            You are an expert planner. Given an objective task and a list of MCP servers (which are collections of tools)
+            or Agents (which are collections of servers), your job is to break down the objective into a series of steps,
+            which can be performed by LLMs with access to the servers or agents.
+            """,
+            servers=[],  # Planner doesn't need direct server access
+            default_request_params=request_params,
+            model=request_params.model if request_params else None,
         )
+
+        self.planner = planner or llm_factory(agent=Agent(config=planner_config))
 
         self.plan_type: Literal["full", "iterative"] = plan_type
         self.server_registry = self.context.server_registry
         self.agents = {agent.name: agent for agent in available_agents or []}
-
-        # self.default_request_params = self.default_request_params or RequestParams(
-        #     # History tracking is not yet supported for orchestrator workflows
-        #     use_history=False,
-        #     # We set a higher default maxTokens value to allow for longer responses
-        #     # TODO -- as other comment about max_tokens
-        #     maxTokens=8192,
-        # )
 
     async def generate(
         self,
@@ -108,14 +127,6 @@ class Orchestrator(AugmentedLLM[MessageParamT, MessageT]):
     ) -> List[MessageT]:
         """Request an LLM generation, which may run multiple iterations, and return the result"""
         params = self.get_request_params(request_params)
-
-        # TODO: saqadri - history tracking is complicated in this multi-step workflow, so we will ignore it for now
-        if params.use_history:
-            # raise NotImplementedError(
-            #     "History tracking is not yet supported for orchestrator workflows"
-            # )
-            # TODO -- fix this properly
-            params.use_history = False
         objective = str(message)
         plan_result = await self.execute(objective=objective, request_params=params)
 
@@ -128,6 +139,7 @@ class Orchestrator(AugmentedLLM[MessageParamT, MessageT]):
     ) -> str:
         """Request an LLM generation and return the string representation of the result"""
         params = self.get_request_params(request_params)
+
         result = await self.generate(
             message=message,
             request_params=params,
@@ -143,14 +155,16 @@ class Orchestrator(AugmentedLLM[MessageParamT, MessageT]):
     ) -> ModelT:
         """Request a structured LLM generation and return the result as a Pydantic model."""
         params = self.get_request_params(request_params)
+
         result_str = await self.generate_str(message=message, request_params=params)
 
-        llm = self.llm_factory(
-            agent=Agent(
-                name="Structured Output",
-                instruction="Produce a structured output given a message",
-            )
+        structured_config = AgentConfig(
+            name="Structured Output",
+            instruction="Produce a structured output given a message",
+            servers=[],  # No server access needed for structured output
         )
+
+        llm = self.llm_factory(agent=Agent(config=structured_config))
 
         structured_result = await llm.generate_structured(
             message=result_str,
@@ -165,12 +179,8 @@ class Orchestrator(AugmentedLLM[MessageParamT, MessageT]):
     ) -> PlanResult:
         """Execute task with result chaining between steps"""
         iterations = 0
-        # TODO -- make maxtokens sensitive to the model configuration (or don't specify/use default unless known)
-        params = self.get_request_params(
-            request_params
-            #            default=RequestParams(use_history=False, max_iterations=30, maxTokens=8192),
-        )
-        request_params.use_history = False
+
+        params = self.get_request_params(request_params)
 
         plan_result = PlanResult(objective=objective, step_results=[])
 
@@ -178,7 +188,7 @@ class Orchestrator(AugmentedLLM[MessageParamT, MessageT]):
             if self.plan_type == "iterative":
                 # Get next plan/step
                 next_step = await self._get_next_step(
-                    objective=objective, plan_result=plan_result, model=params.model
+                    objective=objective, plan_result=plan_result, request_params=params
                 )
                 logger.debug(f"Iteration {iterations}: Iterative plan:", data=next_step)
                 plan = Plan(steps=[next_step], is_complete=next_step.is_complete)
@@ -193,19 +203,24 @@ class Orchestrator(AugmentedLLM[MessageParamT, MessageT]):
             plan_result.plan = plan
 
             if plan.is_complete:
-                plan_result.is_complete = True
+                # Only mark as complete if we have actually executed some steps
+                if len(plan_result.step_results) > 0:
+                    plan_result.is_complete = True
 
-                # Synthesize final result into a single message
-                synthesis_prompt = SYNTHESIZE_PLAN_PROMPT_TEMPLATE.format(
-                    plan_result=format_plan_result(plan_result)
-                )
+                    # Synthesize final result into a single message
+                    synthesis_prompt = SYNTHESIZE_PLAN_PROMPT_TEMPLATE.format(
+                        plan_result=format_plan_result(plan_result)
+                    )
 
-                plan_result.result = await self.planner.generate_str(
-                    message=synthesis_prompt,
-                    request_params=params.model_copy(update={"max_iterations": 1}),
-                )
+                    plan_result.result = await self.planner.generate_str(
+                        message=synthesis_prompt,
+                        request_params=params.model_copy(update={"max_iterations": 1}),
+                    )
 
-                return plan_result
+                    return plan_result
+                else:
+                    # Don't allow completion without executing steps
+                    plan.is_complete = False
 
             # Execute each step, collecting results
             # Note that in iterative mode this will only be a single step
@@ -215,6 +230,8 @@ class Orchestrator(AugmentedLLM[MessageParamT, MessageT]):
                     previous_result=plan_result,
                     request_params=params,
                 )
+
+                plan_result.add_step_result(step_result)
 
                 plan_result.add_step_result(step_result)
 
@@ -235,6 +252,7 @@ class Orchestrator(AugmentedLLM[MessageParamT, MessageT]):
     ) -> StepResult:
         """Execute a step's subtasks in parallel and synthesize results"""
         params = self.get_request_params(request_params)
+
         step_result = StepResult(step=step, task_results=[])
         context = format_plan_result(previous_result)
 
@@ -255,7 +273,12 @@ class Orchestrator(AugmentedLLM[MessageParamT, MessageT]):
                     else:
                         # Only create new context if needed
                         ctx_agent = await stack.enter_async_context(agent)
-                        llm = await ctx_agent.attach_llm(self.llm_factory)
+                        # Create factory with agent's own configuration
+                        agent_factory = ModelFactory.create_factory(
+                            model_string=agent.config.model,
+                            request_params=agent.config.default_request_params,
+                        )
+                        llm = await ctx_agent.attach_llm(agent_factory)
 
                 task_llms.append((task, llm))
 
@@ -267,8 +290,17 @@ class Orchestrator(AugmentedLLM[MessageParamT, MessageT]):
                     task=task.description,
                     context=context,
                 )
+                # Get the agent's config for task execution
+                agent = self.agents.get(task.agent)
+                task_params = (
+                    agent.config.default_request_params
+                    if hasattr(agent, "config")
+                    else params
+                )
                 futures.append(
-                    llm.generate_str(message=task_description, request_params=params)
+                    llm.generate_str(
+                        message=task_description, request_params=task_params
+                    )
                 )
 
             # Wait for all tasks, including any tool calls they make
@@ -292,8 +324,8 @@ class Orchestrator(AugmentedLLM[MessageParamT, MessageT]):
         request_params: RequestParams | None = None,
     ) -> Plan:
         """Generate full plan considering previous results"""
-
         params = self.get_request_params(request_params)
+        params = params.model_copy(update={"use_history": False})
 
         agents = "\n".join(
             [
@@ -317,9 +349,14 @@ class Orchestrator(AugmentedLLM[MessageParamT, MessageT]):
         return plan
 
     async def _get_next_step(
-        self, objective: str, plan_result: PlanResult, model: str = None
+        self,
+        objective: str,
+        plan_result: PlanResult,
+        request_params: RequestParams | None = None,
     ) -> NextStep:
         """Generate just the next needed step"""
+        params = self.get_request_params(request_params)
+        params = params.model_copy(update={"use_history": False})
 
         agents = "\n".join(
             [
@@ -337,6 +374,7 @@ class Orchestrator(AugmentedLLM[MessageParamT, MessageT]):
         next_step = await self.planner.generate_structured(
             message=prompt,
             response_model=NextStep,
+            request_params=params,
         )
         return next_step
 

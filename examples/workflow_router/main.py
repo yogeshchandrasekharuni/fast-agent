@@ -3,10 +3,10 @@ import os
 
 from mcp_agent.app import MCPApp
 from mcp_agent.logging.logger import get_logger
-from mcp_agent.agents.agent import Agent
-from mcp_agent.workflows.llm.augmented_llm_openai import OpenAIAugmentedLLM
+from mcp_agent.agents.agent import Agent, AgentConfig
 from mcp_agent.workflows.router.router_llm import LLMRouter
-from mcp_agent.workflows.router.router_llm_anthropic import AnthropicLLMRouter
+from mcp_agent.workflows.llm.model_factory import ModelFactory
+from mcp_agent.workflows.llm.augmented_llm import RequestParams
 from rich import print
 
 app = MCPApp(name="router")
@@ -36,35 +36,66 @@ async def example_usage():
         # Add the current directory to the filesystem server's args
         context.config.mcp.servers["filesystem"].args.extend([os.getcwd()])
 
-        finder_agent = Agent(
+        # Create configs for our agents
+        finder_config = AgentConfig(
             name="finder",
             instruction="""You are an agent with access to the filesystem, 
             as well as the ability to fetch URLs. Your job is to identify 
             the closest match to a user's request, make the appropriate tool calls, 
             and return the URI and CONTENTS of the closest match.""",
-            server_names=["fetch", "filesystem"],
+            servers=["fetch", "filesystem"],
+            model="gpt-4o",  # Use openai model for finder
+            default_request_params=RequestParams(use_history=True),
         )
 
-        writer_agent = Agent(
+        writer_config = AgentConfig(
             name="writer",
             instruction="""You are an agent that can write to the filesystem.
             You are tasked with taking the user's input, addressing it, and 
             writing the result to disk in the appropriate location.""",
-            server_names=["filesystem"],
+            servers=["filesystem"],
+            model="gpt-4o",  # Use openai model for writer
+            default_request_params=RequestParams(use_history=True),
         )
 
-        reasoning_agent = Agent(
-            name="writer",
+        reasoning_config = AgentConfig(
+            name="reasoner",  # Fixed duplicate name
             instruction="""You are a generalist with knowledge about a vast
             breadth of subjects. You are tasked with analyzing and reasoning over
             the user's query and providing a thoughtful response.""",
-            server_names=[],
+            servers=[],
+            model="sonnet",  # Use Claude for reasoning
+            default_request_params=RequestParams(use_history=True),
         )
 
-        # You can use any LLM with an LLMRouter
-        llm = OpenAIAugmentedLLM()
-        router = LLMRouter(
-            llm=llm,
+        # Create and initialize agents with their LLMs
+        finder_agent = Agent(config=finder_config, context=context)
+        writer_agent = Agent(config=writer_config, context=context)
+        reasoning_agent = Agent(config=reasoning_config, context=context)
+
+        async with finder_agent:
+            finder_factory = ModelFactory.create_factory(
+                finder_config.model, request_params=finder_config.default_request_params
+            )
+            finder_agent._llm = await finder_agent.attach_llm(finder_factory)
+
+        async with writer_agent:
+            writer_factory = ModelFactory.create_factory(
+                writer_config.model, request_params=writer_config.default_request_params
+            )
+            writer_agent._llm = await writer_agent.attach_llm(writer_factory)
+
+        async with reasoning_agent:
+            reasoning_factory = ModelFactory.create_factory(
+                reasoning_config.model,
+                request_params=reasoning_config.default_request_params,
+            )
+            reasoning_agent._llm = await reasoning_agent.attach_llm(reasoning_factory)
+
+        # Create a router using OpenAI's GPT-4
+        openai_llm_factory = ModelFactory.create_factory("gpt-4o")
+        router = await LLMRouter.create(
+            llm_factory=openai_llm_factory,
             agents=[finder_agent, writer_agent, reasoning_agent],
             functions=[print_to_console, print_hello_world],
         )
@@ -89,8 +120,10 @@ async def example_usage():
             )
             logger.info("read_file result:", data=result.model_dump())
 
-        # We can also use a router already configured with a particular LLM
-        anthropic_router = AnthropicLLMRouter(
+        # Create another router using Anthropic's Claude
+        anthropic_llm_factory = ModelFactory.create_factory("sonnet")
+        anthropic_router = await LLMRouter.create(
+            llm_factory=anthropic_llm_factory,
             server_names=["fetch", "filesystem"],
             agents=[finder_agent, writer_agent, reasoning_agent],
             functions=[print_to_console, print_hello_world],

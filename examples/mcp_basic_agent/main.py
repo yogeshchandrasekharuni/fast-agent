@@ -2,7 +2,7 @@ import asyncio
 import time
 
 from mcp_agent.app import MCPApp
-from mcp_agent.agents.agent import Agent
+from mcp_agent.agents.agent import Agent, AgentConfig
 from mcp_agent.workflows.llm.augmented_llm_anthropic import AnthropicAugmentedLLM  # noqa: F401
 from mcp_agent.workflows.llm.augmented_llm_openai import OpenAIAugmentedLLM  # noqa: F401
 from rich import print
@@ -12,28 +12,20 @@ app = MCPApp(name="mcp_basic_agent")
 
 async def example_usage():
     async with app.run():
-        finder_agent = Agent(
+        finder_config = AgentConfig(
             name="finder",
             instruction="""You are an agent with access to the filesystem, 
             as well as the ability to fetch URLs. Your job is to identify 
             the closest match to a user's request, make the appropriate tool calls, 
             and return the URI and CONTENTS of the closest match.""",
-            server_names=["fetch", "filesystem"],
+            servers=["fetch", "filesystem"],
+            model="sonnet",
         )
 
+        finder_agent = Agent(config=finder_config)
+
         async with finder_agent:
-            # logger.info("finder: Connected to server, calling list_tools...")
-            # result = await finder_agent.list_tools()
-            # logger.info("Tools available:", data=result.model_dump())
-
-            # llm = await finder_agent.attach_llm(OpenAIAugmentedLLM)
-            # result = await llm.generate_str(
-            #     message="Print the contents of mcp_agent.config.yaml verbatim",
-            # )
-            # logger.info(f"Result: {result}")
-
-            # Let's switch the same agent to a different LLM
-            llm = await finder_agent.attach_llm(OpenAIAugmentedLLM)
+            llm = await finder_agent.attach_llm(AnthropicAugmentedLLM)
 
             await llm.generate_str(
                 message="Print the first 2 paragraphs of https://www.anthropic.com/research/building-effective-agents",

@@ -3,7 +3,7 @@ from typing import Callable, List, Literal, Optional, TYPE_CHECKING
 from pydantic import BaseModel
 
 from mcp_agent.agents.agent import Agent
-from mcp_agent.workflows.llm.augmented_llm import AugmentedLLM
+from mcp_agent.workflows.llm.augmented_llm import AugmentedLLM, RequestParams
 from mcp_agent.workflows.router.router_base import ResultT, Router, RouterResult
 from mcp_agent.logging.logger import get_logger
 
@@ -40,6 +40,13 @@ Respond in JSON format:
 
 Only include categories that are truly relevant. You may return fewer than {top_k} if appropriate.
 If none of the categories are relevant, return an empty list.
+"""
+
+ROUTING_SYSTEM_INSTRUCTION = """
+You are a highly accurate request router that directs incoming requests to the most appropriate category.
+A category is a specialized destination, such as a Function, an MCP Server (a collection of tools/functions), or an Agent (a collection of servers).
+You will be provided with a request and a list of categories to choose from.
+You can choose one or more categories, or choose none if no category is appropriate.
 """
 
 
@@ -83,12 +90,14 @@ class LLMRouter(Router):
 
     def __init__(
         self,
-        llm: AugmentedLLM,
+        llm_factory: Callable[..., AugmentedLLM],
+        name: str = "LLM Router",
         server_names: List[str] | None = None,
         agents: List[Agent] | None = None,
         functions: List[Callable] | None = None,
         routing_instruction: str | None = None,
         context: Optional["Context"] = None,
+        default_request_params: Optional[RequestParams] = None,
         **kwargs,
     ):
         super().__init__(
@@ -100,32 +109,64 @@ class LLMRouter(Router):
             **kwargs,
         )
 
-        self.llm = llm
+        self.name = name
+        self.llm_factory = llm_factory
+        self.default_request_params = default_request_params or RequestParams()
+        self.llm = None  # Will be initialized in create()
 
     @classmethod
     async def create(
         cls,
-        llm: AugmentedLLM,
+        llm_factory: Callable[..., AugmentedLLM],
+        name: str = "LLM Router",
         server_names: List[str] | None = None,
         agents: List[Agent] | None = None,
         functions: List[Callable] | None = None,
         routing_instruction: str | None = None,
         context: Optional["Context"] = None,
+        default_request_params: Optional[RequestParams] = None,
     ) -> "LLMRouter":
         """
         Factory method to create and initialize a router.
         Use this instead of constructor since we need async initialization.
         """
         instance = cls(
-            llm=llm,
+            llm_factory=llm_factory,
+            name=name,
             server_names=server_names,
             agents=agents,
             functions=functions,
-            routing_instruction=routing_instruction,
+            routing_instruction=DEFAULT_ROUTING_INSTRUCTION,
             context=context,
+            default_request_params=default_request_params,
         )
         await instance.initialize()
         return instance
+
+    async def initialize(self):
+        """Initialize the router and create the LLM instance."""
+        if not self.initialized:
+            await super().initialize()
+            router_params = RequestParams(
+                systemPrompt=ROUTING_SYSTEM_INSTRUCTION,
+                use_history=False,  # Router should be stateless :)
+            )
+
+            # Merge with any provided default params
+            if self.default_request_params:
+                params_dict = router_params.model_dump()
+                params_dict.update(
+                    self.default_request_params.model_dump(exclude_unset=True)
+                )
+                router_params = RequestParams(**params_dict)
+            # Set up router-specific request params with routing instruction
+            router_params.use_history = False
+            self.llm = self.llm_factory(
+                agent=None,  # Router doesn't need an agent context
+                name="LLM Router",
+                default_request_params=router_params,
+            )
+            self.initialized = True
 
     async def route(
         self, request: str, top_k: int = 1
@@ -197,11 +238,6 @@ class LLMRouter(Router):
             include_functions=include_functions,
         )
 
-        # logger.debug(
-        #     f"Requesting routing from LLM, \nrequest: {request} \ntop_k: {top_k} \nrouting_instruction: {routing_instruction} \ncontext={context}",
-        #     data={"progress_action": "Routing", "agent_name": "LLM Router"},
-        # )
-
         # Format the prompt with all the necessary information
         prompt = routing_instruction.format(
             context=context, request=request, top_k=top_k
@@ -213,11 +249,6 @@ class LLMRouter(Router):
             response_model=StructuredResponse,
         )
 
-        # logger.debug(
-        #     "Routing Response received",
-        #     data={"progress_action": "Finished", "agent_name": "LLM Router"},
-        # )
-
         # Construct the result
         if not response or not response.categories:
             return []
@@ -227,7 +258,7 @@ class LLMRouter(Router):
             router_category = self.categories.get(r.category)
             if not router_category:
                 # Skip invalid categories
-                # TODO: saqadri - log or raise an error
+                # TODO: log or raise an error
                 continue
 
             result.append(

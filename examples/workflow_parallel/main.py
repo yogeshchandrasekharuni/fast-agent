@@ -1,15 +1,13 @@
 import asyncio
 
 from mcp_agent.app import MCPApp
-from mcp_agent.agents.agent import Agent
+from mcp_agent.agents.agent import Agent, AgentConfig
 from mcp_agent.workflows.llm.augmented_llm_anthropic import AnthropicAugmentedLLM  # noqa: F401
 from mcp_agent.workflows.llm.augmented_llm_openai import OpenAIAugmentedLLM  # noqa: F401
-
-# from mcp_agent.workflows.parallel.fan_in import FanIn
-# from mcp_agent.workflows.parallel.fan_out import FanOut
 from mcp_agent.workflows.parallel.parallel_llm import ParallelLLM
 from rich import print
-# To illustrate a parallel workflow, we will build a student assignment grader,``
+
+# To illustrate a parallel workflow, we will build a student assignment grader,
 # which will use a fan-out agent to grade the assignment in parallel using multiple agents,
 # and a fan-in agent to aggregate the results and provide a final grade.
 
@@ -44,34 +42,45 @@ async def example_usage():
     async with app.run() as short_story_grader:
         logger = short_story_grader.logger
 
-        proofreader = Agent(
+        # Create configs for each agent
+        proofreader_config = AgentConfig(
             name="proofreader",
-            instruction=""""Review the short story for grammar, spelling, and punctuation errors.
+            instruction="""Review the short story for grammar, spelling, and punctuation errors.
             Identify any awkward phrasing or structural issues that could improve clarity. 
             Provide detailed feedback on corrections.""",
+            servers=[],  # No special server access needed for text analysis
         )
 
-        fact_checker = Agent(
+        fact_checker_config = AgentConfig(
             name="fact_checker",
             instruction="""Verify the factual consistency within the story. Identify any contradictions,
             logical inconsistencies, or inaccuracies in the plot, character actions, or setting. 
             Highlight potential issues with reasoning or coherence.""",
+            servers=[],
         )
 
-        style_enforcer = Agent(
+        style_enforcer_config = AgentConfig(
             name="style_enforcer",
             instruction="""Analyze the story for adherence to style guidelines.
             Evaluate the narrative flow, clarity of expression, and tone. Suggest improvements to 
             enhance storytelling, readability, and engagement.""",
+            servers=[],
         )
 
-        grader = Agent(
+        grader_config = AgentConfig(
             name="grader",
             instruction="""Compile the feedback from the Proofreader, Fact Checker, and Style Enforcer
             into a structured report. Summarize key issues and categorize them by type. 
             Provide actionable recommendations for improving the story, 
             and give an overall grade based on the feedback.""",
+            servers=[],
         )
+
+        # Create agents with their configs
+        proofreader = Agent(config=proofreader_config)
+        fact_checker = Agent(config=fact_checker_config)
+        style_enforcer = Agent(config=style_enforcer_config)
+        grader = Agent(config=grader_config)
 
         parallel = ParallelLLM(
             fan_in_agent=grader,

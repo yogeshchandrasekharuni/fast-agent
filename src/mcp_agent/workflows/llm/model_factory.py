@@ -5,6 +5,7 @@ from typing import Optional, Type, Dict, Union, Callable
 from mcp_agent.agents.agent import Agent
 from mcp_agent.workflows.llm.augmented_llm_anthropic import AnthropicAugmentedLLM
 from mcp_agent.workflows.llm.augmented_llm_openai import OpenAIAugmentedLLM
+from mcp_agent.workflows.llm.augmented_llm import RequestParams
 
 # Type alias for LLM classes
 LLMClass = Union[Type[AnthropicAugmentedLLM], Type[OpenAIAugmentedLLM]]
@@ -64,6 +65,8 @@ class ModelFactory:
         "claude-3-5-sonnet-20240620": Provider.ANTHROPIC,
         "claude-3-5-sonnet-20241022": Provider.ANTHROPIC,
         "claude-3-5-sonnet-latest": Provider.ANTHROPIC,
+        "claude-3-opus-20240229": Provider.ANTHROPIC,
+        "claude-3-opus-latest": Provider.ANTHROPIC,
     }
 
     MODEL_ALIASES = {
@@ -72,6 +75,8 @@ class ModelFactory:
         "claude": "claude-3-5-sonnet-latest",
         "haiku": "claude-3-haiku-20240307",
         "haiku3": "claude-3-haiku-20240307",
+        "opus": "claude-3-opus-latest",
+        "opus3": "claude-3-opus-latest",
     }
 
     # Mapping of providers to their LLM classes
@@ -118,12 +123,15 @@ class ModelFactory:
         )
 
     @classmethod
-    def create_factory(cls, model_string: str) -> Callable[[Agent], LLMClass]:
+    def create_factory(
+        cls, model_string: str, request_params: Optional[RequestParams] = None
+    ) -> Callable[..., LLMClass]:
         """
         Creates a factory function that follows the attach_llm protocol.
 
         Args:
             model_string: The model specification string (e.g. "gpt-4o.high")
+            request_params: Optional parameters to configure LLM behavior
 
         Returns:
             A callable that takes an agent parameter and returns an LLM instance
@@ -133,13 +141,35 @@ class ModelFactory:
         llm_class = cls.PROVIDER_CLASSES[config.provider]
 
         # Create a factory function matching the attach_llm protocol
-        def factory(agent: Agent) -> LLMClass:
-            return llm_class(
+        def factory(agent: Agent, **kwargs) -> LLMClass:
+            # Create merged params with parsed model name
+            factory_params = (
+                request_params.model_copy() if request_params else RequestParams()
+            )
+            factory_params.model = (
+                config.model_name
+            )  # Use the parsed model name, not the alias
+
+            # Merge with any provided default_request_params
+            if "default_request_params" in kwargs and kwargs["default_request_params"]:
+                params_dict = factory_params.model_dump()
+                params_dict.update(
+                    kwargs["default_request_params"].model_dump(exclude_unset=True)
+                )
+                factory_params = RequestParams(**params_dict)
+                factory_params.model = (
+                    config.model_name
+                )  # Ensure parsed model name isn't overwritten
+
+            llm = llm_class(
                 agent=agent,
                 model=config.model_name,
                 reasoning_effort=config.reasoning_effort.value
                 if config.reasoning_effort
                 else None,
+                request_params=factory_params,
+                name=kwargs.get("name"),
             )
+            return llm
 
         return factory

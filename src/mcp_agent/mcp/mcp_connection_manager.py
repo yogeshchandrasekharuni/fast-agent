@@ -140,30 +140,25 @@ async def _server_lifecycle_task(server_conn: ServerConnection) -> None:
     Runs inside the MCPConnectionManager's shared TaskGroup.
     """
     server_name = server_conn.server_name
-    task_name = asyncio.current_task().get_name()
-    print(f"SERVER {server_name}: Starting lifecycle task in {task_name}")
     try:
         transport_context = server_conn._transport_context_factory()
 
         async with transport_context as (read_stream, write_stream):
-            print(f"SERVER {server_name}: Created transport context")
             server_conn.create_session(read_stream, write_stream)
-            print(f"SERVER {server_name}: Created session")
 
             async with server_conn.session:
                 await server_conn.initialize_session()
-                print(f"SERVER {server_name}: Initialized and running")
 
                 await server_conn.wait_for_shutdown_request()
-                print(f"SERVER {server_name}: Received shutdown request")
-                print(f"SERVER {server_name}: Beginning cleanup in {task_name}")
 
     except Exception as exc:
-        print(f"SERVER {server_name}: Error in lifecycle: {exc}")
+        logger.error(
+            f"{server_name}: Lifecycle task encountered an error: {exc}", exc_info=True
+        )
+        # If there's an error, we should also set the event so that
+        # 'get_server' won't hang
         server_conn._initialized_event.set()
         raise
-    finally:
-        print(f"SERVER {server_name}: Lifecycle task ending in {task_name}")
 
 
 class MCPConnectionManager(ContextDependent):
@@ -182,13 +177,9 @@ class MCPConnectionManager(ContextDependent):
 
     async def __aenter__(self):
         current_task = asyncio.current_task()
-        print(f"CONNECTION MANAGER: Entering in task {current_task.get_name()}")
 
         # Get or create task group from context
         if not hasattr(self.context, "_connection_task_group"):
-            print(
-                f"CONNECTION MANAGER: Creating new task group in task {current_task.get_name()}"
-            )
             self.context._connection_task_group = create_task_group()
             self.context._connection_task_group_context = current_task.get_name()
             await self.context._connection_task_group.__aenter__()
