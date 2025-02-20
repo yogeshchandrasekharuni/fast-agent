@@ -183,7 +183,7 @@ class MCPAgentDecorator(ContextDependent):
             print(f"  model={model}")
             print(f"  use_history={use_history}")
             print(f"  request_params={request_params}")
-            
+
             base_params = RequestParams(
                 use_history=use_history,
                 model=model,  # Include model in initial params
@@ -346,6 +346,7 @@ class MCPAgentDecorator(ContextDependent):
             use_history: Whether to maintain conversation history
             request_params: Additional request parameters for the LLM
         """
+
         def decorator(func: Callable) -> Callable:
             # Create workflow configuration
             config = AgentConfig(
@@ -394,11 +395,11 @@ class MCPAgentDecorator(ContextDependent):
             use_history: Whether to maintain conversation history
             request_params: Additional request parameters for the LLM
         """
+
         def decorator(func: Callable) -> Callable:
             # Create base request params
             base_params = RequestParams(
-                use_history=use_history,
-                **(request_params or {})
+                use_history=use_history, **(request_params or {})
             )
 
             # Create agent configuration
@@ -507,9 +508,7 @@ class MCPAgentDecorator(ContextDependent):
         return orchestrators
 
     async def _create_evaluator_optimizers(
-        self, 
-        agent_app: MCPApp, 
-        active_agents: Dict[str, Any]
+        self, agent_app: MCPApp, active_agents: Dict[str, Any]
     ) -> Dict[str, BaseAgentWrapper]:
         """
         Create evaluator-optimizer workflows.
@@ -525,11 +524,11 @@ class MCPAgentDecorator(ContextDependent):
         for name, agent_data in self.agents.items():
             if agent_data["type"] == AgentType.EVALUATOR_OPTIMIZER.value:
                 config = agent_data["config"]
-                
+
                 # Get the referenced agents
                 optimizer = active_agents.get(agent_data["optimizer"])
                 evaluator = active_agents.get(agent_data["evaluator"])
-                
+
                 if not optimizer or not evaluator:
                     raise ValueError(
                         f"Missing agents for workflow {name}: "
@@ -539,7 +538,9 @@ class MCPAgentDecorator(ContextDependent):
 
                 # TODO: Remove legacy - factory usage is only needed for str evaluators
                 # Later this should only be passed when evaluator is a string
-                optimizer_model = optimizer.config.model if isinstance(optimizer, Agent) else None
+                optimizer_model = (
+                    optimizer.config.model if isinstance(optimizer, Agent) else None
+                )
                 workflow = EvaluatorOptimizerLLM(
                     optimizer=optimizer,
                     evaluator=evaluator,
@@ -550,7 +551,7 @@ class MCPAgentDecorator(ContextDependent):
                 )
 
                 workflows[name] = BaseAgentWrapper(workflow)
-                
+
         return workflows
 
     def _get_parallel_dependencies(
@@ -666,9 +667,7 @@ class MCPAgentDecorator(ContextDependent):
         return parallel_agents
 
     def _create_routers(
-        self, 
-        agent_app: MCPApp, 
-        active_agents: Dict[str, Any]
+        self, agent_app: MCPApp, active_agents: Dict[str, Any]
     ) -> Dict[str, BaseAgentWrapper]:
         """
         Create router agents.
@@ -687,8 +686,7 @@ class MCPAgentDecorator(ContextDependent):
 
                 # Get the router's agents
                 router_agents = [
-                    active_agents[agent_name]
-                    for agent_name in agent_data["agents"]
+                    active_agents[agent_name] for agent_name in agent_data["agents"]
                 ]
 
                 # Create the router with proper configuration
@@ -740,10 +738,12 @@ class MCPAgentDecorator(ContextDependent):
                     async with agent:
                         print(f"Creating LLM factory for {name}:")
                         print(f"  Using config model: {config.model}")
-                        print(f"  Using request params: {config.default_request_params}")
+                        print(
+                            f"  Using request params: {config.default_request_params}"
+                        )
                         llm_factory = self._get_model_factory(
-                            model=config.model, 
-                            request_params=config.default_request_params
+                            model=config.model,
+                            request_params=config.default_request_params,
                         )
                         print(f"  Created factory: {llm_factory}")
                         agent._llm = await agent.attach_llm(llm_factory)
@@ -754,7 +754,9 @@ class MCPAgentDecorator(ContextDependent):
             print("\nCreating parallel workflows:")
             parallel_agents = self._create_parallel_agents(agent_app, active_agents)
             print("\nCreating evaluator-optimizer workflows:")
-            evaluator_optimizers = await self._create_evaluator_optimizers(agent_app, active_agents)
+            evaluator_optimizers = await self._create_evaluator_optimizers(
+                agent_app, active_agents
+            )
             print("\nCreating routers:")
             routers = self._create_routers(agent_app, active_agents)
 
@@ -805,25 +807,25 @@ class AgentAppWrapper:
             raise ValueError(f"Agent {agent_name} not found")
 
         agent = self.agents[agent_name]
-        
+
         # Special handling for routers
         if isinstance(agent._llm, LLMRouter):
             # Route the message and get results
             results = await agent._llm.route(message)
             if not results:
                 return "No appropriate route found for the request."
-            
+
             # Get the top result
             top_result = results[0]
-            if isinstance(top_result.result, str):
-                # Server route - use the router directly
-                return await agent._llm.generate_str(message)
-            elif isinstance(top_result.result, Agent):
+            if isinstance(top_result.result, Agent):
                 # Agent route - delegate to the agent
                 return await top_result.result._llm.generate_str(message)
+            elif isinstance(top_result.result, str):
+                # Server route - use the router directly
+                return "Tool call requested by router - not yet supported"
             else:
                 return f"Routed to: {top_result.result} ({top_result.confidence}): {top_result.reasoning}"
-        
+
         # Normal agent handling
         if not hasattr(agent, "_llm") or agent._llm is None:
             raise RuntimeError(f"Agent {agent_name} has no LLM attached")

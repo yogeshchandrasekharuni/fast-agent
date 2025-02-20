@@ -15,18 +15,25 @@ agent_app = MCPAgentDecorator(
 
 # Sample requests demonstrating direct tool use vs agent delegation
 SAMPLE_REQUESTS = [
-    "Download and summarize https://llmindset.co.uk/",  # Router handles directly with fetch
-    "Analyze the quality of our Python codebase in the current working directory",  # Delegated to code expert
-    "What are the key principles of system design?",  # Delegated to general assistant
+    "Download and summarize https://llmindset.co.uk/posts/2024/12/mcp-build-notes/",  # Router handles directly with fetch
+    "Analyze the quality of the Python codebase in the current working directory",  # Delegated to code expert
+    "What are the key principles of effective beekeeping?",  # Delegated to general assistant
 ]
 
 
+@agent_app.agent(
+    name="fetcher",
+    instruction="""You are an agent, with a tool enabling you to fetch URLs.""",
+    servers=["fetch"],
+    model="haiku",
+)
 @agent_app.agent(
     name="code_expert",
     instruction="""You are an expert in code analysis and software engineering.
     When asked about code, architecture, or development practices,
     you provide thorough and practical insights.""",
     servers=["filesystem"],
+    model="gpt-4o",
 )
 @agent_app.agent(
     name="general_assistant",
@@ -35,9 +42,8 @@ SAMPLE_REQUESTS = [
 )
 @agent_app.router(
     name="llm_router",
-    model="gpt-4o",
-    agents=["code_expert", "general_assistant"],
-    servers=["fetch"],  # Router can use fetch directly
+    model="sonnet",
+    agents=["code_expert", "general_assistant", "fetcher"],
 )
 async def main():
     async with agent_app.run() as agent:
