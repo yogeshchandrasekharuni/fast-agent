@@ -91,6 +91,7 @@ class LLMRouter(Router):
     def __init__(
         self,
         llm_factory: Callable[..., AugmentedLLM],
+        name: str = "LLM Router",
         server_names: List[str] | None = None,
         agents: List[Agent] | None = None,
         functions: List[Callable] | None = None,
@@ -108,6 +109,7 @@ class LLMRouter(Router):
             **kwargs,
         )
 
+        self.name = name
         self.llm_factory = llm_factory
         self.default_request_params = default_request_params or RequestParams()
         self.llm = None  # Will be initialized in create()
@@ -116,6 +118,7 @@ class LLMRouter(Router):
     async def create(
         cls,
         llm_factory: Callable[..., AugmentedLLM],
+        name: str = "LLM Router",
         server_names: List[str] | None = None,
         agents: List[Agent] | None = None,
         functions: List[Callable] | None = None,
@@ -129,6 +132,7 @@ class LLMRouter(Router):
         """
         instance = cls(
             llm_factory=llm_factory,
+            name=name,
             server_names=server_names,
             agents=agents,
             functions=functions,
@@ -143,8 +147,6 @@ class LLMRouter(Router):
         """Initialize the router and create the LLM instance."""
         if not self.initialized:
             await super().initialize()
-
-            # Set up router-specific request params with routing instruction
             router_params = RequestParams(
                 systemPrompt=ROUTING_SYSTEM_INSTRUCTION,
                 use_history=False,  # Router should be stateless :)
@@ -157,7 +159,8 @@ class LLMRouter(Router):
                     self.default_request_params.model_dump(exclude_unset=True)
                 )
                 router_params = RequestParams(**params_dict)
-
+            # Set up router-specific request params with routing instruction
+            router_params.use_history = False
             self.llm = self.llm_factory(
                 agent=None,  # Router doesn't need an agent context
                 name="LLM Router",

@@ -27,6 +27,7 @@ from mcp_agent.workflows.evaluator_optimizer.evaluator_optimizer import (
     EvaluatorOptimizerLLM,
     QualityRating,
 )
+from mcp_agent.workflows.router.router_llm import LLMRouter, Router
 
 
 class AgentType(Enum):
@@ -36,6 +37,7 @@ class AgentType(Enum):
     ORCHESTRATOR = "orchestrator"
     PARALLEL = "parallel"
     EVALUATOR_OPTIMIZER = "evaluator_optimizer"
+    ROUTER = "router"
 
 
 T = TypeVar("T")  # For the wrapper classes
@@ -372,6 +374,58 @@ class MCPAgentDecorator(ContextDependent):
 
         return decorator
 
+    def router(
+        self,
+        name: str,
+        agents: List[str],
+        servers: List[str] = [],
+        model: Optional[str] = None,
+        use_history: bool = True,
+        request_params: Optional[Dict] = None,
+    ) -> Callable:
+        """
+        Decorator to create and register a router.
+
+        Args:
+            name: Name of the router
+            agents: List of agent names this router can delegate to
+            servers: List of server names the router can use directly
+            model: Model specification string
+            use_history: Whether to maintain conversation history
+            request_params: Additional request parameters for the LLM
+        """
+        def decorator(func: Callable) -> Callable:
+            # Create base request params
+            base_params = RequestParams(
+                use_history=use_history,
+                **(request_params or {})
+            )
+
+            # Create agent configuration
+            config = AgentConfig(
+                name=name,
+                instruction="",  # Router uses its own routing instruction
+                servers=servers,
+                model=model,
+                use_history=use_history,
+                default_request_params=base_params,
+            )
+
+            # Store the router configuration
+            self.agents[name] = {
+                "config": config,
+                "agents": agents,
+                "type": AgentType.ROUTER.value,
+                "func": func,
+            }
+
+            async def wrapper(*args, **kwargs):
+                return await func(*args, **kwargs)
+
+            return wrapper
+
+        return decorator
+
     def _create_basic_agents(self, agent_app: MCPApp) -> Dict[str, Agent]:
         """
         Create and initialize basic agents with their configurations.
@@ -611,6 +665,51 @@ class MCPAgentDecorator(ContextDependent):
 
         return parallel_agents
 
+    def _create_routers(
+        self, 
+        agent_app: MCPApp, 
+        active_agents: Dict[str, Any]
+    ) -> Dict[str, BaseAgentWrapper]:
+        """
+        Create router agents.
+
+        Args:
+            agent_app: The main application instance
+            active_agents: Dictionary of already created agents
+
+        Returns:
+            Dictionary of initialized router agents
+        """
+        routers = {}
+        for name, agent_data in self.agents.items():
+            if agent_data["type"] == AgentType.ROUTER.value:
+                config = agent_data["config"]
+
+                # Get the router's agents
+                router_agents = [
+                    active_agents[agent_name]
+                    for agent_name in agent_data["agents"]
+                ]
+
+                # Create the router with proper configuration
+                llm_factory = self._get_model_factory(
+                    model=config.model,
+                    request_params=config.default_request_params,
+                )
+
+                router = LLMRouter(
+                    name=config.name,  # Add the name parameter
+                    llm_factory=llm_factory,
+                    agents=router_agents,
+                    server_names=config.servers,
+                    context=agent_app.context,
+                    default_request_params=config.default_request_params,
+                )
+
+                routers[name] = BaseAgentWrapper(router)
+
+        return routers
+
     @asynccontextmanager
     async def run(self):
         """
@@ -651,17 +750,19 @@ class MCPAgentDecorator(ContextDependent):
                         print(f"  Created LLM: {agent._llm}")
 
             print("\nCreating orchestrators:")
-            # Create workflow agents
             orchestrators = self._create_orchestrators(agent_app, active_agents)
             print("\nCreating parallel workflows:")
             parallel_agents = self._create_parallel_agents(agent_app, active_agents)
             print("\nCreating evaluator-optimizer workflows:")
             evaluator_optimizers = await self._create_evaluator_optimizers(agent_app, active_agents)
+            print("\nCreating routers:")
+            routers = self._create_routers(agent_app, active_agents)
 
             # Merge all agents into active_agents
             active_agents.update(orchestrators)
             active_agents.update(parallel_agents)
             active_agents.update(evaluator_optimizers)
+            active_agents.update(routers)
 
             # Create wrapper with all agents
             wrapper = AgentAppWrapper(agent_app, active_agents)
@@ -704,6 +805,26 @@ class AgentAppWrapper:
             raise ValueError(f"Agent {agent_name} not found")
 
         agent = self.agents[agent_name]
+        
+        # Special handling for routers
+        if isinstance(agent._llm, LLMRouter):
+            # Route the message and get results
+            results = await agent._llm.route(message)
+            if not results:
+                return "No appropriate route found for the request."
+            
+            # Get the top result
+            top_result = results[0]
+            if isinstance(top_result.result, str):
+                # Server route - use the router directly
+                return await agent._llm.generate_str(message)
+            elif isinstance(top_result.result, Agent):
+                # Agent route - delegate to the agent
+                return await top_result.result._llm.generate_str(message)
+            else:
+                return f"Routed to: {top_result.result} ({top_result.confidence}): {top_result.reasoning}"
+        
+        # Normal agent handling
         if not hasattr(agent, "_llm") or agent._llm is None:
             raise RuntimeError(f"Agent {agent_name} has no LLM attached")
         return await agent._llm.generate_str(message)
