@@ -76,6 +76,7 @@ class ModelFactory:
         "haiku": "claude-3-haiku-20240307",
         "haiku3": "claude-3-haiku-20240307",
         "opus": "claude-3-opus-latest",
+        "opus3": "claude-3-opus-latest",
     }
 
     # Mapping of providers to their LLM classes

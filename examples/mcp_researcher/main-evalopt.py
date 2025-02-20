@@ -25,7 +25,6 @@ Evaluate the response from the researcher based on the criteria:
  - Sources cited. Has the researcher provided a summary of the specific sources used in the research?
  - Validity. Has the researcher cross-checked and validated data and assumptions.
  - Alignment. Has the researher acted and addressed feedback from any previous assessments?
-
  
 For each criterion:
 - Provide a rating (EXCELLENT, GOOD, FAIR, or POOR).
@@ -45,6 +44,9 @@ Summarize your evaluation as a structured response with:
 async def main():
     async with agents.run() as agent:
         await agent.prompt("Researcher_Evaluator")
+
+        print("Ask follow up quesions to the Researcher?")
+        await agent.prompt("Researcher", default="STOP")
 
 
 if __name__ == "__main__":
