@@ -412,7 +412,7 @@ class MCPAgentDecorator(ContextDependent):
             if agent_data["type"] == AgentType.ORCHESTRATOR.value:
                 config = agent_data["config"]
 
-                # Create orchestrator with its agents and model
+                # TODO: Remove legacy - This model/params setup should be in Agent class
                 # Resolve model alias if present
                 model_config = ModelFactory.parse_model_string(config.model)
                 resolved_model = model_config.model_name
@@ -483,14 +483,15 @@ class MCPAgentDecorator(ContextDependent):
                         f"evaluator={agent_data['evaluator']}"
                     )
 
-                # Create the workflow - use optimizer's model for the factory
+                # TODO: Remove legacy - factory usage is only needed for str evaluators
+                # Later this should only be passed when evaluator is a string
                 optimizer_model = optimizer.config.model if isinstance(optimizer, Agent) else None
                 workflow = EvaluatorOptimizerLLM(
                     optimizer=optimizer,
                     evaluator=evaluator,
                     min_rating=QualityRating[agent_data["min_rating"]],
                     max_refinements=agent_data["max_refinements"],
-                    llm_factory=self._get_model_factory(model=optimizer_model),  # Use optimizer's model
+                    llm_factory=self._get_model_factory(model=optimizer_model),
                     context=agent_app.context,
                 )
 

@@ -70,7 +70,7 @@ class EvaluatorOptimizerLLM(AugmentedLLM[MessageParamT, MessageT]):
         evaluator: str | Agent | AugmentedLLM,
         min_rating: QualityRating = QualityRating.GOOD,
         max_refinements: int = 3,
-        llm_factory: Callable[[Agent], AugmentedLLM] | None = None,
+        llm_factory: Callable[[Agent], AugmentedLLM] | None = None,  # TODO: Remove legacy - factory should only be needed for str evaluator
         context: Optional["Context"] = None,
     ):
         """
@@ -95,6 +95,7 @@ class EvaluatorOptimizerLLM(AugmentedLLM[MessageParamT, MessageT]):
         self.optimizer = optimizer
         self.evaluator = evaluator
 
+        # TODO: Remove legacy - optimizer should always be an AugmentedLLM, no conversion needed
         if isinstance(optimizer, Agent):
             if not llm_factory:
                 raise ValueError("llm_factory is required when using an Agent")
@@ -125,6 +126,7 @@ class EvaluatorOptimizerLLM(AugmentedLLM[MessageParamT, MessageT]):
         # Set up the evaluator
         if isinstance(evaluator, AugmentedLLM):
             self.evaluator_llm = evaluator
+        # TODO: Remove legacy - evaluator should be either AugmentedLLM or str
         elif isinstance(evaluator, Agent):
             if not llm_factory:
                 raise ValueError(

@@ -11,7 +11,7 @@ agent_app = MCPAgentDecorator("Interactive Agent Example")
 
 # Define the agent
 @agent_app.agent(
-    name="basic_agent",
+    name="Agent",
     instruction="A simple agent that helps with basic tasks. Request Human Input whenever needed.",
     servers=["mcp_root"],
 )

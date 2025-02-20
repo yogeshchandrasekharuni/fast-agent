@@ -3,7 +3,7 @@ $schema: ../../schema/mcp-agent.config.schema.json
 execution_engine: asyncio
 logger:
   type: file
-  level: debug
+  level: error
   path: "./mcp_agent.log"
   progress_display: false
 
