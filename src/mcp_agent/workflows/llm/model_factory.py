@@ -145,7 +145,9 @@ class ModelFactory:
 
         # Create a factory function matching the attach_llm protocol
         def factory(agent: Agent, **kwargs) -> LLMClass:
-            print(f"\nFactory creating LLM for agent {agent.name}")
+            print(
+                f"\nFactory creating LLM for {f'agent {agent.name}' if agent and hasattr(agent, 'name') else 'standalone use'}"
+            )
             print(f"Factory kwargs: {kwargs}")
             # Create merged params with parsed model name
             factory_params = (

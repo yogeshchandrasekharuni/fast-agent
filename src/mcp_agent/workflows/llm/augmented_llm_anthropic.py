@@ -28,6 +28,7 @@ from mcp.types import (
     TextResourceContents,
 )
 
+from mcp_agent.workflows.router.router_llm import StructuredResponse
 from mcp_agent.workflows.llm.augmented_llm import (
     AugmentedLLM,
     ModelT,
@@ -75,7 +76,6 @@ class AnthropicAugmentedLLM(AugmentedLLM[MessageParam, Message]):
     ):
         """
         Process a query using an LLM and available tools.
-        The default implementation uses Claude as the LLM.
         Override this method to use a different LLM.
         """
         config = self.context.config
@@ -134,7 +134,14 @@ class AnthropicAugmentedLLM(AugmentedLLM[MessageParam, Message]):
 
             if isinstance(response, BaseException):
                 self.logger.error(f"Error: {executor_result}")
-                break
+                # Don't break, instead create an error response
+                error_message = f"Error during generation: {str(response)}"
+                response = Message(
+                    role="assistant",
+                    type="message",
+                    content=[TextBlock(type="text", text=error_message)],
+                    stop_reason="error",
+                )
 
             self.logger.debug(
                 f"{model} response:",
@@ -264,6 +271,10 @@ class AnthropicAugmentedLLM(AugmentedLLM[MessageParam, Message]):
             message=message,
             request_params=request_params,
         )
+        # Don't try to parse if we got no response
+        if not response:
+            self.logger.error("No response from generate_str")
+            return StructuredResponse(categories=[])
 
         # Next we pass the text through instructor to extract structured data
         client = instructor.from_anthropic(

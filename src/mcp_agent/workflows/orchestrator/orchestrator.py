@@ -82,27 +82,27 @@ class Orchestrator(AugmentedLLM[MessageParamT, MessageT]):
         orchestrator_params = RequestParams(
             use_history=False,  # Orchestrator doesn't support history
             max_iterations=30,  # Higher default for complex tasks
-            maxTokens=8192,    # Higher default for planning
-            parallel_tool_calls=True
+            maxTokens=8192,  # Higher default for planning TODO this will break some models - make configurable.
+            parallel_tool_calls=True,
         )
         print(f"Orchestrator using maxTokens: {orchestrator_params.maxTokens}")
-        
+
         # If kwargs contains request_params, merge with our defaults but force use_history False
-        if 'request_params' in kwargs:
-            base_params = kwargs['request_params']
+        if "request_params" in kwargs:
+            base_params = kwargs["request_params"]
             merged = base_params.model_copy()
             merged.use_history = False  # Force this setting
-            kwargs['request_params'] = merged
+            kwargs["request_params"] = merged
             print(f"Orchestrator using merged maxTokens: {merged.maxTokens}")
         else:
-            kwargs['request_params'] = orchestrator_params
+            kwargs["request_params"] = orchestrator_params
 
         super().__init__(context=context, **kwargs)
 
         self.llm_factory = llm_factory
 
         # Create default planner with AgentConfig
-        request_params = self.get_request_params(kwargs.get('request_params'))
+        request_params = self.get_request_params(kwargs.get("request_params"))
         planner_config = AgentConfig(
             name="LLM Orchestration Planner",
             instruction="""
@@ -112,7 +112,7 @@ class Orchestrator(AugmentedLLM[MessageParamT, MessageT]):
             """,
             servers=[],  # Planner doesn't need direct server access
             default_request_params=request_params,
-            model=request_params.model if request_params else None
+            model=request_params.model if request_params else None,
         )
 
         self.planner = planner or llm_factory(agent=Agent(config=planner_config))
@@ -140,7 +140,7 @@ class Orchestrator(AugmentedLLM[MessageParamT, MessageT]):
     ) -> str:
         """Request an LLM generation and return the string representation of the result"""
         params = self.get_request_params(request_params)
-        
+
         result = await self.generate(
             message=message,
             request_params=params,
@@ -156,7 +156,7 @@ class Orchestrator(AugmentedLLM[MessageParamT, MessageT]):
     ) -> ModelT:
         """Request a structured LLM generation and return the result as a Pydantic model."""
         params = self.get_request_params(request_params)
-        
+
         result_str = await self.generate_str(message=message, request_params=params)
 
         structured_config = AgentConfig(
@@ -180,7 +180,7 @@ class Orchestrator(AugmentedLLM[MessageParamT, MessageT]):
     ) -> PlanResult:
         """Execute task with result chaining between steps"""
         iterations = 0
-        
+
         params = self.get_request_params(request_params)
 
         plan_result = PlanResult(objective=objective, step_results=[])
@@ -189,17 +189,13 @@ class Orchestrator(AugmentedLLM[MessageParamT, MessageT]):
             if self.plan_type == "iterative":
                 # Get next plan/step
                 next_step = await self._get_next_step(
-                    objective=objective, 
-                    plan_result=plan_result, 
-                    request_params=params
+                    objective=objective, plan_result=plan_result, request_params=params
                 )
                 logger.debug(f"Iteration {iterations}: Iterative plan:", data=next_step)
                 plan = Plan(steps=[next_step], is_complete=next_step.is_complete)
             elif self.plan_type == "full":
                 plan = await self._get_full_plan(
-                    objective=objective, 
-                    plan_result=plan_result, 
-                    request_params=params
+                    objective=objective, plan_result=plan_result, request_params=params
                 )
                 logger.debug(f"Iteration {iterations}: Full Plan:", data=plan)
             else:
@@ -258,7 +254,7 @@ class Orchestrator(AugmentedLLM[MessageParamT, MessageT]):
         """Execute a step's subtasks in parallel and synthesize results"""
         print(f"\nExecuting step: {step}")
         params = self.get_request_params(request_params)
-        
+
         step_result = StepResult(step=step, task_results=[])
         context = format_plan_result(previous_result)
 
@@ -271,8 +267,10 @@ class Orchestrator(AugmentedLLM[MessageParamT, MessageT]):
                     raise ValueError(f"No agent found matching {task.agent}")
 
                 print(f"\nPreparing agent {task.agent} for task")
-                print(f"Agent config: {agent.config if hasattr(agent, 'config') else 'No config'}")
-                
+                print(
+                    f"Agent config: {agent.config if hasattr(agent, 'config') else 'No config'}"
+                )
+
                 if isinstance(agent, AugmentedLLM):
                     llm = agent
                 else:
@@ -286,10 +284,10 @@ class Orchestrator(AugmentedLLM[MessageParamT, MessageT]):
                         # Create factory with agent's own configuration
                         agent_factory = ModelFactory.create_factory(
                             model_string=agent.config.model,
-                            request_params=agent.config.default_request_params
+                            request_params=agent.config.default_request_params,
                         )
                         llm = await ctx_agent.attach_llm(agent_factory)
-                        
+
                 print(f"Using LLM for {task.agent}: {llm}")
                 task_llms.append((task, llm))
 
@@ -303,10 +301,16 @@ class Orchestrator(AugmentedLLM[MessageParamT, MessageT]):
                 )
                 # Get the agent's config for task execution
                 agent = self.agents.get(task.agent)
-                task_params = agent.config.default_request_params if hasattr(agent, 'config') else params
+                task_params = (
+                    agent.config.default_request_params
+                    if hasattr(agent, "config")
+                    else params
+                )
                 print(f"\nExecuting task for {task.agent} with params: {task_params}")
                 futures.append(
-                    llm.generate_str(message=task_description, request_params=task_params)
+                    llm.generate_str(
+                        message=task_description, request_params=task_params
+                    )
                 )
 
             # Wait for all tasks, including any tool calls they make
@@ -355,10 +359,10 @@ class Orchestrator(AugmentedLLM[MessageParamT, MessageT]):
         return plan
 
     async def _get_next_step(
-        self, 
-        objective: str, 
+        self,
+        objective: str,
         plan_result: PlanResult,
-        request_params: RequestParams | None = None
+        request_params: RequestParams | None = None,
     ) -> NextStep:
         """Generate just the next needed step"""
         params = self.get_request_params(request_params)

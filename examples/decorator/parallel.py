@@ -77,7 +77,7 @@ async def main():
         await agent.send("foo", f"student short story submission: {SHORT_STORY}")
 
         # follow-on prompt to task agent
-        await agent.prompt("style_enforcer", default="STOP")
+        # await agent.prompt("style_enforcer", default="STOP")
 
 
 if __name__ == "__main__":

@@ -19,12 +19,13 @@ async def example_usage():
             the closest match to a user's request, make the appropriate tool calls, 
             and return the URI and CONTENTS of the closest match.""",
             servers=["fetch", "filesystem"],
+            model="sonnet",
         )
 
         finder_agent = Agent(config=finder_config)
 
         async with finder_agent:
-            llm = await finder_agent.attach_llm(OpenAIAugmentedLLM)
+            llm = await finder_agent.attach_llm(AnthropicAugmentedLLM)
 
             await llm.generate_str(
                 message="Print the first 2 paragraphs of https://www.anthropic.com/research/building-effective-agents",
