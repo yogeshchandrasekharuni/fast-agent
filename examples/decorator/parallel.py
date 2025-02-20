@@ -67,15 +67,12 @@ and whispers of a hidden agenda linger among the villagers.
 @agent_app.parallel(
     fan_out=["proofreader", "fact_checker", "style_enforcer"],
     fan_in="grader",
-    name="foo",
+    name="parallel",
 )
 async def main():
     # Use the app's context manager
     async with agent_app.run() as agent:
-        # await agent("print the next number in the sequence")
-        # await agent.prompt(default="STOP")
-        await agent.send("foo", f"student short story submission: {SHORT_STORY}")
-
+        await agent.send("parallel", f"student short story submission: {SHORT_STORY}")
         # follow-on prompt to task agent
         # await agent.prompt("style_enforcer", default="STOP")
 

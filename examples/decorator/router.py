@@ -12,6 +12,7 @@ from mcp_agent.core.decorator_app import MCPAgentDecorator
 agent_app = MCPAgentDecorator(
     "Router Workflow Example",
 )
+agent_app.app._human_input_callback = None
 
 # Sample requests demonstrating direct tool use vs agent delegation
 SAMPLE_REQUESTS = [

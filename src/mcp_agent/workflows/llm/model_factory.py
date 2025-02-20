@@ -136,19 +136,12 @@ class ModelFactory:
         Returns:
             A callable that takes an agent parameter and returns an LLM instance
         """
-        print(f"\nModelFactory.create_factory called with model_string={model_string}")
         # Parse configuration up front
         config = cls.parse_model_string(model_string)
-        print(f"Parsed model config: {config}")
         llm_class = cls.PROVIDER_CLASSES[config.provider]
-        print(f"Selected LLM class: {llm_class}")
 
         # Create a factory function matching the attach_llm protocol
         def factory(agent: Agent, **kwargs) -> LLMClass:
-            print(
-                f"\nFactory creating LLM for {f'agent {agent.name}' if agent and hasattr(agent, 'name') else 'standalone use'}"
-            )
-            print(f"Factory kwargs: {kwargs}")
             # Create merged params with parsed model name
             factory_params = (
                 request_params.model_copy() if request_params else RequestParams()
@@ -168,8 +161,6 @@ class ModelFactory:
                     config.model_name
                 )  # Ensure parsed model name isn't overwritten
 
-            print(f"Final merged request params: {factory_params}")
-
             llm = llm_class(
                 agent=agent,
                 model=config.model_name,
@@ -179,7 +170,6 @@ class ModelFactory:
                 request_params=factory_params,
                 name=kwargs.get("name"),
             )
-            print(f"Created LLM: {llm}")
             return llm
 
         return factory

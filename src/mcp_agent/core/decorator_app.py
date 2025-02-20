@@ -27,7 +27,7 @@ from mcp_agent.workflows.evaluator_optimizer.evaluator_optimizer import (
     EvaluatorOptimizerLLM,
     QualityRating,
 )
-from mcp_agent.workflows.router.router_llm import LLMRouter, Router
+from mcp_agent.workflows.router.router_llm import LLMRouter
 
 
 class AgentType(Enum):
@@ -126,25 +126,17 @@ class MCPAgentDecorator(ContextDependent):
         Returns:
             ModelFactory instance for the specified or default model
         """
-        print(
-            f"\n_get_model_factory called with model={model}, request_params={request_params}"
-        )
 
         # Config has lowest precedence
         model_spec = self.context.config.default_model
-        print(f"Starting with config default: {model_spec}")
 
         # Command line override has next precedence
         if self.args.model:
             model_spec = self.args.model
-            print(f"Applied command line override: {model_spec}")
 
         # Model from decorator has highest precedence
         if model:
             model_spec = model
-            print(f"Applied decorator model: {model_spec}")
-
-        print(f"Creating factory with final model_spec: {model_spec}")
 
         # Update or create request_params with the final model choice
         if request_params:
@@ -175,22 +167,21 @@ class MCPAgentDecorator(ContextDependent):
             use_history: Whether to maintain conversation history
             request_params: Additional request parameters for the LLM
         """
-        print(f"\nDecorating agent {name} with model={model}")
+        #        print(f"\nDecorating agent {name} with model={model}")
 
         def decorator(func: Callable) -> Callable:
             # Create base request params with model included
-            print(f"\nDecorating {name} with params:")
-            print(f"  model={model}")
-            print(f"  use_history={use_history}")
-            print(f"  request_params={request_params}")
+            #           print(f"\nDecorating {name} with params:")
+            #          print(f"  model={model}")
+            #         print(f"  use_history={use_history}")
+            #        print(f"  request_params={request_params}")
 
             base_params = RequestParams(
                 use_history=use_history,
                 model=model,  # Include model in initial params
-                maxTokens=4096,  # Default to larger context for agents
+                maxTokens=4096,  # Default to larger context for agents TODO configurations
                 **(request_params or {}),
             )
-            print(f"Created base_params for {name}: {base_params}")
 
             # Create agent configuration
             config = AgentConfig(
@@ -201,7 +192,6 @@ class MCPAgentDecorator(ContextDependent):
                 use_history=use_history,
                 default_request_params=base_params,
             )
-            print(f"Created config for {name}: {config}")
 
             # Store the agent configuration
             self.agents[name] = {
@@ -209,7 +199,6 @@ class MCPAgentDecorator(ContextDependent):
                 "type": AgentType.BASIC.value,
                 "func": func,
             }
-            print(f"Stored agent {name} with config: {self.agents[name]}")
 
             async def wrapper(*args, **kwargs):
                 return await func(*args, **kwargs)
@@ -523,8 +512,6 @@ class MCPAgentDecorator(ContextDependent):
         workflows = {}
         for name, agent_data in self.agents.items():
             if agent_data["type"] == AgentType.EVALUATOR_OPTIMIZER.value:
-                config = agent_data["config"]
-
                 # Get the referenced agents
                 optimizer = active_agents.get(agent_data["optimizer"])
                 evaluator = active_agents.get(agent_data["evaluator"])
@@ -722,42 +709,28 @@ class MCPAgentDecorator(ContextDependent):
             active_agents = {}
 
             # Set up basic agents with their configurations
-            print("\nCreating basic agents:")
             active_agents = {}
             for name, agent_data in self.agents.items():
                 if agent_data["type"] == AgentType.BASIC.value:
                     config = agent_data["config"]
-                    print(f"\nSetting up agent {name} with config: {config}")
 
                     # Create agent with configuration
                     agent = Agent(config=config, context=agent_app.context)
                     active_agents[name] = agent
-                    print(f"\nCreated agent {name} with config: {config}")
 
                     # Set up LLM with proper configuration
                     async with agent:
-                        print(f"Creating LLM factory for {name}:")
-                        print(f"  Using config model: {config.model}")
-                        print(
-                            f"  Using request params: {config.default_request_params}"
-                        )
                         llm_factory = self._get_model_factory(
                             model=config.model,
                             request_params=config.default_request_params,
                         )
-                        print(f"  Created factory: {llm_factory}")
                         agent._llm = await agent.attach_llm(llm_factory)
-                        print(f"  Created LLM: {agent._llm}")
 
-            print("\nCreating orchestrators:")
             orchestrators = self._create_orchestrators(agent_app, active_agents)
-            print("\nCreating parallel workflows:")
             parallel_agents = self._create_parallel_agents(agent_app, active_agents)
-            print("\nCreating evaluator-optimizer workflows:")
             evaluator_optimizers = await self._create_evaluator_optimizers(
                 agent_app, active_agents
             )
-            print("\nCreating routers:")
             routers = self._create_routers(agent_app, active_agents)
 
             # Merge all agents into active_agents

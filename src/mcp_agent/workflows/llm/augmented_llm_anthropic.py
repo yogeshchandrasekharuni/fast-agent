@@ -22,7 +22,6 @@ from mcp.types import (
     CallToolRequest,
     EmbeddedResource,
     ImageContent,
-    ModelPreferences,
     StopReason,
     TextContent,
     TextResourceContents,

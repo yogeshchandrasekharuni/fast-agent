@@ -5,7 +5,6 @@ This demonstrates creating an optimizer and evaluator to iteratively improve con
 
 import asyncio
 from mcp_agent.core.decorator_app import MCPAgentDecorator
-from mcp_agent.workflows.llm.augmented_llm import RequestParams
 
 # Create the application
 agent_app = MCPAgentDecorator("Cover Letter Writer")

@@ -20,6 +20,7 @@ from mcp_agent.workflows.llm.augmented_llm import (
     ModelT,
     RequestParams,
 )
+from mcp_agent.workflows.llm.model_factory import ModelFactory
 from mcp_agent.workflows.orchestrator.orchestrator_models import (
     format_plan_result,
     format_step_result,
@@ -85,7 +86,6 @@ class Orchestrator(AugmentedLLM[MessageParamT, MessageT]):
             maxTokens=8192,  # Higher default for planning TODO this will break some models - make configurable.
             parallel_tool_calls=True,
         )
-        print(f"Orchestrator using maxTokens: {orchestrator_params.maxTokens}")
 
         # If kwargs contains request_params, merge with our defaults but force use_history False
         if "request_params" in kwargs:
@@ -93,7 +93,6 @@ class Orchestrator(AugmentedLLM[MessageParamT, MessageT]):
             merged = base_params.model_copy()
             merged.use_history = False  # Force this setting
             kwargs["request_params"] = merged
-            print(f"Orchestrator using merged maxTokens: {merged.maxTokens}")
         else:
             kwargs["request_params"] = orchestrator_params
 
@@ -252,7 +251,6 @@ class Orchestrator(AugmentedLLM[MessageParamT, MessageT]):
         request_params: RequestParams | None = None,
     ) -> StepResult:
         """Execute a step's subtasks in parallel and synthesize results"""
-        print(f"\nExecuting step: {step}")
         params = self.get_request_params(request_params)
 
         step_result = StepResult(step=step, task_results=[])
@@ -266,11 +264,6 @@ class Orchestrator(AugmentedLLM[MessageParamT, MessageT]):
                 if not agent:
                     raise ValueError(f"No agent found matching {task.agent}")
 
-                print(f"\nPreparing agent {task.agent} for task")
-                print(
-                    f"Agent config: {agent.config if hasattr(agent, 'config') else 'No config'}"
-                )
-
                 if isinstance(agent, AugmentedLLM):
                     llm = agent
                 else:
@@ -279,7 +272,6 @@ class Orchestrator(AugmentedLLM[MessageParamT, MessageT]):
                         llm = agent._llm
                     else:
                         # Only create new context if needed
-                        print(f"Creating new context for agent {task.agent}")
                         ctx_agent = await stack.enter_async_context(agent)
                         # Create factory with agent's own configuration
                         agent_factory = ModelFactory.create_factory(
@@ -288,7 +280,6 @@ class Orchestrator(AugmentedLLM[MessageParamT, MessageT]):
                         )
                         llm = await ctx_agent.attach_llm(agent_factory)
 
-                print(f"Using LLM for {task.agent}: {llm}")
                 task_llms.append((task, llm))
 
             # Execute all tasks within the same context
@@ -306,7 +297,6 @@ class Orchestrator(AugmentedLLM[MessageParamT, MessageT]):
                     if hasattr(agent, "config")
                     else params
                 )
-                print(f"\nExecuting task for {task.agent} with params: {task_params}")
                 futures.append(
                     llm.generate_str(
                         message=task_description, request_params=task_params

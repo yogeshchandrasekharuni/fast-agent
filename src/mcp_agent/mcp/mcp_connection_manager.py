@@ -177,13 +177,9 @@ class MCPConnectionManager(ContextDependent):
 
     async def __aenter__(self):
         current_task = asyncio.current_task()
-        print(f"CONNECTION MANAGER: Entering in task {current_task.get_name()}")
 
         # Get or create task group from context
         if not hasattr(self.context, "_connection_task_group"):
-            print(
-                f"CONNECTION MANAGER: Creating new task group in task {current_task.get_name()}"
-            )
             self.context._connection_task_group = create_task_group()
             self.context._connection_task_group_context = current_task.get_name()
             await self.context._connection_task_group.__aenter__()

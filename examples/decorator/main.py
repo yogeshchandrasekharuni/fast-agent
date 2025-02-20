@@ -12,11 +12,12 @@ agent_app = MCPAgentDecorator("Interactive Agent Example")
 # Define the agent
 @agent_app.agent(
     name="Agent",
-    instruction="A simple agent that helps with basic tasks. Request Human Input whenever needed.",
+    instruction="A simple agent that helps with basic tasks. Request Human Input when needed.",
     servers=["mcp_root"],
+    #    model="gpt-4o", model override here takes precedence
 )
 async def main():
-    # Use the app's context manager
+    # use the --model= command line switch to specify model
     async with agent_app.run() as agent:
         await agent("print the next number in the sequence")
         await agent.prompt(default="STOP")
