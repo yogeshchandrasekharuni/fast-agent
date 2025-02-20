@@ -20,21 +20,10 @@ async def example_usage():
             and return the URI and CONTENTS of the closest match.""",
             servers=["fetch", "filesystem"],
         )
-        
+
         finder_agent = Agent(config=finder_config)
 
         async with finder_agent:
-            # logger.info("finder: Connected to server, calling list_tools...")
-            # result = await finder_agent.list_tools()
-            # logger.info("Tools available:", data=result.model_dump())
-
-            # llm = await finder_agent.attach_llm(OpenAIAugmentedLLM)
-            # result = await llm.generate_str(
-            #     message="Print the contents of mcp_agent.config.yaml verbatim",
-            # )
-            # logger.info(f"Result: {result}")
-
-            # Let's switch the same agent to a different LLM
             llm = await finder_agent.attach_llm(OpenAIAugmentedLLM)
 
             await llm.generate_str(
