@@ -177,6 +177,7 @@ class ModelFactory:
                 if config.reasoning_effort
                 else None,
                 request_params=factory_params,
+                name=kwargs.get("name"),
             )
             print(f"Created LLM: {llm}")
             return llm

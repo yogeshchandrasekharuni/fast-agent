@@ -42,6 +42,13 @@ Only include categories that are truly relevant. You may return fewer than {top_
 If none of the categories are relevant, return an empty list.
 """
 
+ROUTING_SYSTEM_INSTRUCTION = """
+You are a highly accurate request router that directs incoming requests to the most appropriate category.
+A category is a specialized destination, such as a Function, an MCP Server (a collection of tools/functions), or an Agent (a collection of servers).
+You will be provided with a request and a list of categories to choose from.
+You can choose one or more categories, or choose none if no category is appropriate.
+"""
+
 
 class LLMRouterResult(RouterResult[ResultT]):
     """A class that represents the result of an LLMRouter.route request"""
@@ -139,7 +146,7 @@ class LLMRouter(Router):
 
             # Set up router-specific request params with routing instruction
             router_params = RequestParams(
-                systemPrompt=self.routing_instruction or DEFAULT_ROUTING_INSTRUCTION,
+                systemPrompt=ROUTING_SYSTEM_INSTRUCTION,
                 use_history=False,  # Router should be stateless :)
             )
 
@@ -153,6 +160,7 @@ class LLMRouter(Router):
 
             self.llm = self.llm_factory(
                 agent=None,  # Router doesn't need an agent context
+                name="LLM Router",
                 default_request_params=router_params,
             )
             self.initialized = True
