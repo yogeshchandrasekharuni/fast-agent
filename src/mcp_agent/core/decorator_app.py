@@ -677,13 +677,13 @@ class FastAgent(ContextDependent):
 
     async def _create_evaluator_optimizers(
         self, agent_app: MCPApp, active_agents: Dict[str, Any]
-    ) -> Dict[str, AgentProxy]:
+    ) -> Dict[str, BaseAgentProxy]:
         """
         Create evaluator-optimizer workflows.
 
         Args:
             agent_app: The main application instance
-            active_agents: Dictionary of already created agents
+            active_agents: Dictionary of already created agents/proxies
 
         Returns:
             Dictionary of initialized evaluator-optimizer workflows
@@ -691,9 +691,11 @@ class FastAgent(ContextDependent):
         workflows = {}
         for name, agent_data in self.agents.items():
             if agent_data["type"] == AgentType.EVALUATOR_OPTIMIZER.value:
-                # Get the referenced agents
-                optimizer = active_agents.get(agent_data["optimizer"])
-                evaluator = active_agents.get(agent_data["evaluator"])
+                config = agent_data["config"]
+
+                # Get the referenced agents - unwrap from proxies
+                optimizer = self._unwrap_proxy(active_agents[agent_data["optimizer"]])
+                evaluator = self._unwrap_proxy(active_agents[agent_data["evaluator"]])
 
                 if not optimizer or not evaluator:
                     raise ValueError(
@@ -716,7 +718,7 @@ class FastAgent(ContextDependent):
                     context=agent_app.context,
                 )
 
-                workflows[name] = AgentProxy(workflow, name)
+                workflows[name] = self._create_proxy(name, workflow, AgentType.EVALUATOR_OPTIMIZER.value)
 
         return workflows
 
@@ -767,13 +769,13 @@ class FastAgent(ContextDependent):
 
     def _create_parallel_agents(
         self, agent_app: MCPApp, active_agents: Dict[str, Any]
-    ) -> Dict[str, AgentProxy]:
+    ) -> Dict[str, BaseAgentProxy]:
         """
         Create parallel execution agents in dependency order.
 
         Args:
             agent_app: The main application instance
-            active_agents: Dictionary of already created agents
+            active_agents: Dictionary of already created agents/proxies
 
         Returns:
             Dictionary of initialized parallel agents
@@ -806,15 +808,10 @@ class FastAgent(ContextDependent):
                         config = agent_data["config"]
 
                         # Get fan-out agents (could be basic agents or other parallels)
-                        fan_out_agents = []
-                        for fan_out_name in agent_data["fan_out"]:
-                            if fan_out_name in parallel_agents:
-                                fan_out_agents.append(parallel_agents[fan_out_name])
-                            else:
-                                fan_out_agents.append(active_agents[fan_out_name])
+                        fan_out_agents = self._get_agent_instances(agent_data["fan_out"], active_agents)
 
-                        # Get fan-in agent
-                        fan_in_agent = active_agents[agent_data["fan_in"]]
+                        # Get fan-in agent - unwrap proxy
+                        fan_in_agent = self._unwrap_proxy(active_agents[agent_data["fan_in"]])
 
                         # Create the parallel workflow
                         llm_factory = self._get_model_factory(config.model)
@@ -828,7 +825,7 @@ class FastAgent(ContextDependent):
                             default_request_params=config.default_request_params,
                         )
 
-                        parallel_agents[agent_name] = AgentProxy(parallel, agent_name)
+                        parallel_agents[agent_name] = self._create_proxy(name, parallel, AgentType.PARALLEL.value)
 
         return parallel_agents
 
@@ -850,10 +847,8 @@ class FastAgent(ContextDependent):
             if agent_data["type"] == AgentType.ROUTER.value:
                 config = agent_data["config"]
 
-                # Get the router's agents
-                router_agents = [
-                    active_agents[agent_name] for agent_name in agent_data["agents"]
-                ]
+                # Get the router's agents - unwrap proxies
+                router_agents = self._get_agent_instances(agent_data["agents"], active_agents)
 
                 # Create the router with proper configuration
                 llm_factory = self._get_model_factory(
@@ -870,9 +865,36 @@ class FastAgent(ContextDependent):
                     default_request_params=config.default_request_params,
                 )
 
-                routers[name] = AgentProxy(router, name)
+                routers[name] = self._create_proxy(name, router, AgentType.ROUTER.value)
 
         return routers
+
+    def _unwrap_proxy(self, proxy: BaseAgentProxy) -> Any:
+        """
+        Unwrap a proxy to get the underlying agent or workflow instance.
+        
+        Args:
+            proxy: The proxy object to unwrap
+            
+        Returns:
+            The underlying Agent or workflow instance
+        """
+        if isinstance(proxy, LLMAgentProxy):
+            return proxy._agent
+        return proxy._workflow
+
+    def _get_agent_instances(self, agent_names: List[str], active_agents: Dict[str, BaseAgentProxy]) -> List[Any]:
+        """
+        Get list of actual agent/workflow instances from a list of names.
+        
+        Args:
+            agent_names: List of agent names to look up
+            active_agents: Dictionary of active agent proxies
+            
+        Returns:
+            List of unwrapped agent/workflow instances
+        """
+        return [self._unwrap_proxy(active_agents[name]) for name in agent_names]
 
     @asynccontextmanager
     async def run(self):
