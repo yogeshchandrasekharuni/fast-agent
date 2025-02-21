@@ -22,7 +22,7 @@ async def console_input_callback(request: HumanInputRequest) -> HumanInputRespon
         prompt_text,
         title="[HUMAN INPUT NEEDED]",
         title_align="left",
-        style="blue",
+        style="green",
         border_style="bold white",
         padding=(1, 2),
     )

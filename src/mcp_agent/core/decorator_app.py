@@ -3,7 +3,7 @@ Decorator-based interface for MCP Agent applications.
 Provides a simplified way to create and manage agents using decorators.
 """
 
-from typing import List, Optional, Dict, Callable, TypeVar, Any, Union
+from typing import List, Optional, Dict, Callable, TypeVar, Any, Union, TypeAlias
 from enum import Enum
 import yaml
 import argparse
@@ -13,6 +13,12 @@ from mcp_agent.app import MCPApp
 from mcp_agent.agents.agent import Agent, AgentConfig
 from mcp_agent.context_dependent import ContextDependent
 from mcp_agent.workflows.orchestrator.orchestrator import Orchestrator
+from mcp_agent.workflows.parallel.parallel_llm import ParallelLLM
+from mcp_agent.workflows.evaluator_optimizer.evaluator_optimizer import (
+    EvaluatorOptimizerLLM,
+    QualityRating,
+)
+from mcp_agent.workflows.router.router_llm import LLMRouter
 from mcp_agent.config import Settings
 from rich.prompt import Prompt
 from rich import print
@@ -22,12 +28,12 @@ from mcp_agent.workflows.llm.augmented_llm import RequestParams
 
 import readline  # noqa: F401
 
-from mcp_agent.workflows.parallel.parallel_llm import ParallelLLM  # noqa: F401
-from mcp_agent.workflows.evaluator_optimizer.evaluator_optimizer import (
-    EvaluatorOptimizerLLM,
-    QualityRating,
-)
-from mcp_agent.workflows.router.router_llm import LLMRouter
+# Type aliases for better readability
+WorkflowType: TypeAlias = Union[
+    Orchestrator, ParallelLLM, EvaluatorOptimizerLLM, LLMRouter
+]
+AgentOrWorkflow: TypeAlias = Union[Agent, WorkflowType]
+ProxyDict: TypeAlias = Dict[str, "BaseAgentProxy"]
 
 
 class AgentType(Enum):
@@ -46,7 +52,7 @@ T = TypeVar("T")  # For the wrapper classes
 class BaseAgentProxy:
     """Base class for all proxy types"""
 
-    def __init__(self, app, name: str):
+    def __init__(self, app: MCPApp, name: str):
         self._app = app
         self._name = name
 
@@ -79,7 +85,7 @@ class AgentProxy(BaseAgentProxy):
 class LLMAgentProxy(BaseAgentProxy):
     """Proxy for regular agents that use _llm.generate_str()"""
 
-    def __init__(self, app, name: str, agent: Agent):
+    def __init__(self, app: MCPApp, name: str, agent: Agent):
         super().__init__(app, name)
         self._agent = agent
 
@@ -90,7 +96,7 @@ class LLMAgentProxy(BaseAgentProxy):
 class WorkflowProxy(BaseAgentProxy):
     """Proxy for workflow types that implement generate_str() directly"""
 
-    def __init__(self, app, name: str, workflow: Any):
+    def __init__(self, app: MCPApp, name: str, workflow: WorkflowType):
         super().__init__(app, name)
         self._workflow = workflow
 
@@ -98,10 +104,34 @@ class WorkflowProxy(BaseAgentProxy):
         return await self._workflow.generate_str(message)
 
 
+class RouterProxy(BaseAgentProxy):
+    """Proxy for LLM Routers"""
+
+    def __init__(self, app: MCPApp, name: str, workflow: WorkflowType):
+        super().__init__(app, name)
+        self._workflow = workflow
+
+    async def generate_str(self, message: str) -> str:
+        results = await self._workflow.route(message)
+        if not results:
+            return "No appropriate route found for the request."
+
+        # Get the top result
+        top_result = results[0]
+        if isinstance(top_result.result, Agent):
+            # Agent route - delegate to the agent
+            return await top_result.result._llm.generate_str(message)
+        elif isinstance(top_result.result, str):
+            # Server route - use the router directly
+            return "Tool call requested by router - not yet supported"
+
+        return f"Routed to: {top_result.result} ({top_result.confidence}): {top_result.reasoning}"
+
+
 class AgentApp:
     """Main application wrapper"""
 
-    def __init__(self, app: MCPApp, agents: Dict[str, Any]):
+    def __init__(self, app: MCPApp, agents: ProxyDict):
         self._app = app
         self._agents = agents
         # Optional: set default agent for direct calls
@@ -186,7 +216,7 @@ class FastAgent(ContextDependent):
     """
 
     def _create_proxy(
-        self, name: str, instance: Any, agent_type: str
+        self, name: str, instance: AgentOrWorkflow, agent_type: str
     ) -> BaseAgentProxy:
         """Create appropriate proxy type based on agent type and validate instance type
 
@@ -230,7 +260,7 @@ class FastAgent(ContextDependent):
                 raise TypeError(
                     f"Expected LLMRouter instance for {name}, got {type(instance)}"
                 )
-            return WorkflowProxy(self.app, name, instance)
+            return RouterProxy(self.app, name, instance)
         else:
             raise ValueError(f"Unknown agent type: {agent_type}")
 
@@ -574,9 +604,7 @@ class FastAgent(ContextDependent):
 
         return decorator
 
-    async def _create_basic_agents(
-        self, agent_app: MCPApp
-    ) -> Dict[str, BaseAgentProxy]:
+    async def _create_basic_agents(self, agent_app: MCPApp) -> ProxyDict:
         """
         Create and initialize basic agents with their configurations.
 
@@ -611,8 +639,8 @@ class FastAgent(ContextDependent):
         return active_agents
 
     def _create_orchestrators(
-        self, agent_app: MCPApp, active_agents: Dict[str, Any]
-    ) -> Dict[str, BaseAgentProxy]:
+        self, agent_app: MCPApp, active_agents: ProxyDict
+    ) -> ProxyDict:
         """
         Create orchestrator agents.
 
@@ -676,8 +704,8 @@ class FastAgent(ContextDependent):
         return orchestrators
 
     async def _create_evaluator_optimizers(
-        self, agent_app: MCPApp, active_agents: Dict[str, Any]
-    ) -> Dict[str, BaseAgentProxy]:
+        self, agent_app: MCPApp, active_agents: ProxyDict
+    ) -> ProxyDict:
         """
         Create evaluator-optimizer workflows.
 
@@ -718,7 +746,9 @@ class FastAgent(ContextDependent):
                     context=agent_app.context,
                 )
 
-                workflows[name] = self._create_proxy(name, workflow, AgentType.EVALUATOR_OPTIMIZER.value)
+                workflows[name] = self._create_proxy(
+                    name, workflow, AgentType.EVALUATOR_OPTIMIZER.value
+                )
 
         return workflows
 
@@ -768,8 +798,8 @@ class FastAgent(ContextDependent):
         return deps
 
     def _create_parallel_agents(
-        self, agent_app: MCPApp, active_agents: Dict[str, Any]
-    ) -> Dict[str, BaseAgentProxy]:
+        self, agent_app: MCPApp, active_agents: ProxyDict
+    ) -> ProxyDict:
         """
         Create parallel execution agents in dependency order.
 
@@ -808,10 +838,14 @@ class FastAgent(ContextDependent):
                         config = agent_data["config"]
 
                         # Get fan-out agents (could be basic agents or other parallels)
-                        fan_out_agents = self._get_agent_instances(agent_data["fan_out"], active_agents)
+                        fan_out_agents = self._get_agent_instances(
+                            agent_data["fan_out"], active_agents
+                        )
 
                         # Get fan-in agent - unwrap proxy
-                        fan_in_agent = self._unwrap_proxy(active_agents[agent_data["fan_in"]])
+                        fan_in_agent = self._unwrap_proxy(
+                            active_agents[agent_data["fan_in"]]
+                        )
 
                         # Create the parallel workflow
                         llm_factory = self._get_model_factory(config.model)
@@ -825,13 +859,13 @@ class FastAgent(ContextDependent):
                             default_request_params=config.default_request_params,
                         )
 
-                        parallel_agents[agent_name] = self._create_proxy(name, parallel, AgentType.PARALLEL.value)
+                        parallel_agents[agent_name] = self._create_proxy(
+                            name, parallel, AgentType.PARALLEL.value
+                        )
 
         return parallel_agents
 
-    def _create_routers(
-        self, agent_app: MCPApp, active_agents: Dict[str, Any]
-    ) -> Dict[str, AgentProxy]:
+    def _create_routers(self, agent_app: MCPApp, active_agents: ProxyDict) -> ProxyDict:
         """
         Create router agents.
 
@@ -848,7 +882,9 @@ class FastAgent(ContextDependent):
                 config = agent_data["config"]
 
                 # Get the router's agents - unwrap proxies
-                router_agents = self._get_agent_instances(agent_data["agents"], active_agents)
+                router_agents = self._get_agent_instances(
+                    agent_data["agents"], active_agents
+                )
 
                 # Create the router with proper configuration
                 llm_factory = self._get_model_factory(
@@ -869,13 +905,13 @@ class FastAgent(ContextDependent):
 
         return routers
 
-    def _unwrap_proxy(self, proxy: BaseAgentProxy) -> Any:
+    def _unwrap_proxy(self, proxy: BaseAgentProxy) -> AgentOrWorkflow:
         """
         Unwrap a proxy to get the underlying agent or workflow instance.
-        
+
         Args:
             proxy: The proxy object to unwrap
-            
+
         Returns:
             The underlying Agent or workflow instance
         """
@@ -883,14 +919,16 @@ class FastAgent(ContextDependent):
             return proxy._agent
         return proxy._workflow
 
-    def _get_agent_instances(self, agent_names: List[str], active_agents: Dict[str, BaseAgentProxy]) -> List[Any]:
+    def _get_agent_instances(
+        self, agent_names: List[str], active_agents: ProxyDict
+    ) -> List[AgentOrWorkflow]:
         """
         Get list of actual agent/workflow instances from a list of names.
-        
+
         Args:
             agent_names: List of agent names to look up
             active_agents: Dictionary of active agent proxies
-            
+
         Returns:
             List of unwrapped agent/workflow instances
         """
