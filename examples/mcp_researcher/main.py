@@ -1,13 +1,13 @@
 import asyncio
 
-from mcp_agent.core.decorator_app import MCPAgentDecorator
+from mcp_agent.core.decorator_app import FastAgent
 # from rich import print
 
-agents = MCPAgentDecorator(name="Researcher")
+agents = FastAgent(name="Researcher")
 
 
 @agents.agent(
-    name="Researcher",
+    "Researcher",
     instruction="""
 You are a research assistant, with access to internet search (via Brave),
 website fetch, a python interpreter (you can install packages with uv) and a filesystem.

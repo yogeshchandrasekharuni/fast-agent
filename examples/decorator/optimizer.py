@@ -4,10 +4,10 @@ This demonstrates creating an optimizer and evaluator to iteratively improve con
 """
 
 import asyncio
-from mcp_agent.core.decorator_app import MCPAgentDecorator
+from mcp_agent.core.decorator_app import FastAgent
 
 # Create the application
-agent_app = MCPAgentDecorator("Cover Letter Writer")
+agent_app = FastAgent("Cover Letter Writer")
 agent_app.app._human_input_callback = None
 
 

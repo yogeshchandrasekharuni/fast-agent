@@ -1,9 +1,9 @@
 import asyncio
 
-from mcp_agent.core.decorator_app import MCPAgentDecorator
+from mcp_agent.core.decorator_app import FastAgent
 
 # Create the application
-agent_app = MCPAgentDecorator("Example usage of Roots / Interpreter")
+agent_app = FastAgent("Example usage of Roots / Interpreter")
 
 
 @agent_app.agent(

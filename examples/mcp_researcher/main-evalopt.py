@@ -1,8 +1,8 @@
 import asyncio
 
-from mcp_agent.core.decorator_app import MCPAgentDecorator
+from mcp_agent.core.decorator_app import FastAgent
 
-agents = MCPAgentDecorator(name="Researcher")
+agents = FastAgent(name="Researcher")
 
 
 @agents.agent(

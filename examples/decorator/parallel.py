@@ -3,16 +3,16 @@ Example MCP Agent application showing simplified agent access.
 """
 
 import asyncio
-from mcp_agent.core.decorator_app import MCPAgentDecorator
+from mcp_agent.core.decorator_app import FastAgent
 
 # Create the application
-agent_app = MCPAgentDecorator(
+app = FastAgent(
     "Parallel Workflow Example",
     # config={
     #     "human_input_handler": None  # Disable human input handling
     # },
 )
-agent_app.app._human_input_callback = None
+app.app._human_input_callback = None
 SHORT_STORY = """
 The Battle of Glimmerwood
 
@@ -36,27 +36,27 @@ and whispers of a hidden agenda linger among the villagers.
 """
 
 
-@agent_app.agent(
+@app.agent(
     name="proofreader",
     instruction=""""Review the short story for grammar, spelling, and punctuation errors.
     Identify any awkward phrasing or structural issues that could improve clarity. 
     Provide detailed feedback on corrections.""",
 )
-@agent_app.agent(
+@app.agent(
     name="fact_checker",
     model="gpt-4o",
     instruction="""Verify the factual consistency within the story. Identify any contradictions,
     logical inconsistencies, or inaccuracies in the plot, character actions, or setting. 
     Highlight potential issues with reasoning or coherence.""",
 )
-@agent_app.agent(
+@app.agent(
     name="style_enforcer",
     model="sonnet",
     instruction="""Analyze the story for adherence to style guidelines.
     Evaluate the narrative flow, clarity of expression, and tone. Suggest improvements to 
     enhance storytelling, readability, and engagement.""",
 )
-@agent_app.agent(
+@app.agent(
     name="grader",
     model="o3-mini.high",
     instruction="""Compile the feedback from the Proofreader, Fact Checker, and Style Enforcer
@@ -64,14 +64,14 @@ and whispers of a hidden agenda linger among the villagers.
     Provide actionable recommendations for improving the story, 
     and give an overall grade based on the feedback.""",
 )
-@agent_app.parallel(
+@app.parallel(
     fan_out=["proofreader", "fact_checker", "style_enforcer"],
     fan_in="grader",
     name="parallel",
 )
 async def main():
     # Use the app's context manager
-    async with agent_app.run() as agent:
+    async with app.run() as agent:
         await agent.send("parallel", f"student short story submission: {SHORT_STORY}")
         # follow-on prompt to task agent
         # await agent.prompt("style_enforcer", default="STOP")

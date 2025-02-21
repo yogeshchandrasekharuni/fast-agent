@@ -3,10 +3,10 @@ Example MCP Agent application showing simplified agent access including reused a
 """
 
 import asyncio
-from mcp_agent.core.decorator_app import MCPAgentDecorator
+from mcp_agent.core.decorator_app import FastAgent
 
 # Create the application
-agent_app = MCPAgentDecorator(
+agent_app = FastAgent(
     "Parallel Workflow Example",
     # config={
     #     "human_input_handler": None  # Disable human input handling

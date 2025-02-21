@@ -58,6 +58,15 @@ class BaseAgentWrapper(Generic[T]):
         self._llm = agent
         self.name = agent.name
 
+    def send(self, message: str) -> str:
+        """
+        Send a message to the agent and get the response.
+
+        Args:
+            message: Message to send
+        """
+        return self._llm.generate_str(message)
+
     async def __aenter__(self):
         return self
 
@@ -65,7 +74,7 @@ class BaseAgentWrapper(Generic[T]):
         pass
 
 
-class MCPAgentDecorator(ContextDependent):
+class FastAgent(ContextDependent):
     """
     A decorator-based interface for MCP Agent applications.
     Provides a simplified way to create and manage agents using decorators.
@@ -149,8 +158,9 @@ class MCPAgentDecorator(ContextDependent):
 
     def agent(
         self,
-        name: str,
-        instruction: str,
+        name: str = "Agent",
+        *,
+        instruction: str = "You are a helpful agent.",
         servers: List[str] = [],
         model: Optional[str] = None,
         use_history: bool = True,
@@ -170,12 +180,6 @@ class MCPAgentDecorator(ContextDependent):
         #        print(f"\nDecorating agent {name} with model={model}")
 
         def decorator(func: Callable) -> Callable:
-            # Create base request params with model included
-            #           print(f"\nDecorating {name} with params:")
-            #          print(f"  model={model}")
-            #         print(f"  use_history={use_history}")
-            #        print(f"  request_params={request_params}")
-
             base_params = RequestParams(
                 use_history=use_history,
                 model=model,  # Include model in initial params
@@ -212,7 +216,7 @@ class MCPAgentDecorator(ContextDependent):
         name: str,
         instruction: str,
         agents: List[str],
-        model: Optional[str] = None,
+        model: str | None = None,
         use_history: bool = True,
         request_params: Optional[Dict] = None,
     ) -> Callable:
@@ -265,7 +269,7 @@ class MCPAgentDecorator(ContextDependent):
         fan_in: str,
         fan_out: List[str],
         instruction: str = "",
-        model: Optional[str] = None,
+        model: str | None = None,
         use_history: bool = True,
         request_params: Optional[Dict] = None,
     ) -> Callable:
@@ -802,6 +806,7 @@ class AgentAppWrapper:
         # Normal agent handling
         if not hasattr(agent, "_llm") or agent._llm is None:
             raise RuntimeError(f"Agent {agent_name} has no LLM attached")
+
         return await agent._llm.generate_str(message)
 
     async def __call__(self, message: str, agent_name: Optional[str] = None) -> Any:
@@ -819,6 +824,18 @@ class AgentAppWrapper:
         if not target_agent:
             raise ValueError("No agents available")
         return await self.send(target_agent, message)
+
+    # def __getattr__(self, agent_name: str) -> Agent:
+    #     """Support attribute style access: agent.name"""
+    #     if agent_name not in self.agents:
+    #         raise AttributeError(f"No agent named '{agent_name}'")
+    #     return AgentProxy(self, agent_name)
+
+    # def __getitem__(self, agent_name: str) -> Agent
+    #     """Support dictionary style access: agent['name']"""
+    #     if agent_name not in self.agents:
+    #         raise KeyError(f"No agent named '{agent_name}'")
+    #     return AgentProxy(self, agent_name)
 
     async def prompt(self, agent_name: Optional[str] = None, default: str = "") -> None:
         """
@@ -848,8 +865,9 @@ class AgentAppWrapper:
                 user_input = Prompt.ask(
                     prompt=prompt_text, default=default, show_default=False
                 )
-
                 if user_input.upper() == "STOP":
                     return
+                if user_input == "":
+                    continue
 
             await self.send(target_agent, user_input)
