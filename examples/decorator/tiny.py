@@ -7,6 +7,7 @@ from mcp_agent.core.decorator_app import FastAgent
 
 # Create the application
 agent_app = FastAgent("Interactive Agent Example")
+# agent_app.app._human_input_callback = None
 
 
 # Define the agent
@@ -14,7 +15,7 @@ agent_app = FastAgent("Interactive Agent Example")
 async def main():
     # use the --model= command line switch to specify model
     async with agent_app.run() as agent:
-        await agent()  # Added a specific message instead of empty string
+        await agent()
 
 
 if __name__ == "__main__":

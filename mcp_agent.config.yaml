@@ -19,7 +19,3 @@ mcp:
     fetch:
       command: "uvx"
       args: ["mcp-server-fetch"]
-openai:
-  # Secrets (API keys, etc.) are stored in an mcp_agent.secrets.yaml file
-  # default_model: o3-mini
-#  reasoning_effort: medium

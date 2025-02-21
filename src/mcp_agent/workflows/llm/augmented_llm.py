@@ -38,6 +38,9 @@ ModelT = TypeVar("ModelT")
 MCPMessageParam = SamplingMessage
 MCPMessageResult = CreateMessageResult
 
+# TODO -- move this to a constant
+HUMAN_INPUT_TOOL_NAME = "__human_input__"
+
 
 class Memory(Protocol, Generic[MessageParamT]):
     """
@@ -502,7 +505,18 @@ class AugmentedLLM(ContextDependent, AugmentedLLMProtocol[MessageParamT, Message
             if SEP in highlight_namespaced_tool
             else [highlight_namespaced_tool]
         )
+
         display_server_list = Text()
+
+        tools = await self.aggregator.list_tools()
+        if any(tool.name == HUMAN_INPUT_TOOL_NAME for tool in tools.tools):
+            style = (
+                "green"
+                if highlight_namespaced_tool == HUMAN_INPUT_TOOL_NAME
+                else "dim white"
+            )
+            display_server_list.append("[human] ", style)
+
         for server_name in await self.aggregator.list_servers():
             style = "green" if server_name == mcp_server_name[0] else "dim white"
             display_server_list.append(f"[{server_name}] ", style)
