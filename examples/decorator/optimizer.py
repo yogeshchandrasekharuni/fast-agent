@@ -67,8 +67,7 @@ async def main():
         )
 
         # Send the task
-        await agent.send(
-            "cover_letter_writer",
+        await agent.cover_letter_writer.send(
             f"Write a cover letter for the following job posting: {job_posting}\n\n"
             f"Candidate Details: {candidate_details}\n\n"
             f"Company information: {company_information}",

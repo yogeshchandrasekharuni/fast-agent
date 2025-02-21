@@ -3,7 +3,7 @@ Decorator-based interface for MCP Agent applications.
 Provides a simplified way to create and manage agents using decorators.
 """
 
-from typing import List, Optional, Dict, Callable, TypeVar, Generic, Any
+from typing import List, Optional, Dict, Callable, TypeVar, Any, Union
 from enum import Enum
 import yaml
 import argparse
@@ -43,35 +43,140 @@ class AgentType(Enum):
 T = TypeVar("T")  # For the wrapper classes
 
 
-class BaseAgentWrapper(Generic[T]):
-    """
-    Base wrapper class for all agent types.
+class BaseAgentProxy:
+    """Base class for all proxy types"""
 
-    Provides a consistent interface for different types of agents (basic, orchestrator, parallel)
-    by implementing the common protocol expected by the agent application.
+    def __init__(self, app, name: str):
+        self._app = app
+        self._name = name
 
-    Args:
-        agent: The underlying agent implementation
-    """
+    async def __call__(self, message: Optional[str] = None) -> str:
+        """Allow: agent.researcher('message')"""
+        return await self.send(message)
 
-    def __init__(self, agent: T):
-        self._llm = agent
-        self.name = agent.name
+    async def send(self, message: Optional[str] = None) -> str:
+        """Allow: agent.researcher.send('message')"""
+        if message is None:
+            return await self.prompt()
+        return await self.generate_str(message)
 
-    def send(self, message: str) -> str:
+    async def prompt(self, default_prompt: str = "") -> str:
+        """Allow: agent.researcher.prompt()"""
+        return await self._app.prompt(self._name, default_prompt)
+
+    async def generate_str(self, message: str) -> str:
+        """Generate response for a message - must be implemented by subclasses"""
+        raise NotImplementedError("Subclasses must implement generate_str")
+
+
+class AgentProxy(BaseAgentProxy):
+    """Legacy proxy for individual agent operations"""
+
+    async def generate_str(self, message: str) -> str:
+        return await self._app.send(self._name, message)
+
+
+class LLMAgentProxy(BaseAgentProxy):
+    """Proxy for regular agents that use _llm.generate_str()"""
+
+    def __init__(self, app, name: str, agent: Agent):
+        super().__init__(app, name)
+        self._agent = agent
+
+    async def generate_str(self, message: str) -> str:
+        return await self._agent._llm.generate_str(message)
+
+
+class WorkflowProxy(BaseAgentProxy):
+    """Proxy for workflow types that implement generate_str() directly"""
+
+    def __init__(self, app, name: str, workflow: Any):
+        super().__init__(app, name)
+        self._workflow = workflow
+
+    async def generate_str(self, message: str) -> str:
+        return await self._workflow.generate_str(message)
+
+
+class AgentApp:
+    """Main application wrapper"""
+
+    def __init__(self, app: MCPApp, agents: Dict[str, Any]):
+        self._app = app
+        self._agents = agents
+        # Optional: set default agent for direct calls
+        self._default = next(iter(agents)) if agents else None
+
+    async def send(self, agent_name: str, message: Optional[str]) -> str:
+        """Core message sending"""
+        if agent_name not in self._agents:
+            raise ValueError(f"No agent named '{agent_name}'")
+
+        if not message or "" == message:
+            return await self.prompt(agent_name)
+
+        proxy = self._agents[agent_name]
+        return await proxy.generate_str(message)
+
+    async def prompt(self, agent_name: Optional[str] = None, default: str = "") -> str:
         """
-        Send a message to the agent and get the response.
+        Interactive prompt for sending messages.
 
         Args:
-            message: Message to send
+            agent_name: Optional target agent name (uses default if not specified)
+            default_prompt: Default message to use when user presses enter
         """
-        return self._llm.generate_str(message)
 
-    async def __aenter__(self):
-        return self
+        agent = agent_name or self._default
 
-    async def __aexit__(self, exc_type, exc_val, exc_tb):
-        pass
+        if agent not in self._agents:
+            raise ValueError(f"No agent named '{agent}'")
+        result = ""
+        while True:
+            with progress_display.paused():
+                if default == "STOP":
+                    print("Press <ENTER> to finish.")
+                elif default != "":
+                    print("Enter a prompt, or [red]STOP[/red] to finish.")
+                    print(
+                        f"Press <ENTER> to use the default prompt:\n[cyan]{default}[/cyan]"
+                    )
+                else:
+                    print("Enter a prompt, or [red]STOP[/red] to finish")
+
+                prompt_text = f"[blue]{agent}[/blue] >"
+                user_input = Prompt.ask(
+                    prompt=prompt_text, default=default, show_default=False
+                )
+                if user_input.upper() == "STOP":
+                    return
+                if user_input == "":
+                    continue
+
+            result = await self.send(agent, user_input)
+
+        return result
+
+    def __getattr__(self, name: str) -> AgentProxy:
+        """Support: agent.researcher"""
+        if name not in self._agents:
+            raise AttributeError(f"No agent named '{name}'")
+        return AgentProxy(self, name)
+
+    def __getitem__(self, name: str) -> AgentProxy:
+        """Support: agent['researcher']"""
+        if name not in self._agents:
+            raise KeyError(f"No agent named '{name}'")
+        return AgentProxy(self, name)
+
+    async def __call__(
+        self, message: Optional[str] = "", agent_name: Optional[str] = None
+    ) -> str:
+        """Support: agent('message')"""
+        target = agent_name or self._default
+        if not target:
+            raise ValueError("No default agent available")
+        return await self.send(target, message)
 
 
 class FastAgent(ContextDependent):
@@ -79,6 +184,55 @@ class FastAgent(ContextDependent):
     A decorator-based interface for MCP Agent applications.
     Provides a simplified way to create and manage agents using decorators.
     """
+
+    def _create_proxy(
+        self, name: str, instance: Any, agent_type: str
+    ) -> BaseAgentProxy:
+        """Create appropriate proxy type based on agent type and validate instance type
+
+        Args:
+            name: Name of the agent/workflow
+            instance: The agent or workflow instance
+            agent_type: Type from AgentType enum values
+
+        Returns:
+            Appropriate proxy type wrapping the instance
+
+        Raises:
+            TypeError: If instance type doesn't match expected type for agent_type
+        """
+        if agent_type == AgentType.BASIC.value:
+            if not isinstance(instance, Agent):
+                raise TypeError(
+                    f"Expected Agent instance for {name}, got {type(instance)}"
+                )
+            return LLMAgentProxy(self.app, name, instance)
+        elif agent_type == AgentType.ORCHESTRATOR.value:
+            if not isinstance(instance, Orchestrator):
+                raise TypeError(
+                    f"Expected Orchestrator instance for {name}, got {type(instance)}"
+                )
+            return WorkflowProxy(self.app, name, instance)
+        elif agent_type == AgentType.PARALLEL.value:
+            if not isinstance(instance, ParallelLLM):
+                raise TypeError(
+                    f"Expected ParallelLLM instance for {name}, got {type(instance)}"
+                )
+            return WorkflowProxy(self.app, name, instance)
+        elif agent_type == AgentType.EVALUATOR_OPTIMIZER.value:
+            if not isinstance(instance, EvaluatorOptimizerLLM):
+                raise TypeError(
+                    f"Expected EvaluatorOptimizerLLM instance for {name}, got {type(instance)}"
+                )
+            return WorkflowProxy(self.app, name, instance)
+        elif agent_type == AgentType.ROUTER.value:
+            if not isinstance(instance, LLMRouter):
+                raise TypeError(
+                    f"Expected LLMRouter instance for {name}, got {type(instance)}"
+                )
+            return WorkflowProxy(self.app, name, instance)
+        else:
+            raise ValueError(f"Unknown agent type: {agent_type}")
 
     def __init__(self, name: str, config_path: Optional[str] = None):
         """
@@ -420,7 +574,9 @@ class FastAgent(ContextDependent):
 
         return decorator
 
-    def _create_basic_agents(self, agent_app: MCPApp) -> Dict[str, Agent]:
+    async def _create_basic_agents(
+        self, agent_app: MCPApp
+    ) -> Dict[str, BaseAgentProxy]:
         """
         Create and initialize basic agents with their configurations.
 
@@ -428,7 +584,7 @@ class FastAgent(ContextDependent):
             agent_app: The main application instance
 
         Returns:
-            Dictionary of initialized basic agents
+            Dictionary of initialized basic agents wrapped in appropriate proxies
         """
         active_agents = {}
 
@@ -438,22 +594,34 @@ class FastAgent(ContextDependent):
 
                 # Create agent with configuration
                 agent = Agent(config=config, context=agent_app.context)
-                active_agents[name] = agent
+
+                # Set up LLM with proper configuration
+                async with agent:
+                    llm_factory = self._get_model_factory(
+                        model=config.model,
+                        request_params=config.default_request_params,
+                    )
+                    agent._llm = await agent.attach_llm(llm_factory)
+
+                # Create proxy for the agent
+                active_agents[name] = self._create_proxy(
+                    name, agent, AgentType.BASIC.value
+                )
 
         return active_agents
 
     def _create_orchestrators(
         self, agent_app: MCPApp, active_agents: Dict[str, Any]
-    ) -> Dict[str, BaseAgentWrapper]:
+    ) -> Dict[str, BaseAgentProxy]:
         """
         Create orchestrator agents.
 
         Args:
             agent_app: The main application instance
-            active_agents: Dictionary of already created agents
+            active_agents: Dictionary of already created agents/proxies
 
         Returns:
-            Dictionary of initialized orchestrator agents
+            Dictionary of initialized orchestrator agents wrapped in appropriate proxies
         """
         orchestrators = {}
         for name, agent_data in self.agents.items():
@@ -481,11 +649,15 @@ class FastAgent(ContextDependent):
                     request_params=base_params,
                 )
 
-                # Get the child agents
-                child_agents = [
-                    active_agents[agent_name]
-                    for agent_name in agent_data["child_agents"]
-                ]
+                # Get the child agents - need to unwrap proxies
+                child_agents = []
+                for agent_name in agent_data["child_agents"]:
+                    proxy = active_agents[agent_name]
+                    if isinstance(proxy, LLMAgentProxy):
+                        child_agents.append(proxy._agent)  # Get the actual Agent
+                    else:
+                        # Handle case where it might be another workflow
+                        child_agents.append(proxy._workflow)
 
                 orchestrator = Orchestrator(
                     name=config.name,
@@ -497,12 +669,15 @@ class FastAgent(ContextDependent):
                     plan_type="full",
                 )
 
-                orchestrators[name] = BaseAgentWrapper(orchestrator)
+                # Use factory to create appropriate proxy
+                orchestrators[name] = self._create_proxy(
+                    name, orchestrator, AgentType.ORCHESTRATOR.value
+                )
         return orchestrators
 
     async def _create_evaluator_optimizers(
         self, agent_app: MCPApp, active_agents: Dict[str, Any]
-    ) -> Dict[str, BaseAgentWrapper]:
+    ) -> Dict[str, AgentProxy]:
         """
         Create evaluator-optimizer workflows.
 
@@ -541,7 +716,7 @@ class FastAgent(ContextDependent):
                     context=agent_app.context,
                 )
 
-                workflows[name] = BaseAgentWrapper(workflow)
+                workflows[name] = AgentProxy(workflow, name)
 
         return workflows
 
@@ -592,7 +767,7 @@ class FastAgent(ContextDependent):
 
     def _create_parallel_agents(
         self, agent_app: MCPApp, active_agents: Dict[str, Any]
-    ) -> Dict[str, BaseAgentWrapper]:
+    ) -> Dict[str, AgentProxy]:
         """
         Create parallel execution agents in dependency order.
 
@@ -653,13 +828,13 @@ class FastAgent(ContextDependent):
                             default_request_params=config.default_request_params,
                         )
 
-                        parallel_agents[agent_name] = BaseAgentWrapper(parallel)
+                        parallel_agents[agent_name] = AgentProxy(parallel, agent_name)
 
         return parallel_agents
 
     def _create_routers(
         self, agent_app: MCPApp, active_agents: Dict[str, Any]
-    ) -> Dict[str, BaseAgentWrapper]:
+    ) -> Dict[str, AgentProxy]:
         """
         Create router agents.
 
@@ -695,7 +870,7 @@ class FastAgent(ContextDependent):
                     default_request_params=config.default_request_params,
                 )
 
-                routers[name] = BaseAgentWrapper(router)
+                routers[name] = AgentProxy(router, name)
 
         return routers
 
@@ -710,26 +885,7 @@ class FastAgent(ContextDependent):
         """
         async with self.app.run() as agent_app:
             # Create all types of agents
-            active_agents = {}
-
-            # Set up basic agents with their configurations
-            active_agents = {}
-            for name, agent_data in self.agents.items():
-                if agent_data["type"] == AgentType.BASIC.value:
-                    config = agent_data["config"]
-
-                    # Create agent with configuration
-                    agent = Agent(config=config, context=agent_app.context)
-                    active_agents[name] = agent
-
-                    # Set up LLM with proper configuration
-                    async with agent:
-                        llm_factory = self._get_model_factory(
-                            model=config.model,
-                            request_params=config.default_request_params,
-                        )
-                        agent._llm = await agent.attach_llm(llm_factory)
-
+            active_agents = await self._create_basic_agents(agent_app)
             orchestrators = self._create_orchestrators(agent_app, active_agents)
             parallel_agents = self._create_parallel_agents(agent_app, active_agents)
             evaluator_optimizers = await self._create_evaluator_optimizers(
@@ -744,130 +900,55 @@ class FastAgent(ContextDependent):
             active_agents.update(routers)
 
             # Create wrapper with all agents
-            wrapper = AgentAppWrapper(agent_app, active_agents)
+            wrapper = AgentApp(agent_app, active_agents)
             try:
                 yield wrapper
             finally:
-                # Clean up basic agents
-                for name, agent in active_agents.items():
-                    if isinstance(agent, Agent):
-                        await agent.__aexit__(None, None, None)
+                # Clean up basic agents - need to get the actual agent from the proxy
+                for name, proxy in active_agents.items():
+                    if isinstance(proxy, LLMAgentProxy):
+                        await proxy._agent.__aexit__(None, None, None)
 
+        # async def send(self, agent_name: str, message: str) -> Any:
+        # """
+        # Send a message to a specific agent and get the response.
 
-class AgentAppWrapper:
-    """
-    Wrapper class providing a simplified interface to the agent application.
-    Manages communication with agents and provides interactive prompting.
-    """
+        # Args:
+        #     agent_name: Name of the target agent
+        #     message: Message to send
 
-    def __init__(self, app: MCPApp, agents: Dict[str, Any]):
-        self.app = app
-        self.agents = agents
-        self._default_agent = next(iter(agents)) if agents else None
+        # Returns:
+        #     Agent's response
 
-    async def send(self, agent_name: str, message: str) -> Any:
-        """
-        Send a message to a specific agent and get the response.
+        # Raises:
+        #     ValueError: If agent not found
+        #     RuntimeError: If agent has no LLM attached
+        # """
+        # if agent_name not in self.agents:
+        #     raise ValueError(f"Agent {agent_name} not found")
 
-        Args:
-            agent_name: Name of the target agent
-            message: Message to send
+        # agent = self.agents[agent_name]
 
-        Returns:
-            Agent's response
+        # # Special handling for routers
+        # if isinstance(agent._llm, LLMRouter):
+        #     # Route the message and get results
+        #     results = await agent._llm.route(message)
+        #     if not results:
+        #         return "No appropriate route found for the request."
 
-        Raises:
-            ValueError: If agent not found
-            RuntimeError: If agent has no LLM attached
-        """
-        if agent_name not in self.agents:
-            raise ValueError(f"Agent {agent_name} not found")
+        #     # Get the top result
+        #     top_result = results[0]
+        #     if isinstance(top_result.result, Agent):
+        #         # Agent route - delegate to the agent
+        #         return await top_result.result._llm.generate_str(message)
+        #     elif isinstance(top_result.result, str):
+        #         # Server route - use the router directly
+        #         return "Tool call requested by router - not yet supported"
+        #     else:
+        #         return f"Routed to: {top_result.result} ({top_result.confidence}): {top_result.reasoning}"
 
-        agent = self.agents[agent_name]
+        # # Normal agent handling
+        # if not hasattr(agent, "_llm") or agent._llm is None:
+        #     raise RuntimeError(f"Agent {agent_name} has no LLM attached")
 
-        # Special handling for routers
-        if isinstance(agent._llm, LLMRouter):
-            # Route the message and get results
-            results = await agent._llm.route(message)
-            if not results:
-                return "No appropriate route found for the request."
-
-            # Get the top result
-            top_result = results[0]
-            if isinstance(top_result.result, Agent):
-                # Agent route - delegate to the agent
-                return await top_result.result._llm.generate_str(message)
-            elif isinstance(top_result.result, str):
-                # Server route - use the router directly
-                return "Tool call requested by router - not yet supported"
-            else:
-                return f"Routed to: {top_result.result} ({top_result.confidence}): {top_result.reasoning}"
-
-        # Normal agent handling
-        if not hasattr(agent, "_llm") or agent._llm is None:
-            raise RuntimeError(f"Agent {agent_name} has no LLM attached")
-
-        return await agent._llm.generate_str(message)
-
-    async def __call__(self, message: str, agent_name: Optional[str] = None) -> Any:
-        """
-        Send a message using direct call syntax.
-
-        Args:
-            message: Message to send
-            agent_name: Optional target agent name (uses default if not specified)
-
-        Returns:
-            Agent's response
-        """
-        target_agent = agent_name or self._default_agent
-        if not target_agent:
-            raise ValueError("No agents available")
-        return await self.send(target_agent, message)
-
-    # def __getattr__(self, agent_name: str) -> Agent:
-    #     """Support attribute style access: agent.name"""
-    #     if agent_name not in self.agents:
-    #         raise AttributeError(f"No agent named '{agent_name}'")
-    #     return AgentProxy(self, agent_name)
-
-    # def __getitem__(self, agent_name: str) -> Agent
-    #     """Support dictionary style access: agent['name']"""
-    #     if agent_name not in self.agents:
-    #         raise KeyError(f"No agent named '{agent_name}'")
-    #     return AgentProxy(self, agent_name)
-
-    async def prompt(self, agent_name: Optional[str] = None, default: str = "") -> None:
-        """
-        Interactive prompt for sending messages.
-
-        Args:
-            agent_name: Optional target agent name (uses default if not specified)
-            default: Default message to use when user presses enter
-        """
-        target_agent = agent_name or self._default_agent
-        if not target_agent:
-            raise ValueError("No agents available")
-
-        while True:
-            with progress_display.paused():
-                if default == "STOP":
-                    print("Press <ENTER> to finish.")
-                elif default != "":
-                    print("Enter a prompt, or [red]STOP[/red] to finish.")
-                    print(
-                        f"Press <ENTER> to use the default prompt:\n[cyan]{default}[/cyan]"
-                    )
-                else:
-                    print("Enter a prompt, or [red]STOP[/red] to finish")
-
-                prompt_text = f"[blue]{target_agent}[/blue] >"
-                user_input = Prompt.ask(
-                    prompt=prompt_text, default=default, show_default=False
-                )
-                if user_input.upper() == "STOP":
-                    return
-                if user_input == "":
-                    continue
-
-            await self.send(target_agent, user_input)
+        # return await agent._llm.generate_str(message)

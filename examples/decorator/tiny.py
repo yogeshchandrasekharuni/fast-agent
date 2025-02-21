@@ -14,7 +14,7 @@ agent_app = FastAgent("Interactive Agent Example")
 async def main():
     # use the --model= command line switch to specify model
     async with agent_app.run() as agent:
-        await agent.prompt()
+        await agent()  # Added a specific message instead of empty string
 
 
 if __name__ == "__main__":
