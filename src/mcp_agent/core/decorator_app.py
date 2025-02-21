@@ -719,8 +719,6 @@ class FastAgent(ContextDependent):
         workflows = {}
         for name, agent_data in self.agents.items():
             if agent_data["type"] == AgentType.EVALUATOR_OPTIMIZER.value:
-                config = agent_data["config"]
-
                 # Get the referenced agents - unwrap from proxies
                 optimizer = self._unwrap_proxy(active_agents[agent_data["optimizer"]])
                 evaluator = self._unwrap_proxy(active_agents[agent_data["evaluator"]])
