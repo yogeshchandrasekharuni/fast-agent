@@ -1,5 +1,5 @@
 [project]
-name = "fast-agent"
+name = "fast-agent-mcp"
 version = "0.0.7"
 description = "Build, Test, Deploy composable MCP Agent Workflows."
 readme = "README.md"
