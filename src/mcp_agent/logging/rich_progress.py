@@ -28,14 +28,7 @@ class RichProgressDisplay:
 
     def start(self):
         """start"""
-        # task_id = self._progress.add_task(
-        #     "[white]...mcp-agent...",
-        #     total=None,
-        #     target="mcp-agent app",
-        #     details="",
-        #     task_name="default",
-        # )
-        # self._taskmap["default"] = task_id
+
         self._progress.start()
 
     def stop(self):
@@ -73,8 +66,8 @@ class RichProgressDisplay:
         return {
             ProgressAction.STARTING: "black on yellow",
             ProgressAction.INITIALIZED: "black on green",
-            ProgressAction.RUNNING: "black on green",
             ProgressAction.CHATTING: "white on dark_blue",
+            ProgressAction.READY: "black on green",
             ProgressAction.ROUTING: "white on dark_blue",
             ProgressAction.CALLING_TOOL: "white on dark_magenta",
             ProgressAction.FINISHED: "black on green",
@@ -85,7 +78,6 @@ class RichProgressDisplay:
     def update(self, event: ProgressEvent) -> None:
         """Update the progress display with a new event."""
         task_name = event.agent_name or "default"
-
         # Create new task if needed
         if task_name not in self._taskmap:
             task_id = self._progress.add_task(
@@ -98,12 +90,6 @@ class RichProgressDisplay:
         else:
             task_id = self._taskmap[task_name]
 
-        # For FINISHED events, mark the task as complete
-        if event.action == ProgressAction.FINISHED:
-            self._progress.update(task_id, total=100, completed=100)
-            self._taskmap.pop(task_name)
-
-        # Update the task with new information
         self._progress.update(
             task_id,
             description=f"[{self._get_action_style(event.action)}]{event.action.value:<15}",
@@ -111,3 +97,16 @@ class RichProgressDisplay:
             details=event.details if event.details else "",
             task_name=task_name,
         )
+
+        if (
+            event.action == ProgressAction.FINISHED
+            or event.action == ProgressAction.INITIALIZED
+            or event.action == ProgressAction.READY
+        ):
+            self._progress.update(task_id, completed=None, total=100)
+            self._progress.stop_task(task_id)
+        else:
+            self._progress.update(task_id, completed=None, total=None)
+            self._progress.start_task(task_id)
+            # self._progress.update(task_id, total=None, completed=None)
+            # self._progress.refresh()

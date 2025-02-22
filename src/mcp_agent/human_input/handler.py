@@ -1,5 +1,6 @@
 import asyncio
 from rich.panel import Panel
+from rich.prompt import Prompt
 
 from mcp_agent.console import console
 from mcp_agent.human_input.types import (
@@ -20,7 +21,7 @@ async def console_input_callback(request: HumanInputRequest) -> HumanInputRespon
     # Create a panel with the prompt
     panel = Panel(
         prompt_text,
-        title="[HUMAN INPUT NEEDED]",
+        title="[HUMAN INPUT REQUESTED]",
         title_align="left",
         style="green",
         border_style="bold white",
@@ -35,7 +36,7 @@ async def console_input_callback(request: HumanInputRequest) -> HumanInputRespon
             try:
                 loop = asyncio.get_event_loop()
                 response = await asyncio.wait_for(
-                    loop.run_in_executor(None, lambda: console.input()),
+                    loop.run_in_executor(None, lambda: Prompt.ask()),
                     request.timeout_seconds,
                 )
             except asyncio.TimeoutError:
@@ -43,6 +44,6 @@ async def console_input_callback(request: HumanInputRequest) -> HumanInputRespon
                 raise TimeoutError("No response received within timeout period")
         else:
             loop = asyncio.get_event_loop()
-            response = await loop.run_in_executor(None, lambda: console.input())
+            response = await loop.run_in_executor(None, lambda: {Prompt.ask()})
 
     return HumanInputResponse(request_id=request.request_id, response=response.strip())

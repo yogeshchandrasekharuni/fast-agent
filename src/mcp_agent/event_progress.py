@@ -11,9 +11,9 @@ class ProgressAction(str, Enum):
     """Progress actions available in the system."""
 
     STARTING = "Starting"
-    RUNNING = "Running"
     INITIALIZED = "Initialized"
     CHATTING = "Chatting"
+    READY = "Ready"
     CALLING_TOOL = "Calling Tool"
     FINISHED = "Finished"
     SHUTDOWN = "Shutdown"
@@ -55,16 +55,19 @@ def convert_log_event(event: Event) -> Optional[ProgressEvent]:
     if not progress_action:
         return None
 
-    # Build target string based on the event type
+    # Build target string based on the event type.
+    # Progress display is currently [time] [event] --- [target] [details]
     namespace = event.namespace
     agent_name = event_data.get("agent_name")
     if "mcp_aggregator" in namespace:
         server_name = event_data.get("server_name", "")
         tool_name = event_data.get("tool_name")
         if tool_name:
-            target = f"{server_name} ({tool_name})"
+            # fetch(fetch)
+            target = f"{agent_name} {server_name} ({tool_name})"
         else:
-            target = f"MCP Server: {server_name}"
+            target = f"{agent_name} {server_name}"
+
     elif "augmented_llm" in namespace:
         model = event_data.get("model", "")
 
@@ -78,8 +81,6 @@ def convert_log_event(event: Event) -> Optional[ProgressEvent]:
                 f"Turn {chat_turn}",
                 agent_name=event_data.get("agent_name"),
             )
-    elif "router_llm" in namespace:
-        target = "Requesting routing from LLM"
     else:
         target = event_data.get("target", "unknown")
 

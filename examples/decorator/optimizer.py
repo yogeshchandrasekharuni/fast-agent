@@ -41,7 +41,7 @@ agent_app.app._human_input_callback = None
     - Overall quality rating.
     - Specific feedback and areas for improvement.""",
     servers=[],  # Evaluator doesn't need special server access
-    model="opus",  # Using a capable model for evaluation
+    model="sonnet",  # Using a capable model for evaluation
 )
 # Define the evaluator-optimizer workflow
 @agent_app.evaluator_optimizer(

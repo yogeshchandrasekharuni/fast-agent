@@ -15,6 +15,7 @@ from mcp.types import (
 )
 
 from mcp_agent.context_dependent import ContextDependent
+from mcp_agent.event_progress import ProgressAction
 from mcp_agent.mcp.mcp_aggregator import MCPAggregator, SEP
 from mcp_agent.workflows.llm.llm_selector import ModelSelector
 from rich.panel import Panel
@@ -627,7 +628,7 @@ class AugmentedLLM(ContextDependent, AugmentedLLMProtocol[MessageParamT, Message
     ):
         """Log a chat progress event"""
         data = {
-            "progress_action": "Chatting",
+            "progress_action": ProgressAction.CHATTING,
             "model": model,
             "agent_name": self.name,
             "chat_turn": chat_turn if chat_turn is not None else None,
@@ -636,5 +637,9 @@ class AugmentedLLM(ContextDependent, AugmentedLLMProtocol[MessageParamT, Message
 
     def _log_chat_finished(self, model: Optional[str] = None):
         """Log a chat finished event"""
-        data = {"progress_action": "Finished", "model": model, "agent_name": self.name}
+        data = {
+            "progress_action": ProgressAction.READY,
+            "model": model,
+            "agent_name": self.name,
+        }
         self.logger.debug("Chat finished", data=data)
