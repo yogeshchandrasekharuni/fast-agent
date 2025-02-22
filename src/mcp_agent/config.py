@@ -317,6 +317,7 @@ def get_settings(config_path: str | None = None) -> Settings:
             # Look for secrets file in the same directory
             for secrets_file in [
                 config_file.parent / "mcp-agent.secrets.yaml",
+                config_file.parent / "mcp_agent.secrets.yaml",
                 config_file.parent / "fastagent.secrets.yaml",
             ]:
                 if secrets_file.exists():

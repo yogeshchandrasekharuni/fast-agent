@@ -4,7 +4,7 @@ execution_engine: asyncio
 logger:
   type: file
   level: error
-  truncate_tools: false
+  truncate_tools: true
 
 mcp:
   servers:
