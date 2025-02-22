@@ -106,8 +106,6 @@ ENV/
 """
 
 AGENT_EXAMPLE_TEMPLATE = """
-from mcp_agent import Agent, Extension
-
 import asyncio
 from mcp_agent.core.decorator_app import FastAgent
 
