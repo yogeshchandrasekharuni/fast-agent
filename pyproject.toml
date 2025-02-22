@@ -77,6 +77,6 @@ fastagent = "mcp_agent.cli.__main__:app"
 silsila = "mcp_agent.cli.__main__:app"
 
 [tool.setuptools.package-data]
-mcp-agent = ["data/*.json"]
-mcp_agent = ["resources/examples/**/*.py"]  # Include all Python files in examples subdirectories
+mcp_agent = ["data/*.json",
+"resources/examples/**/*.py"]  # Include all Python files in examples subdirectories
 
