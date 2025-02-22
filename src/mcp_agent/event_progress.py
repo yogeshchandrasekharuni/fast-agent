@@ -59,33 +59,30 @@ def convert_log_event(event: Event) -> Optional[ProgressEvent]:
     # Progress display is currently [time] [event] --- [target] [details]
     namespace = event.namespace
     agent_name = event_data.get("agent_name")
+    target = agent_name
+    details = ""
     if "mcp_aggregator" in namespace:
         server_name = event_data.get("server_name", "")
         tool_name = event_data.get("tool_name")
         if tool_name:
             # fetch(fetch)
-            target = f"{agent_name} {server_name} ({tool_name})"
+            details = f"{server_name} ({tool_name})"
         else:
-            target = f"{agent_name} {server_name}"
+            details = f"{server_name}"
 
     elif "augmented_llm" in namespace:
         model = event_data.get("model", "")
 
-        target = f"{agent_name} ({model})" if agent_name else model
-        # Add chat turn if present
+        details = f"{model}"
         chat_turn = event_data.get("chat_turn")
         if chat_turn is not None:
-            return ProgressEvent(
-                ProgressAction(progress_action),
-                target,
-                f"Turn {chat_turn}",
-                agent_name=event_data.get("agent_name"),
-            )
+            details = f"{model} turn {chat_turn}"
     else:
         target = event_data.get("target", "unknown")
 
     return ProgressEvent(
         ProgressAction(progress_action),
         target,
+        details,
         agent_name=event_data.get("agent_name"),
     )

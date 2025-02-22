@@ -103,7 +103,7 @@ class Orchestrator(AugmentedLLM[MessageParamT, MessageT]):
         # Create default planner with AgentConfig
         request_params = self.get_request_params(kwargs.get("request_params"))
         planner_config = AgentConfig(
-            name="LLM Orchestration Planner",
+            name="LLM Orchestrator",
             instruction="""
             You are an expert planner. Given an objective task and a list of MCP servers (which are collections of tools)
             or Agents (which are collections of servers), your job is to break down the objective into a series of steps,

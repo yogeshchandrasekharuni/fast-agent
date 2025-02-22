@@ -252,7 +252,7 @@ class MCPAggregator(ContextDependent):
             logger.debug(
                 "MCP Aggregator initialized",
                 data={
-                    "progress_action": ProgressAction.FINISHED,
+                    "progress_action": ProgressAction.INITIALIZED,
                     "server_name": server_name,
                     "agent_name": self.agent_name,
                 },

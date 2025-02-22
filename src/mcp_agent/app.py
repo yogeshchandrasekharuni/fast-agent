@@ -6,6 +6,7 @@ from contextlib import asynccontextmanager
 from mcp import ServerSession
 from mcp_agent.context import Context, initialize_context, cleanup_context
 from mcp_agent.config import Settings
+from mcp_agent.event_progress import ProgressAction
 from mcp_agent.logging.logger import get_logger
 from mcp_agent.executor.workflow_signal import SignalWaitCallback
 from mcp_agent.human_input.types import HumanInputCallback
@@ -148,7 +149,7 @@ class MCPApp:
         self.logger.info(
             "MCPAgent cleanup",
             data={
-                "progress_action": "Finished",
+                "progress_action": ProgressAction.FINISHED,
                 "target": self.name,
                 "agent_name": "mcp_application_loop",
             },
