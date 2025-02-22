@@ -41,9 +41,10 @@ logging:
 
 # MCP Servers
 mcp:
-    fetch:
-        command: "uvx"
-        args: ["mcp-server-fetch"]    
+    servers:
+        fetch:
+            command: "uvx"
+            args: ["mcp-server-fetch"]    
 
 """
 
@@ -117,6 +118,7 @@ agent_app = FastAgent("FastAgent Example")
 
 # Define the agent
 @agent_app.agent(servers=["fetch"])
+# @agent_app.agent(servers=["fetch"])
 async def main():
     # use the --model= command line switch to specify model
     async with agent_app.run() as agent:
