@@ -1,4 +1,3 @@
-import os
 from pathlib import Path
 import typer
 from rich.prompt import Confirm
@@ -225,6 +224,6 @@ def init(
                 "2. Keep fastagent-secrets.yaml secure and never commit it to version control"
             )
         console.print("\nTo get started, run:")
-        console.print("  python agent.py")
+        console.print("  uv run agent.py")
     else:
         console.print("\n[yellow]No files were created or modified.[/yellow]")
