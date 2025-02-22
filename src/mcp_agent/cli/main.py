@@ -22,3 +22,4 @@ def main(
     """Main entry point for the MCP Agent CLI."""
     application.verbosity = 1 if verbose else 0 if not quiet else -1
     application.console = application.console if color else None
+    print("SHAUN WOZ HERE")
