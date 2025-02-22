@@ -1,10 +1,11 @@
 [project]
-name = "mcp-agent"
+name = "fast-agent"
 version = "0.0.7"
-description = "Build effective agents with Model Context Protocol (MCP) using simple, composable patterns."
+description = "Build, Test, Deploy composable MCP Agent Workflows."
 readme = "README.md"
 license = { file = "LICENSE" }
 authors = [
+    { name = "Shaun Smith", email = "fastagent@llmindset.co.uk"},
     { name = "Sarmad Qadri", email = "sarmad@lastmileai.dev" }
 ]
 classifiers = [
@@ -70,17 +71,12 @@ dev = [
 ]
 
 [project.scripts]
-mcp-agent = "mcp_agent.cli.__main__:app"
-mcp_agent = "mcp_agent.cli.__main__:app"
-mcpagent = "mcp_agent.cli.__main__:app"
+fast-agent = "mcp_agent.cli.__main__:app"
+fast_agent = "mcp_agent.cli.__main__:app"
+fastagent = "mcp_agent.cli.__main__:app"
 silsila = "mcp_agent.cli.__main__:app"
-
-[tool.setuptools.packages.find]
-include = ["mcp-agent"]
 
 [tool.setuptools.package-data]
 mcp-agent = ["data/*.json"]
 mcp_agent = ["resources/examples/**/*.py"]  # Include all Python files in examples subdirectories
 
-[tool.uv.workspace]
-members = ["examples/streamlit_mcp_basic_agent"]
