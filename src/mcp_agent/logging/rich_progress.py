@@ -6,7 +6,6 @@ from rich.console import Console
 from mcp_agent.console import console as default_console
 from mcp_agent.event_progress import ProgressEvent, ProgressAction
 from rich.progress import Progress, SpinnerColumn, TextColumn
-from rich.table import Column
 from contextlib import contextmanager
 
 
@@ -20,10 +19,10 @@ class RichProgressDisplay:
         self._progress = Progress(
             SpinnerColumn(spinner_name="simpleDotsScrolling"),
             TextColumn(
-                "[progress.description]{task.description}",
-                table_column=Column(max_width=13),
+                "[progress.description]{task.description}|",
+                #                table_column=Column(max_width=16),
             ),
-            TextColumn(text_format="|{task.fields[target]:<16}", style="Bold Blue"),
+            TextColumn(text_format="{task.fields[target]:<16}", style="Bold Blue"),
             TextColumn(text_format="{task.fields[details]}", style="dim white"),
             console=self.console,
             transient=False,

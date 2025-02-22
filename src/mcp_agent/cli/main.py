@@ -1,11 +1,12 @@
 import typer
 from mcp_agent.cli.terminal import Application
-from mcp_agent.cli.commands import config
+from mcp_agent.cli.commands import config, setup
 
 app = typer.Typer()
 
 # Subcommands
 app.add_typer(config.app, name="config")
+app.add_typer(setup.app, name="setup")
 
 # Shared application context
 application = Application()
@@ -22,4 +23,3 @@ def main(
     """Main entry point for the MCP Agent CLI."""
     application.verbosity = 1 if verbose else 0 if not quiet else -1
     application.console = application.console if color else None
-    print("SHAUN WOZ HERE")

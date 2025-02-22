@@ -315,11 +315,14 @@ def get_settings(config_path: str | None = None) -> Settings:
                 merged_settings = yaml_settings
 
             # Look for secrets file in the same directory
-            secrets_file = config_file.parent / "mcp_agent.secrets.yaml"
-            if secrets_file.exists():
-                with open(secrets_file, "r", encoding="utf-8") as f:
-                    yaml_secrets = yaml.safe_load(f) or {}
-                    merged_settings = deep_merge(merged_settings, yaml_secrets)
+            for secrets_file in [
+                config_file.parent / "mcp-agent.secrets.yaml",
+                config_file.parent / "fastagent.secrets.yaml",
+            ]:
+                if secrets_file.exists():
+                    with open(secrets_file, "r", encoding="utf-8") as f:
+                        yaml_secrets = yaml.safe_load(f) or {}
+                        merged_settings = deep_merge(merged_settings, yaml_secrets)
 
             _settings = Settings(**merged_settings)
             return _settings
