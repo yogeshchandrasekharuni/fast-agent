@@ -4,7 +4,7 @@ from typing import Iterable, List, Type
 from pydantic import BaseModel
 
 import instructor
-from anthropic import Anthropic
+from anthropic import Anthropic, AuthenticationError
 from anthropic.types import (
     ContentBlock,
     DocumentBlockParam,
@@ -36,6 +36,7 @@ from mcp_agent.workflows.llm.augmented_llm import (
     ProviderToMCPConverter,
     RequestParams,
 )
+from mcp_agent.core.exceptions import ProviderKeyError
 from mcp_agent.logging.logger import get_logger
 
 DEFAULT_ANTHROPIC_MODEL = "claude-3-5-sonnet-latest"
@@ -78,9 +79,22 @@ class AnthropicAugmentedLLM(AugmentedLLM[MessageParam, Message]):
         Override this method to use a different LLM.
         """
         config = self.context.config
-        anthropic = Anthropic(api_key=config.anthropic.api_key)
-        messages: List[MessageParam] = []
-        params = self.get_request_params(request_params)
+        if not hasattr(config, "anthropic") or not config.anthropic or not config.anthropic.api_key:
+            raise ProviderKeyError(
+                "Anthropic API key not configured",
+                "The Anthropic API key is required but not set.\n"
+                "Add it to your configuration file under anthropic.api_key"
+            )
+        try:
+            anthropic = Anthropic(api_key=config.anthropic.api_key)
+            messages: List[MessageParam] = []
+            params = self.get_request_params(request_params)
+        except AuthenticationError as e:
+            raise ProviderKeyError(
+                "Invalid Anthropic API key",
+                "The configured Anthropic API key was rejected.\n"
+                "Please check that your API key is valid and not expired."
+            ) from e
 
         if params.use_history:
             messages.extend(self.history.get())
@@ -131,15 +145,24 @@ class AnthropicAugmentedLLM(AugmentedLLM[MessageParam, Message]):
 
             response = executor_result[0]
 
-            if isinstance(response, BaseException):
+            if isinstance(response, AuthenticationError):
+                raise ProviderKeyError(
+                    "Invalid Anthropic API key",
+                    "The configured Anthropic API key was rejected.\n"
+                    "Please check that your API key is valid and not expired."
+                ) from response
+            elif isinstance(response, BaseException):
                 self.logger.error(f"Error: {executor_result}")
-                # Don't break, instead create an error response
+                # Convert other errors to text response
                 error_message = f"Error during generation: {str(response)}"
                 response = Message(
+                    id="error",  # Required field
+                    model="error",  # Required field
                     role="assistant",
                     type="message",
                     content=[TextBlock(type="text", text=error_message)],
-                    stop_reason="error",
+                    stop_reason="end_turn",  # Must be one of the allowed values
+                    usage={"input_tokens": 0, "output_tokens": 0}  # Required field
                 )
 
             self.logger.debug(

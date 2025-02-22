@@ -9,6 +9,8 @@ import yaml
 import argparse
 from contextlib import asynccontextmanager
 
+from mcp_agent.core.exceptions import ServerConfigError, ProviderKeyError
+
 from mcp_agent.app import MCPApp
 from mcp_agent.agents.agent import Agent, AgentConfig
 from mcp_agent.context_dependent import ContextDependent
@@ -303,6 +305,27 @@ class FastAgent(ContextDependent):
         if self.config_path:
             with open(self.config_path) as f:
                 self.config = yaml.safe_load(f)
+
+    def _validate_server_references(self) -> None:
+        """
+        Validate that all server references in agent configurations exist in config.
+        Raises ServerConfigError if any referenced servers are not defined.
+        """
+        if not self.context.config.mcp or not self.context.config.mcp.servers:
+            available_servers = set()
+        else:
+            available_servers = set(self.context.config.mcp.servers.keys())
+
+        # Check each agent's server references
+        for name, agent_data in self.agents.items():
+            config = agent_data["config"]
+            if config.servers:
+                missing = [s for s in config.servers if s not in available_servers]
+                if missing:
+                    raise ServerConfigError(
+                        f"Missing server configuration for agent '{name}'",
+                        f"The following servers are referenced but not defined in config: {', '.join(missing)}",
+                    )
 
     def _get_model_factory(
         self,
@@ -937,77 +960,58 @@ class FastAgent(ContextDependent):
     async def run(self):
         """
         Context manager for running the application.
-        Handles setup and teardown of the app and agents.
-
-        Yields:
-            AgentAppWrapper instance with all initialized agents
+        Performs validation and provides user-friendly error messages.
         """
-        async with self.app.run() as agent_app:
-            # Create all types of agents
-            active_agents = await self._create_basic_agents(agent_app)
-            orchestrators = self._create_orchestrators(agent_app, active_agents)
-            parallel_agents = self._create_parallel_agents(agent_app, active_agents)
-            evaluator_optimizers = await self._create_evaluator_optimizers(
-                agent_app, active_agents
+        try:
+            async with self.app.run() as agent_app:
+                try:
+                    # Pre-flight validation
+                    self._validate_server_references()
+
+                    # Create all types of agents
+                    active_agents = await self._create_basic_agents(agent_app)
+                    orchestrators = self._create_orchestrators(agent_app, active_agents)
+                    parallel_agents = self._create_parallel_agents(
+                        agent_app, active_agents
+                    )
+                    evaluator_optimizers = await self._create_evaluator_optimizers(
+                        agent_app, active_agents
+                    )
+                    routers = self._create_routers(agent_app, active_agents)
+
+                    # Merge all agents into active_agents
+                    active_agents.update(orchestrators)
+                    active_agents.update(parallel_agents)
+                    active_agents.update(evaluator_optimizers)
+                    active_agents.update(routers)
+
+                    # Create wrapper with all agents
+                    wrapper = AgentApp(agent_app, active_agents)
+                    yield wrapper
+                finally:
+                    # Clean up basic agents
+                    for name, proxy in active_agents.items():
+                        if isinstance(proxy, LLMAgentProxy):
+                            await proxy._agent.__aexit__(None, None, None)
+
+        except ServerConfigError as e:
+            print("\nServer Configuration Error:")
+            print(e.message)
+            if e.details:
+                print("\nDetails:")
+                print(e.details)
+            print(
+                "\nPlease check your configuration file and add the missing server definitions."
             )
-            routers = self._create_routers(agent_app, active_agents)
+            raise SystemExit(1)
 
-            # Merge all agents into active_agents
-            active_agents.update(orchestrators)
-            active_agents.update(parallel_agents)
-            active_agents.update(evaluator_optimizers)
-            active_agents.update(routers)
-
-            # Create wrapper with all agents
-            wrapper = AgentApp(agent_app, active_agents)
-            try:
-                yield wrapper
-            finally:
-                # Clean up basic agents - need to get the actual agent from the proxy
-                for name, proxy in active_agents.items():
-                    if isinstance(proxy, LLMAgentProxy):
-                        await proxy._agent.__aexit__(None, None, None)
-
-        # async def send(self, agent_name: str, message: str) -> Any:
-        # """
-        # Send a message to a specific agent and get the response.
-
-        # Args:
-        #     agent_name: Name of the target agent
-        #     message: Message to send
-
-        # Returns:
-        #     Agent's response
-
-        # Raises:
-        #     ValueError: If agent not found
-        #     RuntimeError: If agent has no LLM attached
-        # """
-        # if agent_name not in self.agents:
-        #     raise ValueError(f"Agent {agent_name} not found")
-
-        # agent = self.agents[agent_name]
-
-        # # Special handling for routers
-        # if isinstance(agent._llm, LLMRouter):
-        #     # Route the message and get results
-        #     results = await agent._llm.route(message)
-        #     if not results:
-        #         return "No appropriate route found for the request."
-
-        #     # Get the top result
-        #     top_result = results[0]
-        #     if isinstance(top_result.result, Agent):
-        #         # Agent route - delegate to the agent
-        #         return await top_result.result._llm.generate_str(message)
-        #     elif isinstance(top_result.result, str):
-        #         # Server route - use the router directly
-        #         return "Tool call requested by router - not yet supported"
-        #     else:
-        #         return f"Routed to: {top_result.result} ({top_result.confidence}): {top_result.reasoning}"
-
-        # # Normal agent handling
-        # if not hasattr(agent, "_llm") or agent._llm is None:
-        #     raise RuntimeError(f"Agent {agent_name} has no LLM attached")
-
-        # return await agent._llm.generate_str(message)
+        except ProviderKeyError as e:
+            print("\nProvider Configuration Error:")
+            print(e.message)
+            if e.details:
+                print("\nDetails:")
+                print(e.details)
+            print(
+                "\nPlease check your configuration file and ensure all required API keys are set."
+            )
+            raise SystemExit(1)

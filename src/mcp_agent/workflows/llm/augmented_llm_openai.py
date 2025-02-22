@@ -2,7 +2,7 @@ import json
 from typing import Iterable, List, Type
 
 import instructor
-from openai import OpenAI
+from openai import OpenAI, AuthenticationError
 from openai.types.chat import (
     ChatCompletionAssistantMessageParam,
     ChatCompletionContentPartParam,
@@ -33,6 +33,7 @@ from mcp_agent.workflows.llm.augmented_llm import (
     ProviderToMCPConverter,
     RequestParams,
 )
+from mcp_agent.core.exceptions import ProviderKeyError
 from mcp_agent.logging.logger import get_logger
 from rich.text import Text
 
@@ -102,13 +103,24 @@ class OpenAIAugmentedLLM(
         Override this method to use a different LLM.
         """
         config = self.context.config
-        if not config.openai.api_key:
-            raise "OpenAI API key is not set"
-        openai_client = OpenAI(
-            api_key=config.openai.api_key, base_url=config.openai.base_url
-        )
-        messages: List[ChatCompletionMessageParam] = []
-        params = self.get_request_params(request_params)
+        if not hasattr(config, "openai") or not config.openai or not config.openai.api_key:
+            raise ProviderKeyError(
+                "OpenAI API key not configured",
+                "The OpenAI API key is required but not set.\n"
+                "Add it to your configuration file under openai.api_key"
+            )
+        try:
+            openai_client = OpenAI(
+                api_key=config.openai.api_key, base_url=config.openai.base_url
+            )
+            messages: List[ChatCompletionMessageParam] = []
+            params = self.get_request_params(request_params)
+        except AuthenticationError as e:
+            raise ProviderKeyError(
+                "Invalid OpenAI API key",
+                "The configured OpenAI API key was rejected.\n"
+                "Please check that your API key is valid and not expired."
+            ) from e
 
         system_prompt = self.instruction or params.systemPrompt
         if system_prompt:
@@ -189,7 +201,13 @@ class OpenAIAugmentedLLM(
                 data=response,
             )
 
-            if isinstance(response, BaseException):
+            if isinstance(response, AuthenticationError):
+                raise ProviderKeyError(
+                    "Invalid OpenAI API key",
+                    "The configured OpenAI API key was rejected.\n"
+                    "Please check that your API key is valid and not expired."
+                ) from response
+            elif isinstance(response, BaseException):
                 self.logger.error(f"Error: {response}")
                 break
 
