@@ -20,7 +20,7 @@ FASTAGENT_CONFIG_TEMPLATE = """
 # If not specified, defaults to "haiku". 
 # Can be overriden with a command line switch --model=<model>, or within the Agent constructor.
 
-default_model=sonnet
+default_model: sonnet
 
 # Logging and Console Configuration:
 logging:
@@ -51,11 +51,10 @@ FASTAGENT_SECRETS_TEMPLATE = """
 # FastAgent Secrets Configuration
 # WARNING: Keep this file secure and never commit to version control
 
-api_keys:
-  openai:
-        api_key: <your-api-key-here>
-    anthropic:
-        api_key: <your-api-key-here>
+openai:
+    api_key: <your-api-key-here>
+anthropic:
+    api_key: <your-api-key-here>
 
 # Example of setting an MCP Server environment variable
 mcp:
@@ -187,8 +186,8 @@ def init(
 
     console.print("\n[bold]FastAgent Setup[/bold]\n")
     console.print("This will create the following files:")
-    console.print(f"  - {config_path}/fastagent.yaml")
-    console.print(f"  - {config_path}/fastagent-secrets.yaml")
+    console.print(f"  - {config_path}/fastagent.config.yaml")
+    console.print(f"  - {config_path}/fastagent.secrets.yaml")
     console.print(f"  - {config_path}/agent.py")
     if needs_gitignore:
         console.print(f"  - {config_path}/.gitignore")
@@ -198,15 +197,15 @@ def init(
 
     # Create configuration files
     created = []
-    if create_file(config_path / "fastagent.yaml", FASTAGENT_CONFIG_TEMPLATE, force):
+    if create_file(
+        config_path / "fastagent.config.yaml", FASTAGENT_CONFIG_TEMPLATE, force
+    ):
         created.append("fastagent.yaml")
 
     if create_file(
-        config_path / "fastagent-secrets.yaml", FASTAGENT_SECRETS_TEMPLATE, force
+        config_path / "fastagent.secrets.yaml", FASTAGENT_SECRETS_TEMPLATE, force
     ):
-        created.append("fastagent-secrets.yaml")
-        # Set restrictive permissions on secrets file
-        os.chmod(config_path / "fastagent-secrets.yaml", 0o600)
+        created.append("fastagent.secrets.yaml")
 
     if create_file(config_path / "agent.py", AGENT_EXAMPLE_TEMPLATE, force):
         created.append("agent.py")
