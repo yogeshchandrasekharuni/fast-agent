@@ -112,7 +112,7 @@ class RichProgressDisplay:
                 task_id,
                 completed=100,
                 total=100,
-                details=f"Agent Elapsed Time {time.strftime('%H:%M:%S', time.gmtime(self._progress.tasks[task_id].elapsed))}",
+                details=f" / Elapsed Time {time.strftime('%H:%M:%S', time.gmtime(self._progress.tasks[task_id].elapsed))}",
             )
             for task in self._progress.tasks:
                 if task.id != task_id:

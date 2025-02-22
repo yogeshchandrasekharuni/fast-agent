@@ -253,9 +253,7 @@ class Agent(MCPAggregator):
             result: HumanInputResponse = await self.request_human_input(request=request)
             return CallToolResult(
                 content=[
-                    TextContent(
-                        type="text", text=f"Human response: {result.model_dump_json()}"
-                    )
+                    TextContent(type="text", text=f"Human response: {result.response}")
                 ]
             )
         except TimeoutError as e:
