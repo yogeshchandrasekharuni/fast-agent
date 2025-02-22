@@ -10,6 +10,18 @@
 
 ## Overview
 
+**`fast-agent`** lets you define, test and compose agents and tools in minutes.
+
+### Get started:
+
+Install the [uv package manager](https://docs.astral.sh/uv/).
+
+`uv pip install fast-agent-mcp` - download fast-agent
+
+`fast-agent setup` - setup an agent and configuration files.
+
+`uv run agent.py` - run and interact with your first agent.
+
 **`mcp-agent`** is a simple, composable framework to build agents using [Model Context Protocol](https://modelcontextprotocol.io/introduction).
 
 **Inspiration**: Anthropic announced 2 foundational updates for AI application developers:
