@@ -172,15 +172,15 @@ class LoggerSettings(BaseModel):
     Logger settings for the MCP Agent application.
     """
 
-    type: Literal["none", "console", "file", "http"] = "console"
+    type: Literal["none", "console", "file", "http"] = "file"
 
-    level: Literal["debug", "info", "warning", "error"] = "info"
+    level: Literal["debug", "info", "warning", "error"] = "warning"
     """Minimum logging level"""
 
     progress_display: bool = True
     """Enable or disable the progress display"""
 
-    path: str = "mcp-agent.jsonl"
+    path: str = "fastagent.jsonl"
     """Path to log file, if logger 'type' is 'file'."""
 
     batch_size: int = 100
@@ -262,7 +262,11 @@ class Settings(BaseSettings):
 
         # Check current directory and parent directories
         while current_dir != current_dir.parent:
-            for filename in ["mcp-agent.config.yaml", "mcp_agent.config.yaml"]:
+            for filename in [
+                "mcp-agent.config.yaml",
+                "mcp_agent.config.yaml",
+                "fastagent.config.yaml",
+            ]:
                 config_path = current_dir / filename
                 if config_path.exists():
                     return config_path

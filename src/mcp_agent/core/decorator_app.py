@@ -26,7 +26,8 @@ from mcp_agent.progress_display import progress_display
 from mcp_agent.workflows.llm.model_factory import ModelFactory
 from mcp_agent.workflows.llm.augmented_llm import RequestParams
 
-import readline  # noqa: F401
+from pyreadline3 import readline  # noqa: F401
+
 
 # Type aliases for better readability
 WorkflowType: TypeAlias = Union[
