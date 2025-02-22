@@ -1,6 +1,6 @@
 import asyncio
 
-from mcp_agent.core.decorator_app import FastAgent
+from mcp_agent.core.fastagent import FastAgent
 # from rich import print
 
 agents = FastAgent(name="Researcher")

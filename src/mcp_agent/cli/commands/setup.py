@@ -107,7 +107,7 @@ ENV/
 
 AGENT_EXAMPLE_TEMPLATE = """
 import asyncio
-from mcp_agent.core.decorator_app import FastAgent
+from mcp_agent.core.fastagent import FastAgent
 
 # Create the application
 agent_app = FastAgent("FastAgent Example")

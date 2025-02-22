@@ -6,7 +6,7 @@ Demonstrates router's ability to either:
 """
 
 import asyncio
-from mcp_agent.core.decorator_app import FastAgent
+from mcp_agent.core.fastagent import FastAgent
 
 # Create the application
 agent_app = FastAgent(

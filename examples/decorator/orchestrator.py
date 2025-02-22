@@ -4,7 +4,7 @@ This demonstrates creating multiple agents and an orchestrator to coordinate the
 """
 
 import asyncio
-from mcp_agent.core.decorator_app import FastAgent
+from mcp_agent.core.fastagent import FastAgent
 
 # Create the application
 agent_app = FastAgent("Orchestrator Example")
