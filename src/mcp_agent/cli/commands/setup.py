@@ -51,6 +51,8 @@ FASTAGENT_SECRETS_TEMPLATE = """
 # FastAgent Secrets Configuration
 # WARNING: Keep this file secure and never commit to version control
 
+# Alternatively set OPENAI_API_KEY and ANTHROPIC_API_KEY environment variables
+
 openai:
     api_key: <your-api-key-here>
 anthropic:
@@ -216,7 +218,9 @@ def init(
         console.print("\n[green]Setup completed successfully![/green]")
         if "fastagent.secrets.yaml" in created:
             console.print("\n[yellow]Important:[/yellow] Remember to:")
-            console.print("1. Add your API keys to fastagent-secrets.yaml")
+            console.print(
+                "1. Add your API keys to fastagent-secrets.yaml or set OPENAI_API_KEY and ANTHROPIC_API_KEY environment variables"
+            )
             console.print(
                 "2. Keep fastagent.secrets.yaml secure and never commit it to version control"
             )

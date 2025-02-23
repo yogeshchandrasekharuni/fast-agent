@@ -5,7 +5,7 @@ logger:
   type: file
   level: error
   path: "./mcp_agent.log"
-  progress_display: false
+  progress_display: true
 
 mcp:
   servers:

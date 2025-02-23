@@ -1,4 +1,5 @@
 import json
+import os
 from typing import Iterable, List, Type
 
 import instructor
@@ -103,23 +104,33 @@ class OpenAIAugmentedLLM(
         Override this method to use a different LLM.
         """
         config = self.context.config
-        if not hasattr(config, "openai") or not config.openai or not config.openai.api_key:
+        api_key = None
+
+        if hasattr(config, "openai") and config.openai:
+            api_key = config.openai.api_key
+            if api_key == "<your-api-key-here>":
+                api_key = None
+
+        if api_key is None:
+            api_key = os.getenv("OPENAI_API_KEY")
+
+        if not api_key:
             raise ProviderKeyError(
                 "OpenAI API key not configured",
                 "The OpenAI API key is required but not set.\n"
-                "Add it to your configuration file under openai.api_key"
+                "Add it to your configuration file under openai.api_key\n"
+                "Or set the OPENAI_API_KEY environment variable",
             )
+
         try:
-            openai_client = OpenAI(
-                api_key=config.openai.api_key, base_url=config.openai.base_url
-            )
+            openai_client = OpenAI(api_key=api_key, base_url=config.openai.base_url)
             messages: List[ChatCompletionMessageParam] = []
             params = self.get_request_params(request_params)
         except AuthenticationError as e:
             raise ProviderKeyError(
                 "Invalid OpenAI API key",
                 "The configured OpenAI API key was rejected.\n"
-                "Please check that your API key is valid and not expired."
+                "Please check that your API key is valid and not expired.",
             ) from e
 
         system_prompt = self.instruction or params.systemPrompt
@@ -205,7 +216,7 @@ class OpenAIAugmentedLLM(
                 raise ProviderKeyError(
                     "Invalid OpenAI API key",
                     "The configured OpenAI API key was rejected.\n"
-                    "Please check that your API key is valid and not expired."
+                    "Please check that your API key is valid and not expired.",
                 ) from response
             elif isinstance(response, BaseException):
                 self.logger.error(f"Error: {response}")

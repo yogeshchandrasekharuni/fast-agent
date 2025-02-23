@@ -1,4 +1,5 @@
 import json
+import os
 from typing import Iterable, List, Type
 
 from pydantic import BaseModel
@@ -79,18 +80,26 @@ class AnthropicAugmentedLLM(AugmentedLLM[MessageParam, Message]):
         Override this method to use a different LLM.
         """
         config = self.context.config
-        if (
-            not hasattr(config, "anthropic")
-            or not config.anthropic
-            or not config.anthropic.api_key
-        ):
+
+        api_key = None
+
+        if hasattr(config, "anthropic") and config.anthropic:
+            api_key = config.anthropic.api_key
+            if api_key == "<your-api-key-here>":
+                api_key = None
+
+        if api_key is None:
+            api_key = os.getenv("ANTHROPIC_API_KEY")
+
+        if not api_key:
             raise ProviderKeyError(
                 "Anthropic API key not configured",
                 "The Anthropic API key is required but not set.\n"
                 "Add it to your configuration file under anthropic.api_key",
+                "Or set the ANTHROPIC_API_KEY environment variable.",
             )
         try:
-            anthropic = Anthropic(api_key=config.anthropic.api_key)
+            anthropic = Anthropic(api_key=api_key)
             messages: List[MessageParam] = []
             params = self.get_request_params(request_params)
         except AuthenticationError as e:

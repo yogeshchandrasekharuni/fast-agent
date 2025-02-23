@@ -10,7 +10,7 @@ from mcp_agent.core.fastagent import FastAgent
 
 # Create the application
 fast = FastAgent(
-    "LLM Router",
+    "Router Workflow",
 )
 
 # Sample requests demonstrating direct tool use vs agent delegation

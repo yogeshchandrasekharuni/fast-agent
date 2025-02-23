@@ -665,7 +665,7 @@ class FastAgent(ContextDependent):
             config = AgentConfig(
                 name=name,
                 instruction="",  # Router uses its own routing instruction
-                # servers=servers, servers are not supported now
+                servers=[],  # , servers are not supported now
                 model=model,
                 use_history=use_history,
                 default_request_params=base_params,

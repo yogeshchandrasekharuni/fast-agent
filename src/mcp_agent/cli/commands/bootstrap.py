@@ -117,23 +117,25 @@ def show_overview():
         "[bold]Options:[/bold]\n"
         "  --directory PATH    Create files in specific directory\n"
         "  --force            Overwrite existing files\n\n"
-        "[bold]Example:[/bold]\n"
-        "  fastagent bootstrap workflow --directory ./my-workflows"
+        "[bold]Examples:[/bold]\n"
+        "  fastagent bootstrap workflow --directory ./my-workflows\n"
+        "  fastagent bootstrap workflow ./my-workflows  (using positional directory)\n"
+        "  fastagent bootstrap researcher --force"
     )
     console.print(Panel(usage_text, title="Usage", border_style="blue"))
 
 
 @app.callback(invoke_without_command=True)
 def main(
-    example_type: str = typer.Argument(
-        None, 
-        help="Type of example to create (workflow or researcher)"
-    ),
     directory: str = typer.Option(
         ".", "--directory", "-d", help="Directory where example files will be created"
     ),
     force: bool = typer.Option(
         False, "--force", "-f", help="Force overwrite existing files"
+    ),
+    example_type: str = typer.Argument(
+        None, 
+        help="Type of example to create (workflow or researcher)"
     ),
 ):
     """Create example applications and learn FastAgent patterns.
