@@ -7,7 +7,7 @@ from mcp_agent.core.fastagent import FastAgent
 
 # Create the application
 app = FastAgent(
-    "Parallel Workflow Example",
+    "Parallel Example",
 )
 app.app._human_input_callback = None
 SHORT_STORY = """
@@ -63,7 +63,7 @@ and whispers of a hidden agenda linger among the villagers.
 )
 @app.parallel(
     fan_out=["proofreader", "fact_checker", "style_enforcer"],
-    fan_in="grad2er",
+    fan_in="grader",
     name="parallel",
 )
 async def main():

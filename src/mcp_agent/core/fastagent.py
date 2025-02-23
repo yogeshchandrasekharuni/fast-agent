@@ -9,7 +9,11 @@ import yaml
 import argparse
 from contextlib import asynccontextmanager
 
-from mcp_agent.core.exceptions import ServerConfigError, ProviderKeyError
+from mcp_agent.core.exceptions import (
+    AgentConfigError,
+    ServerConfigError,
+    ProviderKeyError,
+)
 
 from mcp_agent.app import MCPApp
 from mcp_agent.agents.agent import Agent, AgentConfig
@@ -325,6 +329,64 @@ class FastAgent(ContextDependent):
                     raise ServerConfigError(
                         f"Missing server configuration for agent '{name}'",
                         f"The following servers are referenced but not defined in config: {', '.join(missing)}",
+                    )
+
+    def _validate_workflow_references(self) -> None:
+        """
+        Validate that all workflow references point to valid agents/workflows.
+        Raises ValueError if any referenced components are not defined.
+        """
+        available_components = set(self.agents.keys())
+
+        for name, agent_data in self.agents.items():
+            agent_type = agent_data["type"]
+
+            if agent_type == AgentType.PARALLEL.value:
+                # Check fan_in exists
+                fan_in = agent_data["fan_in"]
+                if fan_in not in available_components:
+                    raise AgentConfigError(
+                        f"Parallel workflow '{name}' references non-existent fan_in component: {fan_in}"
+                    )
+
+                # Check fan_out agents exist
+                fan_out = agent_data["fan_out"]
+                missing = [a for a in fan_out if a not in available_components]
+                if missing:
+                    raise AgentConfigError(
+                        f"Parallel workflow '{name}' references non-existent fan_out components: {', '.join(missing)}"
+                    )
+
+            elif agent_type == AgentType.ORCHESTRATOR.value:
+                # Check all child agents exist
+                child_agents = agent_data["child_agents"]
+                missing = [a for a in child_agents if a not in available_components]
+                if missing:
+                    raise AgentConfigError(
+                        f"Orchestrator '{name}' references non-existent agents: {', '.join(missing)}"
+                    )
+
+            elif agent_type == AgentType.ROUTER.value:
+                # Check all referenced agents exist
+                router_agents = agent_data["agents"]
+                missing = [a for a in router_agents if a not in available_components]
+                if missing:
+                    raise AgentConfigError(
+                        f"Router '{name}' references non-existent agents: {', '.join(missing)}"
+                    )
+
+            elif agent_type == AgentType.EVALUATOR_OPTIMIZER.value:
+                # Check both evaluator and optimizer exist
+                evaluator = agent_data["evaluator"]
+                optimizer = agent_data["optimizer"]
+                missing = []
+                if evaluator not in available_components:
+                    missing.append(f"evaluator: {evaluator}")
+                if optimizer not in available_components:
+                    missing.append(f"optimizer: {optimizer}")
+                if missing:
+                    raise AgentConfigError(
+                        f"Evaluator-Optimizer '{name}' references non-existent components: {', '.join(missing)}"
                     )
 
     def _get_model_factory(
@@ -959,6 +1021,7 @@ class FastAgent(ContextDependent):
             async with self.app.run() as agent_app:
                 # Pre-flight validation
                 self._validate_server_references()
+                self._validate_workflow_references()
 
                 # Create all types of agents
                 active_agents = await self._create_basic_agents(agent_app)
@@ -981,25 +1044,37 @@ class FastAgent(ContextDependent):
 
         except ServerConfigError as e:
             had_error = True
-            print("\nServer Configuration Error:")
+            print("\n[bold red]Server Configuration Error:")
             print(e.message)
             if e.details:
                 print("\nDetails:")
                 print(e.details)
             print(
-                "\nPlease check your configuration file and add the missing server definitions."
+                "\nPlease check your 'fastagent.config.yaml' configuration file and add the missing server definitions."
             )
             raise SystemExit(1)
 
         except ProviderKeyError as e:
             had_error = True
-            print("\nProvider Configuration Error:")
+            print("\n[bold red]Provider Configuration Error:")
             print(e.message)
             if e.details:
                 print("\nDetails:")
                 print(e.details)
             print(
-                "\nPlease check your configuration file and ensure all required API keys are set."
+                "\nPlease check your 'fastagent.secrets.yaml' configuration file and ensure all required API keys are set."
+            )
+            raise SystemExit(1)
+
+        except AgentConfigError as e:
+            had_error = True
+            print("\n[bold red]Workflow or Agent Configuration Error:")
+            print(e.message)
+            if e.details:
+                print("\nDetails:")
+                print(e.details)
+            print(
+                "\nPlease check your agent definition and ensure names and references are correct."
             )
             raise SystemExit(1)
 

@@ -22,6 +22,15 @@ class ServerConfigError(FastAgentError):
         super().__init__(message, details)
 
 
+class AgentConfigError(FastAgentError):
+    """Raised when there are issues with Agent or Workflow configuration
+    Example: Parallel fan-in references unknown agent
+    """
+
+    def __init__(self, message: str, details: str = ""):
+        super().__init__(message, details)
+
+
 class ProviderKeyError(FastAgentError):
     """Raised when there are issues with LLM provider API keys
     Example: OpenAI/Anthropic key not configured but model requires it
