@@ -19,6 +19,7 @@ class ProgressAction(str, Enum):
     SHUTDOWN = "Shutdown"
     AGGREGATOR_INITIALIZED = "Running"
     ROUTING = "Routing"
+    FATAL_ERROR = "Error"
 
 
 @dataclass
@@ -61,7 +62,9 @@ def convert_log_event(event: Event) -> Optional[ProgressEvent]:
     agent_name = event_data.get("agent_name")
     target = agent_name
     details = ""
-    if "mcp_aggregator" in namespace:
+    if progress_action == ProgressAction.FATAL_ERROR:
+        details = event_data.get("error_message", "An error occurred")
+    elif "mcp_aggregator" in namespace:
         server_name = event_data.get("server_name", "")
         tool_name = event_data.get("tool_name")
         if tool_name:

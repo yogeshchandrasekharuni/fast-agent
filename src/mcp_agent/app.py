@@ -154,7 +154,11 @@ class MCPApp:
                 "agent_name": "mcp_application_loop",
             },
         )
-        await cleanup_context()
+        try:
+            await cleanup_context()
+        except asyncio.CancelledError:
+            self.logger.debug("Cleanup cancelled error during shutdown")
+
         self._context = None
         self._initialized = False
 

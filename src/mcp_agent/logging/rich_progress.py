@@ -76,6 +76,7 @@ class RichProgressDisplay:
             ProgressAction.FINISHED: "black on green",
             ProgressAction.SHUTDOWN: "black on red",
             ProgressAction.AGGREGATOR_INITIALIZED: "bold green",
+            ProgressAction.FATAL_ERROR: "black on red",
         }.get(action, "white")
 
     def update(self, event: ProgressEvent) -> None:
@@ -112,6 +113,16 @@ class RichProgressDisplay:
                 completed=100,
                 total=100,
                 details=f" / Elapsed Time {time.strftime('%H:%M:%S', time.gmtime(self._progress.tasks[task_id].elapsed))}",
+            )
+            for task in self._progress.tasks:
+                if task.id != task_id:
+                    task.visible = False
+        elif event.action == ProgressAction.FATAL_ERROR:
+            self._progress.update(
+                task_id,
+                completed=100,
+                total=100,
+                details=f" / {event.details}",
             )
             for task in self._progress.tasks:
                 if task.id != task_id:

@@ -13,6 +13,7 @@ from mcp_agent.core.exceptions import (
     AgentConfigError,
     ServerConfigError,
     ProviderKeyError,
+    ServerInitializationError,
 )
 
 from mcp_agent.app import MCPApp
@@ -1078,6 +1079,15 @@ class FastAgent(ContextDependent):
             )
             raise SystemExit(1)
 
+        except ServerInitializationError as e:
+            had_error = True
+            print("\n[bold red]Server Startup Error:")
+            print(e.message)
+            if e.details:
+                print("\nDetails:")
+                print(e.details)
+            print("\nThere was an error starting up the MCP Server.")
+            raise SystemExit(1)
         finally:
             # Clean up any active agents without re-raising errors
             if active_agents and not had_error:

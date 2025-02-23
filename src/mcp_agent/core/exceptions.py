@@ -38,3 +38,10 @@ class ProviderKeyError(FastAgentError):
 
     def __init__(self, message: str, details: str = ""):
         super().__init__(message, details)
+
+
+class ServerInitializationError(FastAgentError):
+    """Raised when a server fails to initialize properly."""
+
+    def __init__(self, message: str, details: str = ""):
+        super().__init__(message, details)

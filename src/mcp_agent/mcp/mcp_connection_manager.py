@@ -24,6 +24,8 @@ from mcp.client.sse import sse_client
 from mcp.types import JSONRPCMessage
 
 from mcp_agent.config import MCPServerSettings
+from mcp_agent.core.exceptions import ServerInitializationError
+from mcp_agent.event_progress import ProgressAction
 from mcp_agent.logging.logger import get_logger
 from mcp_agent.mcp.stdio import stdio_client_with_rich_stderr
 from mcp_agent.context_dependent import ContextDependent
@@ -144,7 +146,9 @@ async def _server_lifecycle_task(server_conn: ServerConnection) -> None:
         transport_context = server_conn._transport_context_factory()
 
         async with transport_context as (read_stream, write_stream):
+            #      try:
             server_conn.create_session(read_stream, write_stream)
+            #       except FileNotFoundError as e:
 
             async with server_conn.session:
                 await server_conn.initialize_session()
@@ -153,7 +157,12 @@ async def _server_lifecycle_task(server_conn: ServerConnection) -> None:
 
     except Exception as exc:
         logger.error(
-            f"{server_name}: Lifecycle task encountered an error: {exc}", exc_info=True
+            f"{server_name}: Lifecycle task encountered an error: {exc}",
+            exc_info=True,
+            data={
+                "progress_action": ProgressAction.FATAL_ERROR,
+                "server_name": server_name,
+            },
         )
         # If there's an error, we should also set the event so that
         # 'get_server' won't hang
@@ -295,7 +304,7 @@ class MCPConnectionManager(ContextDependent):
 
         # If the session is still None, it means the lifecycle task crashed
         if not server_conn or not server_conn.session:
-            raise RuntimeError(
+            raise ServerInitializationError(
                 f"{server_name}: Failed to initialize server; check logs for errors."
             )
         return server_conn

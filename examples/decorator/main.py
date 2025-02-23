@@ -12,7 +12,7 @@ agent_app = FastAgent("Interactive Agent Example")
 # Define the agent
 @agent_app.agent(
     instruction="A simple agent that helps with basic tasks. Request Human Input when needed.",
-    servers=["mcp_root12"],
+    servers=["mcp_root"],
     #    model="gpt-4o", model override here takes precedence
 )
 async def main():
