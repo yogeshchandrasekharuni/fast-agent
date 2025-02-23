@@ -16,13 +16,15 @@
 
 Install the [uv package manager](https://docs.astral.sh/uv/).
 
-`uv pip install fast-agent-mcp` - download fast-agent
+`uv pip install fast-agent-mcp` - download and install fast-agent
 
 `fast-agent setup` - setup an agent and configuration files.
 
 `uv run agent.py` - run and interact with your first agent.
 
-`fast-agent bootstrap workflow` - generate example agents demonstrating each of the workflows from Anthropic's "[Building Effective Agents](https://www.anthropic.com/research/building-effective-agents)" paper.
+`fast-agent bootstrap workflow` - generate example agents and workflows demonstrating each of the patterns from Anthropic's "[Building Effective Agents](https://www.anthropic.com/research/building-effective-agents)" paper.
+
+`fast-agent bootstrap` - 
 
 It's built on top of [mcp-agent](todo).
 
