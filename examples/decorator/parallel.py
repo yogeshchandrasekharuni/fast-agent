@@ -8,9 +8,6 @@ from mcp_agent.core.fastagent import FastAgent
 # Create the application
 app = FastAgent(
     "Parallel Workflow Example",
-    # config={
-    #     "human_input_handler": None  # Disable human input handling
-    # },
 )
 app.app._human_input_callback = None
 SHORT_STORY = """
@@ -58,7 +55,7 @@ and whispers of a hidden agenda linger among the villagers.
 )
 @app.agent(
     name="grader",
-    model="o3-mini.high",
+    model="o3-mini.low",
     instruction="""Compile the feedback from the Proofreader, Fact Checker, and Style Enforcer
     into a structured report. Summarize key issues and categorize them by type. 
     Provide actionable recommendations for improving the story, 
@@ -66,7 +63,7 @@ and whispers of a hidden agenda linger among the villagers.
 )
 @app.parallel(
     fan_out=["proofreader", "fact_checker", "style_enforcer"],
-    fan_in="grader",
+    fan_in="grad2er",
     name="parallel",
 )
 async def main():

@@ -385,9 +385,9 @@ class FastAgent(ContextDependent):
             use_history: Whether to maintain conversation history
             request_params: Additional request parameters for the LLM
         """
-        #        print(f"\nDecorating agent {name} with model={model}")
 
         def decorator(func: Callable) -> Callable:
+            # Create base request params
             base_params = RequestParams(
                 use_history=use_history,
                 model=model,  # Include model in initial params
@@ -412,10 +412,7 @@ class FastAgent(ContextDependent):
                 "func": func,
             }
 
-            async def wrapper(*args, **kwargs):
-                return await func(*args, **kwargs)
-
-            return wrapper
+            return func  # Don't wrap the function, just return it
 
         return decorator
 
@@ -464,10 +461,7 @@ class FastAgent(ContextDependent):
                 "func": func,
             }
 
-            async def wrapper(*args, **kwargs):
-                return await func(*args, **kwargs)
-
-            return wrapper
+            return func
 
         return decorator
 
@@ -518,10 +512,7 @@ class FastAgent(ContextDependent):
                 "func": func,
             }
 
-            async def wrapper(*args, **kwargs):
-                return await func(*args, **kwargs)
-
-            return wrapper
+            return func
 
         return decorator
 
@@ -962,39 +953,34 @@ class FastAgent(ContextDependent):
         Context manager for running the application.
         Performs validation and provides user-friendly error messages.
         """
+        active_agents = {}
+        had_error = False
         try:
             async with self.app.run() as agent_app:
-                try:
-                    # Pre-flight validation
-                    self._validate_server_references()
+                # Pre-flight validation
+                self._validate_server_references()
 
-                    # Create all types of agents
-                    active_agents = await self._create_basic_agents(agent_app)
-                    orchestrators = self._create_orchestrators(agent_app, active_agents)
-                    parallel_agents = self._create_parallel_agents(
-                        agent_app, active_agents
-                    )
-                    evaluator_optimizers = await self._create_evaluator_optimizers(
-                        agent_app, active_agents
-                    )
-                    routers = self._create_routers(agent_app, active_agents)
+                # Create all types of agents
+                active_agents = await self._create_basic_agents(agent_app)
+                orchestrators = self._create_orchestrators(agent_app, active_agents)
+                parallel_agents = self._create_parallel_agents(agent_app, active_agents)
+                evaluator_optimizers = await self._create_evaluator_optimizers(
+                    agent_app, active_agents
+                )
+                routers = self._create_routers(agent_app, active_agents)
 
-                    # Merge all agents into active_agents
-                    active_agents.update(orchestrators)
-                    active_agents.update(parallel_agents)
-                    active_agents.update(evaluator_optimizers)
-                    active_agents.update(routers)
+                # Merge all agents into active_agents
+                active_agents.update(orchestrators)
+                active_agents.update(parallel_agents)
+                active_agents.update(evaluator_optimizers)
+                active_agents.update(routers)
 
-                    # Create wrapper with all agents
-                    wrapper = AgentApp(agent_app, active_agents)
-                    yield wrapper
-                finally:
-                    # Clean up basic agents
-                    for name, proxy in active_agents.items():
-                        if isinstance(proxy, LLMAgentProxy):
-                            await proxy._agent.__aexit__(None, None, None)
+                # Create wrapper with all agents
+                wrapper = AgentApp(agent_app, active_agents)
+                yield wrapper
 
         except ServerConfigError as e:
+            had_error = True
             print("\nServer Configuration Error:")
             print(e.message)
             if e.details:
@@ -1006,6 +992,7 @@ class FastAgent(ContextDependent):
             raise SystemExit(1)
 
         except ProviderKeyError as e:
+            had_error = True
             print("\nProvider Configuration Error:")
             print(e.message)
             if e.details:
@@ -1015,3 +1002,13 @@ class FastAgent(ContextDependent):
                 "\nPlease check your configuration file and ensure all required API keys are set."
             )
             raise SystemExit(1)
+
+        finally:
+            # Clean up any active agents without re-raising errors
+            if active_agents and not had_error:
+                for name, proxy in active_agents.items():
+                    if isinstance(proxy, LLMAgentProxy):
+                        try:
+                            await proxy._agent.__aexit__(None, None, None)
+                        except Exception:
+                            pass  # Ignore cleanup errors
