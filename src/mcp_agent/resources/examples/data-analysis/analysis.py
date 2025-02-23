@@ -7,7 +7,7 @@ fast = FastAgent("Data Analysis (Roots)")
 
 
 @fast.agent(
-    name="Data_Analysis",
+    name="data_analysis",
     instruction="""
 You have access to a Python 3.12 interpreter and you can use this to analyse and process data. 
 Common analysis packages such as Pandas, Seaborn and Matplotlib are already installed. 

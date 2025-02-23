@@ -79,25 +79,8 @@ class AnthropicAugmentedLLM(AugmentedLLM[MessageParam, Message]):
         Process a query using an LLM and available tools.
         Override this method to use a different LLM.
         """
-        config = self.context.config
 
-        api_key = None
-
-        if hasattr(config, "anthropic") and config.anthropic:
-            api_key = config.anthropic.api_key
-            if api_key == "<your-api-key-here>":
-                api_key = None
-
-        if api_key is None:
-            api_key = os.getenv("ANTHROPIC_API_KEY")
-
-        if not api_key:
-            raise ProviderKeyError(
-                "Anthropic API key not configured",
-                "The Anthropic API key is required but not set.\n"
-                "Add it to your configuration file under anthropic.api_key "
-                "or set the ANTHROPIC_API_KEY environment variable.",
-            )
+        api_key = self._api_key(self.context.config)
         try:
             anthropic = Anthropic(api_key=api_key)
             messages: List[MessageParam] = []
@@ -264,6 +247,27 @@ class AnthropicAugmentedLLM(AugmentedLLM[MessageParam, Message]):
 
         return responses
 
+    def _api_key(self, config):
+        api_key = None
+
+        if hasattr(config, "anthropic") and config.anthropic:
+            api_key = config.anthropic.api_key
+            if api_key == "<your-api-key-here>":
+                api_key = None
+
+        if api_key is None:
+            api_key = os.getenv("ANTHROPIC_API_KEY")
+
+        if not api_key:
+            raise ProviderKeyError(
+                "Anthropic API key not configured",
+                "The Anthropic API key is required but not set.\n"
+                "Add it to your configuration file under anthropic.api_key "
+                "or set the ANTHROPIC_API_KEY environment variable.",
+            )
+
+        return api_key
+
     async def generate_str(
         self,
         message,
@@ -312,9 +316,7 @@ class AnthropicAugmentedLLM(AugmentedLLM[MessageParam, Message]):
             return StructuredResponse(categories=[])
 
         # Next we pass the text through instructor to extract structured data
-        client = instructor.from_anthropic(
-            Anthropic(api_key=self.context.config.anthropic.api_key),
-        )
+        client = instructor.patch(Anthropic(api_key=self._api_key(self.context.config)))
 
         params = self.get_request_params(request_params)
         model = await self.select_model(params)
