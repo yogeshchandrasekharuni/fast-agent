@@ -316,7 +316,9 @@ class AnthropicAugmentedLLM(AugmentedLLM[MessageParam, Message]):
             return StructuredResponse(categories=[])
 
         # Next we pass the text through instructor to extract structured data
-        client = instructor.patch(Anthropic(api_key=self._api_key(self.context.config)))
+        client = instructor.from_anthropic(
+            Anthropic(api_key=self._api_key(self.context.config)),
+        )
 
         params = self.get_request_params(request_params)
         model = await self.select_model(params)
