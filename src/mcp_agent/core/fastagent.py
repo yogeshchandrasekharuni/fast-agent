@@ -33,7 +33,8 @@ from mcp_agent.progress_display import progress_display
 from mcp_agent.workflows.llm.model_factory import ModelFactory
 from mcp_agent.workflows.llm.augmented_llm import RequestParams
 
-import readline  # noqa: F401
+# TODO -- resintate once Windows&Python 3.13 platform issues are fixed
+# import readline  # noqa: F401
 
 # Type aliases for better readability
 WorkflowType: TypeAlias = Union[
