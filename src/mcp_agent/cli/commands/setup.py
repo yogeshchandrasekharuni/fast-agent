@@ -43,7 +43,10 @@ mcp:
     servers:
         fetch:
             command: "uvx"
-            args: ["mcp-server-fetch"]    
+            args: ["mcp-server-fetch"]
+        filesystem:
+            command: "npx"
+            args: ["-y", "@modelcontextprotocol/server-filesystem", "."]
 
 """
 
@@ -51,7 +54,7 @@ FASTAGENT_SECRETS_TEMPLATE = """
 # FastAgent Secrets Configuration
 # WARNING: Keep this file secure and never commit to version control
 
-# Alternatively set OPENAI_API_KEY and ANTHROPIC_API_KEY environment variables
+# Alternatively set OPENAI_API_KEY and ANTHROPIC_API_KEY environment variables. Config file takes precedence.
 
 openai:
     api_key: <your-api-key-here>
