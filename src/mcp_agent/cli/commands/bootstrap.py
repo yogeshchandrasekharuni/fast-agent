@@ -269,6 +269,9 @@ def _show_completion_message(example_type: str, created: list[str]):
             )
             console.print("2. The dataset is available in the mount-point directory:")
             console.print("   - mount-point/WA_Fn-UseC_-HR-Employee-Attrition.csv")
+            console.print(
+                "On Windows platforms, please edit the fastagent.config.yaml and adjust the volume mount point."
+            )
     else:
         console.print("\n[yellow]No files were created.[/yellow]")
 
