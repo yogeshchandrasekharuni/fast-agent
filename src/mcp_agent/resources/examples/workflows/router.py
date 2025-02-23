@@ -9,10 +9,9 @@ import asyncio
 from mcp_agent.core.fastagent import FastAgent
 
 # Create the application
-agent_app = FastAgent(
-    "Router Workflow Example",
+fast = FastAgent(
+    "LLM Router",
 )
-agent_app.app._human_input_callback = None
 
 # Sample requests demonstrating direct tool use vs agent delegation
 SAMPLE_REQUESTS = [
@@ -22,13 +21,13 @@ SAMPLE_REQUESTS = [
 ]
 
 
-@agent_app.agent(
+@fast.agent(
     name="fetcher",
     instruction="""You are an agent, with a tool enabling you to fetch URLs.""",
     servers=["fetch"],
     model="haiku",
 )
-@agent_app.agent(
+@fast.agent(
     name="code_expert",
     instruction="""You are an expert in code analysis and software engineering.
     When asked about code, architecture, or development practices,
@@ -36,20 +35,20 @@ SAMPLE_REQUESTS = [
     servers=["filesystem"],
     model="gpt-4o",
 )
-@agent_app.agent(
+@fast.agent(
     name="general_assistant",
     instruction="""You are a knowledgeable assistant that provides clear,
     well-reasoned responses about general topics, concepts, and principles.""",
 )
-@agent_app.router(
-    name="llm_router",
+@fast.router(
+    name="route",
     model="sonnet",
     agents=["code_expert", "general_assistant", "fetcher"],
 )
 async def main():
-    async with agent_app.run() as agent:
+    async with fast.run() as agent:
         for request in SAMPLE_REQUESTS:
-            await agent.send("llm_router", request)
+            await agent.route(request)
 
 
 if __name__ == "__main__":

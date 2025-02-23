@@ -43,6 +43,7 @@ class AgentConfig:
     model: Optional[str] = None
     use_history: bool = True
     default_request_params: Optional[RequestParams] = None
+    human_input: bool = False
 
     def __post_init__(self):
         """Ensure default_request_params exists with proper history setting"""
@@ -103,10 +104,13 @@ class Agent(MCPAggregator):
         # Map function names to tools
         self._function_tool_map: Dict[str, FastTool] = {}
 
-        self.human_input_callback: HumanInputCallback | None = human_input_callback
-        if not human_input_callback:
-            if self.context.human_input_handler:
-                self.human_input_callback = self.context.human_input_handler
+        if not self.config.human_input:
+            self.human_input_callback = None
+        else:
+            self.human_input_callback: HumanInputCallback | None = human_input_callback
+            if not human_input_callback:
+                if self.context.human_input_handler:
+                    self.human_input_callback = self.context.human_input_handler
 
     async def initialize(self):
         """

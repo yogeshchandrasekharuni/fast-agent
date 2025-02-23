@@ -1,5 +1,4 @@
 """
-Example showing how to use the evaluator-optimizer functionality with the decorator API.
 This demonstrates creating an optimizer and evaluator to iteratively improve content.
 """
 
@@ -7,22 +6,21 @@ import asyncio
 from mcp_agent.core.fastagent import FastAgent
 
 # Create the application
-agent_app = FastAgent("Cover Letter Writer")
-agent_app.app._human_input_callback = None
+fast = FastAgent("Evaluator-Optimizer")
 
 
 # Define optimizer agent
-@agent_app.agent(
+@fast.agent(
     name="optimizer",
     instruction="""You are a career coach specializing in cover letter writing.
     You are tasked with generating a compelling cover letter given the job posting,
     candidate details, and company information. Tailor the response to the company and job requirements.
     """,
     servers=["fetch"],
-    model="gpt-4o-mini",  # Using a capable model for content generation
+    model="gpt-4o-mini",
 )
 # Define evaluator agent
-@agent_app.agent(
+@fast.agent(
     name="evaluator",
     instruction="""Evaluate the following response based on the criteria below:
     1. Clarity: Is the language clear, concise, and grammatically correct?
@@ -40,11 +38,10 @@ agent_app.app._human_input_callback = None
     Summarize your evaluation as a structured response with:
     - Overall quality rating.
     - Specific feedback and areas for improvement.""",
-    servers=[],  # Evaluator doesn't need special server access
-    model="sonnet",  # Using a capable model for evaluation
+    model="sonnet",
 )
 # Define the evaluator-optimizer workflow
-@agent_app.evaluator_optimizer(
+@fast.evaluator_optimizer(
     name="cover_letter_writer",
     optimizer="optimizer",  # Reference to optimizer agent
     evaluator="evaluator",  # Reference to evaluator agent
@@ -52,7 +49,7 @@ agent_app.app._human_input_callback = None
     max_refinements=3,  # Maximum iterations
 )
 async def main():
-    async with agent_app.run() as agent:
+    async with fast.run() as agent:
         job_posting = (
             "Software Engineer at LastMile AI. Responsibilities include developing AI systems, "
             "collaborating with cross-functional teams, and enhancing scalability. Skills required: "

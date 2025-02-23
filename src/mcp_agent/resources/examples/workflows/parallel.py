@@ -1,18 +1,14 @@
 """
-Example MCP Agent application showing simplified agent access.
+Parallel Workflow showing Fan Out and Fan In agents, using different models
 """
 
 import asyncio
 from mcp_agent.core.fastagent import FastAgent
 
 # Create the application
-app = FastAgent(
-    "Parallel Workflow Example",
-    # config={
-    #     "human_input_handler": None  # Disable human input handling
-    # },
+fast = FastAgent(
+    "Parallel Workflow",
 )
-app.app._human_input_callback = None
 SHORT_STORY = """
 The Battle of Glimmerwood
 
@@ -36,45 +32,45 @@ and whispers of a hidden agenda linger among the villagers.
 """
 
 
-@app.agent(
+@fast.agent(
     name="proofreader",
     instruction=""""Review the short story for grammar, spelling, and punctuation errors.
     Identify any awkward phrasing or structural issues that could improve clarity. 
     Provide detailed feedback on corrections.""",
 )
-@app.agent(
+@fast.agent(
     name="fact_checker",
-    model="gpt-4o",
     instruction="""Verify the factual consistency within the story. Identify any contradictions,
     logical inconsistencies, or inaccuracies in the plot, character actions, or setting. 
     Highlight potential issues with reasoning or coherence.""",
+    model="gpt-4o",
 )
-@app.agent(
+@fast.agent(
     name="style_enforcer",
-    model="sonnet",
     instruction="""Analyze the story for adherence to style guidelines.
     Evaluate the narrative flow, clarity of expression, and tone. Suggest improvements to 
     enhance storytelling, readability, and engagement.""",
+    model="sonnet",
 )
-@app.agent(
+@fast.agent(
     name="grader",
-    model="o3-mini.high",
     instruction="""Compile the feedback from the Proofreader, Fact Checker, and Style Enforcer
     into a structured report. Summarize key issues and categorize them by type. 
     Provide actionable recommendations for improving the story, 
     and give an overall grade based on the feedback.""",
+    model="o3-mini.low",
 )
-@app.parallel(
+@fast.parallel(
     fan_out=["proofreader", "fact_checker", "style_enforcer"],
     fan_in="grader",
     name="parallel",
 )
 async def main():
     # Use the app's context manager
-    async with app.run() as agent:
-        await agent.send("parallel", f"student short story submission: {SHORT_STORY}")
+    async with fast.run() as agent:
+        await agent.parallel(f"student short story submission: {SHORT_STORY}")
         # follow-on prompt to task agent
-        # await agent.prompt("style_enforcer", default="STOP")
+        # await agent.style_enforcer.prompt(default="STOP")
 
 
 if __name__ == "__main__":

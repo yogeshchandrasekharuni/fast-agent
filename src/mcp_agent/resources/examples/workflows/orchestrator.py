@@ -1,5 +1,4 @@
 """
-Example showing how to use the orchestrator functionality with the decorator API.
 This demonstrates creating multiple agents and an orchestrator to coordinate them.
 """
 
@@ -7,11 +6,11 @@ import asyncio
 from mcp_agent.core.fastagent import FastAgent
 
 # Create the application
-agent_app = FastAgent("Orchestrator Example")
+fast = FastAgent("Orchestrator-Workers")
 
 
 # Define worker agents
-@agent_app.agent(
+@fast.agent(
     name="finder",
     instruction="""You are an agent with access to the filesystem, 
             as well as the ability to fetch URLs. Your job is to identify 
@@ -20,15 +19,14 @@ agent_app = FastAgent("Orchestrator Example")
     servers=["fetch", "filesystem"],
     model="gpt-4o-mini",
 )
-@agent_app.agent(
+@fast.agent(
     name="writer",
     instruction="""You are an agent that can write to the filesystem.
             You are tasked with taking the user's input, addressing it, and 
             writing the result to disk in the appropriate location.""",
     servers=["filesystem"],
-    model="gpt-4o",
 )
-@agent_app.agent(
+@fast.agent(
     name="proofreader",
     instruction=""""Review the short story for grammar, spelling, and punctuation errors.
             Identify any awkward phrasing or structural issues that could improve clarity. 
@@ -37,8 +35,8 @@ agent_app = FastAgent("Orchestrator Example")
     model="gpt-4o",
 )
 # Define the orchestrator to coordinate the other agents
-@agent_app.orchestrator(
-    name="document_processor",
+@fast.orchestrator(
+    name="orchestrate",
     instruction="""Load the student's short story from short_story.md, 
     and generate a report with feedback across proofreading, 
     factuality/logical consistency and style adherence. Use the style rules from 
@@ -46,10 +44,10 @@ agent_app = FastAgent("Orchestrator Example")
     https://apastyle.apa.org/learn/quick-guide-on-references.
     Write the graded report to graded_report.md in the same directory as short_story.md""",
     agents=["finder", "writer", "proofreader"],
-    model="sonnet",  # Orchestrators typically need more capable models
+    model="sonnet",
 )
 async def main():
-    async with agent_app.run() as agent:
+    async with fast.run() as agent:
         # The orchestrator can be used just like any other agent
         task = (
             """Load the student's short story from short_story.md, 
@@ -61,7 +59,7 @@ async def main():
         )
 
         # Send the task
-        await agent.send("document_processor", task)
+        await agent.orchestrate(task)
 
 
 if __name__ == "__main__":

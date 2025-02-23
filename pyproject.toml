@@ -1,7 +1,7 @@
 [project]
 name = "fast-agent-mcp"
 version = "0.0.7"
-description = "Build, Test, Deploy composable MCP Agent Workflows."
+description = "Define, Prompt and Test MCP enabled Agents and Workflows"
 readme = "README.md"
 license = { file = "LICENSE" }
 authors = [
@@ -27,7 +27,6 @@ dependencies = [
     "typer>=0.15.1",
     "numpy>=2.2.1",
     "scikit-learn>=1.6.0",
-    "pyreadline3>=3.5.4",
     "anthropic>=0.42.0",
     "openai>=1.63.2",
 ]

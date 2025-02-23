@@ -35,7 +35,6 @@ from mcp_agent.workflows.llm.augmented_llm import RequestParams
 
 import readline  # noqa: F401
 
-
 # Type aliases for better readability
 WorkflowType: TypeAlias = Union[
     Orchestrator, ParallelLLM, EvaluatorOptimizerLLM, LLMRouter
@@ -436,6 +435,7 @@ class FastAgent(ContextDependent):
         model: Optional[str] = None,
         use_history: bool = True,
         request_params: Optional[Dict] = None,
+        human_input: bool = False,
     ) -> Callable:
         """
         Decorator to create and register an agent with configuration.
@@ -466,6 +466,7 @@ class FastAgent(ContextDependent):
                 model=model,  # Highest precedence
                 use_history=use_history,
                 default_request_params=base_params,
+                human_input=human_input,
             )
 
             # Store the agent configuration
@@ -487,6 +488,7 @@ class FastAgent(ContextDependent):
         model: str | None = None,
         use_history: bool = True,
         request_params: Optional[Dict] = None,
+        human_input: bool = False,
     ) -> Callable:
         """
         Decorator to create and register an orchestrator.
@@ -514,6 +516,7 @@ class FastAgent(ContextDependent):
                 model=model,  # Highest precedence
                 use_history=use_history,
                 default_request_params=base_params,
+                human_input=human_input,
             )
 
             # Store the orchestrator configuration
@@ -634,10 +637,11 @@ class FastAgent(ContextDependent):
         self,
         name: str,
         agents: List[str],
-        servers: List[str] = [],
+        #        servers: List[str] = [],
         model: Optional[str] = None,
         use_history: bool = True,
         request_params: Optional[Dict] = None,
+        human_input: bool = False,
     ) -> Callable:
         """
         Decorator to create and register a router.
@@ -661,10 +665,11 @@ class FastAgent(ContextDependent):
             config = AgentConfig(
                 name=name,
                 instruction="",  # Router uses its own routing instruction
-                servers=servers,
+                # servers=servers, servers are not supported now
                 model=model,
                 use_history=use_history,
                 default_request_params=base_params,
+                human_input=human_input,
             )
 
             # Store the router configuration

@@ -22,7 +22,7 @@ FASTAGENT_CONFIG_TEMPLATE = """
 default_model: sonnet
 
 # Logging and Console Configuration:
-logging:
+logger:
     # level: "debug" | "info" | "warning" | "error"
     # type: "none" | "console" | "file" | "http"
     # path: "/path/to/logfile.jsonl"
@@ -110,17 +110,14 @@ import asyncio
 from mcp_agent.core.fastagent import FastAgent
 
 # Create the application
-agent_app = FastAgent("FastAgent Example")
-# Uncomment the below to disable human input callback tool
-# agent_app.app._human_input_callback = None
+fast = FastAgent("FastAgent Example")
 
 
 # Define the agent
-@agent_app.agent(servers=["fetch"])
-# @agent_app.agent(servers=["fetch"])
+@fast.agent(servers=["fetch"])
 async def main():
-    # use the --model= command line switch to specify model
-    async with agent_app.run() as agent:
+    # use the --model command line switch or agent arguments to change model
+    async with fast.run() as agent:
         await agent()
 
 
@@ -217,11 +214,11 @@ def init(
 
     if created:
         console.print("\n[green]Setup completed successfully![/green]")
-        if "fastagent-secrets.yaml" in created:
+        if "fastagent.secrets.yaml" in created:
             console.print("\n[yellow]Important:[/yellow] Remember to:")
             console.print("1. Add your API keys to fastagent-secrets.yaml")
             console.print(
-                "2. Keep fastagent-secrets.yaml secure and never commit it to version control"
+                "2. Keep fastagent.secrets.yaml secure and never commit it to version control"
             )
         console.print("\nTo get started, run:")
         console.print("  uv run agent.py")
