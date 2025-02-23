@@ -79,11 +79,15 @@ class AnthropicAugmentedLLM(AugmentedLLM[MessageParam, Message]):
         Override this method to use a different LLM.
         """
         config = self.context.config
-        if not hasattr(config, "anthropic") or not config.anthropic or not config.anthropic.api_key:
+        if (
+            not hasattr(config, "anthropic")
+            or not config.anthropic
+            or not config.anthropic.api_key
+        ):
             raise ProviderKeyError(
                 "Anthropic API key not configured",
                 "The Anthropic API key is required but not set.\n"
-                "Add it to your configuration file under anthropic.api_key"
+                "Add it to your configuration file under anthropic.api_key",
             )
         try:
             anthropic = Anthropic(api_key=config.anthropic.api_key)
@@ -93,7 +97,7 @@ class AnthropicAugmentedLLM(AugmentedLLM[MessageParam, Message]):
             raise ProviderKeyError(
                 "Invalid Anthropic API key",
                 "The configured Anthropic API key was rejected.\n"
-                "Please check that your API key is valid and not expired."
+                "Please check that your API key is valid and not expired.",
             ) from e
 
         if params.use_history:
@@ -149,7 +153,7 @@ class AnthropicAugmentedLLM(AugmentedLLM[MessageParam, Message]):
                 raise ProviderKeyError(
                     "Invalid Anthropic API key",
                     "The configured Anthropic API key was rejected.\n"
-                    "Please check that your API key is valid and not expired."
+                    "Please check that your API key is valid and not expired.",
                 ) from response
             elif isinstance(response, BaseException):
                 self.logger.error(f"Error: {executor_result}")
@@ -162,7 +166,7 @@ class AnthropicAugmentedLLM(AugmentedLLM[MessageParam, Message]):
                     type="message",
                     content=[TextBlock(type="text", text=error_message)],
                     stop_reason="end_turn",  # Must be one of the allowed values
-                    usage={"input_tokens": 0, "output_tokens": 0}  # Required field
+                    usage={"input_tokens": 0, "output_tokens": 0},  # Required field
                 )
 
             self.logger.debug(
@@ -272,11 +276,11 @@ class AnthropicAugmentedLLM(AugmentedLLM[MessageParam, Message]):
             for content in response.content:
                 if content.type == "text":
                     final_text.append(content.text)
-                elif content.type == "tool_use":
-                    final_text.append(
-                        f"[Calling tool {content.name} with args {content.input}]"
-                    )
-
+        #             elif content.type == "tool_use":
+        #                 final_text.append(
+        #                     f"[Calling tool {content.name} with args {content.input}]"
+        #                 )
+        # TODO -- check whether this should be reinstated - OpenAI doesn't return this....
         return "\n".join(final_text)
 
     async def generate_structured(
