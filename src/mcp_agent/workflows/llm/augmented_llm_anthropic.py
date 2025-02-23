@@ -95,7 +95,7 @@ class AnthropicAugmentedLLM(AugmentedLLM[MessageParam, Message]):
             raise ProviderKeyError(
                 "Anthropic API key not configured",
                 "The Anthropic API key is required but not set.\n"
-                "Add it to your configuration file under anthropic.api_key",
+                "Add it to your configuration file under anthropic.api_key"
                 "Or set the ANTHROPIC_API_KEY environment variable.",
             )
         try:

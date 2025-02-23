@@ -9,6 +9,13 @@ from mcp_agent.core.fastagent import FastAgent
 fast = FastAgent("Orchestrator-Workers")
 
 
+@fast.agent(
+    "author",
+    instruction="""You are to role play a poorly skilled writer, 
+    who makes frequent grammar, punctuations and spelling errors. You enjoy
+    writing short stories, but the narrative doesn't always make sense""",
+    servers=["filesystem"],
+)
 # Define worker agents
 @fast.agent(
     name="finder",
@@ -48,6 +55,10 @@ fast = FastAgent("Orchestrator-Workers")
 )
 async def main():
     async with fast.run() as agent:
+        await agent.author(
+            "write a 250 word short story about kittens discovering a castle, and save it to short_story.md"
+        )
+
         # The orchestrator can be used just like any other agent
         task = (
             """Load the student's short story from short_story.md, 

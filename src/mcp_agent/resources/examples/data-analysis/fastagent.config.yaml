@@ -1,0 +1,18 @@
+mcp:
+  servers:
+    interpreter:
+      command: "docker"
+      args:
+        [
+          "run",
+          "-i",
+          "--rm",
+          "--pull=always",
+          "-v",
+          "./mount-point:/mnt/data/",
+          "ghcr.io/evalstate/mcp-py-repl:latest",
+        ]
+      roots:
+        - uri: "file://./mount-point/"
+          name: "test_data"
+          server_uri_alias: "file:///mnt/data/"

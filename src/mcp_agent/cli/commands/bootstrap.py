@@ -15,26 +15,26 @@ console = Console()
 
 EXAMPLE_TYPES = {
     "workflow": {
-        "description": "Workflow patterns showing different agent composition approaches",
+        "description": "Example workflows, demonstrating each of the patterns in the 'Building Effective Agents' paper.",
         "details": """
         The workflow examples show how to:
-        - Compose agents using workflow patterns
-        - Chain agents together for complex tasks
-        - Run agents in parallel
-        - Handle agent evaluation and routing
-        - Incorporate human input
+        - Chain agents together
+        - Parallelize Agents 
+        - Orchestrate Workers
+        - Evaluate and Optimize
+        - Route Requests
         """,
         "files": [
             "chaining.py",
             "evaluator.py",
             "human_input.py",
-            "orchestrator.py", 
+            "orchestrator.py",
             "parallel.py",
             "router.py",
         ],
     },
     "researcher": {
-        "description": "Research agent example with evaluation optimization",
+        "description": "Research agent example with evaluation optimization. Uses Brave Search and Docker.",
         "details": """
         The researcher example demonstrates:
         - Building a research-focused agent
@@ -94,99 +94,76 @@ def show_overview():
     console.print("Learn how to build effective agents through practical examples\n")
 
     # Create a table for better organization
-    table = Table(show_header=True, header_style="bold magenta", box=None, padding=(0, 2))
+    table = Table(
+        show_header=True, header_style="bold magenta", box=None, padding=(0, 2)
+    )
     table.add_column("Example")
     table.add_column("Description")
     table.add_column("Files")
 
     for name, info in EXAMPLE_TYPES.items():
         files_list = "\n".join(f"• {f}" for f in info["files"])
-        table.add_row(
-            f"[green]{name}[/green]",
-            info["description"],
-            files_list
-        )
+        table.add_row(f"[green]{name}[/green]", info["description"], files_list)
 
     console.print(table)
 
     # Show usage instructions in a panel
     usage_text = (
         "[bold]Commands:[/bold]\n"
-        "  fastagent bootstrap workflow           Create workflow examples\n"
-        "  fastagent bootstrap researcher         Create researcher example\n\n"
+        "  fastagent bootstrap workflow DIR      Create workflow examples in DIR\n"
+        "  fastagent bootstrap researcher DIR    Create researcher example in DIR\n\n"
         "[bold]Options:[/bold]\n"
-        "  --directory PATH    Create files in specific directory\n"
         "  --force            Overwrite existing files\n\n"
         "[bold]Examples:[/bold]\n"
-        "  fastagent bootstrap workflow --directory ./my-workflows\n"
-        "  fastagent bootstrap workflow ./my-workflows  (using positional directory)\n"
-        "  fastagent bootstrap researcher --force"
+        "  fastagent bootstrap workflow .              Create in current directory\n"
+        "  fastagent bootstrap workflow ./my-workflows Create in specific directory\n"
+        "  fastagent bootstrap researcher . --force    Force overwrite files"
     )
     console.print(Panel(usage_text, title="Usage", border_style="blue"))
 
 
-@app.callback(invoke_without_command=True)
-def main(
-    directory: str = typer.Option(
-        ".", "--directory", "-d", help="Directory where example files will be created"
+@app.command()
+def workflow(
+    directory: Path = typer.Argument(
+        Path("."),
+        help="Directory where workflow examples will be created",
     ),
     force: bool = typer.Option(
         False, "--force", "-f", help="Force overwrite existing files"
     ),
-    example_type: str = typer.Argument(
-        None, 
-        help="Type of example to create (workflow or researcher)"
-    ),
 ):
-    """Create example applications and learn FastAgent patterns.
-    
-    Run without arguments to see available examples.
-    """
-    if example_type is None:
-        show_overview()
-        return
-
-    example_type = example_type.lower()
-    if example_type not in EXAMPLE_TYPES:
-        console.print(f"[red]Error:[/red] Unknown example type '{example_type}'")
-        console.print("\nAvailable types:")
-        for name in EXAMPLE_TYPES:
-            console.print(f"  - {name}")
-        raise typer.Exit(1)
-
-    target_dir = Path(directory).resolve()
+    """Create workflow pattern examples."""
+    target_dir = directory.resolve()
     if not target_dir.exists():
         target_dir.mkdir(parents=True)
         console.print(f"Created directory: {target_dir}")
 
-    # Show example details
-    console.print(f"\n[bold]Creating {example_type} example[/bold]")
-    console.print(
-        Panel(
-            EXAMPLE_TYPES[example_type]["details"].strip(),
-            title="About this example",
-            expand=False,
-        )
-    )
+    created = copy_example_files("workflow", target_dir, force)
+    _show_completion_message("workflow", created)
 
-    if not force:
-        # Check for existing files first
-        existing = []
-        for f in EXAMPLE_TYPES[example_type]["files"]:
-            if (target_dir / f).exists():
-                existing.append(f)
 
-        if existing:
-            console.print(
-                "\n[yellow]Warning:[/yellow] The following files already exist:"
-            )
-            for f in existing:
-                console.print(f"  - {f}")
-            console.print("\nUse --force to overwrite existing files")
-            raise typer.Exit(1)
+@app.command()
+def researcher(
+    directory: Path = typer.Argument(
+        Path("."),
+        help="Directory where researcher examples will be created",
+    ),
+    force: bool = typer.Option(
+        False, "--force", "-f", help="Force overwrite existing files"
+    ),
+):
+    """Create researcher pattern examples."""
+    target_dir = directory.resolve()
+    if not target_dir.exists():
+        target_dir.mkdir(parents=True)
+        console.print(f"Created directory: {target_dir}")
 
-    created = copy_example_files(example_type, target_dir, force)
+    created = copy_example_files("researcher", target_dir, force)
+    _show_completion_message("researcher", created)
 
+
+def _show_completion_message(example_type: str, created: list[str]):
+    """Show completion message and next steps."""
     if created:
         console.print("\n[green]Setup completed successfully![/green]")
         console.print("\nCreated files:")
@@ -210,3 +187,10 @@ def main(
             console.print("3. Run with: python main.py or python main-evalopt.py")
     else:
         console.print("\n[yellow]No files were created.[/yellow]")
+
+
+@app.callback(invoke_without_command=True)
+def main(ctx: typer.Context):
+    """Create example applications and learn FastAgent patterns."""
+    if ctx.invoked_subcommand is None:
+        show_overview()
