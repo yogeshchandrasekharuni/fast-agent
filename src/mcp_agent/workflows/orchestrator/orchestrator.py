@@ -111,7 +111,6 @@ class Orchestrator(AugmentedLLM[MessageParamT, MessageT]):
             """,
             servers=[],  # Planner doesn't need direct server access
             default_request_params=request_params,
-            model=request_params.model if request_params else None,
         )
 
         self.planner = planner or llm_factory(agent=Agent(config=planner_config))
