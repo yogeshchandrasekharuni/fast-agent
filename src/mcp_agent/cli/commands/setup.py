@@ -29,14 +29,14 @@ logger:
 
     
     # Switch the progress display on or off
-    # progress_display: true
+    progress_display: true
 
     # Show chat User/Assistant messages on the console
-    # show_chat: true
+    show_chat: true
     # Show tool calls on the console
-    # show_tools: true
+    show_tools: true
     # Truncate long tool responses on the console 
-    # truncate_tools: true
+    truncate_tools: true
 
 # MCP Servers
 mcp:

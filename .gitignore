@@ -178,3 +178,4 @@ project_contents.md
 examples/**/*.jsonl
 mcp_agent.config.yaml
 mcp_agent.secrets.yaml
+fastagent.secrets.yaml

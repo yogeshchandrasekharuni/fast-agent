@@ -8,28 +8,29 @@ from rich.table import Table
 from rich.panel import Panel
 
 app = typer.Typer(
-    help="Create example applications and learn MCP Agent patterns",
-    no_args_is_help=True,
+    help="Create example applications",
+    no_args_is_help=False,  # Allow showing our custom help instead
 )
 console = Console()
 
 EXAMPLE_TYPES = {
-    "decorator": {
-        "description": "Decorator pattern example showing different agent composition approaches",
+    "workflow": {
+        "description": "Workflow patterns showing different agent composition approaches",
         "details": """
-        The decorator example shows how to:
-        - Compose agents using the decorator pattern
-        - Add capabilities like optimization and routing
+        The workflow examples show how to:
+        - Compose agents using workflow patterns
+        - Chain agents together for complex tasks
         - Run agents in parallel
-        - Handle complex agent interactions
+        - Handle agent evaluation and routing
+        - Incorporate human input
         """,
         "files": [
-            "main.py",
-            "optimizer.py",
-            "orchestrator.py",
+            "chaining.py",
+            "evaluator.py",
+            "human_input.py",
+            "orchestrator.py", 
             "parallel.py",
             "router.py",
-            "tiny.py",
         ],
     },
     "researcher": {
@@ -52,12 +53,12 @@ def copy_example_files(
     """Copy example files from resources to target directory."""
     created = []
 
-    # During development, use the source directory
+    # Use the resources directory from the package
     source_dir = (
         Path(__file__).parent.parent.parent
         / "resources"
         / "examples"
-        / ("decorator" if example_type == "decorator" else "mcp_researcher")
+        / ("workflows" if example_type == "workflow" else "mcp_researcher")
     )
 
     if not source_dir.exists():
@@ -87,55 +88,46 @@ def copy_example_files(
     return created
 
 
-def show_examples_overview():
-    """Show an overview of available examples."""
-    console.print("\n[bold]MCP Agent Example Applications[/bold]")
+def show_overview():
+    """Display an overview of available examples in a nicely formatted table."""
+    console.print("\n[bold cyan]FastAgent Example Applications[/bold cyan]")
     console.print("Learn how to build effective agents through practical examples\n")
 
-    # Create a table for the examples
-    table = Table(title="Available Examples")
-    table.add_column("Example", style="green")
+    # Create a table for better organization
+    table = Table(show_header=True, header_style="bold magenta", box=None, padding=(0, 2))
+    table.add_column("Example")
     table.add_column("Description")
-    table.add_column("Files", style="blue")
+    table.add_column("Files")
 
     for name, info in EXAMPLE_TYPES.items():
-        table.add_row(name, info["description"], "\n".join(info["files"]))
+        files_list = "\n".join(f"• {f}" for f in info["files"])
+        table.add_row(
+            f"[green]{name}[/green]",
+            info["description"],
+            files_list
+        )
 
     console.print(table)
 
-    # Show usage instructions
-    console.print("\n[bold]Usage:[/bold]")
-    console.print("1. Create a new example:")
-    console.print("   mcp-agent bootstrap create <example-name>")
-    console.print("\n2. Specify a directory:")
-    console.print(
-        "   mcp-agent bootstrap create <example-name> --directory ./my-project"
+    # Show usage instructions in a panel
+    usage_text = (
+        "[bold]Commands:[/bold]\n"
+        "  fastagent bootstrap workflow           Create workflow examples\n"
+        "  fastagent bootstrap researcher         Create researcher example\n\n"
+        "[bold]Options:[/bold]\n"
+        "  --directory PATH    Create files in specific directory\n"
+        "  --force            Overwrite existing files\n\n"
+        "[bold]Example:[/bold]\n"
+        "  fastagent bootstrap workflow --directory ./my-workflows"
     )
-    console.print("\n3. Force overwrite existing files:")
-    console.print("   mcp-agent bootstrap create <example-name> --force")
-
-    console.print("\n[bold]Examples:[/bold]")
-    console.print("   mcp-agent bootstrap create decorator")
-    console.print(
-        "   mcp-agent bootstrap create researcher --directory ./research-agent"
-    )
+    console.print(Panel(usage_text, title="Usage", border_style="blue"))
 
 
 @app.callback(invoke_without_command=True)
-def main(ctx: typer.Context):
-    """Bootstrap example applications to learn MCP Agent patterns.
-
-    Create working examples that demonstrate different agent patterns and capabilities.
-    Use these as starting points for your own agent applications.
-    """
-    if ctx.invoked_subcommand is None:
-        show_examples_overview()
-
-
-@app.command()
-def create(
+def main(
     example_type: str = typer.Argument(
-        None, help="Type of example to create (decorator or researcher)"
+        None, 
+        help="Type of example to create (workflow or researcher)"
     ),
     directory: str = typer.Option(
         ".", "--directory", "-d", help="Directory where example files will be created"
@@ -144,16 +136,12 @@ def create(
         False, "--force", "-f", help="Force overwrite existing files"
     ),
 ):
-    """Create a new example application.
-
-    This will create a set of example files based on the chosen type:
-
-    \b
-    - decorator: Decorator pattern example showing different agent composition approaches
-    - researcher: Research agent example with evaluation optimization
+    """Create example applications and learn FastAgent patterns.
+    
+    Run without arguments to see available examples.
     """
-    if not example_type:
-        show_examples_overview()
+    if example_type is None:
+        show_overview()
         return
 
     example_type = example_type.lower()
@@ -204,13 +192,14 @@ def create(
             console.print(f"  - {f}")
 
         console.print("\n[bold]Next Steps:[/bold]")
-        if example_type == "decorator":
-            console.print("1. Review main.py for the basic example")
-            console.print("2. Check other files for different composition patterns:")
-            console.print("   - optimizer.py: Add optimization capabilities")
-            console.print("   - router.py: Route requests to different agents")
+        if example_type == "workflow":
+            console.print("1. Review chaining.py for the basic workflow example")
+            console.print("2. Check other examples:")
             console.print("   - parallel.py: Run agents in parallel")
-            console.print("3. Run with: python main.py")
+            console.print("   - router.py: Route requests between agents")
+            console.print("   - evaluator.py: Add evaluation capabilities")
+            console.print("   - human_input.py: Incorporate human feedback")
+            console.print("3. Run an example with: python <example>.py")
         else:
             console.print("1. Review main.py for the basic researcher example")
             console.print(
