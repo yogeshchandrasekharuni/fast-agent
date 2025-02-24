@@ -268,7 +268,7 @@ class FastAgent(ContextDependent):
         Raises:
             TypeError: If instance type doesn't match expected type for agent_type
         """
-        self._log_agent_load(instance)
+        self._log_agent_load(name)
         if agent_type == AgentType.BASIC.value:
             if not isinstance(instance, Agent):
                 raise TypeError(
@@ -1140,11 +1140,11 @@ class FastAgent(ContextDependent):
                         except Exception:
                             pass  # Ignore cleanup errors
 
-    def _log_agent_load(self, agent: AgentOrWorkflow) -> None:
+    def _log_agent_load(self, agent_name: str) -> None:
         self.app._logger.info(
-            f"Loaded {agent.agent_name}",
+            f"Loaded {agent_name}",
             data={
                 "progress_action": ProgressAction.LOADED,
-                "agent_name": agent.agent_name,
+                "agent_name": agent_name,
             },
         )
