@@ -14,7 +14,7 @@
 
 The simple declarative syntax lets you concentrate on the prompts, MCP Servers and compositions to build effective agents.
 
-Quickly compare how different models, combine
+Quickly compare how different models perform at Agent and MCP Server calling tasks, and build mixed multi-model workflows using the best provider for each task.
 
 ### Get started:
 
