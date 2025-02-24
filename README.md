@@ -28,9 +28,7 @@ uv run agent.py --model=o3-mini.low # specify a model
 fast-agent bootstrap workflow       # create "building effective agents" examples
 ```
 
-`fast-agent bootstrap workflow` - generate example agents and workflows demonstrating each of the patterns from Anthropic's "[Building Effective Agents](https://www.anthropic.com/research/building-effective-agents)" paper.
-
-`fast-agent bootstrap` -
+Other bootstrap examples include a Researcher (with Evaluator-Optimizer workflow) and Data Analysis (similar to ChatGPT experience), demonstrating MCP Roots support.
 
 It's built on top of [mcp-agent](todo).
 
