@@ -130,7 +130,7 @@ class Orchestrator(AugmentedLLM[MessageParamT, MessageT]):
     ) -> str:
         """Request an LLM generation and return the string representation of the result"""
         params = self.get_request_params(request_params)
-
+        # TODO -- properly incorporate this in to message display etc.
         result = await self.generate(
             message=message,
             request_params=params,

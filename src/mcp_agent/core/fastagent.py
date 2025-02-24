@@ -807,7 +807,7 @@ class FastAgent(ContextDependent):
                     available_agents=child_agents,
                     context=agent_app.context,
                     request_params=planner.default_request_params,  # Base params already include model settings
-                    plan_type="full",
+                    plan_type="full",  # TODO -- support iterative plan type properly
                 )
 
                 # Use factory to create appropriate proxy

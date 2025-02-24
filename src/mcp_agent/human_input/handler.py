@@ -36,7 +36,9 @@ async def console_input_callback(request: HumanInputRequest) -> HumanInputRespon
             try:
                 loop = asyncio.get_event_loop()
                 response = await asyncio.wait_for(
-                    loop.run_in_executor(None, lambda: Prompt.ask()),
+                    loop.run_in_executor(
+                        None, lambda: Prompt.ask("Provide your response ")
+                    ),
                     request.timeout_seconds,
                 )
             except asyncio.TimeoutError:
@@ -44,6 +46,8 @@ async def console_input_callback(request: HumanInputRequest) -> HumanInputRespon
                 raise TimeoutError("No response received within timeout period")
         else:
             loop = asyncio.get_event_loop()
-            response = await loop.run_in_executor(None, lambda: Prompt.ask())
+            response = await loop.run_in_executor(
+                None, lambda: Prompt.ask("Provide your response ")
+            )
 
     return HumanInputResponse(request_id=request.request_id, response=response.strip())
