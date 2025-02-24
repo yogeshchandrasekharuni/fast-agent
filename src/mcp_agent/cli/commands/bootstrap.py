@@ -19,6 +19,7 @@ EXAMPLE_TYPES = {
         "'Building Effective Agents' paper. Some agents use the 'fetch'\n"
         "and filesystem MCP Servers.",
         "files": [
+            "agent_build.py",
             "chaining.py",
             "evaluator.py",
             "human_input.py",
