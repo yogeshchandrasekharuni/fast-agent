@@ -32,8 +32,6 @@ Other bootstrap examples include a Researcher (with Evaluator-Optimizer workflow
 
 > Windows Users - there are a couple of configuration changes needed for the Filesystem and Docker MCP Servers - necessary changes are detailed within the configuration files.
 
-It's built on top of [mcp-agent](todo).
-
 ### llmindset.co.uk fork:
 
 - "FastAgent" style prototyping, with per-agent models
@@ -57,7 +55,3 @@ We recommend using [uv](https://docs.astral.sh/uv/) to manage your Python projec
 ## Table of Contents
 
 We welcome any and all kinds of contributions. Please see the [CONTRIBUTING guidelines](./CONTRIBUTING.md) to get started.
-
-```
-
-```
