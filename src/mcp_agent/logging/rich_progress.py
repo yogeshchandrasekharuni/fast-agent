@@ -83,6 +83,7 @@ class RichProgressDisplay:
     def update(self, event: ProgressEvent) -> None:
         """Update the progress display with a new event."""
         task_name = event.agent_name or "default"
+
         # Create new task if needed
         if task_name not in self._taskmap:
             task_id = self._progress.add_task(

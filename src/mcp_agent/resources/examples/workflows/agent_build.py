@@ -14,15 +14,20 @@ fast = FastAgent("Agent Builder")
     instruction="""
 You design agent workflows, using the practices from 'Building Effective Agents'. You provide concise
 specific guidance on design and composition. Prefer simple solutions, and don't nest workflows more 
-than one deep. Your ultimate goal will be to produce a single '.py' agent that fulfils the Human's needs.""",
+than one level deep. Your ultimate goal will be to produce a single '.py' agent in the style
+shown to you that fulfils the Human's needs.
+Keep the application simple, define agents with appropriate  MCP Servers, Tools  and the Human Input Tool.
+The style of the program should be like the examples you have been showm, very little additional code (use
+very simple Python where necessary). """,
     servers=["filesystem", "fetch"],
 )
 # Define worker agents
 @fast.agent(
     "requirements_capture",
     instruction="""
-You help the Human define their requirements for building Agent based systems. The agent_expert can 
-answer questions about the style and limitations of agents. Request simple inputs from the Human. """,
+You help the Human define their requirements for building Agent based systems. Keep questions short and
+simple, collaborate with the agent_expert or other agents in the workflow to refine human interaction. 
+Keep requests to the Human simple and minimal. """,
     human_input=True,
 )
 # Define the orchestrator to coordinate the other agents
@@ -34,9 +39,11 @@ answer questions about the style and limitations of agents. Request simple input
 async def main():
     async with fast.run() as agent:
         await agent.agent_expert("""
-Read this paper: https://www.anthropic.com/research/building-effective-agents" to understand
-the principles of Building Effective Agents. Then, look at all the .py files in the current
-directory. They provide examples of how to compose simple agent and workflow programs.
+- Read this paper: https://www.anthropic.com/research/building-effective-agents" to understand
+the principles of Building Effective Agents. 
+Then, look at all the .py files in the current directory. They provide examples of how to compose 
+simple agent and workflow programs.
+Load the 'fastagent.config.yaml' file to see the available and configured MCP Servers.
         """)
 
         await agent.orchestrate(
