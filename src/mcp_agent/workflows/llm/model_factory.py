@@ -65,13 +65,16 @@ class ModelFactory:
         "claude-3-5-sonnet-20240620": Provider.ANTHROPIC,
         "claude-3-5-sonnet-20241022": Provider.ANTHROPIC,
         "claude-3-5-sonnet-latest": Provider.ANTHROPIC,
+        "claude-3-7-sonnet-latest": Provider.ANTHROPIC,
+        "claude-3-7-sonnet-20250219": Provider.ANTHROPIC,
         "claude-3-opus-20240229": Provider.ANTHROPIC,
         "claude-3-opus-latest": Provider.ANTHROPIC,
     }
 
     MODEL_ALIASES = {
-        "sonnet": "claude-3-5-sonnet-latest",
+        "sonnet": "claude-3-7-sonnet-latest",
         "sonnet35": "claude-3-5-sonnet-latest",
+        "sonnet37": "claude-3-7-sonnet-latest",
         "claude": "claude-3-5-sonnet-latest",
         "haiku": "claude-3-haiku-20240307",
         "haiku3": "claude-3-haiku-20240307",
