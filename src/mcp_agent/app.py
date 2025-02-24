@@ -135,8 +135,8 @@ class MCPApp:
             "MCPAgent initialized",
             data={
                 "progress_action": "Running",
-                "target": self.name,
-                "agent_name": "mcp_application_loop",
+                "target": self.name or "mcp_application",
+                "agent_name": self.name or "fastagent loop",
             },
         )
 
@@ -150,8 +150,8 @@ class MCPApp:
             "MCPAgent cleanup",
             data={
                 "progress_action": ProgressAction.FINISHED,
-                "target": self.name,
-                "agent_name": "mcp_application_loop",
+                "target": self.name or "mcp_application",
+                "agent_name": self.name or "fastagent loop",
             },
         )
         try:
