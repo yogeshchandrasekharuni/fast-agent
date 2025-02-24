@@ -10,21 +10,27 @@
 
 ## Overview
 
-**`fast-agent`** lets you define, test and compose agents and tools in minutes. 
+**`fast-agent`** lets you define, test and interact with agents, tools and workflows in minutes.
+
+The simple declarative syntax lets you concentrate on the prompts, MCP Servers and compositions to build effective agents.
+
+Quickly compare how different models, combine
 
 ### Get started:
 
 Install the [uv package manager](https://docs.astral.sh/uv/).
 
-`uv pip install fast-agent-mcp` - download and install fast-agent
-
-`fast-agent setup` - setup an agent and configuration files.
-
-`uv run agent.py` - run and interact with your first agent.
+```bash
+uv pip install fast-agent-mcp       # install fast-agent
+fast-agent setup                    # create an example agent and config files
+uv run agent.py                     # run your first agent
+uv run agent.py --model=o3-mini.low # specify a model
+fast-agent bootstrap workflow       # create "building effective agents" examples
+```
 
 `fast-agent bootstrap workflow` - generate example agents and workflows demonstrating each of the patterns from Anthropic's "[Building Effective Agents](https://www.anthropic.com/research/building-effective-agents)" paper.
 
-`fast-agent bootstrap` - 
+`fast-agent bootstrap` -
 
 It's built on top of [mcp-agent](todo).
 
@@ -51,3 +57,7 @@ We recommend using [uv](https://docs.astral.sh/uv/) to manage your Python projec
 ## Table of Contents
 
 We welcome any and all kinds of contributions. Please see the [CONTRIBUTING guidelines](./CONTRIBUTING.md) to get started.
+
+```
+
+```
