@@ -18,7 +18,7 @@ Quickly compare how different models, combine
 
 ### Get started:
 
-Install the [uv package manager](https://docs.astral.sh/uv/).
+Start by installing the [uv package manager](https://docs.astral.sh/uv/) for Python. Then:
 
 ```bash
 uv pip install fast-agent-mcp       # install fast-agent
@@ -29,6 +29,8 @@ fast-agent bootstrap workflow       # create "building effective agents" example
 ```
 
 Other bootstrap examples include a Researcher (with Evaluator-Optimizer workflow) and Data Analysis (similar to ChatGPT experience), demonstrating MCP Roots support.
+
+> Windows Users - there are a couple of configuration changes needed for the Filesystem and Docker MCP Servers - necessary changes are detailed within the configuration files.
 
 It's built on top of [mcp-agent](todo).
 
