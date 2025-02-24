@@ -68,6 +68,7 @@ class RichProgressDisplay:
         """Map actions to appropriate styles."""
         return {
             ProgressAction.STARTING: "bold yellow",
+            ProgressAction.LOADED: "dim green",
             ProgressAction.INITIALIZED: "dim green",
             ProgressAction.CHATTING: "bold blue",
             ProgressAction.READY: "dim green",

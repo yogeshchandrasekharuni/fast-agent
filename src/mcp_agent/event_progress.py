@@ -11,6 +11,7 @@ class ProgressAction(str, Enum):
     """Progress actions available in the system."""
 
     STARTING = "Starting"
+    LOADED = "Loaded"
     INITIALIZED = "Initialized"
     CHATTING = "Chatting"
     READY = "Ready"
@@ -81,7 +82,8 @@ def convert_log_event(event: Event) -> Optional[ProgressEvent]:
         if chat_turn is not None:
             details = f"{model} turn {chat_turn}"
     else:
-        target = event_data.get("target", "unknown")
+        if not target:
+            event_data.get("target", "unknown")
 
     return ProgressEvent(
         ProgressAction(progress_action),

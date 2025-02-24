@@ -19,6 +19,7 @@ from mcp_agent.core.exceptions import (
 from mcp_agent.app import MCPApp
 from mcp_agent.agents.agent import Agent, AgentConfig
 from mcp_agent.context_dependent import ContextDependent
+from mcp_agent.event_progress import ProgressAction
 from mcp_agent.workflows.orchestrator.orchestrator import Orchestrator
 from mcp_agent.workflows.parallel.parallel_llm import ParallelLLM
 from mcp_agent.workflows.evaluator_optimizer.evaluator_optimizer import (
@@ -223,6 +224,34 @@ class FastAgent(ContextDependent):
     Provides a simplified way to create and manage agents using decorators.
     """
 
+    def __init__(self, name: str, config_path: Optional[str] = None):
+        """
+        Initialize the decorator interface.
+
+        Args:
+            name: Name of the application
+            config_path: Optional path to config file
+        """
+        # Initialize ContextDependent
+        super().__init__()
+
+        # Setup command line argument parsing
+        parser = argparse.ArgumentParser(description="MCP Agent Application")
+        parser.add_argument(
+            "--model",
+            help="Override the default model for all agents. Precedence is default < config_file < command line < constructor",
+        )
+        self.args = parser.parse_args()
+
+        self.name = name
+        self.config_path = config_path
+        self._load_config()
+        self.app = MCPApp(
+            name=name,
+            settings=Settings(**self.config) if hasattr(self, "config") else None,
+        )
+        self.agents: Dict[str, Dict[str, Any]] = {}
+
     def _create_proxy(
         self, name: str, instance: AgentOrWorkflow, agent_type: str
     ) -> BaseAgentProxy:
@@ -239,6 +268,7 @@ class FastAgent(ContextDependent):
         Raises:
             TypeError: If instance type doesn't match expected type for agent_type
         """
+        self._log_agent_load(instance)
         if agent_type == AgentType.BASIC.value:
             if not isinstance(instance, Agent):
                 raise TypeError(
@@ -271,34 +301,6 @@ class FastAgent(ContextDependent):
             return RouterProxy(self.app, name, instance)
         else:
             raise ValueError(f"Unknown agent type: {agent_type}")
-
-    def __init__(self, name: str, config_path: Optional[str] = None):
-        """
-        Initialize the decorator interface.
-
-        Args:
-            name: Name of the application
-            config_path: Optional path to config file
-        """
-        # Initialize ContextDependent
-        super().__init__()
-
-        # Setup command line argument parsing
-        parser = argparse.ArgumentParser(description="MCP Agent Application")
-        parser.add_argument(
-            "--model",
-            help="Override the default model for all agents. Precedence is default < config_file < command line < constructor",
-        )
-        self.args = parser.parse_args()
-
-        self.name = name
-        self.config_path = config_path
-        self._load_config()
-        self.app = MCPApp(
-            name=name,
-            settings=Settings(**self.config) if hasattr(self, "config") else None,
-        )
-        self.agents: Dict[str, Dict[str, Any]] = {}
 
     @property
     def context(self):
@@ -785,6 +787,7 @@ class FastAgent(ContextDependent):
                 orchestrators[name] = self._create_proxy(
                     name, orchestrator, AgentType.ORCHESTRATOR.value
                 )
+
         return orchestrators
 
     async def _create_evaluator_optimizers(
@@ -1103,3 +1106,12 @@ class FastAgent(ContextDependent):
                             await proxy._agent.__aexit__(None, None, None)
                         except Exception:
                             pass  # Ignore cleanup errors
+
+    def _log_agent_load(self, agent: AgentOrWorkflow) -> None:
+        self.app._logger.info(
+            f"Loaded {agent.agent_name}",
+            data={
+                "progress_action": ProgressAction.LOADED,
+                "agent_name": agent.agent_name,
+            },
+        )
