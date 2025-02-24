@@ -169,98 +169,96 @@ class EvaluatorOptimizerLLM(AugmentedLLM[MessageParamT, MessageT]):
         best_response = None
         best_rating = QualityRating.POOR
         self.refinement_history = []
-
-        # Initial generation
+        
+        # Use a single AsyncExitStack for the entire method to maintain connections
         async with contextlib.AsyncExitStack() as stack:
+            # Enter all agent contexts once at the beginning
             if isinstance(self.optimizer, Agent):
                 await stack.enter_async_context(self.optimizer)
+            if isinstance(self.evaluator, Agent):
+                await stack.enter_async_context(self.evaluator)
+                
+            # Initial generation
             response = await self.optimizer_llm.generate(
                 message=message,
                 request_params=request_params,
             )
 
-        best_response = response
+            best_response = response
 
-        while refinement_count < self.max_refinements:
-            logger.debug("Optimizer result:", data=response)
+            while refinement_count < self.max_refinements:
+                logger.debug("Optimizer result:", data=response)
 
-            # Evaluate current response
-            eval_prompt = self._build_eval_prompt(
-                original_request=str(message),
-                current_response="\n".join(str(r) for r in response)
-                if isinstance(response, list)
-                else str(response),
-                iteration=refinement_count,
-            )
+                # Evaluate current response
+                eval_prompt = self._build_eval_prompt(
+                    original_request=str(message),
+                    current_response="\n".join(str(r) for r in response)
+                    if isinstance(response, list)
+                    else str(response),
+                    iteration=refinement_count,
+                )
 
-            evaluation_result = None
-            async with contextlib.AsyncExitStack() as stack:
-                if isinstance(self.evaluator, Agent):
-                    await stack.enter_async_context(self.evaluator)
-
+                # No need for nested AsyncExitStack here - using the outer one
                 evaluation_result = await self.evaluator_llm.generate_structured(
                     message=eval_prompt,
                     response_model=EvaluationResult,
                     request_params=request_params,
                 )
 
-            # Track iteration
-            self.refinement_history.append(
-                {
-                    "attempt": refinement_count + 1,
-                    "response": response,
-                    "evaluation_result": evaluation_result,
-                }
-            )
-
-            logger.debug("Evaluator result:", data=evaluation_result)
-
-            # Track best response (using enum ordering)
-            if evaluation_result.rating.value > best_rating.value:
-                best_rating = evaluation_result.rating
-                best_response = response
-                logger.debug(
-                    "New best response:",
-                    data={"rating": best_rating, "response": best_response},
+                # Track iteration
+                self.refinement_history.append(
+                    {
+                        "attempt": refinement_count + 1,
+                        "response": response,
+                        "evaluation_result": evaluation_result,
+                    }
                 )
 
-            # Check if we've reached acceptable quality
-            if (
-                evaluation_result.rating.value >= self.min_rating.value
-                or not evaluation_result.needs_improvement
-            ):
-                logger.debug(
-                    f"Acceptable quality {evaluation_result.rating.value} reached",
-                    data={
-                        "rating": evaluation_result.rating.value,
-                        "needs_improvement": evaluation_result.needs_improvement,
-                        "min_rating": self.min_rating.value,
-                    },
+                logger.debug("Evaluator result:", data=evaluation_result)
+
+                # Track best response (using enum ordering)
+                if evaluation_result.rating.value > best_rating.value:
+                    best_rating = evaluation_result.rating
+                    best_response = response
+                    logger.debug(
+                        "New best response:",
+                        data={"rating": best_rating, "response": best_response},
+                    )
+
+                # Check if we've reached acceptable quality
+                if (
+                    evaluation_result.rating.value >= self.min_rating.value
+                    or not evaluation_result.needs_improvement
+                ):
+                    logger.debug(
+                        f"Acceptable quality {evaluation_result.rating.value} reached",
+                        data={
+                            "rating": evaluation_result.rating.value,
+                            "needs_improvement": evaluation_result.needs_improvement,
+                            "min_rating": self.min_rating.value,
+                        },
+                    )
+                    break
+
+                # Generate refined response
+                refinement_prompt = self._build_refinement_prompt(
+                    original_request=str(message),
+                    current_response="\n".join(str(r) for r in response)
+                    if isinstance(response, list)
+                    else str(response),
+                    feedback=evaluation_result,
+                    iteration=refinement_count,
                 )
-                break
 
-            # Generate refined response
-            refinement_prompt = self._build_refinement_prompt(
-                original_request=str(message),
-                current_response="\n".join(str(r) for r in response)
-                if isinstance(response, list)
-                else str(response),
-                feedback=evaluation_result,
-                iteration=refinement_count,
-            )
-
-            async with contextlib.AsyncExitStack() as stack:
-                if isinstance(self.optimizer, Agent):
-                    await stack.enter_async_context(self.optimizer)
-
+                # No nested AsyncExitStack here either
                 response = await self.optimizer_llm.generate(
                     message=refinement_prompt,
                     request_params=request_params,
                 )
 
-            refinement_count += 1
+                refinement_count += 1
 
-        return best_response
+            return best_response
 
     async def generate_str(
         self,

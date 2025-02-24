@@ -81,13 +81,14 @@ class MCPAggregator(ContextDependent):
     def __init__(
         self,
         server_names: List[str],
-        connection_persistence: bool = False,
+        connection_persistence: bool = True,  # Default to True for better stability
         context: Optional["Context"] = None,
         name: str = None,
         **kwargs,
     ):
         """
         :param server_names: A list of server names to connect to.
+        :param connection_persistence: Whether to maintain persistent connections to servers (default: True).
         Note: The server names must be resolvable by the gen_client function, and specified in the server registry.
         """
         super().__init__(

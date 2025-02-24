@@ -19,7 +19,7 @@ FASTAGENT_CONFIG_TEMPLATE = """
 # If not specified, defaults to "haiku". 
 # Can be overriden with a command line switch --model=<model>, or within the Agent constructor.
 
-default_model: sonnet
+default_model: haiku
 
 # Logging and Console Configuration:
 logger:

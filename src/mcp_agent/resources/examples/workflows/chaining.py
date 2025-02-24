@@ -9,7 +9,6 @@ fast = FastAgent("Agent Chaining")
     "url_fetcher",
     instruction="Given a URL, provide a complete and comprehensive summary",
     servers=["fetch"],
-    model="haiku",
 )
 @fast.agent(
     "social_media",

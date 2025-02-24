@@ -24,7 +24,7 @@ fast = FastAgent("Orchestrator-Workers")
             the closest match to a user's request, make the appropriate tool calls, 
             and return the URI and CONTENTS of the closest match.""",
     servers=["fetch", "filesystem"],
-    model="gpt-4o-mini",
+    model="gpt-4o",
 )
 @fast.agent(
     name="writer",

@@ -75,6 +75,19 @@ class ServerConnection:
 
         # Signal we want to shut down
         self._shutdown_event = Event()
+        
+        # Track error state
+        self._error_occurred = False
+        self._error_message = None
+        
+    def is_healthy(self) -> bool:
+        """Check if the server connection is healthy and ready to use."""
+        return self.session is not None and not self._error_occurred
+        
+    def reset_error_state(self) -> None:
+        """Reset the error state, allowing reconnection attempts."""
+        self._error_occurred = False
+        self._error_message = None
 
     def request_shutdown(self) -> None:
         """
@@ -164,10 +177,12 @@ async def _server_lifecycle_task(server_conn: ServerConnection) -> None:
                 "server_name": server_name,
             },
         )
+        server_conn._error_occurred = True
+        server_conn._error_message = str(exc)
         # If there's an error, we should also set the event so that
         # 'get_server' won't hang
         server_conn._initialized_event.set()
-        raise
+        # No raise - allow graceful exit
 
 
 class MCPConnectionManager(ContextDependent):
@@ -183,38 +198,34 @@ class MCPConnectionManager(ContextDependent):
         self.server_registry = server_registry
         self.running_servers: Dict[str, ServerConnection] = {}
         self._lock = Lock()
+        # Manage our own task group - independent of task context
+        self._task_group = None
+        self._task_group_active = False
 
     async def __aenter__(self):
-        current_task = asyncio.current_task()
-
-        # Get or create task group from context
-        if not hasattr(self.context, "_connection_task_group"):
-            self.context._connection_task_group = create_task_group()
-            self.context._connection_task_group_context = current_task.get_name()
-            await self.context._connection_task_group.__aenter__()
-
-        self._tg = self.context._connection_task_group
+        # Create a task group that isn't tied to a specific task
+        self._task_group = create_task_group()
+        # Enter the task group context
+        await self._task_group.__aenter__()
+        self._task_group_active = True
+        self._tg = self._task_group
         return self
 
     async def __aexit__(self, exc_type, exc_val, exc_tb):
         """Ensure clean shutdown of all connections before exiting."""
-        current_task = asyncio.current_task()
-
         try:
             # First request all servers to shutdown
             await self.disconnect_all()
-
-            # Only clean up task group if we're in the original context
-            if (
-                hasattr(self.context, "_connection_task_group")
-                and current_task.get_name()
-                == self.context._connection_task_group_context
-            ):
-                await self.context._connection_task_group.__aexit__(
-                    exc_type, exc_val, exc_tb
-                )
-                delattr(self.context, "_connection_task_group")
-                delattr(self.context, "_connection_task_group_context")
+            
+            # Add a small delay to allow for clean shutdown
+            await asyncio.sleep(0.5)
+            
+            # Then close the task group if it's active
+            if self._task_group_active:
+                await self._task_group.__aexit__(exc_type, exc_val, exc_tb)
+                self._task_group_active = False
+                self._task_group = None
+                self._tg = None
         except Exception as e:
             logger.error(f"Error during connection manager shutdown: {e}")
 
@@ -231,10 +242,13 @@ class MCPConnectionManager(ContextDependent):
         Connect to a server and return a RunningServer instance that will persist
         until explicitly disconnected.
         """
-        if not self._tg:
-            raise RuntimeError(
-                "MCPConnectionManager must be used inside an async context (i.e. 'async with' or after __aenter__)."
-            )
+        # Create task group if it doesn't exist yet - make this method more resilient
+        if not self._task_group_active:
+            self._task_group = create_task_group()
+            await self._task_group.__aenter__()
+            self._task_group_active = True
+            self._tg = self._task_group
+            logger.info(f"Auto-created task group for server: {server_name}")
 
         config = self.server_registry.registry.get(server_name)
         if not config:
@@ -286,11 +300,17 @@ class MCPConnectionManager(ContextDependent):
         """
         Get a running server instance, launching it if needed.
         """
-        # Get the server connection if it's already running
+        # Get the server connection if it's already running and healthy
         async with self._lock:
             server_conn = self.running_servers.get(server_name)
-            if server_conn:
+            if server_conn and server_conn.is_healthy():
                 return server_conn
+                
+            # If server exists but isn't healthy, remove it so we can create a new one
+            if server_conn:
+                logger.info(f"{server_name}: Server exists but is unhealthy, recreating...")
+                self.running_servers.pop(server_name)
+                server_conn.request_shutdown()
 
         # Launch the connection
         server_conn = await self.launch_server(
@@ -302,11 +322,13 @@ class MCPConnectionManager(ContextDependent):
         # Wait until it's fully initialized, or an error occurs
         await server_conn.wait_for_initialized()
 
-        # If the session is still None, it means the lifecycle task crashed
-        if not server_conn or not server_conn.session:
+        # Check if the server is healthy after initialization
+        if not server_conn.is_healthy():
+            error_msg = server_conn._error_message or "Unknown error"
             raise ServerInitializationError(
-                f"{server_name}: Failed to initialize server; check logs for errors."
+                f"{server_name}: Failed to initialize server: {error_msg}"
             )
+        
         return server_conn
 
     async def disconnect_server(self, server_name: str) -> None:
@@ -329,11 +351,19 @@ class MCPConnectionManager(ContextDependent):
 
     async def disconnect_all(self) -> None:
         """Disconnect all servers that are running under this connection manager."""
+        # Get a copy of servers to shutdown
+        servers_to_shutdown = []
+        
         async with self._lock:
             if not self.running_servers:
                 return
-
-            for name, conn in self.running_servers.items():
-                conn.request_shutdown()
-
+                
+            # Make a copy of the servers to shut down
+            servers_to_shutdown = list(self.running_servers.items())
+            # Clear the dict immediately to prevent any new access
             self.running_servers.clear()
+            
+        # Release the lock before waiting for servers to shut down
+        for name, conn in servers_to_shutdown:
+            logger.info(f"{name}: Requesting shutdown...")
+            conn.request_shutdown()
