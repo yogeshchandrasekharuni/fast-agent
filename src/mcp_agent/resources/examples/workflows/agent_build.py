@@ -32,7 +32,7 @@ Keep requests to the Human simple and minimal. """,
 )
 # Define the orchestrator to coordinate the other agents
 @fast.orchestrator(
-    name="orchestrate",
+    name="orchestrator_worker",
     agents=["agent_expert", "requirements_capture"],
     model="sonnet",
 )
@@ -41,12 +41,18 @@ async def main():
         await agent.agent_expert("""
 - Read this paper: https://www.anthropic.com/research/building-effective-agents" to understand
 the principles of Building Effective Agents. 
-Then, look at all the .py files in the current directory. They provide examples of how to compose 
-simple agent and workflow programs.
-Load the 'fastagent.config.yaml' file to see the available and configured MCP Servers.
+- Read and examing the sample agent and workflow definitions in the current directory:
+  - chaining.py - simple agent chaining example.
+  - parallel.py - parallel agents example.
+  - evaluator.py - evaluator optimizer example.
+  - orchestrator.py - complex orchestration example.
+  - router.py - workflow routing example.
+- Load the 'fastagent.config.yaml' file to see the available and configured MCP Servers.
+When producing the agent/workflow definition, keep to a simple single .py file in the style
+of the examples.
         """)
 
-        await agent.orchestrate(
+        await agent.orchestrator_worker(
             "Write an Agent program that fulfils the Human's needs."
         )
 
