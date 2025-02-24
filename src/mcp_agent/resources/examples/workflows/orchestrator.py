@@ -44,12 +44,6 @@ fast = FastAgent("Orchestrator-Workers")
 # Define the orchestrator to coordinate the other agents
 @fast.orchestrator(
     name="orchestrate",
-    instruction="""Load the student's short story from short_story.md, 
-    and generate a report with feedback across proofreading, 
-    factuality/logical consistency and style adherence. Use the style rules from 
-    https://apastyle.apa.org/learn/quick-guide-on-formatting and 
-    https://apastyle.apa.org/learn/quick-guide-on-references.
-    Write the graded report to graded_report.md in the same directory as short_story.md""",
     agents=["finder", "writer", "proofreader"],
     model="sonnet",
 )

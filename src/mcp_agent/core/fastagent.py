@@ -32,7 +32,7 @@ from rich.prompt import Prompt
 from rich import print
 from mcp_agent.progress_display import progress_display
 from mcp_agent.workflows.llm.model_factory import ModelFactory
-from mcp_agent.workflows.llm.augmented_llm import RequestParams
+from mcp_agent.workflows.llm.augmented_llm import AugmentedLLM, RequestParams
 
 # TODO -- resintate once Windows&Python 3.13 platform issues are fixed
 # import readline  # noqa: F401
@@ -337,7 +337,8 @@ class FastAgent(ContextDependent):
     def _validate_workflow_references(self) -> None:
         """
         Validate that all workflow references point to valid agents/workflows.
-        Raises ValueError if any referenced components are not defined.
+        Also validates that referenced agents have required configuration.
+        Raises AgentConfigError if any validation fails.
         """
         available_components = set(self.agents.keys())
 
@@ -361,13 +362,25 @@ class FastAgent(ContextDependent):
                     )
 
             elif agent_type == AgentType.ORCHESTRATOR.value:
-                # Check all child agents exist
+                # Check all child agents exist and are properly configured
                 child_agents = agent_data["child_agents"]
                 missing = [a for a in child_agents if a not in available_components]
                 if missing:
                     raise AgentConfigError(
                         f"Orchestrator '{name}' references non-existent agents: {', '.join(missing)}"
                     )
+
+                # Validate child agents have required LLM configuration
+                for agent_name in child_agents:
+                    child_data = self.agents[agent_name]
+                    if child_data["type"] == AgentType.BASIC.value:
+                        # For basic agents, we'll validate LLM config during creation
+                        continue
+                    elif not isinstance(child_data["func"], AugmentedLLM):
+                        raise AgentConfigError(
+                            f"Agent '{agent_name}' used by orchestrator '{name}' lacks LLM capability",
+                            "All agents used by orchestrators must be LLM-capable",
+                        )
 
             elif agent_type == AgentType.ROUTER.value:
                 # Check all referenced agents exist
@@ -435,7 +448,7 @@ class FastAgent(ContextDependent):
         *,
         instruction: str = "You are a helpful agent.",
         servers: List[str] = [],
-        model: Optional[str] = None,
+        model: str | None = None,
         use_history: bool = True,
         request_params: Optional[Dict] = None,
         human_input: bool = False,
@@ -485,11 +498,12 @@ class FastAgent(ContextDependent):
 
     def orchestrator(
         self,
-        name: str,
-        instruction: str,
+        name: str = "Orchestrator",
+        *,
+        instruction: str | None = None,
         agents: List[str],
         model: str | None = None,
-        use_history: bool = True,
+        use_history: bool = False,
         request_params: Optional[Dict] = None,
         human_input: bool = False,
     ) -> Callable:
@@ -501,14 +515,14 @@ class FastAgent(ContextDependent):
             instruction: Base instruction for the orchestrator
             agents: List of agent names this orchestrator can use
             model: Model specification string (highest precedence)
-            use_history: Whether to maintain conversation history
+            use_history: Whether to maintain conversation history (forced false)
             request_params: Additional request parameters for the LLM
         """
 
         def decorator(func: Callable) -> Callable:
             # Create base request params
             base_params = RequestParams(
-                use_history=use_history, **(request_params or {})
+                use_history=use_history, model=model, **(request_params or {})
             )
 
             # Create agent configuration
@@ -724,7 +738,7 @@ class FastAgent(ContextDependent):
 
         return active_agents
 
-    def _create_orchestrators(
+    async def _create_orchestrators(
         self, agent_app: MCPApp, active_agents: ProxyDict
     ) -> ProxyDict:
         """
@@ -742,44 +756,57 @@ class FastAgent(ContextDependent):
             if agent_data["type"] == AgentType.ORCHESTRATOR.value:
                 config = agent_data["config"]
 
-                # TODO: Remove legacy - This model/params setup should be in Agent class
-                # Resolve model alias if present
-                model_config = ModelFactory.parse_model_string(config.model)
-                resolved_model = model_config.model_name
-
-                # Start with existing params if available
-                if config.default_request_params:
-                    base_params = config.default_request_params.model_copy()
-                    # Update with orchestrator-specific settings
-                    base_params.use_history = config.use_history
-                    base_params.model = resolved_model
-                else:
-                    base_params = RequestParams(
-                        use_history=config.use_history, model=resolved_model
-                    )
-
-                llm_factory = self._get_model_factory(
-                    model=config.model,  # Use original model string for factory creation
-                    request_params=base_params,
+                # Get base params configured with model settings
+                base_params = (
+                    config.default_request_params.model_copy()
+                    if config.default_request_params
+                    else RequestParams()
                 )
+                base_params.use_history = False  # Force no history for orchestrator
 
-                # Get the child agents - need to unwrap proxies
+                # Get the child agents - need to unwrap proxies and validate LLM config
                 child_agents = []
                 for agent_name in agent_data["child_agents"]:
                     proxy = active_agents[agent_name]
-                    if isinstance(proxy, LLMAgentProxy):
-                        child_agents.append(proxy._agent)  # Get the actual Agent
-                    else:
-                        # Handle case where it might be another workflow
-                        child_agents.append(proxy._workflow)
+                    instance = self._unwrap_proxy(proxy)
+                    # Validate basic agents have LLM
+                    if isinstance(instance, Agent):
+                        if not hasattr(instance, "_llm") or not instance._llm:
+                            raise AgentConfigError(
+                                f"Agent '{agent_name}' used by orchestrator '{name}' missing LLM configuration",
+                                "All agents must be fully configured with LLMs before being used in an orchestrator",
+                            )
+                    child_agents.append(instance)
 
+                # Create a properly configured planner agent
+                planner_config = AgentConfig(
+                    name=f"{name}",  # Use orchestrator name as prefix
+                    instruction=config.instruction
+                    or """
+                    You are an expert planner. Given an objective task and a list of MCP servers (which are collections of tools)
+                    or Agents (which are collections of servers), your job is to break down the objective into a series of steps,
+                    which can be performed by LLMs with access to the servers or agents.
+                    """,
+                    servers=[],  # Planner doesn't need server access
+                    model=config.model,  # Use same model as orchestrator
+                    default_request_params=base_params,
+                )
+                planner_agent = Agent(config=planner_config, context=agent_app.context)
+                planner_factory = self._get_model_factory(
+                    model=config.model,
+                    request_params=config.default_request_params,
+                )
+
+                async with planner_agent:
+                    planner = await planner_agent.attach_llm(planner_factory)
+
+                # Create the orchestrator with pre-configured planner
                 orchestrator = Orchestrator(
                     name=config.name,
-                    instruction=config.instruction,
+                    planner=planner,  # Pass pre-configured planner
                     available_agents=child_agents,
                     context=agent_app.context,
-                    llm_factory=llm_factory,
-                    request_params=base_params,  # Use our base params that include model
+                    request_params=planner.default_request_params,  # Base params already include model settings
                     plan_type="full",
                 )
 
@@ -882,7 +909,7 @@ class FastAgent(ContextDependent):
 
         return deps
 
-    def _create_parallel_agents(
+    async def _create_parallel_agents(
         self, agent_app: MCPApp, active_agents: ProxyDict
     ) -> ProxyDict:
         """
@@ -950,7 +977,9 @@ class FastAgent(ContextDependent):
 
         return parallel_agents
 
-    def _create_routers(self, agent_app: MCPApp, active_agents: ProxyDict) -> ProxyDict:
+    async def _create_routers(
+        self, agent_app: MCPApp, active_agents: ProxyDict
+    ) -> ProxyDict:
         """
         Create router agents.
 
@@ -1033,14 +1062,18 @@ class FastAgent(ContextDependent):
                 self._validate_server_references()
                 self._validate_workflow_references()
 
-                # Create all types of agents
+                # Create all types of agents in dependency order
                 active_agents = await self._create_basic_agents(agent_app)
-                orchestrators = self._create_orchestrators(agent_app, active_agents)
-                parallel_agents = self._create_parallel_agents(agent_app, active_agents)
+                orchestrators = await self._create_orchestrators(
+                    agent_app, active_agents
+                )
+                parallel_agents = await self._create_parallel_agents(
+                    agent_app, active_agents
+                )
                 evaluator_optimizers = await self._create_evaluator_optimizers(
                     agent_app, active_agents
                 )
-                routers = self._create_routers(agent_app, active_agents)
+                routers = await self._create_routers(agent_app, active_agents)
 
                 # Merge all agents into active_agents
                 active_agents.update(orchestrators)
