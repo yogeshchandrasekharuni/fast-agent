@@ -2,9 +2,7 @@
 Orchestrator implementation for MCP Agent applications.
 """
 
-import contextlib
 from typing import (
-    Callable,
     List,
     Literal,
     Optional,
@@ -12,7 +10,7 @@ from typing import (
     TYPE_CHECKING,
 )
 
-from mcp_agent.agents.agent import Agent, AgentConfig
+from mcp_agent.agents.agent import Agent
 from mcp_agent.workflows.llm.augmented_llm import (
     AugmentedLLM,
     MessageParamT,
@@ -20,7 +18,6 @@ from mcp_agent.workflows.llm.augmented_llm import (
     ModelT,
     RequestParams,
 )
-from mcp_agent.workflows.llm.model_factory import ModelFactory
 from mcp_agent.workflows.orchestrator.orchestrator_models import (
     format_plan_result,
     format_step_result,
@@ -47,9 +44,9 @@ logger = get_logger(__name__)
 
 class Orchestrator(AugmentedLLM[MessageParamT, MessageT]):
     """
-    In the orchestrator-workers workflow, a central LLM dynamically breaks down tasks,
-    delegates them to worker LLMs, and synthesizes their results. It does this
-    in a loop until the task is complete.
+    In the orchestrator-workers workflow, a central planner LLM dynamically breaks down tasks and
+    delegates them to pre-configured worker LLMs. The planner synthesizes their results in a loop
+    until the task is complete.
 
     When to use this workflow:
         - This workflow is well-suited for complex tasks where you can't predict the
@@ -60,64 +57,59 @@ class Orchestrator(AugmentedLLM[MessageParamT, MessageT]):
         - Coding products that make complex changes to multiple files each time.
         - Search tasks that involve gathering and analyzing information from multiple sources
         for possible relevant information.
+
+    Note:
+        All agents must be pre-configured with LLMs before being passed to the orchestrator.
+        This ensures consistent model behavior and configuration across all components.
     """
 
     def __init__(
         self,
-        llm_factory: Callable[[Agent], AugmentedLLM[MessageParamT, MessageT]],
-        planner: AugmentedLLM | None = None,
-        available_agents: List[Agent | AugmentedLLM] | None = None,
+        name: str,
+        planner: AugmentedLLM,  # Pre-configured planner
+        available_agents: List[Agent | AugmentedLLM],
         plan_type: Literal["full", "iterative"] = "full",
         context: Optional["Context"] = None,
         **kwargs,
     ):
         """
         Args:
-            llm_factory: Factory function to create an LLM for a given agent
-            planner: LLM to use for planning steps (if not provided, a default planner will be used)
-            plan_type: "full" planning generates the full plan first, then executes. "iterative" plans the next step, and loops until success.
-            available_agents: List of agents available to tasks executed by this orchestrator
+            name: Name of the orchestrator workflow
+            planner: Pre-configured planner LLM to use for planning steps
+            available_agents: List of pre-configured agents available to this orchestrator
+            plan_type: "full" planning generates the full plan first, then executes. "iterative" plans next step and loops.
             context: Application context
         """
         # Initialize with orchestrator-specific defaults
         orchestrator_params = RequestParams(
             use_history=False,  # Orchestrator doesn't support history
             max_iterations=30,  # Higher default for complex tasks
-            maxTokens=8192,  # Higher default for planning TODO this will break some models - make configurable.
+            maxTokens=8192,  # Higher default for planning
             parallel_tool_calls=True,
         )
 
-        # If kwargs contains request_params, merge with our defaults but force use_history False
+        # If kwargs contains request_params, merge our defaults while preserving the model config
         if "request_params" in kwargs:
             base_params = kwargs["request_params"]
-            merged = base_params.model_copy()
-            merged.use_history = False  # Force this setting
+            # Create merged params starting with our defaults
+            merged = orchestrator_params.model_copy()
+            # Update with base params to get model config
+            if isinstance(base_params, dict):
+                merged = merged.model_copy(update=base_params)
+            else:
+                merged = merged.model_copy(update=base_params.model_dump())
+            # Force specific settings
+            merged.use_history = False
             kwargs["request_params"] = merged
         else:
             kwargs["request_params"] = orchestrator_params
 
         super().__init__(context=context, **kwargs)
 
-        self.llm_factory = llm_factory
-
-        # Create default planner with AgentConfig
-        request_params = self.get_request_params(kwargs.get("request_params"))
-        planner_config = AgentConfig(
-            name="LLM Orchestrator",
-            instruction="""
-            You are an expert planner. Given an objective task and a list of MCP servers (which are collections of tools)
-            or Agents (which are collections of servers), your job is to break down the objective into a series of steps,
-            which can be performed by LLMs with access to the servers or agents.
-            """,
-            servers=[],  # Planner doesn't need direct server access
-            default_request_params=request_params,
-        )
-
-        self.planner = planner or llm_factory(agent=Agent(config=planner_config))
-
-        self.plan_type: Literal["full", "iterative"] = plan_type
+        self.planner = planner
+        self.plan_type = plan_type
         self.server_registry = self.context.server_registry
-        self.agents = {agent.name: agent for agent in available_agents or []}
+        self.agents = {agent.name: agent for agent in available_agents}
 
     async def generate(
         self,
@@ -154,24 +146,14 @@ class Orchestrator(AugmentedLLM[MessageParamT, MessageT]):
     ) -> ModelT:
         """Request a structured LLM generation and return the result as a Pydantic model."""
         params = self.get_request_params(request_params)
-
         result_str = await self.generate_str(message=message, request_params=params)
 
-        structured_config = AgentConfig(
-            name="Structured Output",
-            instruction="Produce a structured output given a message",
-            servers=[],  # No server access needed for structured output
-        )
-
-        llm = self.llm_factory(agent=Agent(config=structured_config))
-
-        structured_result = await llm.generate_structured(
+        # Use AugmentedLLM's structured output handling
+        return await super().generate_structured(
             message=result_str,
             response_model=response_model,
             request_params=params,
         )
-
-        return structured_result
 
     async def execute(
         self, objective: str, request_params: RequestParams | None = None
@@ -232,8 +214,6 @@ class Orchestrator(AugmentedLLM[MessageParamT, MessageT]):
 
                 plan_result.add_step_result(step_result)
 
-                plan_result.add_step_result(step_result)
-
             logger.debug(
                 f"Iteration {iterations}: Intermediate plan result:", data=plan_result
             )
@@ -250,70 +230,36 @@ class Orchestrator(AugmentedLLM[MessageParamT, MessageT]):
         request_params: RequestParams | None = None,
     ) -> StepResult:
         """Execute a step's subtasks in parallel and synthesize results"""
-        params = self.get_request_params(request_params)
 
         step_result = StepResult(step=step, task_results=[])
         context = format_plan_result(previous_result)
 
-        # Prepare tasks and LLMs
-        task_llms = []
-        async with contextlib.AsyncExitStack() as stack:
-            for task in step.tasks:
-                agent = self.agents.get(task.agent)
-                if not agent:
-                    raise ValueError(f"No agent found matching {task.agent}")
+        # Execute tasks
+        futures = []
+        for task in step.tasks:
+            agent = self.agents.get(task.agent)
+            if not agent:
+                raise ValueError(f"No agent found matching {task.agent}")
 
-                if isinstance(agent, AugmentedLLM):
-                    llm = agent
-                else:
-                    # Use existing LLM if agent has one
-                    if hasattr(agent, "_llm") and agent._llm:
-                        llm = agent._llm
-                    else:
-                        # Only create new context if needed
-                        ctx_agent = await stack.enter_async_context(agent)
-                        # Create factory with agent's own configuration
-                        agent_factory = ModelFactory.create_factory(
-                            model_string=agent.config.model,
-                            request_params=agent.config.default_request_params,
-                        )
-                        llm = await ctx_agent.attach_llm(agent_factory)
+            task_description = TASK_PROMPT_TEMPLATE.format(
+                objective=previous_result.objective,
+                task=task.description,
+                context=context,
+            )
 
-                task_llms.append((task, llm))
+            # All agents should now be LLM-capable
+            futures.append(agent._llm.generate_str(message=task_description))
 
-            # Execute all tasks within the same context
-            futures = []
-            for task, llm in task_llms:
-                task_description = TASK_PROMPT_TEMPLATE.format(
-                    objective=previous_result.objective,
-                    task=task.description,
-                    context=context,
-                )
-                # Get the agent's config for task execution
-                agent = self.agents.get(task.agent)
-                task_params = (
-                    agent.config.default_request_params
-                    if hasattr(agent, "config")
-                    else params
-                )
-                futures.append(
-                    llm.generate_str(
-                        message=task_description, request_params=task_params
-                    )
-                )
+        # Wait for all tasks
+        results = await self.executor.execute(*futures)
 
-            # Wait for all tasks, including any tool calls they make
-            results = await self.executor.execute(*futures)
+        # Process results
+        for task, result in zip(step.tasks, results):
+            step_result.add_task_result(
+                TaskWithResult(**task.model_dump(), result=str(result))
+            )
 
-            # Process results while contexts are still active
-            for (task, _), result in zip(task_llms, results):
-                step_result.add_task_result(
-                    TaskWithResult(**task.model_dump(), result=str(result))
-                )
-
-            # Format final result while contexts are still active
-            step_result.result = format_step_result(step_result)
-
+        step_result.result = format_step_result(step_result)
         return step_result
 
     async def _get_full_plan(
