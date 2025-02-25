@@ -1,6 +1,5 @@
 import asyncio
 from rich.panel import Panel
-from rich.prompt import Prompt
 
 from mcp_agent.console import console
 from mcp_agent.human_input.types import (
@@ -8,10 +7,11 @@ from mcp_agent.human_input.types import (
     HumanInputResponse,
 )
 from mcp_agent.progress_display import progress_display
+from mcp_agent.core.enhanced_prompt import get_enhanced_input, handle_special_commands
 
 
 async def console_input_callback(request: HumanInputRequest) -> HumanInputResponse:
-    """Request input from a human user via console using rich panel and prompt."""
+    """Request input from a human user via console using prompt_toolkit."""
 
     # Prepare the prompt text
     prompt_text = request.prompt
@@ -28,26 +28,53 @@ async def console_input_callback(request: HumanInputRequest) -> HumanInputRespon
         padding=(1, 2),
     )
 
+    # Extract agent name from metadata dictionary
+    agent_name = (
+        request.metadata.get("agent_name", "Unknown Agent")
+        if request.metadata
+        else "Unknown Agent"
+    )
+
     # Use the context manager to pause the progress display while getting input
     with progress_display.paused():
         console.print(panel)
+        console.print(f"[bold blue]Agent: {agent_name}[/bold blue]")
 
-        if request.timeout_seconds:
-            try:
-                loop = asyncio.get_event_loop()
-                response = await asyncio.wait_for(
-                    loop.run_in_executor(
-                        None, lambda: Prompt.ask("Provide your response ")
-                    ),
-                    request.timeout_seconds,
+        try:
+            if request.timeout_seconds:
+                try:
+                    # Use get_enhanced_input with empty agent list to disable agent switching
+                    response = await asyncio.wait_for(
+                        get_enhanced_input(
+                            agent_name=agent_name,
+                            available_agent_names=[],  # No agents for selection
+                            show_stop_hint=False,
+                            is_human_input=True,
+                            toolbar_color="ansimagenta",  # Use yellow to indicate human input
+                        ),
+                        request.timeout_seconds,
+                    )
+                except asyncio.TimeoutError:
+                    console.print("\n[red]Timeout waiting for input[/red]")
+                    raise TimeoutError("No response received within timeout period")
+            else:
+                response = await get_enhanced_input(
+                    agent_name=agent_name,
+                    available_agent_names=[],  # No agents for selection
+                    show_stop_hint=False,
+                    is_human_input=True,
+                    toolbar_color="ansimagenta",  # Use yellow to indicate human input
                 )
-            except asyncio.TimeoutError:
-                console.print("\n[red]Timeout waiting for input[/red]")
-                raise TimeoutError("No response received within timeout period")
-        else:
-            loop = asyncio.get_event_loop()
-            response = await loop.run_in_executor(
-                None, lambda: Prompt.ask("Provide your response ")
-            )
+
+            # Only display the command results without changing the response
+            if response and (response.startswith("/") or response.startswith("@")):
+                await handle_special_commands(response)
+
+        except KeyboardInterrupt:
+            console.print("\n[yellow]Input interrupted[/yellow]")
+            response = ""
+        except EOFError:
+            console.print("\n[yellow]Input terminated[/yellow]")
+            response = ""
 
     return HumanInputResponse(request_id=request.request_id, response=response.strip())

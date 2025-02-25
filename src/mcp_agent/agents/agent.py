@@ -148,10 +148,7 @@ class Agent(MCPAggregator):
         """
         await super().close()
 
-    async def request_human_input(
-        self,
-        request: HumanInputRequest,
-    ) -> str:
+    async def request_human_input(self, request: HumanInputRequest) -> str:
         """
         Request input from a human user. Pauses the workflow until input is received.
 
@@ -170,7 +167,8 @@ class Agent(MCPAggregator):
         # Generate a unique ID for this request to avoid signal collisions
         request_id = f"{HUMAN_INPUT_SIGNAL_NAME}_{self.name}_{uuid.uuid4()}"
         request.request_id = request_id
-
+        # Use metadata as a dictionary to pass agent name
+        request.metadata = {"agent_name": self.name}
         self.logger.debug("Requesting human input:", data=request)
 
         async def call_callback_and_signal():
@@ -253,7 +251,22 @@ class Agent(MCPAggregator):
     ) -> CallToolResult:
         # Handle human input request
         try:
-            request = HumanInputRequest(**arguments.get("request"))
+            # Make sure arguments is not None
+            if arguments is None:
+                arguments = {}
+                
+            # Extract request data
+            request_data = arguments.get("request")
+            
+            # Handle both string and dict request formats
+            if isinstance(request_data, str):
+                request = HumanInputRequest(prompt=request_data)
+            elif isinstance(request_data, dict):
+                request = HumanInputRequest(**request_data)
+            else:
+                # Fallback for invalid or missing request data
+                request = HumanInputRequest(prompt="Please provide input:")
+                
             result: HumanInputResponse = await self.request_human_input(request=request)
             return CallToolResult(
                 content=[

@@ -29,7 +29,9 @@ agent_messages_shown = set()
 class AgentCompleter(Completer):
     """Provide completion for agent names and common commands."""
 
-    def __init__(self, agents: List[str], commands: List[str] = None, agent_types: dict = None):
+    def __init__(
+        self, agents: List[str], commands: List[str] = None, agent_types: dict = None
+    ):
         self.agents = agents
         self.commands = commands or ["help", "clear", "STOP"]
         self.agent_types = agent_types or {}
@@ -120,6 +122,8 @@ async def get_enhanced_input(
     available_agent_names: List[str] = None,
     syntax: str = None,
     agent_types: dict = None,
+    is_human_input: bool = False,
+    toolbar_color: str = "ansiblue",
 ) -> str:
     """
     Enhanced input with advanced prompt_toolkit features.
@@ -133,6 +137,8 @@ async def get_enhanced_input(
         available_agent_names: List of agent names for auto-completion
         syntax: Syntax highlighting (e.g., 'python', 'sql')
         agent_types: Dictionary mapping agent names to their types for display
+        is_human_input: Whether this is a human input request (disables agent selection features)
+        toolbar_color: Color to use for the agent name in the toolbar (default: "ansiblue")
 
     Returns:
         User input string
@@ -176,7 +182,7 @@ async def get_enhanced_input(
 
         shortcut_text = " | ".join(f"{key}:{action}" for key, action in shortcuts)
         return HTML(
-            f" <b>Agent:</b> <ansiblue> {agent_name} </ansiblue> | <b>Mode:</b> <{mode_style}> {mode_text} </{mode_style}> | {shortcut_text}"
+            f" <{toolbar_color}> {agent_name} </{toolbar_color}> | <b>Mode:</b> <{mode_style}> {mode_text} </{mode_style}> | {shortcut_text}"
         )
 
     # Create session with history and completions
@@ -190,7 +196,7 @@ async def get_enhanced_input(
         lexer=PygmentsLexer(PythonLexer) if syntax == "python" else None,
         multiline=Condition(lambda: in_multiline_mode),
         complete_in_thread=True,
-        mouse_support=True,
+        mouse_support=False,
         bottom_toolbar=get_toolbar,  # Pass the function here
     )
 
@@ -220,9 +226,14 @@ async def get_enhanced_input(
 
     # Mention available features but only on first usage for this agent
     if agent_name not in agent_messages_shown:
-        rich_print(
-            "[dim]Tip: Type /help for commands, press F1 for keyboard shortcuts. Ctrl+T toggles multiline mode. @Agent to switch agent[/dim]"
-        )
+        if is_human_input:
+            rich_print(
+                "[dim]Tip: Type /help for commands. Ctrl+T toggles multiline mode. Alt+Enter to submit in multiline mode.[/dim]"
+            )
+        else:
+            rich_print(
+                "[dim]Tip: Type /help for commands, press F1 for keyboard shortcuts. Ctrl+T toggles multiline mode. @Agent to switch agent[/dim]"
+            )
         agent_messages_shown.add(agent_name)
 
     # Process special commands
