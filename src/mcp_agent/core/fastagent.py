@@ -28,7 +28,6 @@ from mcp_agent.workflows.evaluator_optimizer.evaluator_optimizer import (
 )
 from mcp_agent.workflows.router.router_llm import LLMRouter
 from mcp_agent.config import Settings
-from rich.prompt import Prompt
 from rich import print
 from mcp_agent.progress_display import progress_display
 from mcp_agent.workflows.llm.model_factory import ModelFactory

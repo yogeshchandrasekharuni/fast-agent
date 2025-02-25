@@ -2,21 +2,12 @@
 Enhanced prompt functionality with advanced prompt_toolkit features.
 """
 
-import asyncio
-from typing import Optional, List, Dict, Callable, Any
+from typing import List
 from prompt_toolkit import PromptSession
 from prompt_toolkit.formatted_text import HTML
 from prompt_toolkit.history import InMemoryHistory
 from prompt_toolkit.key_binding import KeyBindings
-from prompt_toolkit.key_binding.bindings.focus import focus_next, focus_previous
-from prompt_toolkit.document import Document
-from prompt_toolkit.layout import Layout, HSplit, VSplit, Window, FormattedTextControl
-from prompt_toolkit.layout.containers import Float, FloatContainer, ConditionalContainer
-from prompt_toolkit.layout.dimension import D
-from prompt_toolkit.layout.margins import ScrollbarMargin
-from prompt_toolkit.layout.menus import CompletionsMenu
-from prompt_toolkit.widgets import TextArea, Button, Frame, Label, Box
-from prompt_toolkit.completion import Completer, Completion, WordCompleter
+from prompt_toolkit.completion import Completer, Completion
 from prompt_toolkit.lexers import PygmentsLexer
 from prompt_toolkit.filters import Condition
 from pygments.lexers.python import PythonLexer
