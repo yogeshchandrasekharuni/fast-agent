@@ -35,7 +35,7 @@ Summarize your evaluation as a structured response with:
 - Specific feedback and areas for improvement.""",
 )
 @agents.evaluator_optimizer(
-    optimizer="Researcher",
+    generator="Researcher",
     evaluator="Evaluator",
     max_refinements=5,
     min_rating="EXCELLENT",

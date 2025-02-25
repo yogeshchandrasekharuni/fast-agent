@@ -55,7 +55,7 @@ async def example_usage():
         )
 
         evaluator_optimizer = EvaluatorOptimizerLLM(
-            optimizer=optimizer,
+            generator=optimizer,
             evaluator=evaluator,
             llm_factory=OpenAIAugmentedLLM,
             min_rating=QualityRating.EXCELLENT,

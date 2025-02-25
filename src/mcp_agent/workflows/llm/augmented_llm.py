@@ -495,7 +495,10 @@ class AugmentedLLM(ContextDependent, AugmentedLLMProtocol[MessageParamT, Message
         console.console.print("\n")
 
     async def show_assistant_message(
-        self, message_text: str | Text, highlight_namespaced_tool: str = ""
+        self,
+        message_text: str | Text,
+        highlight_namespaced_tool: str = "",
+        title: str = "ASSISTANT",
     ):
         """Display an assistant message in a formatted panel."""
 
@@ -525,7 +528,7 @@ class AugmentedLLM(ContextDependent, AugmentedLLMProtocol[MessageParamT, Message
 
         panel = Panel(
             message_text,
-            title=f"[ASSISTANT]{f' ({self.name})' if self.name else ''}",
+            title=f"[{title}]{f' ({self.name})' if self.name else ''}",
             title_align="left",
             style="green",
             border_style="bold white",

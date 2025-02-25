@@ -52,7 +52,7 @@ fast = FastAgent("PMO Job Description Generator")
 )
 @fast.evaluator_optimizer(
     name="job_description_writer",
-    optimizer="content_generator",
+    generator="content_generator",
     evaluator="consistency_checker",
     min_rating="EXCELLENT",
     max_refinements=2,

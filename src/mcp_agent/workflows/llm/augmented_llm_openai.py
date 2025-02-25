@@ -381,6 +381,9 @@ class OpenAIAugmentedLLM(
                 {"role": "user", "content": response},
             ],
         )
+        await self.show_assistant_message(
+            str(structured_response), title="ASSISTANT/STRUCTURED"
+        )
 
         return structured_response
 

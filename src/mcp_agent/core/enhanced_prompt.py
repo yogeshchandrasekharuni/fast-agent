@@ -40,7 +40,7 @@ class AgentCompleter(Completer):
 
     def __init__(self, agents: List[str], commands: List[str] = None):
         self.agents = agents
-        self.commands = commands or ["help", "clear", "history", "exit", "STOP"]
+        self.commands = commands or ["help", "clear", "STOP"]
 
     def get_completions(self, document, complete_event):
         """Synchronous completions method - this is what prompt_toolkit expects by default"""
@@ -114,32 +114,6 @@ def create_keybindings(on_toggle_multiline=None, app=None):
         """Ctrl+L: Clear input."""
         event.current_buffer.text = ""
 
-    # Removed Ctrl+R binding that was causing errors
-
-    @kb.add("f1")
-    def _(event):
-        """F1: Display help."""
-        help_text = "\n".join(
-            [
-                "Keyboard Shortcuts:",
-                "  Enter          Submit (normal mode) / New line (multiline mode)",
-                "  Alt+Enter      Always submit (even in multiline mode)",
-                "  Ctrl+T         Toggle multiline mode",
-                "  Ctrl+L         Clear input",
-                "  Up/Down        Navigate history",
-                "  F1             Show this help",
-                "  Esc            Cancel operation",
-                "",
-                "Commands:",
-                "  /help          Show help",
-                "  /clear         Clear screen",
-                "  /agents        List available agents",
-                "  @agent_name    Switch to agent",
-                "  STOP           End session",
-            ]
-        )
-        event.app.current_buffer.text = help_text
-
     return kb
 
 
@@ -189,13 +163,14 @@ async def get_enhanced_input(
         if in_multiline_mode:
             mode_style = "ansired"  # More noticeable for multiline mode
             mode_text = "MULTILINE"
+            toggle_text = "Normal Editing"
         else:
             mode_style = "ansigreen"
             mode_text = "NORMAL"
+            toggle_text = "Multiline Editing"
 
         shortcuts = [
-            ("F1", "Help"),
-            ("Ctrl+T", "Toggle Mode"),
+            ("Ctrl+T", toggle_text),
             ("Alt+Enter", "Submit" if in_multiline_mode else ""),
             ("Ctrl+L", "Clear"),
             ("↑/↓", "History"),
@@ -205,7 +180,7 @@ async def get_enhanced_input(
 
         shortcut_text = " | ".join(f"{key}:{action}" for key, action in shortcuts)
         return HTML(
-            f"<b>Agent:</b> <ansicyan>{agent_name}</ansicyan> | <b>Mode:</b> <{mode_style}>{mode_text}</{mode_style}> | {shortcut_text}"
+            f" <b>Agent:</b> <ansiblue> {agent_name} </ansiblue> | <b>Mode:</b> <{mode_style}> {mode_text} </{mode_style}> | {shortcut_text}"
         )
 
     # Create session with history and completions
@@ -334,7 +309,7 @@ async def handle_special_commands(command, agent_app=None):
                 return {"switch_agent": agent_name}
             else:
                 rich_print(
-                    f"[yellow]Agent switching not available in this context[/yellow]"
+                    "[yellow]Agent switching not available in this context[/yellow]"
                 )
         else:
             rich_print(f"[red]Unknown agent: {agent_name}[/red]")

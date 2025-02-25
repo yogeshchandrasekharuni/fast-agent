@@ -46,7 +46,7 @@ agent_app.app._human_input_callback = None
 # Define the evaluator-optimizer workflow
 @agent_app.evaluator_optimizer(
     name="cover_letter_writer",
-    optimizer="optimizer",  # Reference to optimizer agent
+    generator="optimizer",  # Reference to optimizer agent
     evaluator="evaluator",  # Reference to evaluator agent
     min_rating="EXCELLENT",  # Strive for excellence
     max_refinements=3,  # Maximum iterations

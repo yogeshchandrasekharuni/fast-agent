@@ -417,12 +417,12 @@ class FastAgent(ContextDependent):
             elif agent_type == AgentType.EVALUATOR_OPTIMIZER.value:
                 # Check both evaluator and optimizer exist
                 evaluator = agent_data["evaluator"]
-                optimizer = agent_data["optimizer"]
+                generator = agent_data["generator"]
                 missing = []
                 if evaluator not in available_components:
                     missing.append(f"evaluator: {evaluator}")
-                if optimizer not in available_components:
-                    missing.append(f"optimizer: {optimizer}")
+                if generator not in available_components:
+                    missing.append(f"generator: {generator}")
                 if missing:
                     raise AgentConfigError(
                         f"Evaluator-Optimizer '{name}' references non-existent components: {', '.join(missing)}"
@@ -689,7 +689,7 @@ class FastAgent(ContextDependent):
     def evaluator_optimizer(
         self,
         name: str,
-        optimizer: str,
+        generator: str,
         evaluator: str,
         min_rating: str = "GOOD",
         max_refinements: int = 3,
@@ -701,7 +701,7 @@ class FastAgent(ContextDependent):
 
         Args:
             name: Name of the workflow
-            optimizer: Name of the optimizer agent
+            generator: Name of the generator agent
             evaluator: Name of the evaluator agent
             min_rating: Minimum acceptable quality rating (EXCELLENT, GOOD, FAIR, POOR)
             max_refinements: Maximum number of refinement iterations
@@ -716,7 +716,7 @@ class FastAgent(ContextDependent):
             wrapper_needed=True,
         )(
             name=name,
-            optimizer=optimizer,
+            generator=generator,
             evaluator=evaluator,
             min_rating=min_rating,
             max_refinements=max_refinements,
@@ -870,27 +870,27 @@ class FastAgent(ContextDependent):
 
                 elif agent_type == AgentType.EVALUATOR_OPTIMIZER:
                     # Get the referenced agents - unwrap from proxies
-                    optimizer = self._unwrap_proxy(
-                        active_agents[agent_data["optimizer"]]
+                    generator = self._unwrap_proxy(
+                        active_agents[agent_data["generator"]]
                     )
                     evaluator = self._unwrap_proxy(
                         active_agents[agent_data["evaluator"]]
                     )
 
-                    if not optimizer or not evaluator:
+                    if not generator or not evaluator:
                         raise ValueError(
                             f"Missing agents for workflow {name}: "
-                            f"optimizer={agent_data['optimizer']}, "
+                            f"generator={agent_data['generator']}, "
                             f"evaluator={agent_data['evaluator']}"
                         )
 
                     # TODO: Remove legacy - factory usage is only needed for str evaluators
                     # Later this should only be passed when evaluator is a string
                     optimizer_model = (
-                        optimizer.config.model if isinstance(optimizer, Agent) else None
+                        generator.config.model if isinstance(generator, Agent) else None
                     )
                     instance = EvaluatorOptimizerLLM(
-                        optimizer=optimizer,
+                        generator=generator,
                         evaluator=evaluator,
                         min_rating=QualityRating[agent_data["min_rating"]],
                         max_refinements=agent_data["max_refinements"],

@@ -35,6 +35,7 @@ Other bootstrap examples include a Researcher (with Evaluator-Optimizer workflow
 ### llmindset.co.uk fork:
 
 - "FastAgent" style prototyping, with per-agent models
+- Api keys through Environment Variables
 - Warm-up / Post-Workflow Agent Interactions
 - Quick Setup
 - Interactive Prompt Mode

@@ -331,7 +331,9 @@ class AnthropicAugmentedLLM(AugmentedLLM[MessageParam, Message]):
             messages=[{"role": "user", "content": response}],
             max_tokens=params.maxTokens,
         )
-
+        await self.show_assistant_message(
+            str(structured_response), title="ASSISTANT/STRUCTURED"
+        )
         return structured_response
 
     @classmethod

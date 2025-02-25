@@ -66,18 +66,19 @@ class EvaluatorOptimizerLLM(AugmentedLLM[MessageParamT, MessageT]):
 
     def __init__(
         self,
-        optimizer: Agent | AugmentedLLM,
+        generator: Agent | AugmentedLLM,
         evaluator: str | Agent | AugmentedLLM,
         min_rating: QualityRating = QualityRating.GOOD,
         max_refinements: int = 3,
-        llm_factory: Callable[[Agent], AugmentedLLM] | None = None,  # TODO: Remove legacy - factory should only be needed for str evaluator
+        llm_factory: Callable[[Agent], AugmentedLLM]
+        | None = None,  # TODO: Remove legacy - factory should only be needed for str evaluator
         context: Optional["Context"] = None,
     ):
         """
         Initialize the evaluator-optimizer workflow.
 
         Args:
-            optimizer: The agent/LLM/workflow that generates responses. Can be:
+            generator: The agent/LLM/workflow that generates responses. Can be:
                      - An Agent that will be converted to an AugmentedLLM
                      - An AugmentedLLM instance
                      - An Orchestrator/Router/ParallelLLM workflow
@@ -90,38 +91,38 @@ class EvaluatorOptimizerLLM(AugmentedLLM[MessageParamT, MessageT]):
         super().__init__(context=context)
 
         # Set up the optimizer
-        self.name = optimizer.name
+        self.name = generator.name
         self.llm_factory = llm_factory
-        self.optimizer = optimizer
+        self.generator = generator
         self.evaluator = evaluator
 
         # TODO: Remove legacy - optimizer should always be an AugmentedLLM, no conversion needed
-        if isinstance(optimizer, Agent):
+        if isinstance(generator, Agent):
             if not llm_factory:
                 raise ValueError("llm_factory is required when using an Agent")
 
             # Only create new LLM if agent doesn't have one
-            if hasattr(optimizer, "_llm") and optimizer._llm:
-                self.optimizer_llm = optimizer._llm
+            if hasattr(generator, "_llm") and generator._llm:
+                self.generator_llm = generator._llm
             else:
-                self.optimizer_llm = llm_factory(agent=optimizer)
-            
-            self.aggregator = optimizer
+                self.generator_llm = llm_factory(agent=generator)
+
+            self.aggregator = generator
             self.instruction = (
-                optimizer.instruction
-                if isinstance(optimizer.instruction, str)
+                generator.instruction
+                if isinstance(generator.instruction, str)
                 else None
             )
 
-        elif isinstance(optimizer, AugmentedLLM):
-            self.optimizer_llm = optimizer
-            self.aggregator = optimizer.aggregator
-            self.instruction = optimizer.instruction
+        elif isinstance(generator, AugmentedLLM):
+            self.generator_llm = generator
+            self.aggregator = generator.aggregator
+            self.instruction = generator.instruction
 
         else:
-            raise ValueError(f"Unsupported optimizer type: {type(optimizer)}")
+            raise ValueError(f"Unsupported optimizer type: {type(generator)}")
 
-        self.history = self.optimizer_llm.history
+        self.history = self.generator_llm.history
 
         # Set up the evaluator
         if isinstance(evaluator, AugmentedLLM):
@@ -169,17 +170,17 @@ class EvaluatorOptimizerLLM(AugmentedLLM[MessageParamT, MessageT]):
         best_response = None
         best_rating = QualityRating.POOR
         self.refinement_history = []
-        
+
         # Use a single AsyncExitStack for the entire method to maintain connections
         async with contextlib.AsyncExitStack() as stack:
             # Enter all agent contexts once at the beginning
-            if isinstance(self.optimizer, Agent):
-                await stack.enter_async_context(self.optimizer)
+            if isinstance(self.generator, Agent):
+                await stack.enter_async_context(self.generator)
             if isinstance(self.evaluator, Agent):
                 await stack.enter_async_context(self.evaluator)
-                
+
             # Initial generation
-            response = await self.optimizer_llm.generate(
+            response = await self.generator_llm.generate(
                 message=message,
                 request_params=request_params,
             )
@@ -251,7 +252,7 @@ class EvaluatorOptimizerLLM(AugmentedLLM[MessageParamT, MessageT]):
                 )
 
                 # No nested AsyncExitStack here either
-                response = await self.optimizer_llm.generate(
+                response = await self.generator_llm.generate(
                     message=refinement_prompt,
                     request_params=request_params,
                 )
@@ -274,13 +275,13 @@ class EvaluatorOptimizerLLM(AugmentedLLM[MessageParamT, MessageT]):
         # Handle case where response is a single message
         if not isinstance(response, list):
             return str(response)
-            
+
         # Convert all messages to strings, handling different message types
         result_strings = []
         for r in response:
-            if hasattr(r, 'text'):
+            if hasattr(r, "text"):
                 result_strings.append(r.text)
-            elif hasattr(r, 'content'):
+            elif hasattr(r, "content"):
                 # Handle ToolUseBlock and similar
                 if isinstance(r.content, list):
                     # Typically content is a list of blocks
@@ -290,7 +291,7 @@ class EvaluatorOptimizerLLM(AugmentedLLM[MessageParamT, MessageT]):
             else:
                 # Fallback to string representation
                 result_strings.append(str(r))
-                
+
         return "\n".join(result_strings)
 
     async def generate_structured(
@@ -304,7 +305,7 @@ class EvaluatorOptimizerLLM(AugmentedLLM[MessageParamT, MessageT]):
             message=message, request_params=request_params
         )
 
-        return await self.optimizer.generate_structured(
+        return await self.generator.generate_structured(
             message=response_str,
             response_model=response_model,
             request_params=request_params,

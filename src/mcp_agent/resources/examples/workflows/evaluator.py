@@ -11,7 +11,7 @@ fast = FastAgent("Evaluator-Optimizer")
 
 # Define optimizer agent
 @fast.agent(
-    name="optimizer",
+    name="generator",
     instruction="""You are a career coach specializing in cover letter writing.
     You are tasked with generating a compelling cover letter given the job posting,
     candidate details, and company information. Tailor the response to the company and job requirements.
@@ -38,12 +38,13 @@ fast = FastAgent("Evaluator-Optimizer")
     Summarize your evaluation as a structured response with:
     - Overall quality rating.
     - Specific feedback and areas for improvement.""",
-    model="sonnet",
+    # instructor doesn't seem to work for sonnet37
+    # model="sonnet35",
 )
 # Define the evaluator-optimizer workflow
 @fast.evaluator_optimizer(
     name="cover_letter_writer",
-    optimizer="optimizer",  # Reference to optimizer agent
+    generator="generator",  # Reference to optimizer agent
     evaluator="evaluator",  # Reference to evaluator agent
     min_rating="EXCELLENT",  # Strive for excellence
     max_refinements=3,  # Maximum iterations
@@ -69,6 +70,8 @@ async def main():
             f"Candidate Details: {candidate_details}\n\n"
             f"Company information: {company_information}",
         )
+
+        await agent()
 
 
 if __name__ == "__main__":
