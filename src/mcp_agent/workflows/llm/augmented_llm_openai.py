@@ -97,12 +97,7 @@ class OpenAIAugmentedLLM(
             use_history=True,
         )
 
-    async def generate(self, message, request_params: RequestParams | None = None):
-        """
-        Process a query using an LLM and available tools.
-        The default implementation uses OpenAI's ChatCompletion as the LLM.
-        Override this method to use a different LLM.
-        """
+    def _api_key(self) -> str:
         config = self.context.config
         api_key = None
 
@@ -121,9 +116,22 @@ class OpenAIAugmentedLLM(
                 "Add it to your configuration file under openai.api_key\n"
                 "Or set the OPENAI_API_KEY environment variable",
             )
+        return api_key
+
+    def _base_url(self) -> str:
+        return (
+            self.context.config.openai.base_url if self.context.config.openai else None
+        )
+
+    async def generate(self, message, request_params: RequestParams | None = None):
+        """
+        Process a query using an LLM and available tools.
+        The default implementation uses OpenAI's ChatCompletion as the LLM.
+        Override this method to use a different LLM.
+        """
 
         try:
-            openai_client = OpenAI(api_key=api_key, base_url=config.openai.base_url)
+            openai_client = OpenAI(api_key=self._api_key(), base_url=self._base_url())
             messages: List[ChatCompletionMessageParam] = []
             params = self.get_request_params(request_params)
         except AuthenticationError as e:
@@ -356,8 +364,8 @@ class OpenAIAugmentedLLM(
         # Next we pass the text through instructor to extract structured data
         client = instructor.from_openai(
             OpenAI(
-                api_key=self.context.config.openai.api_key,
-                base_url=self.context.config.openai.base_url,
+                api_key=self._api_key(),
+                base_url=self._base_url(),
             ),
             mode=instructor.Mode.TOOLS_STRICT,
         )
