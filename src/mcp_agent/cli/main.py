@@ -40,11 +40,11 @@ def show_welcome():
 
     console.print("\n[bold]Getting Started:[/bold]")
     console.print("1. Set up a new project:")
-    console.print("   mcp-agent setup")
+    console.print("   fastagent setup")
     console.print("\n2. Try an example:")
-    console.print("   mcp-agent bootstrap create decorator")
+    console.print("   fastagent bootstrap create decorator")
     console.print("\nUse --help with any command for more information")
-    console.print("Example: mcp-agent bootstrap --help")
+    console.print("Example: fastagent bootstrap --help")
 
 
 @app.callback(invoke_without_command=True)
@@ -56,7 +56,7 @@ def main(
         True, "--color/--no-color", help="Enable/disable color output"
     ),
 ):
-    """MCP Agent CLI - Build effective agents using Model Context Protocol (MCP).
+    """FastAgent CLI - Build effective agents using Model Context Protocol (MCP).
 
     Use --help with any command for detailed usage information.
     """

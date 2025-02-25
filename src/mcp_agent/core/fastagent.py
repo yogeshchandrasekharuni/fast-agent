@@ -161,34 +161,51 @@ class AgentApp:
 
     async def prompt(self, agent_name: Optional[str] = None, default: str = "") -> str:
         """
-        Interactive prompt for sending messages.
+        Interactive prompt for sending messages with advanced features.
 
         Args:
             agent_name: Optional target agent name (uses default if not specified)
-            default_prompt: Default message to use when user presses enter
+            default: Default message to use when user presses enter
         """
+        from .enhanced_prompt import get_enhanced_input, handle_special_commands
 
         agent = agent_name or self._default
 
         if agent not in self._agents:
             raise ValueError(f"No agent named '{agent}'")
+
+        # Pass all available agent names for auto-completion
+        available_agents = list(self._agents.keys())
+
         result = ""
         while True:
             with progress_display.paused():
-                if default == "STOP":
-                    print("Press <ENTER> to finish.")
-                elif default != "":
-                    print("Enter a prompt, or [red]STOP[/red] to finish.")
-                    print(
-                        f"Press <ENTER> to use the default prompt:\n[cyan]{default}[/cyan]"
-                    )
-                else:
-                    print("Enter a prompt, or [red]STOP[/red] to finish")
-
-                prompt_text = f"[blue]{agent}[/blue] >"
-                user_input = Prompt.ask(
-                    prompt=prompt_text, default=default, show_default=False
+                # Use the enhanced input method with advanced features
+                user_input = await get_enhanced_input(
+                    agent_name=agent,
+                    default=default,
+                    show_default=(default != ""),
+                    show_stop_hint=True,
+                    multiline=False,  # Default to single-line mode
+                    available_agent_names=available_agents,
+                    syntax=None,  # Can enable syntax highlighting for code input
                 )
+
+                # Handle special commands
+                command_result = await handle_special_commands(user_input, self)
+
+                # Check if we should switch agents
+                if (
+                    isinstance(command_result, dict)
+                    and "switch_agent" in command_result
+                ):
+                    agent = command_result["switch_agent"]
+                    continue
+
+                # Skip further processing if command was handled
+                if command_result:
+                    continue
+
                 if user_input.upper() == "STOP":
                     return
                 if user_input == "":
