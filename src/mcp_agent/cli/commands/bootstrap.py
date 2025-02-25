@@ -33,11 +33,7 @@ EXAMPLE_TYPES = {
         "description": "Research agent example with additional evaluation/optimization\n"
         "example. Uses Brave Search and Docker MCP Servers.\n"
         "Creates examples in a 'researcher' subdirectory.",
-        "files": [
-            "researcher.py",
-            "researcher-eval.py",
-            "mcp_agent.secrets.yaml.example",
-        ],
+        "files": ["researcher.py", "researcher-eval.py", "fastagent.config.yaml"],
         "create_subdir": True,
     },
     "data-analysis": {

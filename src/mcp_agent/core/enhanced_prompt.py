@@ -67,7 +67,7 @@ class AgentCompleter(Completer):
                         agent,
                         start_position=-len(agent_name),
                         display=agent,
-                        display_meta="Agent",
+                        display_meta="Agent123",
                     )
 
 
@@ -141,9 +141,6 @@ def create_keybindings(on_toggle_multiline=None, app=None):
         event.app.current_buffer.text = help_text
 
     return kb
-
-
-# This function has been integrated directly into get_enhanced_input
 
 
 async def get_enhanced_input(
@@ -252,7 +249,7 @@ async def get_enhanced_input(
     # Mention available features but only on first usage for this agent
     if agent_name not in agent_messages_shown:
         rich_print(
-            "[dim]Tip: Type /help for commands, press F1 for keyboard shortcuts. Ctrl+T toggles multiline mode.[/dim]"
+            "[dim]Tip: Type /help for commands, press F1 for keyboard shortcuts. Ctrl+T toggles multiline mode. @Agent to switch agent[/dim]"
         )
         agent_messages_shown.add(agent_name)
 
@@ -333,7 +330,6 @@ async def handle_special_commands(command, agent_app=None):
         agent_name = command.split(":", 1)[1]
         if agent_name in available_agents:
             if agent_app:
-                # Would need to implement agent switching functionality in the app
                 rich_print(f"[green]Switching to agent: {agent_name}[/green]")
                 return {"switch_agent": agent_name}
             else:
