@@ -71,8 +71,9 @@ class RichProgressDisplay:
             ProgressAction.LOADED: "dim green",
             ProgressAction.INITIALIZED: "dim green",
             ProgressAction.CHATTING: "bold blue",
-            ProgressAction.READY: "dim green",
             ProgressAction.ROUTING: "bold blue",
+            ProgressAction.PLANNING: "bold blue",
+            ProgressAction.READY: "dim green",
             ProgressAction.CALLING_TOOL: "bold magenta",
             ProgressAction.FINISHED: "black on green",
             ProgressAction.SHUTDOWN: "black on red",
@@ -89,18 +90,19 @@ class RichProgressDisplay:
             task_id = self._progress.add_task(
                 "",
                 total=None,
-                target=f"{event.target}",
-                details=f"{event.agent_name}",
+                target=f"{event.target or task_name}",  # Use task_name as fallback for target
+                details=f"{event.agent_name or ''}",
             )
             self._taskmap[task_name] = task_id
         else:
             task_id = self._taskmap[task_name]
 
+        # Ensure no None values in the update
         self._progress.update(
             task_id,
             description=f"[{self._get_action_style(event.action)}]{event.action.value:<15}",
-            target=event.target,
-            details=event.details if event.details else "",
+            target=event.target or task_name,  # Use task_name as fallback for target
+            details=event.details or "",
             task_name=task_name,
         )
 

@@ -28,7 +28,7 @@ fast = FastAgent("PMO Job Description Generator")
     4. Required Experience                                                                               
     5. Desired Capabilities                                                                              
     """,
-    model="haiku",
+    model="anthropic.claude-3-5-haiku-latest",
 )
 @fast.agent(
     name="consistency_checker",
@@ -48,6 +48,7 @@ fast = FastAgent("PMO Job Description Generator")
     instruction="""Save the finalized job descriptions as individual Markdown files.                     
     Use consistent naming like 'pmo_director.md', 'pmo_manager.md' etc.""",
     servers=["filesystem"],
+    use_history=False,
 )
 @fast.evaluator_optimizer(
     name="job_description_writer",
@@ -67,13 +68,14 @@ async def main():
             "Project Coordinator",
         ]
 
+        # Pre-initialize the file_handler to establish a persistent connection
+        await agent.file_handler("Test connection to filesystem")
+
         for role in roles:
             # Generate and refine job description
             description = await agent.job_description_writer(
                 f"Create job description for {role} role"
             )
-
-            # Save to file
             await agent.file_handler(f"Save this job description: {description}")
 
 

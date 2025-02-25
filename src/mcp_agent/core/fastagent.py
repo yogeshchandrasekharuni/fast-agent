@@ -129,7 +129,9 @@ class RouterProxy(BaseAgentProxy):
         top_result = results[0]
         if isinstance(top_result.result, Agent):
             # Agent route - delegate to the agent
-            return await top_result.result._llm.generate_str(message)
+            agent = top_result.result
+
+            return await agent._llm.generate_str(message)
         elif isinstance(top_result.result, str):
             # Server route - use the router directly
             return "Tool call requested by router - not yet supported"
@@ -268,7 +270,11 @@ class FastAgent(ContextDependent):
         Raises:
             TypeError: If instance type doesn't match expected type for agent_type
         """
-        self._log_agent_load(name)
+        if agent_type not in [
+            AgentType.PARALLEL.value,
+            AgentType.EVALUATOR_OPTIMIZER.value,
+        ]:
+            self._log_agent_load(name)
         if agent_type == AgentType.BASIC.value:
             if not isinstance(instance, Agent):
                 raise TypeError(
@@ -442,6 +448,104 @@ class FastAgent(ContextDependent):
         # Let model factory handle the model string parsing and setup
         return ModelFactory.create_factory(model_spec, request_params=request_params)
 
+    def _create_decorator(
+        self,
+        agent_type: AgentType,
+        default_name: str = None,
+        default_instruction: str = None,
+        default_servers: List[str] = None,
+        default_use_history: bool = True,
+        wrapper_needed: bool = False,
+        **extra_defaults,
+    ) -> Callable:
+        """
+        Factory method for creating agent decorators with common behavior.
+
+        Args:
+            agent_type: Type of agent/workflow to create
+            default_name: Default name to use if not provided
+            default_instruction: Default instruction to use if not provided
+            default_servers: Default servers list to use if not provided
+            default_use_history: Default history setting
+            wrapper_needed: Whether to wrap the decorated function
+            **extra_defaults: Additional agent/workflow-specific parameters
+        """
+
+        def decorator_wrapper(**kwargs):
+            # Apply defaults for common parameters
+            name = kwargs.get("name", default_name or f"{agent_type.name.title()}")
+            instruction = kwargs.get("instruction", default_instruction or "")
+            servers = kwargs.get("servers", default_servers or [])
+            model = kwargs.get("model", None)
+            use_history = kwargs.get("use_history", default_use_history)
+            request_params = kwargs.get("request_params", None)
+            human_input = kwargs.get("human_input", False)
+
+            # Create base request params
+            def decorator(func: Callable) -> Callable:
+                # Create base request params
+                if (
+                    request_params is not None
+                    or model is not None
+                    or use_history != default_use_history
+                ):
+                    max_tokens = 4096 if agent_type == AgentType.BASIC else None
+                    params_dict = {"use_history": use_history, "model": model}
+                    if max_tokens:
+                        params_dict["maxTokens"] = max_tokens
+                    if request_params:
+                        params_dict.update(request_params)
+                    base_params = RequestParams(**params_dict)
+                else:
+                    base_params = RequestParams(use_history=use_history)
+
+                # Create agent configuration
+                config = AgentConfig(
+                    name=name,
+                    instruction=instruction,
+                    servers=servers,
+                    model=model,
+                    use_history=use_history,
+                    default_request_params=base_params,
+                    human_input=human_input,
+                )
+
+                # Build agent/workflow specific data
+                agent_data = {
+                    "config": config,
+                    "type": agent_type.value,
+                    "func": func,
+                }
+
+                # Add extra parameters specific to this agent type
+                for key, value in kwargs.items():
+                    if key not in [
+                        "name",
+                        "instruction",
+                        "servers",
+                        "model",
+                        "use_history",
+                        "request_params",
+                        "human_input",
+                    ]:
+                        agent_data[key] = value
+
+                # Store the configuration under the agent name
+                self.agents[name] = agent_data
+
+                # Either wrap or return the original function
+                if wrapper_needed:
+
+                    async def wrapper(*args, **kwargs):
+                        return await func(*args, **kwargs)
+
+                    return wrapper
+                return func
+
+            return decorator
+
+        return decorator_wrapper
+
     def agent(
         self,
         name: str = "Agent",
@@ -463,37 +567,22 @@ class FastAgent(ContextDependent):
             model: Model specification string (highest precedence)
             use_history: Whether to maintain conversation history
             request_params: Additional request parameters for the LLM
+            human_input: Whether to enable human input capabilities
         """
-
-        def decorator(func: Callable) -> Callable:
-            # Create base request params
-            base_params = RequestParams(
-                use_history=use_history,
-                model=model,  # Include model in initial params
-                maxTokens=4096,  # Default to larger context for agents TODO configurations
-                **(request_params or {}),
-            )
-
-            # Create agent configuration
-            config = AgentConfig(
-                name=name,
-                instruction=instruction,
-                servers=servers,
-                model=model,  # Highest precedence
-                use_history=use_history,
-                default_request_params=base_params,
-                human_input=human_input,
-            )
-
-            # Store the agent configuration
-            self.agents[name] = {
-                "config": config,
-                "type": AgentType.BASIC.value,
-                "func": func,
-            }
-
-            return func  # Don't wrap the function, just return it
-
+        decorator = self._create_decorator(
+            AgentType.BASIC,
+            default_name="Agent",
+            default_instruction="You are a helpful agent.",
+            default_use_history=True,
+        )(
+            name=name,
+            instruction=instruction,
+            servers=servers,
+            model=model,
+            use_history=use_history,
+            request_params=request_params,
+            human_input=human_input,
+        )
         return decorator
 
     def orchestrator(
@@ -517,35 +606,29 @@ class FastAgent(ContextDependent):
             model: Model specification string (highest precedence)
             use_history: Whether to maintain conversation history (forced false)
             request_params: Additional request parameters for the LLM
+            human_input: Whether to enable human input capabilities
         """
+        default_instruction = """
+            You are an expert planner. Given an objective task and a list of MCP servers (which are collections of tools)
+            or Agents (which are collections of servers), your job is to break down the objective into a series of steps,
+            which can be performed by LLMs with access to the servers or agents.
+            """
 
-        def decorator(func: Callable) -> Callable:
-            # Create base request params
-            base_params = RequestParams(
-                use_history=use_history, model=model, **(request_params or {})
-            )
-
-            # Create agent configuration
-            config = AgentConfig(
-                name=name,
-                instruction=instruction,
-                servers=[],  # Orchestrators don't need servers
-                model=model,  # Highest precedence
-                use_history=use_history,
-                default_request_params=base_params,
-                human_input=human_input,
-            )
-
-            # Store the orchestrator configuration
-            self.agents[name] = {
-                "config": config,
-                "child_agents": agents,
-                "type": AgentType.ORCHESTRATOR.value,
-                "func": func,
-            }
-
-            return func
-
+        decorator = self._create_decorator(
+            AgentType.ORCHESTRATOR,
+            default_name="Orchestrator",
+            default_instruction=default_instruction,
+            default_servers=[],
+            default_use_history=False,
+        )(
+            name=name,
+            instruction=instruction,
+            child_agents=agents,
+            model=model,
+            use_history=use_history,
+            request_params=request_params,
+            human_input=human_input,
+        )
         return decorator
 
     def parallel(
@@ -570,33 +653,20 @@ class FastAgent(ContextDependent):
             use_history: Whether to maintain conversation history
             request_params: Additional request parameters for the LLM
         """
-
-        def decorator(func: Callable) -> Callable:
-            # Create request params with history setting
-            params = RequestParams(**(request_params or {}))
-            params.use_history = use_history
-
-            # Create agent configuration
-            config = AgentConfig(
-                name=name,
-                instruction=instruction,
-                servers=[],  # Parallel agents don't need servers
-                model=model,
-                use_history=use_history,
-                default_request_params=params,
-            )
-
-            # Store the parallel configuration
-            self.agents[name] = {
-                "config": config,
-                "fan_out": fan_out,
-                "fan_in": fan_in,
-                "type": AgentType.PARALLEL.value,
-                "func": func,
-            }
-
-            return func
-
+        decorator = self._create_decorator(
+            AgentType.PARALLEL,
+            default_instruction="",
+            default_servers=[],
+            default_use_history=True,
+        )(
+            name=name,
+            fan_in=fan_in,
+            fan_out=fan_out,
+            instruction=instruction,
+            model=model,
+            use_history=use_history,
+            request_params=request_params,
+        )
         return decorator
 
     def evaluator_optimizer(
@@ -621,33 +691,21 @@ class FastAgent(ContextDependent):
             use_history: Whether to maintain conversation history
             request_params: Additional request parameters for the LLM
         """
-
-        def decorator(func: Callable) -> Callable:
-            # Create workflow configuration
-            config = AgentConfig(
-                name=name,
-                instruction="",  # Uses optimizer's instruction
-                servers=[],  # Uses agents' server access
-                use_history=use_history,
-                default_request_params=request_params,
-            )
-
-            # Store the workflow configuration
-            self.agents[name] = {
-                "config": config,
-                "optimizer": optimizer,
-                "evaluator": evaluator,
-                "min_rating": min_rating,
-                "max_refinements": max_refinements,
-                "type": AgentType.EVALUATOR_OPTIMIZER.value,
-                "func": func,
-            }
-
-            async def wrapper(*args, **kwargs):
-                return await func(*args, **kwargs)
-
-            return wrapper
-
+        decorator = self._create_decorator(
+            AgentType.EVALUATOR_OPTIMIZER,
+            default_instruction="",
+            default_servers=[],
+            default_use_history=True,
+            wrapper_needed=True,
+        )(
+            name=name,
+            optimizer=optimizer,
+            evaluator=evaluator,
+            min_rating=min_rating,
+            max_refinements=max_refinements,
+            use_history=use_history,
+            request_params=request_params,
+        )
         return decorator
 
     def router(
@@ -666,43 +724,217 @@ class FastAgent(ContextDependent):
         Args:
             name: Name of the router
             agents: List of agent names this router can delegate to
-            servers: List of server names the router can use directly
+            servers: List of server names the router can use directly (currently not supported)
             model: Model specification string
             use_history: Whether to maintain conversation history
             request_params: Additional request parameters for the LLM
+            human_input: Whether to enable human input capabilities
         """
-
-        def decorator(func: Callable) -> Callable:
-            # Create base request params
-            base_params = RequestParams(
-                use_history=use_history, **(request_params or {})
-            )
-
-            # Create agent configuration
-            config = AgentConfig(
-                name=name,
-                instruction="",  # Router uses its own routing instruction
-                servers=[],  # , servers are not supported now
-                model=model,
-                use_history=use_history,
-                default_request_params=base_params,
-                human_input=human_input,
-            )
-
-            # Store the router configuration
-            self.agents[name] = {
-                "config": config,
-                "agents": agents,
-                "type": AgentType.ROUTER.value,
-                "func": func,
-            }
-
-            async def wrapper(*args, **kwargs):
-                return await func(*args, **kwargs)
-
-            return wrapper
-
+        decorator = self._create_decorator(
+            AgentType.ROUTER,
+            default_instruction="",
+            default_servers=[],
+            default_use_history=True,
+            wrapper_needed=True,
+        )(
+            name=name,
+            agents=agents,
+            model=model,
+            use_history=use_history,
+            request_params=request_params,
+            human_input=human_input,
+        )
         return decorator
+
+    async def _create_agents_by_type(
+        self,
+        agent_app: MCPApp,
+        agent_type: AgentType,
+        active_agents: ProxyDict = None,
+        **kwargs,
+    ) -> ProxyDict:
+        """
+        Generic method to create agents of a specific type.
+
+        Args:
+            agent_app: The main application instance
+            agent_type: Type of agents to create
+            active_agents: Dictionary of already created agents/proxies (for dependencies)
+            **kwargs: Additional type-specific parameters
+
+        Returns:
+            Dictionary of initialized agents wrapped in appropriate proxies
+        """
+        if active_agents is None:
+            active_agents = {}
+
+        # Create a dictionary to store the initialized agents
+        result_agents = {}
+
+        # Get all agents of the specified type
+        for name, agent_data in self.agents.items():
+            if agent_data["type"] == agent_type.value:
+                # Get common configuration
+                config = agent_data["config"]
+
+                # Type-specific initialization
+                if agent_type == AgentType.BASIC:
+                    # Create basic agent with configuration
+                    agent = Agent(config=config, context=agent_app.context)
+
+                    # Set up LLM with proper configuration
+                    async with agent:
+                        llm_factory = self._get_model_factory(
+                            model=config.model,
+                            request_params=config.default_request_params,
+                        )
+                        agent._llm = await agent.attach_llm(llm_factory)
+
+                    # Store the agent
+                    instance = agent
+
+                elif agent_type == AgentType.ORCHESTRATOR:
+                    # Get base params configured with model settings
+                    base_params = (
+                        config.default_request_params.model_copy()
+                        if config.default_request_params
+                        else RequestParams()
+                    )
+                    base_params.use_history = False  # Force no history for orchestrator
+
+                    # Get the child agents - need to unwrap proxies and validate LLM config
+                    child_agents = []
+                    for agent_name in agent_data["child_agents"]:
+                        proxy = active_agents[agent_name]
+                        instance = self._unwrap_proxy(proxy)
+                        # Validate basic agents have LLM
+                        if isinstance(instance, Agent):
+                            if not hasattr(instance, "_llm") or not instance._llm:
+                                raise AgentConfigError(
+                                    f"Agent '{agent_name}' used by orchestrator '{name}' missing LLM configuration",
+                                    "All agents must be fully configured with LLMs before being used in an orchestrator",
+                                )
+                        child_agents.append(instance)
+
+                    # Create a properly configured planner agent
+                    planner_config = AgentConfig(
+                        name=f"{name}",  # Use orchestrator name as prefix
+                        instruction=config.instruction
+                        or """
+                        You are an expert planner. Given an objective task and a list of MCP servers (which are collections of tools)
+                        or Agents (which are collections of servers), your job is to break down the objective into a series of steps,
+                        which can be performed by LLMs with access to the servers or agents.
+                        """,
+                        servers=[],  # Planner doesn't need server access
+                        model=config.model,  # Use same model as orchestrator
+                        default_request_params=base_params,
+                    )
+                    planner_agent = Agent(
+                        config=planner_config, context=agent_app.context
+                    )
+                    planner_factory = self._get_model_factory(
+                        model=config.model,
+                        request_params=config.default_request_params,
+                    )
+
+                    async with planner_agent:
+                        planner = await planner_agent.attach_llm(planner_factory)
+
+                    # Create the orchestrator with pre-configured planner
+                    instance = Orchestrator(
+                        name=config.name,
+                        planner=planner,  # Pass pre-configured planner
+                        available_agents=child_agents,
+                        context=agent_app.context,
+                        request_params=planner.default_request_params,  # Base params already include model settings
+                        plan_type="full",  # TODO -- support iterative plan type properly
+                        verb=ProgressAction.PLANNING,  # Using PLANNING instead of ORCHESTRATING
+                    )
+
+                elif agent_type == AgentType.EVALUATOR_OPTIMIZER:
+                    # Get the referenced agents - unwrap from proxies
+                    optimizer = self._unwrap_proxy(
+                        active_agents[agent_data["optimizer"]]
+                    )
+                    evaluator = self._unwrap_proxy(
+                        active_agents[agent_data["evaluator"]]
+                    )
+
+                    if not optimizer or not evaluator:
+                        raise ValueError(
+                            f"Missing agents for workflow {name}: "
+                            f"optimizer={agent_data['optimizer']}, "
+                            f"evaluator={agent_data['evaluator']}"
+                        )
+
+                    # TODO: Remove legacy - factory usage is only needed for str evaluators
+                    # Later this should only be passed when evaluator is a string
+                    optimizer_model = (
+                        optimizer.config.model if isinstance(optimizer, Agent) else None
+                    )
+                    instance = EvaluatorOptimizerLLM(
+                        optimizer=optimizer,
+                        evaluator=evaluator,
+                        min_rating=QualityRating[agent_data["min_rating"]],
+                        max_refinements=agent_data["max_refinements"],
+                        llm_factory=self._get_model_factory(model=optimizer_model),
+                        context=agent_app.context,
+                    )
+
+                elif agent_type == AgentType.ROUTER:
+                    # Get the router's agents - unwrap proxies
+                    router_agents = self._get_agent_instances(
+                        agent_data["agents"], active_agents
+                    )
+
+                    # Create the router with proper configuration
+                    llm_factory = self._get_model_factory(
+                        model=config.model,
+                        request_params=config.default_request_params,
+                    )
+
+                    instance = LLMRouter(
+                        name=config.name,
+                        llm_factory=llm_factory,
+                        agents=router_agents,
+                        server_names=config.servers,
+                        context=agent_app.context,
+                        default_request_params=config.default_request_params,
+                        verb=ProgressAction.ROUTING,  # Set verb for progress display
+                    )
+
+                elif agent_type == AgentType.PARALLEL:
+                    # Get fan-out agents (could be basic agents or other parallels)
+                    fan_out_agents = self._get_agent_instances(
+                        agent_data["fan_out"], active_agents
+                    )
+
+                    # Get fan-in agent - unwrap proxy
+                    fan_in_agent = self._unwrap_proxy(
+                        active_agents[agent_data["fan_in"]]
+                    )
+
+                    # Create the parallel workflow
+                    llm_factory = self._get_model_factory(config.model)
+                    instance = ParallelLLM(
+                        name=config.name,
+                        instruction=config.instruction,
+                        fan_out_agents=fan_out_agents,
+                        fan_in_agent=fan_in_agent,
+                        context=agent_app.context,
+                        llm_factory=llm_factory,
+                        default_request_params=config.default_request_params,
+                    )
+
+                else:
+                    raise ValueError(f"Unsupported agent type: {agent_type}")
+
+                # Create the appropriate proxy and store in results
+                result_agents[name] = self._create_proxy(
+                    name, instance, agent_type.value
+                )
+
+        return result_agents
 
     async def _create_basic_agents(self, agent_app: MCPApp) -> ProxyDict:
         """
@@ -714,29 +946,7 @@ class FastAgent(ContextDependent):
         Returns:
             Dictionary of initialized basic agents wrapped in appropriate proxies
         """
-        active_agents = {}
-
-        for name, agent_data in self.agents.items():
-            if agent_data["type"] == AgentType.BASIC.value:
-                config = agent_data["config"]
-
-                # Create agent with configuration
-                agent = Agent(config=config, context=agent_app.context)
-
-                # Set up LLM with proper configuration
-                async with agent:
-                    llm_factory = self._get_model_factory(
-                        model=config.model,
-                        request_params=config.default_request_params,
-                    )
-                    agent._llm = await agent.attach_llm(llm_factory)
-
-                # Create proxy for the agent
-                active_agents[name] = self._create_proxy(
-                    name, agent, AgentType.BASIC.value
-                )
-
-        return active_agents
+        return await self._create_agents_by_type(agent_app, AgentType.BASIC)
 
     async def _create_orchestrators(
         self, agent_app: MCPApp, active_agents: ProxyDict
@@ -751,71 +961,9 @@ class FastAgent(ContextDependent):
         Returns:
             Dictionary of initialized orchestrator agents wrapped in appropriate proxies
         """
-        orchestrators = {}
-        for name, agent_data in self.agents.items():
-            if agent_data["type"] == AgentType.ORCHESTRATOR.value:
-                config = agent_data["config"]
-
-                # Get base params configured with model settings
-                base_params = (
-                    config.default_request_params.model_copy()
-                    if config.default_request_params
-                    else RequestParams()
-                )
-                base_params.use_history = False  # Force no history for orchestrator
-
-                # Get the child agents - need to unwrap proxies and validate LLM config
-                child_agents = []
-                for agent_name in agent_data["child_agents"]:
-                    proxy = active_agents[agent_name]
-                    instance = self._unwrap_proxy(proxy)
-                    # Validate basic agents have LLM
-                    if isinstance(instance, Agent):
-                        if not hasattr(instance, "_llm") or not instance._llm:
-                            raise AgentConfigError(
-                                f"Agent '{agent_name}' used by orchestrator '{name}' missing LLM configuration",
-                                "All agents must be fully configured with LLMs before being used in an orchestrator",
-                            )
-                    child_agents.append(instance)
-
-                # Create a properly configured planner agent
-                planner_config = AgentConfig(
-                    name=f"{name}",  # Use orchestrator name as prefix
-                    instruction=config.instruction
-                    or """
-                    You are an expert planner. Given an objective task and a list of MCP servers (which are collections of tools)
-                    or Agents (which are collections of servers), your job is to break down the objective into a series of steps,
-                    which can be performed by LLMs with access to the servers or agents.
-                    """,
-                    servers=[],  # Planner doesn't need server access
-                    model=config.model,  # Use same model as orchestrator
-                    default_request_params=base_params,
-                )
-                planner_agent = Agent(config=planner_config, context=agent_app.context)
-                planner_factory = self._get_model_factory(
-                    model=config.model,
-                    request_params=config.default_request_params,
-                )
-
-                async with planner_agent:
-                    planner = await planner_agent.attach_llm(planner_factory)
-
-                # Create the orchestrator with pre-configured planner
-                orchestrator = Orchestrator(
-                    name=config.name,
-                    planner=planner,  # Pass pre-configured planner
-                    available_agents=child_agents,
-                    context=agent_app.context,
-                    request_params=planner.default_request_params,  # Base params already include model settings
-                    plan_type="full",  # TODO -- support iterative plan type properly
-                )
-
-                # Use factory to create appropriate proxy
-                orchestrators[name] = self._create_proxy(
-                    name, orchestrator, AgentType.ORCHESTRATOR.value
-                )
-
-        return orchestrators
+        return await self._create_agents_by_type(
+            agent_app, AgentType.ORCHESTRATOR, active_agents
+        )
 
     async def _create_evaluator_optimizers(
         self, agent_app: MCPApp, active_agents: ProxyDict
@@ -830,39 +978,9 @@ class FastAgent(ContextDependent):
         Returns:
             Dictionary of initialized evaluator-optimizer workflows
         """
-        workflows = {}
-        for name, agent_data in self.agents.items():
-            if agent_data["type"] == AgentType.EVALUATOR_OPTIMIZER.value:
-                # Get the referenced agents - unwrap from proxies
-                optimizer = self._unwrap_proxy(active_agents[agent_data["optimizer"]])
-                evaluator = self._unwrap_proxy(active_agents[agent_data["evaluator"]])
-
-                if not optimizer or not evaluator:
-                    raise ValueError(
-                        f"Missing agents for workflow {name}: "
-                        f"optimizer={agent_data['optimizer']}, "
-                        f"evaluator={agent_data['evaluator']}"
-                    )
-
-                # TODO: Remove legacy - factory usage is only needed for str evaluators
-                # Later this should only be passed when evaluator is a string
-                optimizer_model = (
-                    optimizer.config.model if isinstance(optimizer, Agent) else None
-                )
-                workflow = EvaluatorOptimizerLLM(
-                    optimizer=optimizer,
-                    evaluator=evaluator,
-                    min_rating=QualityRating[agent_data["min_rating"]],
-                    max_refinements=agent_data["max_refinements"],
-                    llm_factory=self._get_model_factory(model=optimizer_model),
-                    context=agent_app.context,
-                )
-
-                workflows[name] = self._create_proxy(
-                    name, workflow, AgentType.EVALUATOR_OPTIMIZER.value
-                )
-
-        return workflows
+        return await self._create_agents_by_type(
+            agent_app, AgentType.EVALUATOR_OPTIMIZER, active_agents
+        )
 
     def _get_parallel_dependencies(
         self, name: str, visited: set, path: set
@@ -946,34 +1064,15 @@ class FastAgent(ContextDependent):
                 # Create each agent in order
                 for agent_name in ordered_agents:
                     if agent_name not in parallel_agents:
-                        agent_data = self.agents[agent_name]
-                        config = agent_data["config"]
-
-                        # Get fan-out agents (could be basic agents or other parallels)
-                        fan_out_agents = self._get_agent_instances(
-                            agent_data["fan_out"], active_agents
+                        # Create one parallel agent at a time using the generic method
+                        agent_result = await self._create_agents_by_type(
+                            agent_app,
+                            AgentType.PARALLEL,
+                            active_agents,
+                            agent_name=agent_name,
                         )
-
-                        # Get fan-in agent - unwrap proxy
-                        fan_in_agent = self._unwrap_proxy(
-                            active_agents[agent_data["fan_in"]]
-                        )
-
-                        # Create the parallel workflow
-                        llm_factory = self._get_model_factory(config.model)
-                        parallel = ParallelLLM(
-                            name=config.name,
-                            instruction=config.instruction,
-                            fan_out_agents=fan_out_agents,
-                            fan_in_agent=fan_in_agent,
-                            context=agent_app.context,
-                            llm_factory=llm_factory,
-                            default_request_params=config.default_request_params,
-                        )
-
-                        parallel_agents[agent_name] = self._create_proxy(
-                            name, parallel, AgentType.PARALLEL.value
-                        )
+                        if agent_name in agent_result:
+                            parallel_agents[agent_name] = agent_result[agent_name]
 
         return parallel_agents
 
@@ -990,34 +1089,9 @@ class FastAgent(ContextDependent):
         Returns:
             Dictionary of initialized router agents
         """
-        routers = {}
-        for name, agent_data in self.agents.items():
-            if agent_data["type"] == AgentType.ROUTER.value:
-                config = agent_data["config"]
-
-                # Get the router's agents - unwrap proxies
-                router_agents = self._get_agent_instances(
-                    agent_data["agents"], active_agents
-                )
-
-                # Create the router with proper configuration
-                llm_factory = self._get_model_factory(
-                    model=config.model,
-                    request_params=config.default_request_params,
-                )
-
-                router = LLMRouter(
-                    name=config.name,  # Add the name parameter
-                    llm_factory=llm_factory,
-                    agents=router_agents,
-                    server_names=config.servers,
-                    context=agent_app.context,
-                    default_request_params=config.default_request_params,
-                )
-
-                routers[name] = self._create_proxy(name, router, AgentType.ROUTER.value)
-
-        return routers
+        return await self._create_agents_by_type(
+            agent_app, AgentType.ROUTER, active_agents
+        )
 
     def _unwrap_proxy(self, proxy: BaseAgentProxy) -> AgentOrWorkflow:
         """
@@ -1087,48 +1161,38 @@ class FastAgent(ContextDependent):
 
         except ServerConfigError as e:
             had_error = True
-            print("\n[bold red]Server Configuration Error:")
-            print(e.message)
-            if e.details:
-                print("\nDetails:")
-                print(e.details)
-            print(
-                "\nPlease check your 'fastagent.config.yaml' configuration file and add the missing server definitions."
+            self._handle_error(
+                e,
+                "Server Configuration Error",
+                "Please check your 'fastagent.config.yaml' configuration file and add the missing server definitions.",
             )
             raise SystemExit(1)
 
         except ProviderKeyError as e:
             had_error = True
-            print("\n[bold red]Provider Configuration Error:")
-            print(e.message)
-            if e.details:
-                print("\nDetails:")
-                print(e.details)
-            print(
-                "\nPlease check your 'fastagent.secrets.yaml' configuration file and ensure all required API keys are set."
+            self._handle_error(
+                e,
+                "Provider Configuration Error",
+                "Please check your 'fastagent.secrets.yaml' configuration file and ensure all required API keys are set.",
             )
             raise SystemExit(1)
 
         except AgentConfigError as e:
             had_error = True
-            print("\n[bold red]Workflow or Agent Configuration Error:")
-            print(e.message)
-            if e.details:
-                print("\nDetails:")
-                print(e.details)
-            print(
-                "\nPlease check your agent definition and ensure names and references are correct."
+            self._handle_error(
+                e,
+                "Workflow or Agent Configuration Error",
+                "Please check your agent definition and ensure names and references are correct.",
             )
             raise SystemExit(1)
 
         except ServerInitializationError as e:
             had_error = True
-            print("\n[bold red]Server Startup Error:")
-            print(e.message)
-            if e.details:
-                print("\nDetails:")
-                print(e.details)
-            print("\nThere was an error starting up the MCP Server.")
+            self._handle_error(
+                e,
+                "Server Startup Error",
+                "There was an error starting up the MCP Server.",
+            )
             raise SystemExit(1)
         finally:
             # Clean up any active agents without re-raising errors
@@ -1139,6 +1203,25 @@ class FastAgent(ContextDependent):
                             await proxy._agent.__aexit__(None, None, None)
                         except Exception:
                             pass  # Ignore cleanup errors
+
+    def _handle_error(
+        self, e: Exception, error_type: str, suggestion: str = None
+    ) -> None:
+        """
+        Handle errors with consistent formatting and messaging.
+
+        Args:
+            e: The exception that was raised
+            error_type: Type of error to display
+            suggestion: Optional suggestion message to display
+        """
+        print(f"\n[bold red]{error_type}:")
+        print(getattr(e, "message", str(e)))
+        if hasattr(e, "details") and e.details:
+            print("\nDetails:")
+            print(e.details)
+        if suggestion:
+            print(f"\n{suggestion}")
 
     def _log_agent_load(self, agent_name: str) -> None:
         self.app._logger.info(

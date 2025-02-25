@@ -52,11 +52,12 @@ class AnthropicAugmentedLLM(AugmentedLLM[MessageParam, Message]):
     """
 
     def __init__(self, *args, **kwargs):
-        super().__init__(*args, type_converter=AnthropicMCPTypeConverter, **kwargs)
-
         self.provider = "Anthropic"
-        # Initialize logger with name if available
-        self.logger = get_logger(f"{__name__}.{self.name}" if self.name else __name__)
+        # Initialize logger - keep it simple without name reference
+        self.logger = get_logger(__name__)
+
+        # Now call super().__init__
+        super().__init__(*args, type_converter=AnthropicMCPTypeConverter, **kwargs)
 
     def _initialize_default_params(self, kwargs: dict) -> RequestParams:
         """Initialize Anthropic-specific default parameters"""

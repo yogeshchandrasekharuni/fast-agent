@@ -14,12 +14,13 @@ class ProgressAction(str, Enum):
     LOADED = "Loaded"
     INITIALIZED = "Initialized"
     CHATTING = "Chatting"
+    ROUTING = "Routing"
+    PLANNING = "Planning"
     READY = "Ready"
     CALLING_TOOL = "Calling Tool"
     FINISHED = "Finished"
     SHUTDOWN = "Shutdown"
     AGGREGATOR_INITIALIZED = "Running"
-    ROUTING = "Routing"
     FATAL_ERROR = "Error"
 
 
@@ -57,6 +58,16 @@ def convert_log_event(event: Event) -> Optional[ProgressEvent]:
     if not progress_action:
         return None
 
+    # Ensure we're constructing a valid ProgressAction enum
+    if isinstance(progress_action, ProgressAction):
+        action = progress_action
+    else:
+        try:
+            action = ProgressAction(progress_action)
+        except ValueError as e:
+            # Default to a safe value if conversion fails
+            action = ProgressAction.CHATTING
+
     # Build target string based on the event type.
     # Progress display is currently [time] [event] --- [target] [details]
     namespace = event.namespace
@@ -83,7 +94,7 @@ def convert_log_event(event: Event) -> Optional[ProgressEvent]:
             details = f"{model} turn {chat_turn}"
     else:
         if not target:
-            event_data.get("target", "unknown")
+            target = event_data.get("target", "unknown")
 
     return ProgressEvent(
         ProgressAction(progress_action),

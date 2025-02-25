@@ -11,6 +11,7 @@ from typing import (
 )
 
 from mcp_agent.agents.agent import Agent
+from mcp_agent.event_progress import ProgressAction
 from mcp_agent.workflows.llm.augmented_llm import (
     AugmentedLLM,
     MessageParamT,
@@ -80,6 +81,12 @@ class Orchestrator(AugmentedLLM[MessageParamT, MessageT]):
             plan_type: "full" planning generates the full plan first, then executes. "iterative" plans next step and loops.
             context: Application context
         """
+        # Initialize logger early so we can log
+        self.logger = logger
+
+        # Set a fixed verb - always use PLANNING for all orchestrator activities
+        self.verb = ProgressAction.PLANNING
+
         # Initialize with orchestrator-specific defaults
         orchestrator_params = RequestParams(
             use_history=False,  # Orchestrator doesn't support history
@@ -104,12 +111,23 @@ class Orchestrator(AugmentedLLM[MessageParamT, MessageT]):
         else:
             kwargs["request_params"] = orchestrator_params
 
+        # Pass verb to AugmentedLLM
+        kwargs["verb"] = self.verb
+
         super().__init__(context=context, **kwargs)
 
         self.planner = planner
+
+        if hasattr(self.planner, "verb"):
+            self.planner.verb = self.verb
+
         self.plan_type = plan_type
         self.server_registry = self.context.server_registry
         self.agents = {agent.name: agent for agent in available_agents}
+
+        # Initialize logger
+        self.logger = logger
+        self.name = name
 
     async def generate(
         self,
@@ -163,6 +181,20 @@ class Orchestrator(AugmentedLLM[MessageParamT, MessageT]):
 
         params = self.get_request_params(request_params)
 
+        # Single progress event for orchestration start
+        model = await self.select_model(params) or "unknown-model"
+
+        # Log the progress with minimal required fields
+        self.logger.info(
+            "Planning task execution",
+            data={
+                "progress_action": self.verb,
+                "model": model,
+                "agent_name": self.name,
+                "target": self.name,
+            },
+        )
+
         plan_result = PlanResult(objective=objective, step_results=[])
 
         while iterations < params.max_iterations:
@@ -193,6 +225,7 @@ class Orchestrator(AugmentedLLM[MessageParamT, MessageT]):
                         plan_result=format_plan_result(plan_result)
                     )
 
+                    # Use planner directly - planner already has PLANNING verb
                     plan_result.result = await self.planner.generate_str(
                         message=synthesis_prompt,
                         request_params=params.model_copy(update={"max_iterations": 1}),
@@ -236,10 +269,22 @@ class Orchestrator(AugmentedLLM[MessageParamT, MessageT]):
 
         # Execute tasks
         futures = []
+        error_tasks = []
+
         for task in step.tasks:
             agent = self.agents.get(task.agent)
             if not agent:
-                raise ValueError(f"No agent found matching {task.agent}")
+                # Instead of failing the entire step, track this as an error task
+                self.logger.error(
+                    f"No agent found matching '{task.agent}'. Available agents: {list(self.agents.keys())}"
+                )
+                error_tasks.append(
+                    (
+                        task,
+                        f"Error: Agent '{task.agent}' not found. Available agents: {', '.join(self.agents.keys())}",
+                    )
+                )
+                continue
 
             task_description = TASK_PROMPT_TEMPLATE.format(
                 objective=previous_result.objective,
@@ -250,13 +295,27 @@ class Orchestrator(AugmentedLLM[MessageParamT, MessageT]):
             # All agents should now be LLM-capable
             futures.append(agent._llm.generate_str(message=task_description))
 
-        # Wait for all tasks
-        results = await self.executor.execute(*futures)
+        # Wait for all tasks (only if we have valid futures)
+        results = await self.executor.execute(*futures) if futures else []
 
-        # Process results
-        for task, result in zip(step.tasks, results):
+        # Process successful results
+        task_index = 0
+        for task in step.tasks:
+            # Skip tasks that had agent errors (they're in error_tasks)
+            if any(et[0] == task for et in error_tasks):
+                continue
+
+            if task_index < len(results):
+                result = results[task_index]
+                step_result.add_task_result(
+                    TaskWithResult(**task.model_dump(), result=str(result))
+                )
+                task_index += 1
+
+        # Add error task results
+        for task, error_message in error_tasks:
             step_result.add_task_result(
-                TaskWithResult(**task.model_dump(), result=str(result))
+                TaskWithResult(**task.model_dump(), result=error_message)
             )
 
         step_result.result = format_step_result(step_result)
@@ -285,6 +344,7 @@ class Orchestrator(AugmentedLLM[MessageParamT, MessageT]):
             agents=agents,
         )
 
+        # Use planner directly - no verb manipulation needed
         plan = await self.planner.generate_structured(
             message=prompt,
             response_model=Plan,
@@ -316,6 +376,7 @@ class Orchestrator(AugmentedLLM[MessageParamT, MessageT]):
             agents=agents,
         )
 
+        # Use planner directly - no verb manipulation needed
         next_step = await self.planner.generate_structured(
             message=prompt,
             response_model=NextStep,

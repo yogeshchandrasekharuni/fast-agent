@@ -166,15 +166,24 @@ class ModelFactory:
                     config.model_name
                 )  # Ensure parsed model name isn't overwritten
 
-            llm = llm_class(
-                agent=agent,
-                model=config.model_name,
-                reasoning_effort=config.reasoning_effort.value
-                if config.reasoning_effort
-                else None,
-                request_params=factory_params,
-                name=kwargs.get("name"),
-            )
+            # Forward all keyword arguments to LLM constructor
+            llm_args = {
+                "agent": agent,
+                "model": config.model_name,
+                "request_params": factory_params,
+                "name": kwargs.get("name"),
+            }
+            
+            # Add reasoning effort if available
+            if config.reasoning_effort:
+                llm_args["reasoning_effort"] = config.reasoning_effort.value
+                
+            # Forward all other kwargs (including verb)
+            for key, value in kwargs.items():
+                if key not in ["agent", "default_request_params", "name"]:
+                    llm_args[key] = value
+                    
+            llm = llm_class(**llm_args)
             return llm
 
         return factory

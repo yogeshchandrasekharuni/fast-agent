@@ -6,6 +6,7 @@ from mcp_agent.agents.agent import Agent
 from mcp_agent.workflows.llm.augmented_llm import AugmentedLLM, RequestParams
 from mcp_agent.workflows.router.router_base import ResultT, Router, RouterResult
 from mcp_agent.logging.logger import get_logger
+from mcp_agent.event_progress import ProgressAction
 
 if TYPE_CHECKING:
     from mcp_agent.context import Context
@@ -100,6 +101,9 @@ class LLMRouter(Router):
         default_request_params: Optional[RequestParams] = None,
         **kwargs,
     ):
+        # Extract verb from kwargs to avoid passing it up the inheritance chain
+        self._llm_verb = kwargs.pop("verb", None)
+
         super().__init__(
             server_names=server_names,
             agents=agents,
@@ -161,10 +165,18 @@ class LLMRouter(Router):
                 router_params = RequestParams(**params_dict)
             # Set up router-specific request params with routing instruction
             router_params.use_history = False
+            # Use the stored verb if available, otherwise default to ROUTING
+            verb_param = (
+                self._llm_verb
+                if hasattr(self, "_llm_verb") and self._llm_verb
+                else ProgressAction.ROUTING
+            )
+
             self.llm = self.llm_factory(
                 agent=None,  # Router doesn't need an agent context
-                name="LLM Router",
+                name=self.name,  # Use the name provided during initialization
                 default_request_params=router_params,
+                verb=verb_param,  # Use stored verb parameter or default to ROUTING
             )
             self.initialized = True
 
@@ -243,7 +255,6 @@ class LLMRouter(Router):
             context=context, request=request, top_k=top_k
         )
 
-        # Get routes from LLM
         response = await self.llm.generate_structured(
             message=prompt,
             response_model=StructuredResponse,

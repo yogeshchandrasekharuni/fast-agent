@@ -30,12 +30,15 @@ and Agents (which are collections of servers):
 Agents:
 {agents}
 
+IMPORTANT: You can ONLY use the agents listed above. Do not invent or reference agents that are not in the list.
+The plan will fail if you reference agents that are not available.
+
 Generate a plan with all remaining steps needed.
 Steps are sequential, but each Step can have parallel subtasks.
 For each Step, specify a description of the step and independent subtasks that can run in parallel.
 For each subtask specify:
     1. Clear description of the task that an LLM can execute  
-    2. Name of 1 Agent OR List of MCP server names to use for the task
+    2. Name of 1 Agent from the available agents list above
     
 Return your response in the following JSON structure:
     {{
@@ -45,11 +48,11 @@ Return your response in the following JSON structure:
                 "tasks": [
                     {{
                         "description": "Description of task 1",
-                        "agent": "agent_name"  # For AgentTask
+                        "agent": "agent_name"  # For AgentTask - MUST be one of the available agents
                     }},
                     {{
                         "description": "Description of task 2", 
-                        "agent": "agent_name2"
+                        "agent": "agent_name2"  # MUST be one of the available agents
                     }}
                 ]
             }}
@@ -79,19 +82,21 @@ and Agents (which are collections of servers):
 Agents:
 {agents}
 
+IMPORTANT: You can ONLY use the agents listed above. Do not invent or reference agents that are not in the list.
+The plan will fail if you reference agents that are not available.
+
 Generate the next step, by specifying a description of the step and independent subtasks that can run in parallel:
 For each subtask specify:
     1. Clear description of the task that an LLM can execute  
-    2. Name of 1 Agent OR List of MCP server names to use for the task
+    2. Name of 1 Agent from the available agents list above
 
 Return your response in the following JSON structure:
     {{
-    
         "description": "Description of step 1",
         "tasks": [
             {{
                 "description": "Description of task 1",
-                "agent": "agent_name"  # For AgentTask
+                "agent": "agent_name"  # For AgentTask - MUST be one of the available agents
             }}
         ],
         "is_complete": false

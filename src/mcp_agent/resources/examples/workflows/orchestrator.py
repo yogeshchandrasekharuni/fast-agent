@@ -49,9 +49,9 @@ fast = FastAgent("Orchestrator-Workers")
 )
 async def main():
     async with fast.run() as agent:
-        await agent.author(
-            "write a 250 word short story about kittens discovering a castle, and save it to short_story.md"
-        )
+#        await agent.author(
+ #           "write a 250 word short story about kittens discovering a castle, and save it to short_story.md"
+  #      )
 
         # The orchestrator can be used just like any other agent
         task = (

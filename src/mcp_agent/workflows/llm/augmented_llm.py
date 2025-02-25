@@ -238,6 +238,7 @@ class AugmentedLLM(ContextDependent, AugmentedLLMProtocol[MessageParamT, Message
 
         self.model_selector = self.context.model_selector
         self.type_converter = type_converter
+        self.verb = kwargs.get("verb")
 
     @abstractmethod
     async def generate(
@@ -627,8 +628,15 @@ class AugmentedLLM(ContextDependent, AugmentedLLMProtocol[MessageParamT, Message
         self, chat_turn: Optional[int] = None, model: Optional[str] = None
     ):
         """Log a chat progress event"""
+        # Determine action type based on verb
+        if hasattr(self, "verb") and self.verb:
+            # Use verb directly regardless of type
+            act = self.verb
+        else:
+            act = ProgressAction.CHATTING
+
         data = {
-            "progress_action": ProgressAction.CHATTING,
+            "progress_action": act,
             "model": model,
             "agent_name": self.name,
             "chat_turn": chat_turn if chat_turn is not None else None,
