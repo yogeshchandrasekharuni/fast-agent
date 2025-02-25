@@ -29,9 +29,10 @@ agent_messages_shown = set()
 class AgentCompleter(Completer):
     """Provide completion for agent names and common commands."""
 
-    def __init__(self, agents: List[str], commands: List[str] = None):
+    def __init__(self, agents: List[str], commands: List[str] = None, agent_types: dict = None):
         self.agents = agents
         self.commands = commands or ["help", "clear", "STOP"]
+        self.agent_types = agent_types or {}
 
     def get_completions(self, document, complete_event):
         """Synchronous completions method - this is what prompt_toolkit expects by default"""
@@ -54,11 +55,13 @@ class AgentCompleter(Completer):
             agent_name = text[1:]
             for agent in self.agents:
                 if agent.lower().startswith(agent_name.lower()):
+                    # Get agent type or default to "Agent"
+                    agent_type = self.agent_types.get(agent, "Agent")
                     yield Completion(
                         agent,
                         start_position=-len(agent_name),
                         display=agent,
-                        display_meta="Agent123",
+                        display_meta=agent_type,
                     )
 
 
@@ -116,6 +119,7 @@ async def get_enhanced_input(
     multiline: bool = False,
     available_agent_names: List[str] = None,
     syntax: str = None,
+    agent_types: dict = None,
 ) -> str:
     """
     Enhanced input with advanced prompt_toolkit features.
@@ -128,6 +132,7 @@ async def get_enhanced_input(
         multiline: Start in multiline mode
         available_agent_names: List of agent names for auto-completion
         syntax: Syntax highlighting (e.g., 'python', 'sql')
+        agent_types: Dictionary mapping agent names to their types for display
 
     Returns:
         User input string
@@ -179,6 +184,7 @@ async def get_enhanced_input(
         history=agent_histories[agent_name],
         completer=AgentCompleter(
             agents=list(available_agents) if available_agents else [],
+            agent_types=agent_types or {},
         ),
         complete_while_typing=True,
         lexer=PygmentsLexer(PythonLexer) if syntax == "python" else None,

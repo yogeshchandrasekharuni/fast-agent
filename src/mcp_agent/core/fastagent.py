@@ -175,6 +175,27 @@ class AgentApp:
 
         # Pass all available agent names for auto-completion
         available_agents = list(self._agents.keys())
+        
+        # Create agent_types dictionary mapping agent names to their types
+        agent_types = {}
+        for name, proxy in self._agents.items():
+            # Determine agent type based on the proxy type
+            if isinstance(proxy, LLMAgentProxy):
+                # Convert AgentType.BASIC.value ("agent") to "Agent"
+                agent_types[name] = "Agent"
+            elif isinstance(proxy, RouterProxy):
+                agent_types[name] = "Router"
+            elif isinstance(proxy, WorkflowProxy):
+                # For workflow proxies, check the workflow type
+                workflow = proxy._workflow
+                if isinstance(workflow, Orchestrator):
+                    agent_types[name] = "Orchestrator"
+                elif isinstance(workflow, ParallelLLM):
+                    agent_types[name] = "Parallel"
+                elif isinstance(workflow, EvaluatorOptimizerLLM):
+                    agent_types[name] = "Evaluator"
+                else:
+                    agent_types[name] = "Workflow"
 
         result = ""
         while True:
@@ -188,6 +209,7 @@ class AgentApp:
                     multiline=False,  # Default to single-line mode
                     available_agent_names=available_agents,
                     syntax=None,  # Can enable syntax highlighting for code input
+                    agent_types=agent_types,  # Pass agent types for display
                 )
 
                 # Handle special commands
