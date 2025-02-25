@@ -58,16 +58,6 @@ def convert_log_event(event: Event) -> Optional[ProgressEvent]:
     if not progress_action:
         return None
 
-    # Ensure we're constructing a valid ProgressAction enum
-    if isinstance(progress_action, ProgressAction):
-        action = progress_action
-    else:
-        try:
-            action = ProgressAction(progress_action)
-        except ValueError as e:
-            # Default to a safe value if conversion fails
-            action = ProgressAction.CHATTING
-
     # Build target string based on the event type.
     # Progress display is currently [time] [event] --- [target] [details]
     namespace = event.namespace
