@@ -149,8 +149,7 @@ The Parallel Workflow sends the same message to multiple Agents simultaneously (
 )
 
 async with fast.run() as agent:
-  await agent.post_writer.prompt()
-    result = agent.ensemble.send("what are the 10 most important aspects of project management")
+  result = agent.ensemble.send("what are the 10 most important aspects of project management")
 ```
 
 Look at the `parallel.py` workflow example for more details.
