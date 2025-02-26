@@ -41,6 +41,31 @@ FastAgent lets you interact with Agents during a workflow, enabling "warm-up" an
 Defining an agent is as simple as:
 
 ```python
+# Create the application
+fast = FastAgent("Agent Example")
+
+@fast.agent(
+  instruction="Given an object, respond only with an estimate of its size."
+)
+```
+
+We can then send messages to the Agent:
+
+```python
+  async with fast.run() as agent:
+  
+    moon_size = await agent("the moon")
+    print(moon_size)
+```
+
+Or start an interactive session to chat with the Agent:
+```python
+  async with fast.run() as agent:  
+    await agent()
+```
+
+The entire program, with boilerplate code:
+```python {sizer.py}
 import asyncio
 from mcp_agent.core.fastagent import FastAgent
 
@@ -50,27 +75,16 @@ fast = FastAgent("Agent Example")
 @fast.agent(
   instruction="Given an object, respond only with an estimate of its size."
 )
-```
-We can then send a message to the Agent:
-```python
+
 async def main():
   async with fast.run() as agent:
-  
-    moon_size = await agent("the moon")
-    print(moon_size)
+    await agent()
 
 if __name__ == "__main__":
     asyncio.run(main())
 ```
 
-Alternatively, we can start an interactive session to send messages to the Agent:
-
-```python
-async def main():
-  async with fast.run() as agent:
-  
-    await agent()
-```
+Can then be run with `uv run sizer.py`, or with a specific model with `uv run sizer.py --model gpt-4o-mini`.
 
 ### Agent Features
 
