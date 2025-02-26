@@ -86,7 +86,7 @@ The Agent can be run with `uv run sizer.py` and with a specific model using the 
 
 ### Combining Agents and using MCP Servers
 
-_To generate examples use `fast-agent bootstrap workflow`. This example can be run with `uv run chaining.py`._
+_To generate examples use `fast-agent bootstrap workflow`. This example can be run with `uv run chaining.py`. Note fast-agent definitions will search parent directories for a valid fastagent.config.yaml and associated secrets file._
 
 Agents can be chained to build a workflow:
 ```python
