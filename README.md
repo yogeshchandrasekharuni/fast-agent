@@ -18,9 +18,13 @@ Mix and match models to optimize for each task and compare performance. Quickly 
 
 ### Agent Application Development
 
-FastAgent lets you interact with Agents during a workflow, enabling "warm-up" and diagnostic prompting to improve behaviour and refine prompts. 
+The prompts and configurations that define your Agent Applications are stored in simple files, with minimal boilerplate, delivering  straightforward management and version control.
 
-### Get started:
+The ability to chat with individual Agents and Components before, during and after workflow execution makes tuning and diagnosing your application quick and simple.
+
+Simple model switching enables 
+
+## Get started:
 
 Start by installing the [uv package manager](https://docs.astral.sh/uv/) for Python. Then:
 
@@ -35,8 +39,6 @@ fast-agent bootstrap workflow       # create "building effective agents" example
 Other bootstrap examples include a Researcher Agent (with Evaluator-Optimizer workflow) and Data Analysis Agent (similar to the ChatGPT experience), demonstrating MCP Roots support.
 
 > Windows Users - there are a couple of configuration changes needed for the Filesystem and Docker MCP Servers - necessary changes are detailed within the configuration files.
-
-
 
 ### Basic Agents
 
@@ -56,7 +58,7 @@ async with fast.run() as agent:
   print(moon_size)
 ```
 
-Or start an interactive session to chat with the Agent:
+Or start an interactive chat with the Agent:
 ```python
 async with fast.run() as agent:  
   await agent()
@@ -82,11 +84,11 @@ if __name__ == "__main__":
     asyncio.run(main())
 ```
 
-The Agent can be run with `uv run sizer.py`, or with a specific model using the command line option `--model gpt-4o-mini`.
+The Agent can be run with `uv run sizer.py`, and with a specific model using the command line option `--model gpt-4o-mini`.
 
 ### Chaining Agents and using an MCP Server
 
-_To generate runnable examples use `fastagent bootstrap workflow`. To run this example, type `uv run chaining.py`._
+_To generate examples use `fastagent bootstrap workflow`. This example can be run with `uv run chaining.py`._
 
 Agents can be chained together to build a workflow:
 ```python
@@ -205,6 +207,10 @@ Agents are defined
 - OpenAI o1/o3-mini support with reasoning level
 - Enhanced Human Input Messaging and Handling
 - Declarative workflows
+
+### Features to add.
+
+ - Chat History Clear.
 
 ## Get Started
 
