@@ -42,10 +42,31 @@ Defining an agent is as simple as:
 
 ```python
 @fast.agent(
-  name="General Assistant"
+  name="general_assistant"
   instructions="You are a helpful AI Agent"
 )
 ```
+We can then send a message to the Agent:
+```python
+await agent().general_assistant.send("how big is the moon?")
+```
+
+
+
+### Agent Features
+
+```python
+@fast.agent(
+  name="agent",
+  instructions="instructions",
+  servers=["filesystem"],     # list of MCP Servers for the agent, configured in fastagent.config.yaml
+  model="o3-mini.high",       # specify a model for the agent
+  use_history=True,           # agent can maintain chat history
+  human_input=True,           # agent can request human input
+)
+
+
+### Chaining Agents
 
 
 
