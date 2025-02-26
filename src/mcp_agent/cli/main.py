@@ -32,7 +32,7 @@ def show_welcome():
 
     table.add_row("setup", "Set up a new agent project with configuration files")
     table.add_row(
-        "bootstrap", "Create example applications (decorator, researcher, etc.)"
+        "bootstrap", "Create example applications (workflow, researcher, etc.)"
     )
     # table.add_row("config", "Manage agent configuration settings")
 
@@ -41,8 +41,8 @@ def show_welcome():
     console.print("\n[bold]Getting Started:[/bold]")
     console.print("1. Set up a new project:")
     console.print("   fastagent setup")
-    console.print("\n2. Try an example:")
-    console.print("   fastagent bootstrap create decorator")
+    console.print("\n2. Try an example workflow:")
+    console.print("   fastagent bootstrap create workflow")
     console.print("\nUse --help with any command for more information")
     console.print("Example: fastagent bootstrap --help")
 
