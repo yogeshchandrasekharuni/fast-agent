@@ -84,7 +84,7 @@ if __name__ == "__main__":
 
 The Agent can be run with `uv run sizer.py`, and with a specific model using the command line option `--model gpt-4o-mini`.
 
-### Chaining Agents and using MCP Servers
+### Combining Agents and using MCP Servers
 
 _To generate examples use `fast-agent bootstrap workflow`. This example can be run with `uv run chaining.py`._
 
@@ -110,7 +110,9 @@ async def main():
         )
 ```
 
-### Chain Workflow
+## Workflows
+
+### Chain
 
 Alternatively, use the `chain` workflow type and the `prompt()` method to capture user input:
 ```python
