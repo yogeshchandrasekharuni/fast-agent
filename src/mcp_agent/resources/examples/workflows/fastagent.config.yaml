@@ -16,7 +16,7 @@ mcp:
       # Use `npm i -g @modelcontextprotocol/server-filesystem` to install the server globally.
       # Use `npm -g root` to find the global node_modules path.`
       # command: "node"
-      # args: ["c:/Program Files/nodejs/node_modules/@modelcontextprotocol/server-filesystem/dist/index.js","./agent_folder"]
+      # args: ["c:/Program Files/nodejs/node_modules/@modelcontextprotocol/server-filesystem/dist/index.js","."]
       command: "npx"
       args: ["-y", "@modelcontextprotocol/server-filesystem", "."]
     fetch:
