@@ -84,16 +84,16 @@ if __name__ == "__main__":
     asyncio.run(main())
 ```
 
-### Chaining Agents
+Can then be run with `uv run sizer.py`, or with a specific model with `uv run sizer.py --model gpt-4o-mini`.
 
-To generate runnable examples, run `fastagent bootstrap workflow`. 
+### Chaining Agents and using an MCP Server
 
 Agents can be chained together to build a workflow:
-```
+```python
 @fast.agent(
     "url_fetcher",
     instruction="Given a URL, provide a complete and comprehensive summary",
-    servers=["fetch"],
+    servers=["fetch"], # Name of an MCP Server defined in fastagent.config.yaml
 )
 @fast.agent(
     "social_media",
@@ -109,8 +109,8 @@ async def main():
             await agent.url_fetcher("http://llmindset.co.uk/resources/mcp-hfspace/")
         )
 ```
+To generate runnable examples, run `fastagent bootstrap workflow`. To run this example, type `uv run chaining.py`. 
 
-Can then be run with `uv run sizer.py`, or with a specific model with `uv run sizer.py --model gpt-4o-mini`.
 
 ### Agent Features
 
