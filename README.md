@@ -18,11 +18,9 @@ Mix and match models to optimize for each task and compare performance. Quickly 
 
 ### Agent Application Development
 
-The prompts and configurations that define your Agent Applications are stored in simple files, with minimal boilerplate, delivering  straightforward management and version control.
+Prompts and configurations that define your Agent Applications are stored in simple files, with minimal boilerplate, enabling simple management and version control.
 
-The ability to chat with individual Agents and Components before, during and after workflow execution makes tuning and diagnosing your application quick and simple.
-
-Simple model switching enables 
+Chat with individual Agents and Components before, during and after workflow execution to tune and diagnose your agent application. Simple model selection makes testing Model <-> MCP Server interaction painless.
 
 ## Get started:
 
