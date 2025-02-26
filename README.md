@@ -62,7 +62,7 @@ async with fast.run() as agent:
   await agent()
 ```
 
-The entire `sizer.py` Agent, with boilerplate code:
+Here is the `sizer.py` Agent, with boilerplate code:
 ```python
 import asyncio
 from mcp_agent.core.fastagent import FastAgent
@@ -82,7 +82,7 @@ if __name__ == "__main__":
     asyncio.run(main())
 ```
 
-The Agent can be run with `uv run sizer.py`, and with a specific model using the command line option `--model gpt-4o-mini`.
+The Agent can be run with `uv run sizer.py` and with a specific model using the command line option `--model gpt-4o-mini`.
 
 ### Combining Agents and using MCP Servers
 
@@ -109,6 +109,7 @@ async def main():
             await agent.url_fetcher("http://llmindset.co.uk/resources/mcp-hfspace/")
         )
 ```
+All agents will respond to `.send("message")` to send a message and `.prompt()` to begin a chat session. 
 
 ## Workflows
 
@@ -127,6 +128,19 @@ Alternatively, use the `chain` workflow type and the `prompt()` method to captur
         await agent.post_writer.prompt()
 
 ```
+Chains can be incorporated in other workflows, or contain other workflow elements (including other Chains). 
+
+### Parallel
+
+Parallels send the same message to multiple agents simultaneously (`fan-out`), and then use a final agent to aggregate the content (`fan-in`). 
+
+```
+@fast.parallel(
+  name=""
+  fan_out=[agent,agent,agent,...]
+  fan_in=agent
+)
+```
 
 
 ### Evaluator-Optimizer
@@ -143,17 +157,6 @@ Evaluator-Optimizers use 2 agents: one to generate content (the `generator`), an
 )
 ```
 
-### Parallel
-
-Parallels send the same message to multiple agents simultaneously (`fan-out`), and then use a final agent to aggregate the content (`fan-in`). 
-
-```
-@fast.parallel(
-  name=""
-  fan_out=[agent,agent,agent,...]
-  fan_in=agent
-)
-```
 
 ### Router
 
