@@ -84,7 +84,7 @@ if __name__ == "__main__":
 
 The Agent can be run with `uv run sizer.py`, and with a specific model using the command line option `--model gpt-4o-mini`.
 
-### Chaining Agents and using an MCP Server
+### Chaining Agents and using MCP Servers
 
 _To generate examples use `fast-agent bootstrap workflow`. This example can be run with `uv run chaining.py`._
 
@@ -108,6 +108,20 @@ async def main():
         await agent.social_media(
             await agent.url_fetcher("http://llmindset.co.uk/resources/mcp-hfspace/")
         )
+```
+
+Alternatively, use the `chain` workflow type and use the `prompt()` method to capture user input:
+```python
+
+@fast.chain(
+  "post_writer",
+  sequence=["url_fetcher","social_media"]
+)
+
+# we can them prompt it directly:
+    async with fast.run() as agent:
+        await agent.post_writer.prompt()
+
 ```
 
 
