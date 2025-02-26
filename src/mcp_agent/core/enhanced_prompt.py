@@ -13,6 +13,8 @@ from prompt_toolkit.filters import Condition
 from pygments.lexers.python import PythonLexer
 from rich import print as rich_print
 
+from mcp_agent.core.exceptions import PromptExitError
+
 # Map of agent names to their history
 agent_histories = {}
 
@@ -33,7 +35,15 @@ class AgentCompleter(Completer):
         self, agents: List[str], commands: List[str] = None, agent_types: dict = None
     ):
         self.agents = agents
-        self.commands = commands or ["help", "clear", "STOP"]
+        # Map commands to their descriptions for better completion hints
+        self.commands = {
+            "help": "Show available commands",
+            "clear": "Clear the screen",
+            "agents": "List available agents",
+            "STOP": "Stop this prompting session and move to next workflow step",
+            "EXIT": "Exit FastAgent, terminating any running workflows",
+            **(commands or {}),  # Allow custom commands to be passed in
+        }
         self.agent_types = agent_types or {}
 
     def get_completions(self, document, complete_event):
@@ -43,13 +53,13 @@ class AgentCompleter(Completer):
         # Complete commands
         if text.startswith("/"):
             cmd = text[1:]
-            for command in self.commands:
+            for command, description in self.commands.items():
                 if command.lower().startswith(cmd):
                     yield Completion(
                         command,
                         start_position=-len(cmd),
                         display=command,
-                        display_meta="Command",
+                        display_meta=description,
                     )
 
         # Complete agent names for agent-related commands
@@ -64,6 +74,7 @@ class AgentCompleter(Completer):
                         start_position=-len(agent_name),
                         display=agent,
                         display_meta=agent_type,
+                        style="fg:ansiblue",
                     )
 
 
@@ -107,7 +118,7 @@ def create_keybindings(on_toggle_multiline=None, app=None):
 
     @kb.add("c-l")
     def _(event):
-        """Ctrl+L: Clear input."""
+        """Ctrl+L: Clear the input buffer."""
         event.current_buffer.text = ""
 
     return kb
@@ -232,7 +243,7 @@ async def get_enhanced_input(
             )
         else:
             rich_print(
-                "[dim]Tip: Type /help for commands, press F1 for keyboard shortcuts. Ctrl+T toggles multiline mode. @Agent to switch agent[/dim]"
+                "[dim]Tip: Type /help for commands, @Agent to switch agent. Ctrl+T toggles multiline mode. [/dim]"
             )
         agent_messages_shown.add(agent_name)
 
@@ -247,6 +258,10 @@ async def get_enhanced_input(
                 return "CLEAR"
             elif cmd == "agents":
                 return "LIST_AGENTS"
+            elif cmd == "exit":
+                return "EXIT"
+            elif cmd == "stop":
+                return "STOP"
 
         # Agent switching
         if text and text.startswith("@"):
@@ -299,6 +314,9 @@ async def handle_special_commands(command, agent_app=None):
         # Clear screen (ANSI escape sequence)
         print("\033c", end="")
         return True
+
+    elif command == "EXIT":
+        raise PromptExitError("User requested to exit FastAgent session")
 
     elif command == "LIST_AGENTS":
         if available_agents:

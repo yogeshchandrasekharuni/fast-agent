@@ -11,6 +11,8 @@ from contextlib import asynccontextmanager
 
 from mcp_agent.core.exceptions import (
     AgentConfigError,
+    ModelConfigError,
+    PromptExitError,
     ServerConfigError,
     ProviderKeyError,
     ServerInitializationError,
@@ -175,7 +177,7 @@ class AgentApp:
 
         # Pass all available agent names for auto-completion
         available_agents = list(self._agents.keys())
-        
+
         # Create agent_types dictionary mapping agent names to their types
         agent_types = {}
         for name, proxy in self._agents.items():
@@ -1232,6 +1234,24 @@ class FastAgent(ContextDependent):
                 "There was an error starting up the MCP Server.",
             )
             raise SystemExit(1)
+
+        except ModelConfigError as e:
+            had_error = True
+            self._handle_error(
+                e,
+                "Model Configuration Error",
+                "Common models: gpt-4o, o3-mini, sonnet, haiku. for o3, set reasoning effort with o3-mini.high",
+            )
+            raise SystemExit(1)
+
+        except PromptExitError as e:
+            had_error = True
+            self._handle_error(
+                e,
+                "User requested exit",
+            )
+            raise SystemExit(1)
+
         finally:
             # Clean up any active agents without re-raising errors
             if active_agents and not had_error:
@@ -1239,7 +1259,8 @@ class FastAgent(ContextDependent):
                     if isinstance(proxy, LLMAgentProxy):
                         try:
                             await proxy._agent.__aexit__(None, None, None)
-                        except Exception:
+                        except Exception as e:
+                            print(f"DEBUG {e.message}")
                             pass  # Ignore cleanup errors
 
     def _handle_error(

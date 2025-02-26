@@ -32,6 +32,12 @@ Other bootstrap examples include a Researcher (with Evaluator-Optimizer workflow
 
 > Windows Users - there are a couple of configuration changes needed for the Filesystem and Docker MCP Servers - necessary changes are detailed within the configuration files.
 
+## Agent Development
+
+FastAgent lets you interact with Agents during a workflow, enabling "warm-up" and diagnostic prompting to improve behaviour and refine prompts.
+
+## MCP Server Development
+
 ### llmindset.co.uk fork:
 
 - "FastAgent" style prototyping, with per-agent models

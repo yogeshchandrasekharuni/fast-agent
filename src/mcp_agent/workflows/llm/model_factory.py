@@ -3,6 +3,7 @@ from enum import Enum, auto
 from typing import Optional, Type, Dict, Union, Callable
 
 from mcp_agent.agents.agent import Agent
+from mcp_agent.core.exceptions import ModelConfigError
 from mcp_agent.workflows.llm.augmented_llm_anthropic import AnthropicAugmentedLLM
 from mcp_agent.workflows.llm.augmented_llm_openai import OpenAIAugmentedLLM
 from mcp_agent.workflows.llm.augmented_llm import RequestParams
@@ -53,6 +54,7 @@ class ModelFactory:
 
     # TODO -- add context window size information for display/mmanagement
     # TODO -- add audio supporting got-4o-audio-preview
+    # TODO -- bring model parameter configuration here
     # Mapping of model names to their default providers
     DEFAULT_PROVIDERS = {
         "gpt-4o": Provider.OPENAI,
@@ -80,6 +82,7 @@ class ModelFactory:
         "claude": "claude-3-5-sonnet-latest",
         "haiku": "claude-3-5-haiku-latest",
         "haiku3": "claude-3-haiku-20240307",
+        "haiku35": "claude-3-5-haiku-latest",
         "opus": "claude-3-opus-latest",
         "opus3": "claude-3-opus-latest",
     }
@@ -121,7 +124,7 @@ class ModelFactory:
         if provider is None:
             provider = cls.DEFAULT_PROVIDERS.get(model_name)
             if provider is None:
-                raise ValueError(f"Unknown model: {model_name}")
+                raise ModelConfigError(f"Unknown model: {model_name}")
 
         return ModelConfig(
             provider=provider, model_name=model_name, reasoning_effort=reasoning_effort
@@ -173,16 +176,16 @@ class ModelFactory:
                 "request_params": factory_params,
                 "name": kwargs.get("name"),
             }
-            
+
             # Add reasoning effort if available
             if config.reasoning_effort:
                 llm_args["reasoning_effort"] = config.reasoning_effort.value
-                
+
             # Forward all other kwargs (including verb)
             for key, value in kwargs.items():
                 if key not in ["agent", "default_request_params", "name"]:
                     llm_args[key] = value
-                    
+
             llm = llm_class(**llm_args)
             return llm
 

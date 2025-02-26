@@ -11,6 +11,7 @@ from mcp.types import (
     Tool,
 )
 
+from mcp_agent.core.exceptions import PromptExitError
 from mcp_agent.mcp.mcp_aggregator import MCPAggregator
 from mcp_agent.workflows.llm.augmented_llm import RequestParams
 from mcp_agent.human_input.types import (
@@ -174,6 +175,7 @@ class Agent(MCPAggregator):
         async def call_callback_and_signal():
             try:
                 user_input = await self.human_input_callback(request)
+
                 self.logger.debug("Received human input:", data=user_input)
                 await self.executor.signal(signal_name=request_id, payload=user_input)
             except Exception as e:
@@ -254,10 +256,10 @@ class Agent(MCPAggregator):
             # Make sure arguments is not None
             if arguments is None:
                 arguments = {}
-                
+
             # Extract request data
             request_data = arguments.get("request")
-            
+
             # Handle both string and dict request formats
             if isinstance(request_data, str):
                 request = HumanInputRequest(prompt=request_data)
@@ -266,7 +268,7 @@ class Agent(MCPAggregator):
             else:
                 # Fallback for invalid or missing request data
                 request = HumanInputRequest(prompt="Please provide input:")
-                
+
             result: HumanInputResponse = await self.request_human_input(request=request)
             return CallToolResult(
                 content=[

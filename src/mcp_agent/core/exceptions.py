@@ -45,3 +45,20 @@ class ServerInitializationError(FastAgentError):
 
     def __init__(self, message: str, details: str = ""):
         super().__init__(message, details)
+
+
+class ModelConfigError(FastAgentError):
+    """Raised when there are issues with LLM model configuration
+    Example: Unknown model name in model specification string
+    """
+
+    def __init__(self, message: str, details: str = ""):
+        super().__init__(message, details)
+
+
+class PromptExitError(FastAgentError):
+    """Raised from enhanced_prompt when the user requests hard exits"""
+
+    # TODO an exception for flow control :(
+    def __init__(self, message: str, details: str = ""):
+        super().__init__(message, details)

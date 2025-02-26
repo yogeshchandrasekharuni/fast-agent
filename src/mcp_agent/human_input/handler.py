@@ -38,7 +38,6 @@ async def console_input_callback(request: HumanInputRequest) -> HumanInputRespon
     # Use the context manager to pause the progress display while getting input
     with progress_display.paused():
         console.print(panel)
-        console.print(f"[bold blue]Agent: {agent_name}[/bold blue]")
 
         try:
             if request.timeout_seconds:
@@ -50,7 +49,7 @@ async def console_input_callback(request: HumanInputRequest) -> HumanInputRespon
                             available_agent_names=[],  # No agents for selection
                             show_stop_hint=False,
                             is_human_input=True,
-                            toolbar_color="ansimagenta",  # Use yellow to indicate human input
+                            toolbar_color="ansimagenta",
                         ),
                         request.timeout_seconds,
                     )
@@ -63,7 +62,7 @@ async def console_input_callback(request: HumanInputRequest) -> HumanInputRespon
                     available_agent_names=[],  # No agents for selection
                     show_stop_hint=False,
                     is_human_input=True,
-                    toolbar_color="ansimagenta",  # Use yellow to indicate human input
+                    toolbar_color="ansimagenta",
                 )
 
             # Only display the command results without changing the response
