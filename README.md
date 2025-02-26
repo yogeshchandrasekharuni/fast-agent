@@ -34,11 +34,57 @@ Other bootstrap examples include a Researcher (with Evaluator-Optimizer workflow
 
 ## Agent Development
 
-FastAgent lets you interact with Agents during a workflow, enabling "warm-up" and diagnostic prompting to improve behaviour and refine prompts.
+FastAgent lets you interact with Agents during a workflow, enabling "warm-up" and diagnostic prompting to improve behaviour and refine prompts. 
+
+### Basic Agents
+
+Defining an agent is as simple as:
+
+```python
+@fast.agent(
+  name="General Assistant"
+  instructions="You are a helpful AI Agent"
+)
+```
+
+### Evaluator-Optimizer
+
+Evaluator-Optimizers use 2 agents: one to generate content (the `generator`), and one to judge the content and provide actionable feedback (the `evaluator`). The pair run in a loop until either the evaluator is satisfied with the quality or a certain number of iterations have passed.
+
+```python
+@fast.evaluator_optimizer(
+  name=""
+  generator=""
+  evaluator=""
+  min_rating=""
+  max_refinements=3
+)
+```
+
+### Parallel
+
+Parallels send the same message to multiple agents simultaneously (`fan-out`), and then use a final agent to aggregate the content (`fan-in`). 
+
+```
+@fast.parallel(
+  name=""
+  fan_out=[agent,agent,agent,...]
+  fan_in=[agent]
+)
+```
+
+### Router
+
+
 
 ## MCP Server Development
 
 It's quick and easy to interact with MCP Servers via LLM Tool Calls, providing an excellent testbed to compare how different models behave with your tool definitions. 
+
+## Workflow Patterns
+
+Agents are defined 
+
 
 ### llmindset.co.uk fork:
 
