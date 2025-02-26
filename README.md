@@ -48,7 +48,7 @@ from mcp_agent.core.fastagent import FastAgent
 fast = FastAgent("Agent Example")
 
 @fast.agent(
-  instructions="You are a helpful AI Agent"
+  instructions="Given an object, respond only with an estimate of its size."
 )
 ```
 We can then send a message to the Agent:
@@ -56,7 +56,7 @@ We can then send a message to the Agent:
 async def main()
   aysnc with fast.run() as agent:
   
-    moon_size = await agent().send("how big is the moon?")
+    moon_size = await agent().send("the moon")
     print(moon_size)
 ```
 
