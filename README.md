@@ -125,8 +125,8 @@ Alternatively, use the `chain` workflow type and the `prompt()` method to captur
 )
 
 # we can them prompt it directly:
-    async with fast.run() as agent:
-        await agent.post_writer.prompt()
+async with fast.run() as agent:
+  await agent.post_writer.prompt()
 
 ```
 Chains can be incorporated in other workflows, or contain other workflow elements (including other Chains). 
@@ -136,11 +136,21 @@ Chains can be incorporated in other workflows, or contain other workflow element
 The Parallel Workflow sends the same message to multiple agents simultaneously (`fan-out`), and then use the `fan-in` agent to process the combined content. 
 
 ```python
-@fast.parallel(
-  name=""
-  fan_out=[agent,agent,agent,...]
-  fan_in=agent
+
+@fast.agent(
+  name="consolidator"
+  instruction="combine the lists, remove duplicates"
 )
+
+@fast.parallel(
+  name="ensemble"
+  fan_out=["agent_o3-mini","agent_sonnet37",...]
+  fan_in=["consolidator"]
+)
+
+async with fast.run() as agent:
+  await agent.post_writer.prompt()
+    result = agent.ensemble.send("what are the 10 most important aspects of project management")
 ```
 
 ### Evaluator-Optimizer
