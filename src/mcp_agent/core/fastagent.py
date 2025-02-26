@@ -844,6 +844,7 @@ class FastAgent(ContextDependent):
         *,
         sequence: List[str] = None,
         agents: List[str] = None,  # Alias for sequence
+        instruction: str = None,
         model: str | None = None,
         use_history: bool = True,
         request_params: Optional[Dict] = None,
@@ -855,6 +856,7 @@ class FastAgent(ContextDependent):
             name: Name of the chain
             sequence: List of agent names in order of execution (preferred name)
             agents: Alias for sequence (backwards compatibility)
+            instruction: Optional custom instruction for the chain (if none provided, will autogenerate based on sequence)
             model: Model specification string (not used directly in chain)
             use_history: Whether to maintain conversation history
             request_params: Additional request parameters
@@ -864,14 +866,21 @@ class FastAgent(ContextDependent):
         if agent_sequence is None:
             raise ValueError("Either 'sequence' or 'agents' parameter must be provided")
 
+        # Auto-generate instruction if not provided
+        if instruction is None:
+            # We'll generate it later when we have access to the agent configs and can see servers
+            instruction = f"Chain of agents: {', '.join(agent_sequence)}"
+
         decorator = self._create_decorator(
             AgentType.CHAIN,
             default_name="Chain",
+            default_instruction=instruction,
             default_use_history=True,
             wrapper_needed=True,
         )(
             name=name,
             sequence=agent_sequence,
+            instruction=instruction,
             model=model,
             use_history=use_history,
             request_params=request_params,
@@ -1040,7 +1049,36 @@ class FastAgent(ContextDependent):
                 elif agent_type == AgentType.CHAIN:
                     # Get the sequence from either parameter
                     sequence = agent_data.get("sequence", agent_data.get("agents", []))
-
+                    
+                    # Auto-generate instruction if not provided or if it's just the default
+                    default_instruction = f"Chain of agents: {', '.join(sequence)}"
+                    
+                    # If user provided a custom instruction, use that
+                    # Otherwise, generate a description based on the sequence and their servers
+                    if config.instruction == default_instruction:
+                        # Get all agent names in the sequence
+                        agent_names = []
+                        all_servers = set()
+                        
+                        # Collect information about the agents and their servers
+                        for agent_name in sequence:
+                            if agent_name in active_agents:
+                                agent_proxy = active_agents[agent_name]
+                                if hasattr(agent_proxy, "_agent"):
+                                    # For LLMAgentProxy
+                                    agent_instance = agent_proxy._agent
+                                    agent_names.append(agent_name)
+                                    if hasattr(agent_instance, "server_names"):
+                                        all_servers.update(agent_instance.server_names)
+                                elif hasattr(agent_proxy, "_workflow"):
+                                    # For WorkflowProxy
+                                    agent_names.append(agent_name)
+                        
+                        # Generate a better description
+                        if agent_names:
+                            server_part = f" with access to servers: {', '.join(sorted(all_servers))}" if all_servers else ""
+                            config.instruction = f"Sequence of agents: {', '.join(agent_names)}{server_part}."
+                    
                     # Create a ChainProxy without needing a new instance
                     # Just pass the agent proxies and sequence
                     instance = ChainProxy(self.app, name, sequence, active_agents)

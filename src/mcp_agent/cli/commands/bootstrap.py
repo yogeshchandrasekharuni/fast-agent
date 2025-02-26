@@ -28,7 +28,7 @@ EXAMPLE_TYPES = {
             "router.py",
             "fastagent.config.yaml",
         ],
-        "create_subdir": False,
+        "create_subdir": True,
     },
     "researcher": {
         "description": "Research agent example with additional evaluation/optimization\n"

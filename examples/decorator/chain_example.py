@@ -20,6 +20,7 @@ fast = FastAgent("Chain Example")
 @fast.chain(
     name="social-poster",
     sequence=["url_fetcher", "social_media"],
+    instruction="A workflow that fetches URL content and creates a social media post.",
 )
 async def main():
     async with fast.run() as agent:
