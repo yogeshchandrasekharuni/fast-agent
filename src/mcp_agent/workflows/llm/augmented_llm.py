@@ -15,6 +15,7 @@ from mcp.types import (
 )
 
 from mcp_agent.context_dependent import ContextDependent
+from mcp_agent.core.exceptions import PromptExitError
 from mcp_agent.event_progress import ProgressAction
 from mcp_agent.mcp.mcp_aggregator import MCPAggregator, SEP
 from mcp_agent.workflows.llm.llm_selector import ModelSelector
@@ -608,6 +609,8 @@ class AugmentedLLM(ContextDependent, AugmentedLLMProtocol[MessageParamT, Message
                 result = postprocess
 
             return result
+        except PromptExitError:
+            raise
         except Exception as e:
             return CallToolResult(
                 isError=True,
