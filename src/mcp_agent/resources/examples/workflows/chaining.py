@@ -19,13 +19,15 @@ fast = FastAgent("Agent Chaining")
 )
 async def main():
     async with fast.run() as agent:
+        await agent.social_media(
+            await agent.url_fetcher("http://llmindset.co.uk/resources/mcp-hfspace/")
+        )
 
-        await agent()
-#        await agent.social_media(
-#            await agent.url_fetcher("http://llmindset.co.uk/resources/mcp-hfspace/")
-#        )
 
-    # alternative syntax for above is agent["social_media"].send(message)
+#      uncomment below to interact with agents
+#      await agent()
+
+# alternative syntax for above is agent["social_media"].send(message)
 
 
 if __name__ == "__main__":
