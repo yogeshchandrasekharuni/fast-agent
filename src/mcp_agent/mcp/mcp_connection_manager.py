@@ -75,15 +75,15 @@ class ServerConnection:
 
         # Signal we want to shut down
         self._shutdown_event = Event()
-        
+
         # Track error state
         self._error_occurred = False
         self._error_message = None
-        
+
     def is_healthy(self) -> bool:
         """Check if the server connection is healthy and ready to use."""
         return self.session is not None and not self._error_occurred
-        
+
     def reset_error_state(self) -> None:
         """Reset the error state, allowing reconnection attempts."""
         self._error_occurred = False
@@ -216,10 +216,10 @@ class MCPConnectionManager(ContextDependent):
         try:
             # First request all servers to shutdown
             await self.disconnect_all()
-            
+
             # Add a small delay to allow for clean shutdown
             await asyncio.sleep(0.5)
-            
+
             # Then close the task group if it's active
             if self._task_group_active:
                 await self._task_group.__aexit__(exc_type, exc_val, exc_tb)
@@ -305,10 +305,12 @@ class MCPConnectionManager(ContextDependent):
             server_conn = self.running_servers.get(server_name)
             if server_conn and server_conn.is_healthy():
                 return server_conn
-                
+
             # If server exists but isn't healthy, remove it so we can create a new one
             if server_conn:
-                logger.info(f"{server_name}: Server exists but is unhealthy, recreating...")
+                logger.info(
+                    f"{server_name}: Server exists but is unhealthy, recreating..."
+                )
                 self.running_servers.pop(server_name)
                 server_conn.request_shutdown()
 
@@ -326,9 +328,9 @@ class MCPConnectionManager(ContextDependent):
         if not server_conn.is_healthy():
             error_msg = server_conn._error_message or "Unknown error"
             raise ServerInitializationError(
-                f"{server_name}: Failed to initialize server: {error_msg}"
+                f"MCP Server: '{server_name}': Failed to initialize with error: '{error_msg}'. Check fastagent.config.yaml"
             )
-        
+
         return server_conn
 
     async def disconnect_server(self, server_name: str) -> None:
@@ -353,16 +355,16 @@ class MCPConnectionManager(ContextDependent):
         """Disconnect all servers that are running under this connection manager."""
         # Get a copy of servers to shutdown
         servers_to_shutdown = []
-        
+
         async with self._lock:
             if not self.running_servers:
                 return
-                
+
             # Make a copy of the servers to shut down
             servers_to_shutdown = list(self.running_servers.items())
             # Clear the dict immediately to prevent any new access
             self.running_servers.clear()
-            
+
         # Release the lock before waiting for servers to shut down
         for name, conn in servers_to_shutdown:
             logger.info(f"{name}: Requesting shutdown...")

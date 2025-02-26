@@ -1245,7 +1245,7 @@ class FastAgent(ContextDependent):
             had_error = True
             self._handle_error(
                 e,
-                "Server Startup Error",
+                "MCP Server Startup Error",
                 "There was an error starting up the MCP Server.",
             )
             raise SystemExit(1)
