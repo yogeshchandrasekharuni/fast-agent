@@ -10,7 +10,7 @@
 
 ## Overview
 
-**`fast-agent`** lets you build and interact sophisticated Agents and Workflows in minutes.
+**`fast-agent`** lets you build and interact with sophisticated Agents and Workflows in minutes.
 
 The simple declarative syntax lets you concentrate on composing your Prompts and MCP Servers to [build effective agents](https://www.anthropic.com/research/building-effective-agents).
 
