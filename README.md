@@ -14,7 +14,7 @@
 
 The simple declarative syntax lets you concentrate on composing your Prompts and MCP Servers to [build effective agents](https://www.anthropic.com/research/building-effective-agents).
 
-Mix and match models to optimize each task and compare performance. Quickly evaluate how various models handle Agent and MCP Server calling tasks, then build multi-model workflows using the best provider for each component.
+Evaluate how different models handle Agent and MCP Server calling tasks, then build multi-model workflows using the best provider for each task.
 
 ### Agent Application Development
 
