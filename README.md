@@ -110,7 +110,9 @@ async def main():
         )
 ```
 
-Alternatively, use the `chain` workflow type and use the `prompt()` method to capture user input:
+### Chain Workflow
+
+Alternatively, use the `chain` workflow type and the `prompt()` method to capture user input:
 ```python
 
 @fast.chain(
@@ -123,23 +125,6 @@ Alternatively, use the `chain` workflow type and use the `prompt()` method to ca
         await agent.post_writer.prompt()
 
 ```
-
-
-### Agent Features
-
-```python
-@fast.agent(
-  name="agent",
-  instructions="instructions",
-  servers=["filesystem"],     # list of MCP Servers for the agent, configured in fastagent.config.yaml
-  model="o3-mini.high",       # specify a model for the agent
-  use_history=True,           # agent can maintain chat history
-  human_input=True,           # agent can request human input
-)
-
-
-### Chaining Agents
-
 
 
 ### Evaluator-Optimizer
@@ -191,17 +176,23 @@ Given a task, an Orchestrator uses an LLM to generate a plan to divide the task 
 
 ...
 
+### Agent Features
 
-await agent.orchestrate.send("
+```python
+@fast.agent(
+  name="agent",
+  instructions="instructions",
+  servers=["filesystem"],     # list of MCP Servers for the agent, configured in fastagent.config.yaml
+  model="o3-mini.high",       # specify a model for the agent
+  use_history=True,           # agent can maintain chat history
+  human_input=True,           # agent can request human input
+)
 
-## MCP Server Development
+```
 
-It's quick and easy to interact with MCP Servers via LLM Tool Calls, providing an excellent testbed to compare how different models behave with your tool definitions. 
+## Project Notes
 
-## Workflow Patterns
-
-Agents are defined 
-
+`fast-agent` builds on the `mcp-agent` project by Sarmad Qadri.
 
 ### llmindset.co.uk fork:
 
@@ -224,10 +215,3 @@ Agents are defined
 
  - Chat History Clear.
 
-## Get Started
-
-We recommend using [uv](https://docs.astral.sh/uv/) to manage your Python projects:
-
-## Table of Contents
-
-We welcome any and all kinds of contributions. Please see the [CONTRIBUTING guidelines](./CONTRIBUTING.md) to get started.
