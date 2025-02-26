@@ -217,7 +217,7 @@ When `human_input` is set to true for an Agent, it is presented with the option 
 
 ## Project Notes
 
-`fast-agent` builds on the `mcp-agent` project by Sarmad Qadri.
+`fast-agent` builds on the [`mcp-agent`](https://github.com/lastmile-ai/mcp-agent) project by Sarmad Qadri.
 
 ### llmindset.co.uk fork:
 
