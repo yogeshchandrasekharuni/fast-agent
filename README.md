@@ -65,7 +65,7 @@ if __name__ == "__main__":
 
 Alternatively, we can start an interactive session to send messages to the Agent:
 
-```
+```python
 async def main():
   async with fast.run() as agent:
   
