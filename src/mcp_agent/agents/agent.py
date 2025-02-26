@@ -25,6 +25,7 @@ from mcp_agent.logging.logger import get_logger
 
 if TYPE_CHECKING:
     from mcp_agent.context import Context
+import traceback
 
 logger = get_logger(__name__)
 
@@ -280,12 +281,21 @@ class Agent(MCPAggregator):
                 # Fallback for invalid or missing request data
                 request = HumanInputRequest(prompt="Please provide input:")
 
-            result: HumanInputResponse = await self.request_human_input(request=request)
+            result = await self.request_human_input(request=request)
+
+            # Use response attribute if available, otherwise use the result directly
+            response_text = (
+                result.response
+                if isinstance(result, HumanInputResponse)
+                else str(result)
+            )
+
             return CallToolResult(
                 content=[
-                    TextContent(type="text", text=f"Human response: {result.response}")
+                    TextContent(type="text", text=f"Human response: {response_text}")
                 ]
             )
+
         except PromptExitError:
             raise
         except TimeoutError as e:
@@ -299,6 +309,8 @@ class Agent(MCPAggregator):
                 ],
             )
         except Exception as e:
+            print(f"Error in _call_human_input_tool: {traceback.format_exc()}")
+
             return CallToolResult(
                 isError=True,
                 content=[

@@ -32,7 +32,11 @@ class AgentCompleter(Completer):
     """Provide completion for agent names and common commands."""
 
     def __init__(
-        self, agents: List[str], commands: List[str] = None, agent_types: dict = None
+        self,
+        agents: List[str],
+        commands: List[str] = None,
+        agent_types: dict = None,
+        is_human_input: bool = False,
     ):
         self.agents = agents
         # Map commands to their descriptions for better completion hints
@@ -44,6 +48,8 @@ class AgentCompleter(Completer):
             "EXIT": "Exit FastAgent, terminating any running workflows",
             **(commands or {}),  # Allow custom commands to be passed in
         }
+        if is_human_input:
+            self.commands.pop("agents")
         self.agent_types = agent_types or {}
 
     def get_completions(self, document, complete_event):
@@ -74,7 +80,7 @@ class AgentCompleter(Completer):
                         start_position=-len(agent_name),
                         display=agent,
                         display_meta=agent_type,
-                        style="fg:ansiblue",
+                        style="bg:ansiblack fg:ansiblue",
                     )
 
 
@@ -185,16 +191,20 @@ async def get_enhanced_input(
 
         shortcuts = [
             ("Ctrl+T", toggle_text),
-            ("Ctrl+Enter", "Submit" if in_multiline_mode else ""),
             ("Ctrl+L", "Clear"),
             ("↑/↓", "History"),
         ]
+
+        newline = (
+            "Ctrl+&lt;Enter&gt;:Submit" if in_multiline_mode else "&lt;Enter&gt;:Submit"
+        )
+
         # Only show relevant shortcuts based on mode
         shortcuts = [(k, v) for k, v in shortcuts if v]
 
         shortcut_text = " | ".join(f"{key}:{action}" for key, action in shortcuts)
         return HTML(
-            f" <{toolbar_color}> {agent_name} </{toolbar_color}> | <b>Mode:</b> <{mode_style}> {mode_text} </{mode_style}> | {shortcut_text}"
+            f" <{toolbar_color}> {agent_name} </{toolbar_color}> | <b>Mode:</b> <{mode_style}> {mode_text} </{mode_style}> {newline} | {shortcut_text}"
         )
 
     # Create session with history and completions
@@ -203,6 +213,7 @@ async def get_enhanced_input(
         completer=AgentCompleter(
             agents=list(available_agents) if available_agents else [],
             agent_types=agent_types or {},
+            is_human_input=is_human_input,
         ),
         complete_while_typing=True,
         lexer=PygmentsLexer(PythonLexer) if syntax == "python" else None,
@@ -299,7 +310,10 @@ async def handle_special_commands(command, agent_app=None):
         rich_print("  /clear         - Clear screen")
         rich_print("  /agents        - List available agents")
         rich_print("  @agent_name    - Switch to agent")
-        rich_print("  STOP           - End session")
+        rich_print("  STOP           - Return control back to the workflow")
+        rich_print(
+            "  EXIT           - Exit FastAgent, terminating any running workflows"
+        )
         rich_print("\n[bold]Keyboard Shortcuts:[/bold]")
         rich_print(
             "  Enter          - Submit (normal mode) / New line (multiline mode)"
@@ -308,7 +322,6 @@ async def handle_special_commands(command, agent_app=None):
         rich_print("  Ctrl+T         - Toggle multiline mode")
         rich_print("  Ctrl+L         - Clear input")
         rich_print("  Up/Down        - Navigate history")
-        rich_print("  F1             - Show help")
         return True
 
     elif command == "CLEAR":

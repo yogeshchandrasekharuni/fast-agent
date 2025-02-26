@@ -3,7 +3,17 @@ Decorator-based interface for MCP Agent applications.
 Provides a simplified way to create and manage agents using decorators.
 """
 
-from typing import List, Optional, Dict, Callable, TypeVar, Any, Union, TypeAlias
+from typing import (
+    List,
+    Optional,
+    Dict,
+    Callable,
+    TypeVar,
+    Any,
+    Union,
+    TypeAlias,
+    Literal,
+)
 from enum import Enum
 import yaml
 import argparse
@@ -635,6 +645,7 @@ class FastAgent(ContextDependent):
         use_history: bool = False,
         request_params: Optional[Dict] = None,
         human_input: bool = False,
+        plan_type: Literal["full", "iterative"] = "full",
     ) -> Callable:
         """
         Decorator to create and register an orchestrator.
@@ -647,6 +658,7 @@ class FastAgent(ContextDependent):
             use_history: Whether to maintain conversation history (forced false)
             request_params: Additional request parameters for the LLM
             human_input: Whether to enable human input capabilities
+            plan_type: Planning approach - "full" generates entire plan first, "iterative" plans one step at a time
         """
         default_instruction = """
             You are an expert planner. Given an objective task and a list of MCP servers (which are collections of tools)
@@ -668,6 +680,7 @@ class FastAgent(ContextDependent):
             use_history=use_history,
             request_params=request_params,
             human_input=human_input,
+            plan_type=plan_type,
         )
         return decorator
 
@@ -866,7 +879,7 @@ class FastAgent(ContextDependent):
                         which can be performed by LLMs with access to the servers or agents.
                         """,
                         servers=[],  # Planner doesn't need server access
-                        model=config.model,  # Use same model as orchestrator
+                        model=config.model,
                         default_request_params=base_params,
                     )
                     planner_agent = Agent(
@@ -887,8 +900,10 @@ class FastAgent(ContextDependent):
                         available_agents=child_agents,
                         context=agent_app.context,
                         request_params=planner.default_request_params,  # Base params already include model settings
-                        plan_type="full",  # TODO -- support iterative plan type properly
-                        verb=ProgressAction.PLANNING,  # Using PLANNING instead of ORCHESTRATING
+                        plan_type=agent_data.get(
+                            "plan_type", "full"
+                        ),  # Get plan_type from agent_data
+                        verb=ProgressAction.PLANNING,
                     )
 
                 elif agent_type == AgentType.EVALUATOR_OPTIMIZER:
