@@ -65,7 +65,7 @@ Or start an interactive session to chat with the Agent:
 ```
 
 The entire program, with boilerplate code:
-```python {sizer.py}
+```python {title=sizer.py}
 import asyncio
 from mcp_agent.core.fastagent import FastAgent
 
@@ -82,6 +82,32 @@ async def main():
 
 if __name__ == "__main__":
     asyncio.run(main())
+```
+
+### Chaining Agents
+
+To generate runnable examples, run `fastagent bootstrap workflow`. 
+
+Agents can be chained together to build a workflow:
+```
+@fast.agent(
+    "url_fetcher",
+    instruction="Given a URL, provide a complete and comprehensive summary",
+    servers=["fetch"],
+)
+@fast.agent(
+    "social_media",
+    instruction="""
+    Write a 280 character social media post for any given text.
+    Respond only with the post, never use hashtags.
+    """,
+)
+
+async def main():
+    async with fast.run() as agent:
+        await agent.social_media(
+            await agent.url_fetcher("http://llmindset.co.uk/resources/mcp-hfspace/")
+        )
 ```
 
 Can then be run with `uv run sizer.py`, or with a specific model with `uv run sizer.py --model gpt-4o-mini`.
