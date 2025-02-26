@@ -1,0 +1,1 @@
+{"level":"ERROR","timestamp":"2025-02-26T10:12:00.834708","namespace":"mcp_agent.mcp.mcp_connection_manager","message":"filesystem: Lifecycle task encountered an error: [WinError 2] The system cannot find the file specified","data":{"exc_info":true,"data":{"progress_action":"Error","server_name":"filesystem"}}}

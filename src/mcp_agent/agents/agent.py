@@ -178,6 +178,13 @@ class Agent(MCPAggregator):
 
                 self.logger.debug("Received human input:", data=user_input)
                 await self.executor.signal(signal_name=request_id, payload=user_input)
+            except PromptExitError as e:
+                # Propagate the exit error through the signal system
+                self.logger.info("User requested to exit session")
+                await self.executor.signal(
+                    signal_name=request_id,
+                    payload={"exit_requested": True, "error": str(e)},
+                )
             except Exception as e:
                 await self.executor.signal(
                     request_id, payload=f"Error getting human input: {str(e)}"
@@ -197,6 +204,10 @@ class Agent(MCPAggregator):
             signal_type=HumanInputResponse,  # TODO: saqadri - should this be HumanInputResponse?
         )
 
+        if isinstance(result, dict) and result.get("exit_requested", False):
+            raise PromptExitError(
+                result.get("error", "User requested to exit FastAgent session")
+            )
         self.logger.debug("Received human input signal", data=result)
         return result
 
@@ -275,6 +286,8 @@ class Agent(MCPAggregator):
                     TextContent(type="text", text=f"Human response: {result.response}")
                 ]
             )
+        except PromptExitError:
+            raise
         except TimeoutError as e:
             return CallToolResult(
                 isError=True,

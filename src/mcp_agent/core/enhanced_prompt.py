@@ -92,9 +92,10 @@ def create_keybindings(on_toggle_multiline=None, app=None):
         """Enter: insert newline when in multiline mode."""
         event.current_buffer.insert_text("\n")
 
-    @kb.add("escape", "enter")
+    # Use c-j (Ctrl+J) as an alternative to represent Ctrl+Enter in multiline mode
+    @kb.add("c-j", filter=Condition(lambda: in_multiline_mode))
     def _(event):
-        """Alt+Enter: always submit even in multiline mode."""
+        """Ctrl+J (equivalent to Ctrl+Enter): Submit in multiline mode."""
         event.current_buffer.validate_and_handle()
 
     @kb.add("c-t")
@@ -184,7 +185,7 @@ async def get_enhanced_input(
 
         shortcuts = [
             ("Ctrl+T", toggle_text),
-            ("Alt+Enter", "Submit" if in_multiline_mode else ""),
+            ("Ctrl+Enter", "Submit" if in_multiline_mode else ""),
             ("Ctrl+L", "Clear"),
             ("↑/↓", "History"),
         ]
@@ -239,7 +240,7 @@ async def get_enhanced_input(
     if agent_name not in agent_messages_shown:
         if is_human_input:
             rich_print(
-                "[dim]Tip: Type /help for commands. Ctrl+T toggles multiline mode. Alt+Enter to submit in multiline mode.[/dim]"
+                "[dim]Tip: Type /help for commands. Ctrl+T toggles multiline mode. Ctrl+Enter to submit in multiline mode.[/dim]"
             )
         else:
             rich_print(
@@ -303,7 +304,7 @@ async def handle_special_commands(command, agent_app=None):
         rich_print(
             "  Enter          - Submit (normal mode) / New line (multiline mode)"
         )
-        rich_print("  Alt+Enter      - Always submit (even in multiline mode)")
+        rich_print("  Ctrl+Enter      - Always submit (even in multiline mode)")
         rich_print("  Ctrl+T         - Toggle multiline mode")
         rich_print("  Ctrl+L         - Clear input")
         rich_print("  Up/Down        - Navigate history")

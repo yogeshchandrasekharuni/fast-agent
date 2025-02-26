@@ -65,9 +65,8 @@ async def console_input_callback(request: HumanInputRequest) -> HumanInputRespon
                     toolbar_color="ansimagenta",
                 )
 
-            # Only display the command results without changing the response
-            if response and (response.startswith("/") or response.startswith("@")):
-                await handle_special_commands(response)
+            #            if response and (response.startswith("/") or response.startswith("@")):
+            await handle_special_commands(response)
 
         except KeyboardInterrupt:
             console.print("\n[yellow]Input interrupted[/yellow]")
