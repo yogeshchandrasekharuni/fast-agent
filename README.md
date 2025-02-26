@@ -48,16 +48,19 @@ from mcp_agent.core.fastagent import FastAgent
 fast = FastAgent("Agent Example")
 
 @fast.agent(
-  instructions="Given an object, respond only with an estimate of its size."
+  instruction="Given an object, respond only with an estimate of its size."
 )
 ```
 We can then send a message to the Agent:
 ```python
-async def main()
-  aysnc with fast.run() as agent:
+async def main():
+  async with fast.run() as agent:
   
-    moon_size = await agent().send("the moon")
+    moon_size = await agent("the moon")
     print(moon_size)
+
+if __name__ == "__main__":
+    asyncio.run(main())
 ```
 
 
