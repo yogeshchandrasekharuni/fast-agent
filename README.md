@@ -10,13 +10,15 @@
 
 ## Overview
 
-**`fast-agent`** lets you define, test and interact with Agents, Tools and Workflows in minutes.
+**`fast-agent`** lets you build and interact with Agents and Workflows in minutes.
 
-The simple declarative syntax lets you concentrate on the the Prompts, MCP Servers and Compositions to [build effective agents](https://www.anthropic.com/research/building-effective-agents).
+The simple declarative syntax lets you concentrate on composing your Prompts and MCP Servers to [build effective agents](https://www.anthropic.com/research/building-effective-agents).
 
-Compare Agents and MCP Server performance with different models, and seamlessly create mixed-model compositions.
+Mix and match models to optimize for each task and compare performance. Quickly evaluate how various models handle Agent and MCP Server calling tasks, then build multi-model workflows using the best provider for each component.
 
-Quickly compare how different models perform at Agent and MCP Server calling tasks, and build mixed multi-model workflows using the best provider for each task.
+### Agent Application Development
+
+FastAgent lets you interact with Agents during a workflow, enabling "warm-up" and diagnostic prompting to improve behaviour and refine prompts. 
 
 ### Get started:
 
@@ -34,9 +36,7 @@ Other bootstrap examples include a Researcher Agent (with Evaluator-Optimizer wo
 
 > Windows Users - there are a couple of configuration changes needed for the Filesystem and Docker MCP Servers - necessary changes are detailed within the configuration files.
 
-## Agent Development
 
-FastAgent lets you interact with Agents during a workflow, enabling "warm-up" and diagnostic prompting to improve behaviour and refine prompts. 
 
 ### Basic Agents
 
