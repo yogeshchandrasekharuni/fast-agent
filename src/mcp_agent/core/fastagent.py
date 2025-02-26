@@ -21,6 +21,7 @@ from contextlib import asynccontextmanager
 
 from mcp_agent.core.exceptions import (
     AgentConfigError,
+    CircularDependencyError,
     ModelConfigError,
     PromptExitError,
     ServerConfigError,
@@ -64,6 +65,7 @@ class AgentType(Enum):
     PARALLEL = "parallel"
     EVALUATOR_OPTIMIZER = "evaluator_optimizer"
     ROUTER = "router"
+    CHAIN = "chain"
 
 
 T = TypeVar("T")  # For the wrapper classes
@@ -150,6 +152,27 @@ class RouterProxy(BaseAgentProxy):
         return f"Routed to: {top_result.result} ({top_result.confidence}): {top_result.reasoning}"
 
 
+class ChainProxy(BaseAgentProxy):
+    """Proxy for chained agent operations"""
+
+    def __init__(
+        self, app: MCPApp, name: str, sequence: List[str], agent_proxies: ProxyDict
+    ):
+        super().__init__(app, name)
+        self._sequence = sequence
+        self._agent_proxies = agent_proxies
+
+    async def generate_str(self, message: str) -> str:
+        """Chain message through a sequence of agents"""
+        current_message = message
+
+        for agent_name in self._sequence:
+            proxy = self._agent_proxies[agent_name]
+            current_message = await proxy.generate_str(current_message)
+
+        return current_message
+
+
 class AgentApp:
     """Main application wrapper"""
 
@@ -197,6 +220,8 @@ class AgentApp:
                 agent_types[name] = "Agent"
             elif isinstance(proxy, RouterProxy):
                 agent_types[name] = "Router"
+            elif isinstance(proxy, ChainProxy):
+                agent_types[name] = "Chain"
             elif isinstance(proxy, WorkflowProxy):
                 # For workflow proxies, check the workflow type
                 workflow = proxy._workflow
@@ -323,6 +348,7 @@ class FastAgent(ContextDependent):
         if agent_type not in [
             AgentType.PARALLEL.value,
             AgentType.EVALUATOR_OPTIMIZER.value,
+            AgentType.CHAIN.value,
         ]:
             self._log_agent_load(name)
         if agent_type == AgentType.BASIC.value:
@@ -355,6 +381,10 @@ class FastAgent(ContextDependent):
                     f"Expected LLMRouter instance for {name}, got {type(instance)}"
                 )
             return RouterProxy(self.app, name, instance)
+        elif agent_type == AgentType.CHAIN.value:
+            # Chain proxy is directly returned from _create_agents_by_type
+            # No need for type checking as it's already a ChainProxy
+            return instance
         else:
             raise ValueError(f"Unknown agent type: {agent_type}")
 
@@ -459,6 +489,15 @@ class FastAgent(ContextDependent):
                 if missing:
                     raise AgentConfigError(
                         f"Evaluator-Optimizer '{name}' references non-existent components: {', '.join(missing)}"
+                    )
+
+            elif agent_type == AgentType.CHAIN.value:
+                # Check that all agents in the sequence exist
+                sequence = agent_data.get("sequence", agent_data.get("agents", []))
+                missing = [a for a in sequence if a not in available_components]
+                if missing:
+                    raise AgentConfigError(
+                        f"Chain '{name}' references non-existent agents: {', '.join(missing)}"
                     )
 
     def _get_model_factory(
@@ -799,6 +838,46 @@ class FastAgent(ContextDependent):
         )
         return decorator
 
+    def chain(
+        self,
+        name: str = "Chain",
+        *,
+        sequence: List[str] = None,
+        agents: List[str] = None,  # Alias for sequence
+        model: str | None = None,
+        use_history: bool = True,
+        request_params: Optional[Dict] = None,
+    ) -> Callable:
+        """
+        Decorator to create and register a chain of agents.
+
+        Args:
+            name: Name of the chain
+            sequence: List of agent names in order of execution (preferred name)
+            agents: Alias for sequence (backwards compatibility)
+            model: Model specification string (not used directly in chain)
+            use_history: Whether to maintain conversation history
+            request_params: Additional request parameters
+        """
+        # Support both parameter names
+        agent_sequence = sequence or agents
+        if agent_sequence is None:
+            raise ValueError("Either 'sequence' or 'agents' parameter must be provided")
+
+        decorator = self._create_decorator(
+            AgentType.CHAIN,
+            default_name="Chain",
+            default_use_history=True,
+            wrapper_needed=True,
+        )(
+            name=name,
+            sequence=agent_sequence,
+            model=model,
+            use_history=use_history,
+            request_params=request_params,
+        )
+        return decorator
+
     async def _create_agents_by_type(
         self,
         agent_app: MCPApp,
@@ -958,6 +1037,14 @@ class FastAgent(ContextDependent):
                         verb=ProgressAction.ROUTING,  # Set verb for progress display
                     )
 
+                elif agent_type == AgentType.CHAIN:
+                    # Get the sequence from either parameter
+                    sequence = agent_data.get("sequence", agent_data.get("agents", []))
+
+                    # Create a ChainProxy without needing a new instance
+                    # Just pass the agent proxies and sequence
+                    instance = ChainProxy(self.app, name, sequence, active_agents)
+
                 elif agent_type == AgentType.PARALLEL:
                     # Get fan-out agents (could be basic agents or other parallels)
                     fan_out_agents = self._get_agent_instances(
@@ -1037,11 +1124,70 @@ class FastAgent(ContextDependent):
             agent_app, AgentType.EVALUATOR_OPTIMIZER, active_agents
         )
 
+    def _get_dependencies(
+        self, name: str, visited: set, path: set, agent_type: AgentType = None
+    ) -> List[str]:
+        """
+        Get dependencies for an agent in topological order.
+        Works for both Parallel and Chain workflows.
+
+        Args:
+            name: Name of the agent
+            visited: Set of already visited agents
+            path: Current path for cycle detection
+            agent_type: Optional type filter (e.g., only check Parallel or Chain)
+
+        Returns:
+            List of agent names in dependency order
+
+        Raises:
+            ValueError: If circular dependency detected
+        """
+        if name in path:
+            path_str = " -> ".join(path)
+            raise CircularDependencyError(f"Path: {path_str} -> {name}")
+
+        if name in visited:
+            return []
+
+        if name not in self.agents:
+            return []
+
+        config = self.agents[name]
+
+        # Skip if not the requested type (when filtering)
+        if agent_type and config["type"] != agent_type.value:
+            return []
+
+        path.add(name)
+        deps = []
+
+        # Handle dependencies based on agent type
+        if config["type"] == AgentType.PARALLEL.value:
+            # Get dependencies from fan-out agents
+            for fan_out in config["fan_out"]:
+                deps.extend(self._get_dependencies(fan_out, visited, path, agent_type))
+        elif config["type"] == AgentType.CHAIN.value:
+            # Get dependencies from sequence agents
+            sequence = config.get("sequence", config.get("agents", []))
+            for agent_name in sequence:
+                deps.extend(
+                    self._get_dependencies(agent_name, visited, path, agent_type)
+                )
+
+        # Add this agent after its dependencies
+        deps.append(name)
+        visited.add(name)
+        path.remove(name)
+
+        return deps
+
     def _get_parallel_dependencies(
         self, name: str, visited: set, path: set
     ) -> List[str]:
         """
         Get dependencies for a parallel agent in topological order.
+        Legacy function that calls the more general _get_dependencies.
 
         Args:
             name: Name of the parallel agent
@@ -1054,33 +1200,60 @@ class FastAgent(ContextDependent):
         Raises:
             ValueError: If circular dependency detected
         """
-        if name in path:
-            path_str = " -> ".join(path)
-            raise ValueError(f"Circular dependency detected: {path_str} -> {name}")
+        return self._get_dependencies(name, visited, path, AgentType.PARALLEL)
 
-        if name in visited:
-            return []
+    async def _create_agents_in_dependency_order(
+        self, agent_app: MCPApp, active_agents: ProxyDict, agent_type: AgentType
+    ) -> ProxyDict:
+        """
+        Create agents in dependency order to avoid circular references.
+        Works for both Parallel and Chain workflows.
 
-        if name not in self.agents:
-            return []
+        Args:
+            agent_app: The main application instance
+            active_agents: Dictionary of already created agents/proxies
+            agent_type: Type of agents to create (AgentType.PARALLEL or AgentType.CHAIN)
 
-        config = self.agents[name]
-        if config["type"] != AgentType.PARALLEL.value:
-            return []
+        Returns:
+            Dictionary of initialized agents
+        """
+        result_agents = {}
+        visited = set()
 
-        path.add(name)
-        deps = []
+        # Get all agents of the specified type
+        agent_names = [
+            name
+            for name, agent_data in self.agents.items()
+            if agent_data["type"] == agent_type.value
+        ]
 
-        # Get dependencies from fan-out agents
-        for fan_out in config["fan_out"]:
-            deps.extend(self._get_parallel_dependencies(fan_out, visited, path))
+        # Create agents in dependency order
+        for name in agent_names:
+            # Get ordered dependencies if not already processed
+            if name not in visited:
+                try:
+                    ordered_agents = self._get_dependencies(
+                        name, visited, set(), agent_type
+                    )
+                except ValueError as e:
+                    raise ValueError(
+                        f"Error creating {agent_type.name.lower()} agent {name}: {str(e)}"
+                    )
 
-        # Add this agent after its dependencies
-        deps.append(name)
-        visited.add(name)
-        path.remove(name)
+                # Create each agent in order
+                for agent_name in ordered_agents:
+                    if agent_name not in result_agents:
+                        # Create one agent at a time using the generic method
+                        agent_result = await self._create_agents_by_type(
+                            agent_app,
+                            agent_type,
+                            active_agents,
+                            agent_name=agent_name,
+                        )
+                        if agent_name in agent_result:
+                            result_agents[agent_name] = agent_result[agent_name]
 
-        return deps
+        return result_agents
 
     async def _create_parallel_agents(
         self, agent_app: MCPApp, active_agents: ProxyDict
@@ -1095,41 +1268,9 @@ class FastAgent(ContextDependent):
         Returns:
             Dictionary of initialized parallel agents
         """
-        parallel_agents = {}
-        visited = set()
-
-        # Get all parallel agents
-        parallel_names = [
-            name
-            for name, agent_data in self.agents.items()
-            if agent_data["type"] == AgentType.PARALLEL.value
-        ]
-
-        # Create agents in dependency order
-        for name in parallel_names:
-            # Get ordered dependencies if not already processed
-            if name not in visited:
-                try:
-                    ordered_agents = self._get_parallel_dependencies(
-                        name, visited, set()
-                    )
-                except ValueError as e:
-                    raise ValueError(f"Error creating parallel agent {name}: {str(e)}")
-
-                # Create each agent in order
-                for agent_name in ordered_agents:
-                    if agent_name not in parallel_agents:
-                        # Create one parallel agent at a time using the generic method
-                        agent_result = await self._create_agents_by_type(
-                            agent_app,
-                            AgentType.PARALLEL,
-                            active_agents,
-                            agent_name=agent_name,
-                        )
-                        if agent_name in agent_result:
-                            parallel_agents[agent_name] = agent_result[agent_name]
-
-        return parallel_agents
+        return await self._create_agents_in_dependency_order(
+            agent_app, active_agents, AgentType.PARALLEL
+        )
 
     async def _create_routers(
         self, agent_app: MCPApp, active_agents: ProxyDict
@@ -1203,12 +1344,16 @@ class FastAgent(ContextDependent):
                     agent_app, active_agents
                 )
                 routers = await self._create_routers(agent_app, active_agents)
+                chains = await self._create_agents_in_dependency_order(
+                    agent_app, active_agents, AgentType.CHAIN
+                )
 
                 # Merge all agents into active_agents
                 active_agents.update(orchestrators)
                 active_agents.update(parallel_agents)
                 active_agents.update(evaluator_optimizers)
                 active_agents.update(routers)
+                active_agents.update(chains)
 
                 # Create wrapper with all agents
                 wrapper = AgentApp(agent_app, active_agents)
@@ -1256,6 +1401,15 @@ class FastAgent(ContextDependent):
                 e,
                 "Model Configuration Error",
                 "Common models: gpt-4o, o3-mini, sonnet, haiku. for o3, set reasoning effort with o3-mini.high",
+            )
+            raise SystemExit(1)
+
+        except CircularDependencyError as e:
+            had_error = True
+            self._handle_error(
+                e,
+                "Circular Dependency Detected",
+                "Check your agent configuration for circular dependencies.",
             )
             raise SystemExit(1)
 

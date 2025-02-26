@@ -56,6 +56,13 @@ class ModelConfigError(FastAgentError):
         super().__init__(message, details)
 
 
+class CircularDependencyError(FastAgentError):
+    """Raised when we detect a Circular Dependency in the workflow"""
+
+    def __init__(self, message: str, details: str = ""):
+        super().__init__(message, details)
+
+
 class PromptExitError(FastAgentError):
     """Raised from enhanced_prompt when the user requests hard exits"""
 

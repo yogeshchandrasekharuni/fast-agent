@@ -17,17 +17,27 @@ fast = FastAgent("Agent Chaining")
     Respond only with the post, never use hashtags.
     """,
 )
+@fast.chain(
+    name="post_writer",
+    sequence=["url_fetcher", "social_media"],
+)
 async def main():
     async with fast.run() as agent:
-        await agent.social_media(
-            await agent.url_fetcher("http://llmindset.co.uk/resources/mcp-hfspace/")
-        )
+        # using chain workflow
+        await agent.post_writer.prompt()
+
+        # calling directly
+        # await agent.url_fetcher("http://llmindset.co.uk/resources/mcp-hfspace/")
+        # await agent.social_media(
+        #     await agent.url_fetcher("http://llmindset.co.uk/resources/mcp-hfspace/")
+        # )
+
+        # agents can also be accessed like dictionaries:
+        # awwait agent["post_writer"].prompt()
 
 
-#      uncomment below to interact with agents
-#      await agent()
-
-# alternative syntax for above is agent["social_media"].send(message)
+# alternative syntax for above is result = agent["post_writer"].send(message)
+# alternative syntax for above is result = agent["post_writer"].prompt()
 
 
 if __name__ == "__main__":
