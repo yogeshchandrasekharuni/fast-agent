@@ -38,6 +38,8 @@ FastAgent lets you interact with Agents during a workflow, enabling "warm-up" an
 
 ## MCP Server Development
 
+It's quick and easy to interact with MCP Servers via LLM Tool Calls, providing an excellent testbed to compare how different models behave with your tool definitions. 
+
 ### llmindset.co.uk fork:
 
 - "FastAgent" style prototyping, with per-agent models
