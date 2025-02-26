@@ -28,7 +28,7 @@ uv run agent.py --model=o3-mini.low # specify a model
 fast-agent bootstrap workflow       # create "building effective agents" examples
 ```
 
-Other bootstrap examples include a Researcher (with Evaluator-Optimizer workflow) and Data Analysis (similar to ChatGPT experience), demonstrating MCP Roots support.
+Other bootstrap examples include a Researcher Agent (with Evaluator-Optimizer workflow) and Data Analysis Agent (similar to the ChatGPT experience), demonstrating MCP Roots support.
 
 > Windows Users - there are a couple of configuration changes needed for the Filesystem and Docker MCP Servers - necessary changes are detailed within the configuration files.
 
@@ -41,9 +41,6 @@ FastAgent lets you interact with Agents during a workflow, enabling "warm-up" an
 Defining an agent is as simple as:
 
 ```python
-# Create the application
-fast = FastAgent("Agent Example")
-
 @fast.agent(
   instruction="Given an object, respond only with an estimate of its size."
 )
@@ -64,8 +61,8 @@ Or start an interactive session to chat with the Agent:
     await agent()
 ```
 
-The entire program, with boilerplate code:
-```python {title=sizer.py}
+The entire program `sizer.py`, with boilerplate code:
+```python
 import asyncio
 from mcp_agent.core.fastagent import FastAgent
 
@@ -88,6 +85,9 @@ Can then be run with `uv run sizer.py`, or with a specific model with `uv run si
 
 ### Chaining Agents and using an MCP Server
 
+_To generate runnable examples use `fastagent bootstrap workflow`._ 
+_To run this example, type `uv run chaining.py`._
+
 Agents can be chained together to build a workflow:
 ```python
 @fast.agent(
@@ -109,7 +109,6 @@ async def main():
             await agent.url_fetcher("http://llmindset.co.uk/resources/mcp-hfspace/")
         )
 ```
-To generate runnable examples, run `fastagent bootstrap workflow`. To run this example, type `uv run chaining.py`. 
 
 
 ### Agent Features
