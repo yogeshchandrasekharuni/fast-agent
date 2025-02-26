@@ -9,7 +9,7 @@ from mcp_agent.core.fastagent import FastAgent
 fast = FastAgent("Evaluator-Optimizer")
 
 
-# Define optimizer agent
+# Define generator agent
 @fast.agent(
     name="generator",
     instruction="""You are a career coach specializing in cover letter writing.
@@ -44,7 +44,7 @@ fast = FastAgent("Evaluator-Optimizer")
 # Define the evaluator-optimizer workflow
 @fast.evaluator_optimizer(
     name="cover_letter_writer",
-    generator="generator",  # Reference to optimizer agent
+    generator="generator",  # Reference to generator agent
     evaluator="evaluator",  # Reference to evaluator agent
     min_rating="EXCELLENT",  # Strive for excellence
     max_refinements=3,  # Maximum iterations
