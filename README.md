@@ -60,7 +60,7 @@ async with fast.run() as agent:
   await agent()
 ```
 
-The entire program `sizer.py`, with boilerplate code:
+The entire `sizer.py` Agent, with boilerplate code:
 ```python
 import asyncio
 from mcp_agent.core.fastagent import FastAgent
@@ -80,12 +80,11 @@ if __name__ == "__main__":
     asyncio.run(main())
 ```
 
-Can then be run with `uv run sizer.py`, or with a specific model with `uv run sizer.py --model gpt-4o-mini`.
+The Agent can be run with `uv run sizer.py`, or with a specific model using the command line option `--model gpt-4o-mini`.
 
 ### Chaining Agents and using an MCP Server
 
-_To generate runnable examples use `fastagent bootstrap workflow`._ 
-_To run this example, type `uv run chaining.py`._
+_To generate runnable examples use `fastagent bootstrap workflow`. To run this example, type `uv run chaining.py`._
 
 Agents can be chained together to build a workflow:
 ```python
