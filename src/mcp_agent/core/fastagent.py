@@ -240,7 +240,7 @@ class AgentApp:
                     continue
 
                 if user_input.upper() == "STOP":
-                    return
+                    return result
                 if user_input == "":
                     continue
 
