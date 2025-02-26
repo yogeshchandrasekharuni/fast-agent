@@ -10,9 +10,11 @@
 
 ## Overview
 
-**`fast-agent`** lets you define, test and interact with agents, tools and workflows in minutes.
+**`fast-agent`** lets you define, test and interact with Agents, Tools and Workflows in minutes.
 
-The simple declarative syntax lets you concentrate on the prompts, MCP Servers and compositions to build effective agents.
+The simple declarative syntax lets you concentrate on the the Prompts, MCP Servers and Compositions to [build effective agents](https://www.anthropic.com/research/building-effective-agents).
+
+Compare Agents and MCP Server performance with different models, and seamlessly create mixed-model compositions.
 
 Quickly compare how different models perform at Agent and MCP Server calling tasks, and build mixed multi-model workflows using the best provider for each task.
 
