@@ -20,7 +20,9 @@ Evaluate how different models handle Agent and MCP Server calling tasks, then bu
 
 Prompts and configurations that define your Agent Applications are stored in simple files, with minimal boilerplate, enabling simple management and version control.
 
-Chat with individual Agents and Components before, during and after workflow execution to tune and diagnose your agent application. Simple model selection makes testing Model <-> MCP Server interaction painless.
+Chat with individual Agents and Components before, during and after workflow execution to tune and diagnose your agent application. 
+
+Simple model selection makes testing Model <-> MCP Server interaction painless.
 
 ## Get started:
 
