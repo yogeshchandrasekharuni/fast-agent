@@ -63,7 +63,14 @@ if __name__ == "__main__":
     asyncio.run(main())
 ```
 
+Alternatively, we can start an interactive session to send messages to the Agent:
 
+```
+async def main():
+  async with fast.run() as agent:
+  
+    await agent()
+```
 
 ### Agent Features
 
