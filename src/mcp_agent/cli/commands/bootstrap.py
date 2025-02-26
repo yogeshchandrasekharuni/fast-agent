@@ -26,6 +26,7 @@ EXAMPLE_TYPES = {
             "orchestrator.py",
             "parallel.py",
             "router.py",
+            "fastagent.config.yaml",
         ],
         "create_subdir": False,
     },
