@@ -49,16 +49,15 @@ Defining an agent is as simple as:
 We can then send messages to the Agent:
 
 ```python
-  async with fast.run() as agent:
-  
-    moon_size = await agent("the moon")
-    print(moon_size)
+async with fast.run() as agent:
+  moon_size = await agent("the moon")
+  print(moon_size)
 ```
 
 Or start an interactive session to chat with the Agent:
 ```python
-  async with fast.run() as agent:  
-    await agent()
+async with fast.run() as agent:  
+  await agent()
 ```
 
 The entire program `sizer.py`, with boilerplate code:
