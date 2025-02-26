@@ -41,14 +41,23 @@ FastAgent lets you interact with Agents during a workflow, enabling "warm-up" an
 Defining an agent is as simple as:
 
 ```python
+import asyncio
+from mcp_agent.core.fastagent import FastAgent
+
+# Create the application
+fast = FastAgent("Agent Example")
+
 @fast.agent(
-  name="general_assistant"
   instructions="You are a helpful AI Agent"
 )
 ```
 We can then send a message to the Agent:
 ```python
-await agent().general_assistant.send("how big is the moon?")
+async def main()
+  aysnc with fast.run() as agent:
+  
+    moon_size = await agent().send("how big is the moon?")
+    print(moon_size)
 ```
 
 
