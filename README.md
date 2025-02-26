@@ -69,12 +69,19 @@ Parallels send the same message to multiple agents simultaneously (`fan-out`), a
 @fast.parallel(
   name=""
   fan_out=[agent,agent,agent,...]
-  fan_in=[agent]
+  fan_in=agent
 )
 ```
 
 ### Router
 
+Routers use an LLM to assess a message, identify the most appropriate destination direct . The routing prompt is generated automatically by the Router.
+
+```
+@fast.router(
+  name="foo"
+)
+```
 
 
 ## MCP Server Development
