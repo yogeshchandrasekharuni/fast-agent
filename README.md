@@ -109,7 +109,8 @@ async def main():
             await agent.url_fetcher("http://llmindset.co.uk/resources/mcp-hfspace/")
         )
 ```
-All agents will respond to `.send("message")` to send a message and `.prompt()` to begin a chat session. 
+
+All Agents and Workflows respond to `.send("message")` to send a message and `.prompt()` to begin a chat session. 
 
 ## Workflows
 
@@ -132,9 +133,9 @@ Chains can be incorporated in other workflows, or contain other workflow element
 
 ### Parallel
 
-Parallels send the same message to multiple agents simultaneously (`fan-out`), and then use a final agent to aggregate the content (`fan-in`). 
+The Parallel Workflow sends the same message to multiple agents simultaneously (`fan-out`), and then use the `fan-in` agent to process the combined content. 
 
-```
+```python
 @fast.parallel(
   name=""
   fan_out=[agent,agent,agent,...]
@@ -142,21 +143,19 @@ Parallels send the same message to multiple agents simultaneously (`fan-out`), a
 )
 ```
 
-
 ### Evaluator-Optimizer
 
 Evaluator-Optimizers use 2 agents: one to generate content (the `generator`), and one to judge the content and provide actionable feedback (the `evaluator`). The pair run in a loop until either the evaluator is satisfied with the quality or a certain number of iterations have passed.
 
 ```python
 @fast.evaluator_optimizer(
-  name=""
-  generator=""
-  evaluator=""
-  min_rating=""
+  name="researcher"
+  generator="web_searcher"
+  evaluator="quality_assurance"
+  min_rating="EXCELLENT"
   max_refinements=3
 )
 ```
-
 
 ### Router
 
@@ -178,7 +177,6 @@ Given a task, an Orchestrator uses an LLM to generate a plan to divide the task 
   name="orchestrate"
   agents=["task1","task2","task3"]
 )
-
 ...
 
 ### Agent Features
