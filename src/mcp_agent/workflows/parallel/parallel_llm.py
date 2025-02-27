@@ -1,4 +1,4 @@
-from typing import Any, Callable, List, Optional, Type, TYPE_CHECKING, Union
+from typing import Any, Callable, List, Optional, Type, TYPE_CHECKING
 import asyncio
 
 from mcp_agent.agents.agent import Agent
@@ -68,8 +68,10 @@ class ParallelLLM(AugmentedLLM[MessageParamT, MessageT]):
         )
 
         # Get message string for inclusion in formatted output
-        message_str = str(message) if isinstance(message, (str, MessageParamT)) else None
-        
+        message_str = (
+            str(message) if isinstance(message, (str, MessageParamT)) else None
+        )
+
         # Run fan-in to aggregate results
         result = await fan_in_llm.generate(
             self._format_responses(responses, message_str),
@@ -98,8 +100,10 @@ class ParallelLLM(AugmentedLLM[MessageParamT, MessageT]):
         )
 
         # Get message string for inclusion in formatted output
-        message_str = str(message) if isinstance(message, (str, MessageParamT)) else None
-        
+        message_str = (
+            str(message) if isinstance(message, (str, MessageParamT)) else None
+        )
+
         # Run fan-in to aggregate results
         result = await fan_in_llm.generate_str(
             self._format_responses(responses, message_str),
@@ -132,8 +136,10 @@ class ParallelLLM(AugmentedLLM[MessageParamT, MessageT]):
         )
 
         # Get message string for inclusion in formatted output
-        message_str = str(message) if isinstance(message, (str, MessageParamT)) else None
-        
+        message_str = (
+            str(message) if isinstance(message, (str, MessageParamT)) else None
+        )
+
         # Run fan-in to aggregate results
         result = await fan_in_llm.generate_structured(
             self._format_responses(responses, message_str),
@@ -146,13 +152,12 @@ class ParallelLLM(AugmentedLLM[MessageParamT, MessageT]):
     def _format_responses(self, responses: List[Any], message: str = None) -> str:
         """Format a list of responses for the fan-in agent."""
         formatted = []
-        
+
         # Include the original message if specified
         if self.include_request and message:
-            formatted.append(
-                f'<fastagent:request>\n{message}\n</fastagent:request>'
-            )
-        
+            formatted.append("The following request was sent to the agents:")
+            formatted.append(f"<fastagent:request>\n{message}\n</fastagent:request>")
+
         for i, response in enumerate(responses):
             agent_name = self.fan_out_agents[i].name
             formatted.append(

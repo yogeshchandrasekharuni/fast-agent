@@ -152,15 +152,19 @@ class AnthropicAugmentedLLM(AugmentedLLM[MessageParam, Message]):
             elif isinstance(response, BaseException):
                 error_details = str(response)
                 self.logger.error(f"Error: {error_details}", data=executor_result)
-                
+
                 # Try to extract more useful information for API errors
-                if hasattr(response, 'status_code') and hasattr(response, 'response'):
+                if hasattr(response, "status_code") and hasattr(response, "response"):
                     try:
                         error_json = response.response.json()
-                        error_details = f"Error code: {response.status_code} - {error_json}"
-                    except:
-                        error_details = f"Error code: {response.status_code} - {str(response)}"
-                
+                        error_details = (
+                            f"Error code: {response.status_code} - {error_json}"
+                        )
+                    except:  # noqa: E722
+                        error_details = (
+                            f"Error code: {response.status_code} - {str(response)}"
+                        )
+
                 # Convert other errors to text response
                 error_message = f"Error during generation: {error_details}"
                 response = Message(
@@ -220,23 +224,23 @@ class AnthropicAugmentedLLM(AugmentedLLM[MessageParam, Message]):
                 # response.stop_reason == "tool_use":
                 # First, collect all tool uses in this turn
                 tool_uses = [c for c in response.content if c.type == "tool_use"]
-                
+
                 if tool_uses:
                     if message_text == "":
                         message_text = Text(
                             "the assistant requested tool calls",
                             style="dim green italic",
                         )
-                    
+
                     await self.show_assistant_message(message_text)
-                    
+
                     # Process all tool calls and collect results
                     tool_results = []
                     for content in tool_uses:
                         tool_name = content.name
                         tool_args = content.input
                         tool_use_id = content.id
-                        
+
                         self.show_tool_call(available_tools, tool_name, tool_args)
                         tool_call_request = CallToolRequest(
                             method="tools/call",
@@ -249,7 +253,7 @@ class AnthropicAugmentedLLM(AugmentedLLM[MessageParam, Message]):
                             request=tool_call_request, tool_call_id=tool_use_id
                         )
                         self.show_tool_result(result)
-                        
+
                         # Add each result to our collection
                         tool_results.append(
                             ToolResultBlockParam(
@@ -259,7 +263,7 @@ class AnthropicAugmentedLLM(AugmentedLLM[MessageParam, Message]):
                                 is_error=result.isError,
                             )
                         )
-                    
+
                     # Add all tool results in a single message
                     messages.append(
                         MessageParam(
