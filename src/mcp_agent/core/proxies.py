@@ -3,11 +3,23 @@ Proxy classes for agent interactions.
 These proxies provide a consistent interface for interacting with different types of agents.
 """
 
-from typing import List, Optional
+from typing import List, Optional, Dict, TYPE_CHECKING
 
 from mcp_agent.agents.agent import Agent
 from mcp_agent.app import MCPApp
-from mcp_agent.core.types import WorkflowType, ProxyDict
+
+# Handle circular imports
+if TYPE_CHECKING:
+    from mcp_agent.core.types import WorkflowType, ProxyDict
+else:
+    # Define minimal versions for runtime
+    from mcp_agent.workflows.orchestrator.orchestrator import Orchestrator
+    from mcp_agent.workflows.parallel.parallel_llm import ParallelLLM
+    from mcp_agent.workflows.evaluator_optimizer.evaluator_optimizer import EvaluatorOptimizerLLM
+    from mcp_agent.workflows.router.router_llm import LLMRouter
+    from typing import Union
+    WorkflowType = Union[Orchestrator, ParallelLLM, EvaluatorOptimizerLLM, LLMRouter]
+    ProxyDict = Dict[str, "BaseAgentProxy"]
 
 
 class BaseAgentProxy:
@@ -111,3 +123,5 @@ class ChainProxy(BaseAgentProxy):
             current_message = await proxy.generate_str(current_message)
 
         return current_message
+
+

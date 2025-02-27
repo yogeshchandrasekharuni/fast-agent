@@ -2,11 +2,19 @@
 Utility functions for agent operations.
 """
 
-from typing import List
+from typing import List, TYPE_CHECKING
 
-from mcp_agent.core.proxies import BaseAgentProxy, LLMAgentProxy
-from mcp_agent.core.types import AgentOrWorkflow, ProxyDict
 from mcp_agent.event_progress import ProgressAction
+
+# Handle circular imports
+if TYPE_CHECKING:
+    from mcp_agent.core.proxies import BaseAgentProxy, LLMAgentProxy
+    from mcp_agent.core.types import AgentOrWorkflow, ProxyDict
+else:
+    from mcp_agent.core.proxies import BaseAgentProxy, LLMAgentProxy
+    # Define minimal types for runtime
+    AgentOrWorkflow = object  # Simple placeholder
+    ProxyDict = dict  # Simple placeholder
 
 
 def unwrap_proxy(proxy: BaseAgentProxy) -> AgentOrWorkflow:

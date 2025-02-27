@@ -11,7 +11,7 @@ fast = FastAgent("Social Media Manager")
     servers=["fetch"],
 )
 @fast.agent(
-    "social_media",
+    "post_author",
     """
     Write a 280 character social media post for any given text. 
     Respond only with the post, never use hashtags.
@@ -28,7 +28,8 @@ fast = FastAgent("Social Media Manager")
     model="sonnet",
 )
 @fast.parallel(
-    "translated_plan", fan_out=["translate_fr", "translate_de"], fan_in="review"
+    "translated_plan",
+    fan_out=["translate_fr", "translate_de"],
 )
 @fast.agent(
     "human_review_and_post",
@@ -50,7 +51,7 @@ Social Media report ready to review with the Human.
     "post_writer",
     sequence=[
         "url_fetcher",
-        "social_media",
+        "post_author",
         "translated_plan",
         "human_review_and_post",
     ],

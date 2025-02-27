@@ -21,7 +21,6 @@ from mcp_agent.agents.agent import Agent, AgentConfig
 from mcp_agent.context_dependent import ContextDependent
 from mcp_agent.config import Settings
 from mcp_agent.event_progress import ProgressAction
-from mcp_agent.progress_display import progress_display
 from mcp_agent.workflows.evaluator_optimizer.evaluator_optimizer import (
     EvaluatorOptimizerLLM,
     QualityRating,
@@ -38,13 +37,12 @@ from mcp_agent.core.agent_utils import unwrap_proxy, get_agent_instances, log_ag
 from mcp_agent.core.error_handling import handle_error
 from mcp_agent.core.proxies import (
     BaseAgentProxy,
-    AgentProxy,
     LLMAgentProxy,
     WorkflowProxy,
     RouterProxy,
     ChainProxy,
 )
-from mcp_agent.core.types import AgentOrWorkflow, ProxyDict, WorkflowType
+from mcp_agent.core.types import AgentOrWorkflow, ProxyDict
 from mcp_agent.core.exceptions import (
     AgentConfigError,
     CircularDependencyError,
@@ -508,8 +506,8 @@ class FastAgent(ContextDependent):
     def parallel(
         self,
         name: str,
-        fan_in: str,
         fan_out: List[str],
+        fan_in: Optional[str] = None,
         instruction: str = "",
         model: str | None = None,
         use_history: bool = True,
@@ -521,14 +519,34 @@ class FastAgent(ContextDependent):
 
         Args:
             name: Name of the parallel executing agent
-            fan_in: Name of collecting agent
             fan_out: List of parallel execution agents
+            fan_in: Optional name of collecting agent. If not provided, a passthrough agent 
+                    will be created automatically with the name "{name}_fan_in"
             instruction: Optional instruction for the parallel agent
             model: Model specification string
             use_history: Whether to maintain conversation history
             request_params: Additional request parameters for the LLM
             include_request: Whether to include the original request in the fan-in message
         """
+        # If fan_in is not provided, create a passthrough agent with a derived name
+        if fan_in is None:
+            passthrough_name = f"{name}_fan_in"
+            
+            # Register the passthrough agent directly in self.agents
+            self.agents[passthrough_name] = {
+                "config": AgentConfig(
+                    name=passthrough_name,
+                    instruction=f"Passthrough fan-in for {name}",
+                    servers=[],
+                    use_history=use_history,
+                ),
+                "type": AgentType.BASIC.value,  # Using BASIC type since we're just attaching a PassthroughLLM
+                "func": lambda x: x,  # Simple passthrough function (never actually called)
+            }
+            
+            # Use this passthrough as the fan-in
+            fan_in = passthrough_name
+        
         decorator = self._create_decorator(
             AgentType.PARALLEL,
             default_instruction="",
@@ -674,6 +692,36 @@ class FastAgent(ContextDependent):
             continue_with_final=continue_with_final,
         )
         return decorator
+        
+    def passthrough(
+        self,
+        name: str = "Passthrough",
+        use_history: bool = True,
+        **kwargs
+    ) -> Callable:
+        """
+        Decorator to create and register a passthrough agent.
+        A passthrough agent simply returns any input message without modification.
+        
+        This is useful for parallel workflows where no fan-in aggregation is needed
+        (the fan-in agent can be a passthrough that simply returns the combined outputs).
+
+        Args:
+            name: Name of the passthrough agent
+            use_history: Whether to maintain conversation history
+            **kwargs: Additional parameters (ignored, for compatibility)
+        """
+        decorator = self._create_decorator(
+            AgentType.BASIC,  # Using BASIC agent type since we'll use a regular agent with PassthroughLLM
+            default_name="Passthrough",
+            default_instruction="Passthrough agent that returns input without modification",
+            default_use_history=use_history,
+            wrapper_needed=True,
+        )(
+            name=name,
+            use_history=use_history,
+        )
+        return decorator
 
     async def _create_agents_by_type(
         self,
@@ -708,19 +756,42 @@ class FastAgent(ContextDependent):
 
                 # Type-specific initialization
                 if agent_type == AgentType.BASIC:
-                    # Create basic agent with configuration
-                    agent = Agent(config=config, context=agent_app.context)
-
-                    # Set up LLM with proper configuration
-                    async with agent:
-                        llm_factory = self._get_model_factory(
-                            model=config.model,
-                            request_params=config.default_request_params,
-                        )
-                        agent._llm = await agent.attach_llm(llm_factory)
-
-                    # Store the agent
-                    instance = agent
+                    # Get the agent name for special handling
+                    agent_name = agent_data["config"].name
+                    
+                    # Check if this is an agent that should use the PassthroughLLM
+                    if agent_name.endswith("_fan_in") or agent_name.startswith("passthrough"):
+                        # Import here to avoid circular imports
+                        from mcp_agent.workflows.llm.augmented_llm import PassthroughLLM
+                        
+                        # Create basic agent with configuration
+                        agent = Agent(config=config, context=agent_app.context)
+                        
+                        # Set up a PassthroughLLM directly
+                        async with agent:
+                            agent._llm = PassthroughLLM(
+                                name=f"{config.name}_llm",
+                                context=agent_app.context,
+                                agent=agent,
+                                default_request_params=config.default_request_params,
+                            )
+                            
+                        # Store the agent
+                        instance = agent
+                    else:
+                        # Standard basic agent with LLM
+                        agent = Agent(config=config, context=agent_app.context)
+    
+                        # Set up LLM with proper configuration
+                        async with agent:
+                            llm_factory = self._get_model_factory(
+                                model=config.model,
+                                request_params=config.default_request_params,
+                            )
+                            agent._llm = await agent.attach_llm(llm_factory)
+    
+                        # Store the agent
+                        instance = agent
 
                 elif agent_type == AgentType.ORCHESTRATOR:
                     # Get base params configured with model settings
@@ -882,6 +953,9 @@ class FastAgent(ContextDependent):
                     instance._continue_with_final = agent_data.get(
                         "continue_with_final", True
                     )
+
+                # We removed the AgentType.PASSTHROUGH case
+                # Passthrough agents are now created as BASIC agents with a special LLM
 
                 elif agent_type == AgentType.PARALLEL:
                     # Get fan-out agents (could be basic agents or other parallels)
@@ -1171,6 +1245,7 @@ class FastAgent(ContextDependent):
 
                 # Create all types of agents in dependency order
                 active_agents = await self._create_basic_agents(agent_app)
+
                 orchestrators = await self._create_orchestrators(
                     agent_app, active_agents
                 )

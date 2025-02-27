@@ -1,4 +1,4 @@
-from typing import Any, Callable, List, Optional, Type, TYPE_CHECKING
+from typing import Any, Callable, List, Optional, Type, TYPE_CHECKING, Union
 import asyncio
 
 from mcp_agent.agents.agent import Agent
@@ -38,7 +38,7 @@ class ParallelLLM(AugmentedLLM[MessageParamT, MessageT]):
         self.include_request = include_request
         self.history = None  # History tracking is complex in this workflow
 
-    async def ensure_llm(self, agent: Agent | AugmentedLLM) -> AugmentedLLM:
+    async def ensure_llm(self, agent: Union[Agent, AugmentedLLM]) -> AugmentedLLM:
         """Ensure an agent has an LLM attached, using existing or creating new."""
         if isinstance(agent, AugmentedLLM):
             return agent

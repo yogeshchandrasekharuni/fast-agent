@@ -2,9 +2,17 @@
 Main application wrapper for interacting with agents.
 """
 
-from typing import Optional, Dict
+from typing import Optional, Dict, TYPE_CHECKING
 
 from mcp_agent.app import MCPApp
+from mcp_agent.progress_display import progress_display
+from mcp_agent.workflows.orchestrator.orchestrator import Orchestrator
+from mcp_agent.workflows.parallel.parallel_llm import ParallelLLM
+from mcp_agent.workflows.evaluator_optimizer.evaluator_optimizer import (
+    EvaluatorOptimizerLLM,
+)
+
+# Import proxies directly - they handle their own circular imports
 from mcp_agent.core.proxies import (
     BaseAgentProxy,
     AgentProxy,
@@ -13,11 +21,12 @@ from mcp_agent.core.proxies import (
     ChainProxy,
     WorkflowProxy,
 )
-from mcp_agent.core.types import ProxyDict
-from mcp_agent.progress_display import progress_display
-from mcp_agent.workflows.orchestrator.orchestrator import Orchestrator
-from mcp_agent.workflows.parallel.parallel_llm import ParallelLLM
-from mcp_agent.workflows.evaluator_optimizer.evaluator_optimizer import EvaluatorOptimizerLLM
+
+# Handle possible circular imports with types
+if TYPE_CHECKING:
+    from mcp_agent.core.types import ProxyDict
+else:
+    ProxyDict = Dict[str, BaseAgentProxy]
 
 
 class AgentApp:
@@ -48,7 +57,10 @@ class AgentApp:
             agent_name: Optional target agent name (uses default if not specified)
             default: Default message to use when user presses enter
         """
-        from mcp_agent.core.enhanced_prompt import get_enhanced_input, handle_special_commands
+        from mcp_agent.core.enhanced_prompt import (
+            get_enhanced_input,
+            handle_special_commands,
+        )
 
         agent = agent_name or self._default
 
