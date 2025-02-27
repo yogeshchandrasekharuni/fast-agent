@@ -125,7 +125,7 @@ Saved as `social.py` we can now run this workflow from the command line with:
 uv run social.py --agent social_media --message "<url>"
 ```
 
-Add the --quiet switch to only return the final response.
+Add the `--quiet` switch to only return the final response.
 
 ## Workflows
 
@@ -170,7 +170,7 @@ async with fast.run() as agent:
   result = agent.ensemble.send("what are the 10 most important aspects of project management")
 ```
 
-Look at the `parallel.py` workflow example for more examples. If you don't specify a `fan-in` agent, the parallel returns Agent results verbatim.
+Look at the `parallel.py` workflow example for more examples. If you don't specify a `fan-in` agent, the `parallel` returns Agent results verbatim.
 
 ### Evaluator-Optimizer
 
