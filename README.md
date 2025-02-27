@@ -86,23 +86,25 @@ if __name__ == "__main__":
     asyncio.run(main())
 ```
 
-The Agent can be run with `uv run sizer.py` and with a specific model using the command line option `--model gpt-4o-mini`.
+The Agent can then be run with `uv run sizer.py`.
+
+Specify a model with the `--model` switch - for example `uv run sizer.py --model sonnet`.
 
 ### Combining Agents and using MCP Servers
 
 _To generate examples use `fast-agent bootstrap workflow`. This example can be run with `uv run chaining.py`. fast-agent looks for configuration files in the current directory before checking parent directories recursively._
 
-Agents can be chained to build a workflow, and use MCP Servers defined in `fastagent.config.yaml` file:
+Agents can be chained to build a workflow, using MCP Servers defined in the `fastagent.config.yaml` file:
 
 ```python
 @fast.agent(
     "url_fetcher",
-    instruction="Given a URL, provide a complete and comprehensive summary",
+    "Given a URL, provide a complete and comprehensive summary",
     servers=["fetch"], # Name of an MCP Server defined in fastagent.config.yaml
 )
 @fast.agent(
     "social_media",
-    instruction="""
+    """
     Write a 280 character social media post for any given text.
     Respond only with the post, never use hashtags.
     """,
@@ -121,7 +123,7 @@ All Agents and Workflows respond to `.send("message")` and `.prompt()` to begin 
 
 ### Chain
 
-An alternative is to use the `chain` workflow type and `prompt()` to capture user input:
+The `chain` workflow offers a more declarative approach to calling Agents in sequence:
 
 ```python
 
@@ -132,7 +134,7 @@ An alternative is to use the `chain` workflow type and `prompt()` to capture use
 
 # we can them prompt it directly:
 async with fast.run() as agent:
-  await agent.post_writer.prompt()
+  await agent.post_writer()
 
 ```
 
