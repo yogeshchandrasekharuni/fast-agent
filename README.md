@@ -37,7 +37,7 @@ uv run agent.py --model=o3-mini.low # specify a model
 fast-agent bootstrap workflow       # create "building effective agents" examples
 ```
 
-[fast-agent](https://github.com/user-attachments/assets/3e692103-bf97-489a-b519-2d0fee036369)
+![fast-agent](https://github.com/user-attachments/assets/3e692103-bf97-489a-b519-2d0fee036369)
 
 Other bootstrap examples include a Researcher Agent (with Evaluator-Optimizer workflow) and Data Analysis Agent (similar to the ChatGPT experience), demonstrating MCP Roots support.
 
