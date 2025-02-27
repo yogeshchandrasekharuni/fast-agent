@@ -1,4 +1,4 @@
-from typing import Any, Callable, List, Optional, Type, TYPE_CHECKING
+from typing import Any, Callable, List, Optional, Type, TYPE_CHECKING, Union
 import asyncio
 
 from mcp_agent.agents.agent import Agent
@@ -28,12 +28,14 @@ class ParallelLLM(AugmentedLLM[MessageParamT, MessageT]):
         fan_out_agents: List[Agent | AugmentedLLM],
         llm_factory: Callable[[Agent], AugmentedLLM] = None,
         context: Optional["Context"] = None,
+        include_request: bool = True,
         **kwargs,
     ):
         super().__init__(context=context, **kwargs)
         self.fan_in_agent = fan_in_agent
         self.fan_out_agents = fan_out_agents
         self.llm_factory = llm_factory
+        self.include_request = include_request
         self.history = None  # History tracking is complex in this workflow
 
     async def ensure_llm(self, agent: Agent | AugmentedLLM) -> AugmentedLLM:
@@ -65,9 +67,12 @@ class ParallelLLM(AugmentedLLM[MessageParamT, MessageT]):
             *[llm.generate(message, request_params) for llm in fan_out_llms]
         )
 
+        # Get message string for inclusion in formatted output
+        message_str = str(message) if isinstance(message, (str, MessageParamT)) else None
+        
         # Run fan-in to aggregate results
         result = await fan_in_llm.generate(
-            self._format_responses(responses),
+            self._format_responses(responses, message_str),
             request_params=request_params,
         )
 
@@ -92,9 +97,12 @@ class ParallelLLM(AugmentedLLM[MessageParamT, MessageT]):
             *[llm.generate_str(message, request_params) for llm in fan_out_llms]
         )
 
+        # Get message string for inclusion in formatted output
+        message_str = str(message) if isinstance(message, (str, MessageParamT)) else None
+        
         # Run fan-in to aggregate results
         result = await fan_in_llm.generate_str(
-            self._format_responses(responses),
+            self._format_responses(responses, message_str),
             request_params=request_params,
         )
 
@@ -123,19 +131,31 @@ class ParallelLLM(AugmentedLLM[MessageParamT, MessageT]):
             ]
         )
 
+        # Get message string for inclusion in formatted output
+        message_str = str(message) if isinstance(message, (str, MessageParamT)) else None
+        
         # Run fan-in to aggregate results
         result = await fan_in_llm.generate_structured(
-            self._format_responses(responses),
+            self._format_responses(responses, message_str),
             response_model=response_model,
             request_params=request_params,
         )
 
         return result
 
-    def _format_responses(self, responses: List[Any]) -> str:
+    def _format_responses(self, responses: List[Any], message: str = None) -> str:
         """Format a list of responses for the fan-in agent."""
         formatted = []
+        
+        # Include the original message if specified
+        if self.include_request and message:
+            formatted.append(
+                f'<fastagent:request>\n{message}\n</fastagent:request>'
+            )
+        
         for i, response in enumerate(responses):
             agent_name = self.fan_out_agents[i].name
-            formatted.append(f"Response from {agent_name}:\n{response}")
+            formatted.append(
+                f'<fastagent:response agent="{agent_name}">\n{response}\n</fastagent:response>'
+            )
         return "\n\n".join(formatted)

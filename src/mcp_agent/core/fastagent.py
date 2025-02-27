@@ -161,6 +161,7 @@ class ChainProxy(BaseAgentProxy):
         super().__init__(app, name)
         self._sequence = sequence
         self._agent_proxies = agent_proxies
+        self._continue_with_final = True  # Default behavior
 
     async def generate_str(self, message: str) -> str:
         """Chain message through a sequence of agents"""
@@ -273,13 +274,13 @@ class AgentApp:
 
         return result
 
-    def __getattr__(self, name: str) -> AgentProxy:
+    def __getattr__(self, name: str) -> BaseAgentProxy:
         """Support: agent.researcher"""
         if name not in self._agents:
             raise AttributeError(f"No agent named '{name}'")
         return AgentProxy(self, name)
 
-    def __getitem__(self, name: str) -> AgentProxy:
+    def __getitem__(self, name: str) -> BaseAgentProxy:
         """Support: agent['researcher']"""
         if name not in self._agents:
             raise KeyError(f"No agent named '{name}'")
@@ -638,6 +639,7 @@ class FastAgent(ContextDependent):
     def agent(
         self,
         name: str = "Agent",
+        instruction_or_kwarg: str = None,
         *,
         instruction: str = "You are a helpful agent.",
         servers: List[str] = [],
@@ -651,13 +653,26 @@ class FastAgent(ContextDependent):
 
         Args:
             name: Name of the agent
-            instruction: Base instruction for the agent
+            instruction_or_kwarg: Optional positional parameter for instruction
+            instruction: Base instruction for the agent (keyword arg)
             servers: List of server names the agent should connect to
             model: Model specification string (highest precedence)
             use_history: Whether to maintain conversation history
             request_params: Additional request parameters for the LLM
             human_input: Whether to enable human input capabilities
+
+        The instruction can be provided either as a second positional argument
+        or as a keyword argument. Positional argument takes precedence when both are provided.
+
+        Usage:
+            @fast.agent("agent_name", "Your instruction here")  # Using positional arg
+            @fast.agent("agent_name", instruction="Your instruction here")  # Using keyword arg
         """
+        # Use positional argument if provided, otherwise use keyword argument
+        final_instruction = (
+            instruction_or_kwarg if instruction_or_kwarg is not None else instruction
+        )
+
         decorator = self._create_decorator(
             AgentType.BASIC,
             default_name="Agent",
@@ -665,7 +680,7 @@ class FastAgent(ContextDependent):
             default_use_history=True,
         )(
             name=name,
-            instruction=instruction,
+            instruction=final_instruction,
             servers=servers,
             model=model,
             use_history=use_history,
@@ -732,6 +747,7 @@ class FastAgent(ContextDependent):
         model: str | None = None,
         use_history: bool = True,
         request_params: Optional[Dict] = None,
+        include_request: bool = True,
     ) -> Callable:
         """
         Decorator to create and register a parallel executing agent.
@@ -744,6 +760,7 @@ class FastAgent(ContextDependent):
             model: Model specification string
             use_history: Whether to maintain conversation history
             request_params: Additional request parameters for the LLM
+            include_request: Whether to include the original request in the fan-in message
         """
         decorator = self._create_decorator(
             AgentType.PARALLEL,
@@ -758,6 +775,7 @@ class FastAgent(ContextDependent):
             model=model,
             use_history=use_history,
             request_params=request_params,
+            include_request=include_request,
         )
         return decorator
 
@@ -848,6 +866,7 @@ class FastAgent(ContextDependent):
         model: str | None = None,
         use_history: bool = True,
         request_params: Optional[Dict] = None,
+        continue_with_final: bool = True,
     ) -> Callable:
         """
         Decorator to create and register a chain of agents.
@@ -860,6 +879,7 @@ class FastAgent(ContextDependent):
             model: Model specification string (not used directly in chain)
             use_history: Whether to maintain conversation history
             request_params: Additional request parameters
+            continue_with_final: When using prompt(), whether to continue with the final agent after processing chain (default: True)
         """
         # Support both parameter names
         agent_sequence = sequence or agents
@@ -884,6 +904,7 @@ class FastAgent(ContextDependent):
             model=model,
             use_history=use_history,
             request_params=request_params,
+            continue_with_final=continue_with_final,
         )
         return decorator
 
@@ -1049,17 +1070,17 @@ class FastAgent(ContextDependent):
                 elif agent_type == AgentType.CHAIN:
                     # Get the sequence from either parameter
                     sequence = agent_data.get("sequence", agent_data.get("agents", []))
-                    
+
                     # Auto-generate instruction if not provided or if it's just the default
                     default_instruction = f"Chain of agents: {', '.join(sequence)}"
-                    
+
                     # If user provided a custom instruction, use that
                     # Otherwise, generate a description based on the sequence and their servers
                     if config.instruction == default_instruction:
                         # Get all agent names in the sequence
                         agent_names = []
                         all_servers = set()
-                        
+
                         # Collect information about the agents and their servers
                         for agent_name in sequence:
                             if agent_name in active_agents:
@@ -1073,15 +1094,27 @@ class FastAgent(ContextDependent):
                                 elif hasattr(agent_proxy, "_workflow"):
                                     # For WorkflowProxy
                                     agent_names.append(agent_name)
-                        
+
                         # Generate a better description
                         if agent_names:
-                            server_part = f" with access to servers: {', '.join(sorted(all_servers))}" if all_servers else ""
+                            server_part = (
+                                f" with access to servers: {', '.join(sorted(all_servers))}"
+                                if all_servers
+                                else ""
+                            )
                             config.instruction = f"Sequence of agents: {', '.join(agent_names)}{server_part}."
-                    
+
                     # Create a ChainProxy without needing a new instance
                     # Just pass the agent proxies and sequence
                     instance = ChainProxy(self.app, name, sequence, active_agents)
+                    # Set continue_with_final behavior from configuration
+                    instance._continue_with_final = agent_data.get(
+                        "continue_with_final", True
+                    )
+                    # Set continue_with_final behavior from configuration
+                    instance._continue_with_final = agent_data.get(
+                        "continue_with_final", True
+                    )
 
                 elif agent_type == AgentType.PARALLEL:
                     # Get fan-out agents (could be basic agents or other parallels)
@@ -1104,6 +1137,7 @@ class FastAgent(ContextDependent):
                         context=agent_app.context,
                         llm_factory=llm_factory,
                         default_request_params=config.default_request_params,
+                        include_request=agent_data.get("include_request", True),
                     )
 
                 else:

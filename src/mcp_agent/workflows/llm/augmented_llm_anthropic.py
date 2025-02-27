@@ -39,8 +39,9 @@ from mcp_agent.workflows.llm.augmented_llm import (
 )
 from mcp_agent.core.exceptions import ProviderKeyError
 from mcp_agent.logging.logger import get_logger
+from rich.text import Text
 
-DEFAULT_ANTHROPIC_MODEL = "claude-3-5-sonnet-latest"
+DEFAULT_ANTHROPIC_MODEL = "claude-3-7-sonnet-latest"
 
 
 class AnthropicAugmentedLLM(AugmentedLLM[MessageParam, Message]):
@@ -149,9 +150,19 @@ class AnthropicAugmentedLLM(AugmentedLLM[MessageParam, Message]):
                     "Please check that your API key is valid and not expired.",
                 ) from response
             elif isinstance(response, BaseException):
-                self.logger.error(f"Error: {executor_result}")
+                error_details = str(response)
+                self.logger.error(f"Error: {error_details}", data=executor_result)
+                
+                # Try to extract more useful information for API errors
+                if hasattr(response, 'status_code') and hasattr(response, 'response'):
+                    try:
+                        error_json = response.response.json()
+                        error_details = f"Error code: {response.status_code} - {error_json}"
+                    except:
+                        error_details = f"Error code: {response.status_code} - {str(response)}"
+                
                 # Convert other errors to text response
-                error_message = f"Error during generation: {str(response)}"
+                error_message = f"Error during generation: {error_details}"
                 response = Message(
                     id="error",  # Required field
                     model="error",  # Required field
@@ -207,14 +218,25 @@ class AnthropicAugmentedLLM(AugmentedLLM[MessageParam, Message]):
                         message_text += block.text
 
                 # response.stop_reason == "tool_use":
-                for content in response.content:
-                    if content.type == "tool_use":
+                # First, collect all tool uses in this turn
+                tool_uses = [c for c in response.content if c.type == "tool_use"]
+                
+                if tool_uses:
+                    if message_text == "":
+                        message_text = Text(
+                            "the assistant requested tool calls",
+                            style="dim green italic",
+                        )
+                    
+                    await self.show_assistant_message(message_text)
+                    
+                    # Process all tool calls and collect results
+                    tool_results = []
+                    for content in tool_uses:
                         tool_name = content.name
                         tool_args = content.input
                         tool_use_id = content.id
-
-                        await self.show_assistant_message(message_text, tool_name)
-
+                        
                         self.show_tool_call(available_tools, tool_name, tool_args)
                         tool_call_request = CallToolRequest(
                             method="tools/call",
@@ -227,19 +249,24 @@ class AnthropicAugmentedLLM(AugmentedLLM[MessageParam, Message]):
                             request=tool_call_request, tool_call_id=tool_use_id
                         )
                         self.show_tool_result(result)
-                        messages.append(
-                            MessageParam(
-                                role="user",
-                                content=[
-                                    ToolResultBlockParam(
-                                        type="tool_result",
-                                        tool_use_id=tool_use_id,
-                                        content=result.content,
-                                        is_error=result.isError,
-                                    )
-                                ],
+                        
+                        # Add each result to our collection
+                        tool_results.append(
+                            ToolResultBlockParam(
+                                type="tool_result",
+                                tool_use_id=tool_use_id,
+                                content=result.content,
+                                is_error=result.isError,
                             )
                         )
+                    
+                    # Add all tool results in a single message
+                    messages.append(
+                        MessageParam(
+                            role="user",
+                            content=tool_results,
+                        )
+                    )
 
         if params.use_history:
             self.history.set(messages)
