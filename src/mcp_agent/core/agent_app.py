@@ -129,6 +129,15 @@ class AgentApp:
                     continue
 
             result = await self.send(agent, user_input)
+            
+            # Check if current agent is a chain that should continue with final agent
+            if agent_types.get(agent) == "Chain":
+                proxy = self._agents[agent]
+                if isinstance(proxy, ChainProxy) and proxy._continue_with_final:
+                    # Get the last agent in the sequence
+                    last_agent = proxy._sequence[-1]
+                    # Switch to that agent for the next iteration
+                    agent = last_agent
 
         return result
 

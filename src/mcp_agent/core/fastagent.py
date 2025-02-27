@@ -84,11 +84,27 @@ class FastAgent(ContextDependent):
             "--model",
             help="Override the default model for all agents. Precedence is default < config_file < command line < constructor",
         )
+        parser.add_argument(
+            "--agent",
+            help="Specify the agent to send a message to (used with --message)",
+        )
+        parser.add_argument(
+            "-m", "--message",
+            help="Message to send to the specified agent (requires --agent)",
+        )
+        parser.add_argument(
+            "--quiet", action="store_true",
+            help="Disable progress display, tool and message logging for cleaner output",
+        )
         self.args = parser.parse_args()
+        
+        # Quiet mode will be handled in _load_config()
 
         self.name = name
         self.config_path = config_path
         self._load_config()
+        
+        # Create the MCPApp with the config
         self.app = MCPApp(
             name=name,
             settings=Settings(**self.config) if hasattr(self, "config") else None,
@@ -163,7 +179,7 @@ class FastAgent(ContextDependent):
         """Load configuration from YAML file, properly handling without dotenv processing"""
         if self.config_path:
             with open(self.config_path) as f:
-                self.config = yaml.safe_load(f)
+                self.config = yaml.safe_load(f) or {}
 
     def _validate_server_references(self) -> None:
         """
@@ -949,10 +965,6 @@ class FastAgent(ContextDependent):
                     instance._continue_with_final = agent_data.get(
                         "continue_with_final", True
                     )
-                    # Set continue_with_final behavior from configuration
-                    instance._continue_with_final = agent_data.get(
-                        "continue_with_final", True
-                    )
 
                 # We removed the AgentType.PASSTHROUGH case
                 # Passthrough agents are now created as BASIC agents with a special LLM
@@ -1237,8 +1249,23 @@ class FastAgent(ContextDependent):
         """
         active_agents = {}
         had_error = False
+        
+        # Handle quiet mode by disabling logger settings after initialization
+        quiet_mode = hasattr(self, "args") and self.args.quiet
+        
         try:
             async with self.app.run() as agent_app:
+                # Apply quiet mode directly to the context's config if needed
+                if quiet_mode and hasattr(agent_app.context, "config") and hasattr(agent_app.context.config, "logger"):
+                    # Apply after initialization but before agents are created
+                    agent_app.context.config.logger.progress_display = False
+                    agent_app.context.config.logger.show_chat = False
+                    agent_app.context.config.logger.show_tools = False
+                    
+                    # Directly disable the progress display singleton
+                    from mcp_agent.progress_display import progress_display
+                    progress_display.stop()  # This will stop and hide the display
+                
                 # Pre-flight validation
                 self._validate_server_references()
                 self._validate_workflow_references()
@@ -1269,6 +1296,30 @@ class FastAgent(ContextDependent):
 
                 # Create wrapper with all agents
                 wrapper = AgentApp(agent_app, active_agents)
+                
+                # Handle direct message sending if --agent and --message are provided
+                if self.args.agent and self.args.message:
+                    agent_name = self.args.agent
+                    message = self.args.message
+                    
+                    if agent_name not in active_agents:
+                        available_agents = ", ".join(active_agents.keys())
+                        print(f"\n\nError: Agent '{agent_name}' not found. Available agents: {available_agents}")
+                        raise SystemExit(1)
+                    
+                    try:
+                        # Get response
+                        response = await wrapper[agent_name].send(message)
+                        
+                        # Only print the response in quiet mode
+                        if self.args.quiet:
+                            print(f"{response}")
+                        
+                        raise SystemExit(0)
+                    except Exception as e:
+                        print(f"\n\nError sending message to agent '{agent_name}': {str(e)}")
+                        raise SystemExit(1)
+                
                 yield wrapper
 
         except ServerConfigError as e:
