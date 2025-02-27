@@ -152,25 +152,27 @@ Chains can be incorporated in other workflows, or contain other workflow element
 
 ### Parallel
 
-The Parallel Workflow sends the same message to multiple Agents simultaneously (`fan-out`), then uses the `fan-in` agent to process the combined content.
+The Parallel Workflow sends the same message to multiple Agents simultaneously (`fan-out`), then uses the `fan-in` Agent to process the combined content.
 
 ```python
-@fast.agent(
-  name="consolidator"
-  instruction="combine the lists, remove duplicates"
-)
+@fast.agent("translate_fr", "Translate the text to French")
+@fast.agent("translate_de", "Translate the text to German")
+@fast.agent("translate_es", "Translate the text to Spanish")
 
 @fast.parallel(
-  name="ensemble"
-  fan_out=["agent_o3-mini","agent_sonnet37",...]
-  fan_in="consolidator"
+  name="translate",
+  fan_out=["translate_fr","translate_de","translate_es"]
 )
 
-async with fast.run() as agent:
-  result = agent.ensemble.send("what are the 10 most important aspects of project management")
+@fast.chain(
+  "post_writer",
+   sequence=["url_fetcher","social_media","translate"]
+)
 ```
 
 Look at the `parallel.py` workflow example for more examples. If you don't specify a `fan-in` agent, the `parallel` returns Agent results verbatim.
+
+The Parallel is also useful to ensemble ideas from different LLMs.
 
 ### Evaluator-Optimizer
 
