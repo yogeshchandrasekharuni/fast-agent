@@ -723,7 +723,7 @@ class PassthroughLLM(AugmentedLLM):
 
                 data = json.loads(message)
                 return response_model(**data)
-            except:
+            except:  # noqa: E722
                 raise ValueError(
                     f"Cannot convert message of type {type(message)} to {response_model}"
                 )
