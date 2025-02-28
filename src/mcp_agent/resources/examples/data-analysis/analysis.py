@@ -1,6 +1,7 @@
 import asyncio
 
 from mcp_agent.core.fastagent import FastAgent
+from mcp_agent.workflows.llm.augmented_llm import RequestParams
 
 # Create the application
 fast = FastAgent("Data Analysis (Roots)")
@@ -16,6 +17,7 @@ Data files are accessible from the /mnt/data/ directory (this is the current wor
 Visualisations should be saved as .png files in the current working directory.
 """,
     servers=["interpreter"],
+    request_params=RequestParams(maxTokens=8192),
 )
 async def main():
     # Use the app's context manager
