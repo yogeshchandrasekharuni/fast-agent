@@ -254,7 +254,7 @@ class OpenAIAugmentedLLM(
                         message_text,
                         message.tool_calls[
                             0
-                        ].function.name,  # TODO support multiple tool calls
+                        ].function.name,  # TODO support displaying multiple tool calls
                     )
                 else:
                     await self.show_assistant_message(
@@ -294,6 +294,18 @@ class OpenAIAugmentedLLM(
                 self.logger.debug(
                     f"Iteration {i}: Stopping because finish_reason is 'length'"
                 )
+                if request_params and request_params.maxTokens is not None:
+                    message_text = Text(
+                        f"the assistant has reached the maximum token limit ({request_params.maxTokens})",
+                        style="dim green italic",
+                    )
+                else:
+                    message_text = Text(
+                        "the assistant has reached the maximum token limit",
+                        style="dim green italic",
+                    )
+
+                await self.show_assistant_message(message_text)
                 # TODO: saqadri - would be useful to return the reason for stopping to the caller
                 break
             elif choice.finish_reason == "content_filter":

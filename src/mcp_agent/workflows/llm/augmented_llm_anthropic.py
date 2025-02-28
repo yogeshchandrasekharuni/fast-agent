@@ -208,10 +208,23 @@ class AnthropicAugmentedLLM(AugmentedLLM[MessageParam, Message]):
                 break
             elif response.stop_reason == "max_tokens":
                 # We have reached the max tokens limit
+
                 self.logger.debug(
                     f"Iteration {i}: Stopping because finish_reason is 'max_tokens'"
                 )
-                # TODO: saqadri - would be useful to return the reason for stopping to the caller
+                if params.maxTokens is not None:
+                    message_text = Text(
+                        f"the assistant has reached the maximum token limit ({params.maxTokens})",
+                        style="dim green italic",
+                    )
+                else:
+                    message_text = Text(
+                        "the assistant has reached the maximum token limit",
+                        style="dim green italic",
+                    )
+
+                await self.show_assistant_message(message_text)
+
                 break
             else:
                 message_text = ""
