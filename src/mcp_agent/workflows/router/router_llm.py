@@ -17,17 +17,23 @@ logger = get_logger(__name__)
 DEFAULT_ROUTING_INSTRUCTION = """
 You are a highly accurate request router that directs incoming requests to the most appropriate category.
 A category is a specialized destination, such as a Function, an MCP Server (a collection of tools/functions), or an Agent (a collection of servers).
-Below are the available routing categories, each with their capabilities and descriptions:
 
+<fastagent:data>
+<fastagent:categories>
 {context}
+</fastagent:categories>
 
-Your task is to analyze the following request and determine the most appropriate categories from the options above. Consider:
+<fastagent:request>
+{request}
+</fastagent:request>
+</fastagent:data>
+
+Your task is to analyze the request and determine the most appropriate categories from the options above. Consider:
 - The specific capabilities and tools each destination offers
 - How well the request matches the category's description
 - Whether the request might benefit from multiple categories (up to {top_k})
 
-Request: {request}
-
+<fastagent:instruction>
 Respond in JSON format:
 {{
     "categories": [
@@ -41,13 +47,21 @@ Respond in JSON format:
 
 Only include categories that are truly relevant. You may return fewer than {top_k} if appropriate.
 If none of the categories are relevant, return an empty list.
+</fastagent:instruction>
 """
 
 ROUTING_SYSTEM_INSTRUCTION = """
 You are a highly accurate request router that directs incoming requests to the most appropriate category.
 A category is a specialized destination, such as a Function, an MCP Server (a collection of tools/functions), or an Agent (a collection of servers).
-You will be provided with a request and a list of categories to choose from.
+
+You will analyze requests and choose the most appropriate categories based on their capabilities and descriptions.
 You can choose one or more categories, or choose none if no category is appropriate.
+
+Follow these guidelines:
+- Carefully match the request's needs with category capabilities
+- Consider which tools or servers would best address the request
+- If multiple categories could help, select all relevant ones
+- Only include truly relevant categories, not tangentially related ones
 """
 
 

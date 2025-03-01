@@ -61,6 +61,11 @@ class TaskWithResult(Task):
     result: str = Field(
         description="Result of executing the task", default="Task completed"
     )
+    
+    agent: str = Field(
+        description="Name of the agent that executed this task",
+        default=""
+    )
 
     model_config = ConfigDict(extra="allow", arbitrary_types_allowed=True)
 
@@ -116,17 +121,17 @@ class NextStep(Step):
     )
 
 
-def format_task_result(task_result: TaskWithResult) -> str:
-    """Format a task result for display to planners"""
+def format_task_result_text(task_result: TaskWithResult) -> str:
+    """Format a task result as plain text for display"""
     return TASK_RESULT_TEMPLATE.format(
         task_description=task_result.description, task_result=task_result.result
     )
 
 
-def format_step_result(step_result: StepResult) -> str:
-    """Format a step result for display to planners"""
+def format_step_result_text(step_result: StepResult) -> str:
+    """Format a step result as plain text for display"""
     tasks_str = "\n".join(
-        f"  - {format_task_result(task)}" for task in step_result.task_results
+        f"  - {format_task_result_text(task)}" for task in step_result.task_results
     )
     return STEP_RESULT_TEMPLATE.format(
         step_description=step_result.step.description,
@@ -135,11 +140,11 @@ def format_step_result(step_result: StepResult) -> str:
     )
 
 
-def format_plan_result(plan_result: PlanResult) -> str:
-    """Format the full plan execution state for display to planners"""
+def format_plan_result_text(plan_result: PlanResult) -> str:
+    """Format the full plan execution state as plain text for display"""
     steps_str = (
         "\n\n".join(
-            f"{i + 1}:\n{format_step_result(step)}"
+            f"{i + 1}:\n{format_step_result_text(step)}"
             for i, step in enumerate(plan_result.step_results)
         )
         if plan_result.step_results
@@ -149,6 +154,75 @@ def format_plan_result(plan_result: PlanResult) -> str:
     return PLAN_RESULT_TEMPLATE.format(
         plan_objective=plan_result.objective,
         steps_str=steps_str,
-        plan_status="Complete" if plan_result.is_complete else "In Progress",
         plan_result=plan_result.result if plan_result.is_complete else "In Progress",
     )
+
+
+def format_task_result_xml(task_result: TaskWithResult) -> str:
+    """Format a task result with XML tags for better semantic understanding"""
+    from mcp_agent.workflows.llm.prompt_utils import format_fastagent_tag
+    
+    # Include agent attribution if available
+    agent_attr = ""
+    if hasattr(task_result, "agent") and task_result.agent:
+        agent_attr = f' agent="{task_result.agent}"'
+    
+    return format_fastagent_tag(
+        "task-result", 
+        f"\n<fastagent:description>{task_result.description}</fastagent:description>\n"
+        f"<fastagent:result>{task_result.result}</fastagent:result>\n",
+        {"description": task_result.description[:50] + "..." if len(task_result.description) > 50 else task_result.description}
+    )
+
+
+def format_step_result_xml(step_result: StepResult) -> str:
+    """Format a step result with XML tags for better semantic understanding"""
+    from mcp_agent.workflows.llm.prompt_utils import format_fastagent_tag
+    
+    # Format each task result with XML
+    task_results = []
+    for task in step_result.task_results:
+        task_results.append(format_task_result_xml(task))
+    
+    # Combine task results
+    task_results_str = "\n".join(task_results)
+    
+    # Build step result with metadata and tasks
+    step_content = (
+        f"<fastagent:description>{step_result.step.description}</fastagent:description>\n"
+        f"<fastagent:summary>{step_result.result}</fastagent:summary>\n"
+        f"<fastagent:task-results>\n{task_results_str}\n</fastagent:task-results>\n"
+    )
+    
+    return format_fastagent_tag("step-result", step_content)
+
+
+def format_plan_result(plan_result: PlanResult) -> str:
+    """Format the full plan execution state with XML for better semantic understanding"""
+    from mcp_agent.workflows.llm.prompt_utils import format_fastagent_tag
+    
+    # Format objective
+    objective_tag = format_fastagent_tag("objective", plan_result.objective)
+    
+    # Format step results
+    step_results = []
+    for step in plan_result.step_results:
+        step_results.append(format_step_result_xml(step))
+    
+    # Build progress section
+    if step_results:
+        steps_content = "\n".join(step_results)
+        progress_content = (
+            f"{objective_tag}\n"
+            f"<fastagent:steps>\n{steps_content}\n</fastagent:steps>\n"
+            f"<fastagent:status>{plan_result.result if plan_result.is_complete else 'In Progress'}</fastagent:status>\n"
+        )
+    else:
+        # No steps executed yet
+        progress_content = (
+            f"{objective_tag}\n"
+            f"<fastagent:steps>No steps executed yet</fastagent:steps>\n"
+            f"<fastagent:status>Not Started</fastagent:status>\n"
+        )
+    
+    return format_fastagent_tag("progress", progress_content)

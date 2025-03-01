@@ -21,7 +21,7 @@ from mcp_agent.workflows.llm.augmented_llm import (
 )
 from mcp_agent.workflows.orchestrator.orchestrator_models import (
     format_plan_result,
-    format_step_result,
+    format_step_result_text,
     NextStep,
     Plan,
     PlanResult,
@@ -163,15 +163,27 @@ class Orchestrator(AugmentedLLM[MessageParamT, MessageT]):
         request_params: RequestParams | None = None,
     ) -> ModelT:
         """Request a structured LLM generation and return the result as a Pydantic model."""
+        import json
+        from pydantic import ValidationError
+        
         params = self.get_request_params(request_params)
         result_str = await self.generate_str(message=message, request_params=params)
-
-        # Use AugmentedLLM's structured output handling
-        return await super().generate_structured(
-            message=result_str,
-            response_model=response_model,
-            request_params=params,
-        )
+        
+        try:
+            # Directly parse JSON and create model instance
+            parsed_data = json.loads(result_str)
+            return response_model(**parsed_data)
+        except (json.JSONDecodeError, ValidationError) as e:
+            # Log the error and fall back to the original method if direct parsing fails
+            self.logger.error(f"Direct JSON parsing failed: {str(e)}. Falling back to standard method.")
+            self.logger.debug(f"Failed JSON content: {result_str}")
+            
+            # Use AugmentedLLM's structured output handling as fallback
+            return await super().generate_structured(
+                message=result_str,
+                response_model=response_model,
+                request_params=params,
+            )
 
     async def execute(
         self, objective: str, request_params: RequestParams | None = None
@@ -205,11 +217,15 @@ class Orchestrator(AugmentedLLM[MessageParamT, MessageT]):
                 )
                 logger.debug(f"Iteration {iterations}: Iterative plan:", data=next_step)
                 plan = Plan(steps=[next_step], is_complete=next_step.is_complete)
+                # Validate agent names in the plan early
+                self._validate_agent_names(plan)
             elif self.plan_type == "full":
                 plan = await self._get_full_plan(
                     objective=objective, plan_result=plan_result, request_params=params
                 )
                 logger.debug(f"Iteration {iterations}: Full Plan:", data=plan)
+                # Validate agent names in the plan early
+                self._validate_agent_names(plan)
             else:
                 raise ValueError(f"Invalid plan type {self.plan_type}")
 
@@ -221,6 +237,7 @@ class Orchestrator(AugmentedLLM[MessageParamT, MessageT]):
                     plan_result.is_complete = True
 
                     # Synthesize final result into a single message
+                    # Use the structured XML format for better context
                     synthesis_prompt = SYNTHESIZE_PLAN_PROMPT_TEMPLATE.format(
                         plan_result=format_plan_result(plan_result)
                     )
@@ -265,6 +282,7 @@ class Orchestrator(AugmentedLLM[MessageParamT, MessageT]):
         """Execute a step's subtasks in parallel and synthesize results"""
 
         step_result = StepResult(step=step, task_results=[])
+        # Use structured XML format for context to help agents better understand the context
         context = format_plan_result(previous_result)
 
         # Execute tasks
@@ -272,16 +290,18 @@ class Orchestrator(AugmentedLLM[MessageParamT, MessageT]):
         error_tasks = []
 
         for task in step.tasks:
+            # Make sure we're using a valid agent name
             agent = self.agents.get(task.agent)
             if not agent:
-                # Instead of failing the entire step, track this as an error task
+                # Log a more prominent error - this is a serious problem that shouldn't happen
+                # with the improved prompt
                 self.logger.error(
-                    f"No agent found matching '{task.agent}'. Available agents: {list(self.agents.keys())}"
+                    f"AGENT VALIDATION ERROR: No agent found matching '{task.agent}'. Available agents: {list(self.agents.keys())}"
                 )
                 error_tasks.append(
                     (
                         task,
-                        f"Error: Agent '{task.agent}' not found. Available agents: {', '.join(self.agents.keys())}",
+                        f"Error: Agent '{task.agent}' not found. This indicates a problem with the plan generation. Available agents: {', '.join(self.agents.keys())}",
                     )
                 )
                 continue
@@ -307,18 +327,29 @@ class Orchestrator(AugmentedLLM[MessageParamT, MessageT]):
 
             if task_index < len(results):
                 result = results[task_index]
-                step_result.add_task_result(
-                    TaskWithResult(**task.model_dump(), result=str(result))
+                # Create a TaskWithResult that includes the agent name for attribution
+                task_model = task.model_dump()
+                task_result = TaskWithResult(
+                    description=task_model["description"],
+                    agent=task_model["agent"],  # Track which agent produced this result
+                    result=str(result)
                 )
+                step_result.add_task_result(task_result)
                 task_index += 1
 
         # Add error task results
         for task, error_message in error_tasks:
+            task_model = task.model_dump()
             step_result.add_task_result(
-                TaskWithResult(**task.model_dump(), result=error_message)
+                TaskWithResult(
+                    description=task_model["description"],
+                    agent=task_model["agent"],
+                    result=f"ERROR: {error_message}"
+                )
             )
 
-        step_result.result = format_step_result(step_result)
+        # Use text formatting for display in logs
+        step_result.result = format_step_result_text(step_result)
         return step_result
 
     async def _get_full_plan(
@@ -328,30 +359,80 @@ class Orchestrator(AugmentedLLM[MessageParamT, MessageT]):
         request_params: RequestParams | None = None,
     ) -> Plan:
         """Generate full plan considering previous results"""
+        import json
+        from pydantic import ValidationError
+        from mcp_agent.workflows.orchestrator.orchestrator_models import Plan, Step, AgentTask
+
         params = self.get_request_params(request_params)
         params = params.model_copy(update={"use_history": False})
 
+        # Format agents without numeric prefixes for cleaner XML
         agents = "\n".join(
-            [
-                f"{idx}. {self._format_agent_info(agent)}"
-                for idx, agent in enumerate(self.agents, 1)
-            ]
+            [self._format_agent_info(agent) for agent in self.agents]
         )
 
+        # Create clear plan status indicator for the template
+        plan_status = "Plan Status: Not Started"
+        if hasattr(plan_result, "is_complete"):
+            plan_status = "Plan Status: Complete" if plan_result.is_complete else "Plan Status: In Progress"
+        
         prompt = FULL_PLAN_PROMPT_TEMPLATE.format(
             objective=objective,
             plan_result=format_plan_result(plan_result),
+            plan_status=plan_status,
             agents=agents,
         )
 
-        # Use planner directly - no verb manipulation needed
-        plan = await self.planner.generate_structured(
+        # Get raw JSON response from LLM
+        result_str = await self.planner.generate_str(
             message=prompt,
-            response_model=Plan,
             request_params=params,
         )
-
-        return plan
+        
+        try:
+            # Parse JSON directly
+            data = json.loads(result_str)
+            
+            # Create models manually to ensure agent names are preserved exactly as returned
+            steps = []
+            for step_data in data.get('steps', []):
+                tasks = []
+                for task_data in step_data.get('tasks', []):
+                    # Create AgentTask directly from dict, preserving exact agent string
+                    task = AgentTask(
+                        description=task_data.get('description', ''),
+                        agent=task_data.get('agent', '')  # Preserve exact agent name
+                    )
+                    tasks.append(task)
+                
+                # Create Step with the exact task objects we created
+                step = Step(
+                    description=step_data.get('description', ''),
+                    tasks=tasks
+                )
+                steps.append(step)
+            
+            # Create final Plan
+            plan = Plan(
+                steps=steps,
+                is_complete=data.get('is_complete', False)
+            )
+            
+            return plan
+            
+        except (json.JSONDecodeError, ValidationError, KeyError) as e:
+            # Log detailed error and fall back to the original method as last resort
+            self.logger.error(f"Error parsing plan JSON: {str(e)}")
+            self.logger.debug(f"Failed JSON content: {result_str}")
+            
+            # Use the normal structured parsing as fallback
+            plan = await self.planner.generate_structured(
+                message=result_str,
+                response_model=Plan,
+                request_params=params,
+            )
+            
+            return plan
 
     async def _get_next_step(
         self,
@@ -360,54 +441,127 @@ class Orchestrator(AugmentedLLM[MessageParamT, MessageT]):
         request_params: RequestParams | None = None,
     ) -> NextStep:
         """Generate just the next needed step"""
+        import json
+        from pydantic import ValidationError
+        from mcp_agent.workflows.orchestrator.orchestrator_models import NextStep, AgentTask
+        
         params = self.get_request_params(request_params)
         params = params.model_copy(update={"use_history": False})
 
+        # Format agents without numeric prefixes for cleaner XML
         agents = "\n".join(
-            [
-                f"{idx}. {self._format_agent_info(agent)}"
-                for idx, agent in enumerate(self.agents, 1)
-            ]
+            [self._format_agent_info(agent) for agent in self.agents]
         )
 
+        # Create clear plan status indicator for the template
+        plan_status = "Plan Status: Not Started"
+        if hasattr(plan_result, "is_complete"):
+            plan_status = "Plan Status: Complete" if plan_result.is_complete else "Plan Status: In Progress"
+            
         prompt = ITERATIVE_PLAN_PROMPT_TEMPLATE.format(
             objective=objective,
             plan_result=format_plan_result(plan_result),
+            plan_status=plan_status,
             agents=agents,
         )
 
-        # Use planner directly - no verb manipulation needed
-        next_step = await self.planner.generate_structured(
+        # Get raw JSON response from LLM
+        result_str = await self.planner.generate_str(
             message=prompt,
-            response_model=NextStep,
             request_params=params,
         )
-        return next_step
+        
+        try:
+            # Parse JSON directly
+            data = json.loads(result_str)
+            
+            # Create task objects manually to preserve exact agent names
+            tasks = []
+            for task_data in data.get('tasks', []):
+                # Preserve the exact agent name as specified in the JSON
+                task = AgentTask(
+                    description=task_data.get('description', ''),
+                    agent=task_data.get('agent', '')
+                )
+                tasks.append(task)
+            
+            # Create step with manually constructed tasks
+            next_step = NextStep(
+                description=data.get('description', ''),
+                tasks=tasks,
+                is_complete=data.get('is_complete', False)
+            )
+            
+            return next_step
+            
+        except (json.JSONDecodeError, ValidationError, KeyError) as e:
+            # Log detailed error and fall back to the original method
+            self.logger.error(f"Error parsing next step JSON: {str(e)}")
+            self.logger.debug(f"Failed JSON content: {result_str}")
+            
+            # Use the normal structured parsing as fallback
+            next_step = await self.planner.generate_structured(
+                message=result_str,
+                response_model=NextStep,
+                request_params=params,
+            )
+            
+            return next_step
 
     def _format_server_info(self, server_name: str) -> str:
-        """Format server information for display to planners"""
+        """Format server information for display to planners using XML tags"""
+        from mcp_agent.workflows.llm.prompt_utils import format_server_info
+        
         server_config = self.server_registry.get_server_config(server_name)
-        server_str = f"Server Name: {server_name}"
-        if not server_config:
-            return server_str
+        
+        # Get description or empty string if not available
+        description = ""
+        if server_config and server_config.description:
+            description = server_config.description
+        
+        return format_server_info(server_name, description)
 
-        description = server_config.description
-        if description:
-            server_str = f"{server_str}\nDescription: {description}"
-
-        return server_str
-
+    def _validate_agent_names(self, plan: Plan) -> None:
+        """
+        Validate all agent names in a plan before execution.
+        This helps catch invalid agent references early.
+        """
+        invalid_agents = []
+        
+        for step in plan.steps:
+            for task in step.tasks:
+                if task.agent not in self.agents:
+                    invalid_agents.append(task.agent)
+        
+        if invalid_agents:
+            available_agents = ", ".join(self.agents.keys())
+            invalid_list = ", ".join(invalid_agents)
+            error_msg = f"Plan contains invalid agent names: {invalid_list}. Available agents: {available_agents}"
+            self.logger.error(error_msg)
+            # We don't raise an exception here as the execution will handle invalid agents
+            # by logging errors for individual tasks
+    
     def _format_agent_info(self, agent_name: str) -> str:
-        """Format Agent information for display to planners"""
+        """Format Agent information for display to planners using XML tags"""
+        from mcp_agent.workflows.llm.prompt_utils import format_agent_info
+        
         agent = self.agents.get(agent_name)
         if not agent:
             return ""
 
-        servers = "\n".join(
-            [
-                f"- {self._format_server_info(server_name)}"
-                for server_name in agent.server_names
-            ]
-        )
-
-        return f"Agent Name: {agent.name}\nDescription: {agent.instruction}\nServers in Agent: {servers}"
+        # Get agent instruction as string
+        instruction = agent.instruction
+        if callable(instruction):
+            instruction = instruction({})
+        
+        # Get servers information
+        server_info = []
+        for server_name in agent.server_names:
+            server_config = self.server_registry.get_server_config(server_name)
+            description = ""
+            if server_config and server_config.description:
+                description = server_config.description
+            
+            server_info.append({"name": server_name, "description": description})
+            
+        return format_agent_info(agent.name, instruction, server_info if server_info else None)

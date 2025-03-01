@@ -200,6 +200,7 @@ class Router(ABC, ContextDependent):
             category=server_name,
             name=server_config.name if server_config else server_name,
             description=server_config.description,
+            tools=[],  # Empty list to avoid validation errors
         )
 
     def get_agent_category(self, agent: Agent) -> AgentRouterCategory:
@@ -207,14 +208,17 @@ class Router(ABC, ContextDependent):
             agent.instruction({}) if callable(agent.instruction) else agent.instruction
         )
 
+        # Just get server categories without attempting to access tools
+        # This is a simpler approach that avoids potential issues with uninitialized agents
+        server_categories = [
+            self.get_server_category(server_name) for server_name in agent.server_names
+        ]
+
         return AgentRouterCategory(
             category=agent,
             name=agent.name,
             description=agent_description,
-            servers=[
-                self.get_server_category(server_name)
-                for server_name in agent.server_names
-            ],
+            servers=server_categories,
         )
 
     def get_function_category(self, function: Callable) -> RouterCategory:
@@ -231,9 +235,6 @@ class Router(ABC, ContextDependent):
     ) -> str:
         """Format a category into a readable string."""
 
-        index_str = f"{index}. " if index is not None else " "
-        category_str = ""
-
         if isinstance(category, ServerRouterCategory):
             category_str = self._format_server_category(category)
         elif isinstance(category, AgentRouterCategory):
@@ -241,36 +242,127 @@ class Router(ABC, ContextDependent):
         else:
             category_str = self._format_function_category(category)
 
-        return f"{index_str}{category_str}"
+        return category_str
 
     def _format_tools(self, tools: List[FastTool]) -> str:
         """Format a list of tools into a readable string."""
         if not tools:
-            return "No tool information provided."
+            # Return a note about tools within XML tags to maintain structure
+            return '<fastagent:tool name="info">No tool information available</fastagent:tool>'
 
         tool_descriptions = []
         for tool in tools:
-            desc = f"- {tool.name}: {tool.description}"
+            # Access tool name and description safely
+            tool_name = getattr(tool, "name", "unnamed-tool")
+            tool_description = getattr(tool, "description", "No description available")
+            desc = f'<fastagent:tool name="{tool_name}">{tool_description}</fastagent:tool>'
             tool_descriptions.append(desc)
 
         return "\n".join(tool_descriptions)
 
     def _format_server_category(self, category: ServerRouterCategory) -> str:
         """Format a server category into a readable string."""
-        description = category.description or "No description provided"
-        tools = self._format_tools(category.tools)
-        return f"Server Category: {category.name}\nDescription: {description}\nTools in server:\n{tools}"
+        # Check if we have any content (description or tools)
+        has_description = bool(category.description)
+        has_tools = bool(category.tools)
+        
+        # If no content at all, use self-closing tag
+        if not has_description and not has_tools:
+            return f'<fastagent:server-category name="{category.name}" />'
+            
+        # Otherwise, build the content
+        description_section = ""
+        if has_description:
+            description_section = f"\n<fastagent:description>{category.description}</fastagent:description>"
+            
+        # Add tools section if we have tool information
+        if has_tools:
+            tools = self._format_tools(category.tools)
+            return f"""<fastagent:server-category name="{category.name}">{description_section}
+<fastagent:tools>
+{tools}
+</fastagent:tools>
+</fastagent:server-category>"""
+        else:
+            # Just description, no tools
+            return f"""<fastagent:server-category name="{category.name}">{description_section}
+</fastagent:server-category>"""
 
     def _format_agent_category(self, category: AgentRouterCategory) -> str:
         """Format an agent category into a readable string."""
-        description = category.description or "No description provided"
-        servers = "\n".join(
-            [f"- {server.name} ({server.description})" for server in category.servers]
-        )
+        # Check if we have any content (description or servers)
+        has_description = bool(category.description)
+        has_servers = bool(category.servers)
+        
+        # If no content at all, use self-closing tag
+        if not has_description and not has_servers:
+            return f'<fastagent:agent-category name="{category.name}" />'
+            
+        # Build description section if needed
+        description_section = ""
+        if has_description:
+            description_section = f"\n<fastagent:description>{category.description}</fastagent:description>"
 
-        return f"Agent Category: {category.name}\nDescription: {description}\nServers in agent:\n{servers}"
+        # Handle the case with no servers
+        if not has_servers:
+            return f"""<fastagent:agent-category name="{category.name}">{description_section}
+</fastagent:agent-category>"""
+
+        # Format servers with proper XML tags and include their tools
+        server_sections = []
+        for server in category.servers:
+            # Check if this server has any content
+            has_server_description = bool(server.description)
+            has_server_tools = bool(server.tools)
+            
+            # Use self-closing tag if server has no content
+            if not has_server_description and not has_server_tools:
+                server_section = f'<fastagent:server name="{server.name}" />'
+                server_sections.append(server_section)
+                continue
+                
+            # Build server description if needed
+            server_desc_section = ""
+            if has_server_description:
+                server_desc_section = f"\n<fastagent:description>{server.description}</fastagent:description>"
+
+            # Format server tools if available
+            if has_server_tools:
+                tool_items = []
+                for tool in server.tools:
+                    tool_desc = tool.description if tool.description else ""
+                    tool_items.append(
+                        f'<fastagent:tool name="{tool.name}">{tool_desc}</fastagent:tool>'
+                    )
+
+                tools_section = f"\n<fastagent:tools>\n{chr(10).join(tool_items)}\n</fastagent:tools>"
+                server_section = f"""<fastagent:server name="{server.name}">{server_desc_section}{tools_section}
+</fastagent:server>"""
+            else:
+                # Just description, no tools
+                server_section = f"""<fastagent:server name="{server.name}">{server_desc_section}
+</fastagent:server>"""
+            
+            server_sections.append(server_section)
+
+        servers = "\n".join(server_sections)
+
+        return f"""<fastagent:agent-category name="{category.name}">{description_section}
+<fastagent:servers>
+{servers}
+</fastagent:servers>
+</fastagent:agent-category>"""
 
     def _format_function_category(self, category: RouterCategory) -> str:
         """Format a function category into a readable string."""
-        description = category.description or "No description provided"
-        return f"Function Category: {category.name}\nDescription: {description}"
+        # Check if we have a description
+        has_description = bool(category.description)
+        
+        # If no description, use self-closing tag
+        if not has_description:
+            return f'<fastagent:function-category name="{category.name}" />'
+            
+        # Include description
+        return f"""<fastagent:function-category name="{category.name}">
+<fastagent:description>{category.description}</fastagent:description>
+</fastagent:function-category>"""

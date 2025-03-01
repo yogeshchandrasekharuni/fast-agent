@@ -333,6 +333,9 @@ agent["greeter"].send("Good Evening!")          # Dictionary access is supported
 
 ### llmindset.co.uk fork:
 
+- Remove instructor use for Orchestrator
+- Improved handling of Parallel/Fan-In and respose option
+- XML based generated prompts
 - "FastAgent" style prototyping, with per-agent models
 - API keys through Environment Variables
 - Warm-up / Post-Workflow Agent Interactions
@@ -347,6 +350,7 @@ agent["greeter"].send("Good Evening!")          # Dictionary access is supported
 - OpenAI o1/o3-mini support with reasoning level
 - Enhanced Human Input Messaging and Handling
 - Declarative workflows
+- Numerous defect fixes
 
 ### Features to add.
 
