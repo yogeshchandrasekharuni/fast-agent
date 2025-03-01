@@ -22,7 +22,7 @@ Prompts and configurations that define your Agent Applications are stored in sim
 
 Chat with individual Agents and Components before, during and after workflow execution to tune and diagnose your application.
 
-Simple model selection makes testing Model <-> MCP Server interaction painless. You can read more about the motivation behind this project [here](llmindset.co.uk/resources/fast-agent/)
+Simple model selection makes testing Model <-> MCP Server interaction painless. You can read more about the motivation behind this project [here](https://llmindset.co.uk/resources/fast-agent/)
 
 ![fast-agent](https://github.com/user-attachments/assets/3e692103-bf97-489a-b519-2d0fee036369)
 
@@ -225,20 +225,58 @@ See `orchestrator.py` in the workflow examples.
 
 ## Agent Features
 
+### Calling Agents
+
+All definitions allow omitting the name and instructions arguments for brevity:
+
+```python
+@fast.agent("You are a helpful agent")          # Create an agent with a default name.
+@fast.agent("greeter","Respond cheerfully!")    # Create an agent with the name "greeter"
+
+moon_size = await agent("the moon")             # Call the default (first defined agent) with a message
+
+result = await agent.greeter("Good morning!")   # Send a message to an agent by name using dot notation
+result = await agent.greeter.send("Hello!")     # You can call 'send' explicitly
+
+await agent.greeter()                           # If no message is specified, a chat session will open
+await agent.greeter.prompt()                    # that can be made more explicit
+await agent.greeter.prompt(default_prompt="OK") # and supports setting a default prompt
+
+agent["greeter"].send("Good Evening!")          # Dictionary access is supported if preferred
+```
+
+### Defining Agents
+
+#### Agent:
+
 ```python
 @fast.agent(
-  name="agent",
-  instructions="instructions",
-  servers=["filesystem"],     # list of MCP Servers for the agent, configured in fastagent.config.yaml
-  model="o3-mini.high",       # specify a model for the agent
-  use_history=True,           # agent maintains chat history
-  human_input=True,           # agent can request human input
+  name="agent",                          # name of the agent
+  instruction="You are a helpful Agent", # base instruction for the agent
+  servers=["filesystem"],                # list of MCP Servers for the agent
+  model="o3-mini.high",                  # specify a model for the agent
+  use_history=True,                      # agent maintains chat history
+  request_params={"temperature": 0.7},   # additional parameters for the LLM (or RequestParams())
+  human_input=True,                      # agent can request human input
 )
 ```
 
-### Human Input
+#### Human Input
 
 When `human_input` is set to true for an Agent, a Tool is made available to the Agent to prompt the User for input. The `human_input.py` example demonstrates this.
+
+#### Chain
+
+```python
+@fast.chain(
+  name="chain",                            # name of the chain
+  sequence=["agent1", "agent2", "agent3"], # list of agents in execution order
+  instruction="instruction",               # instruction to explain chain for other workflows
+  continue_with_final=True,                # open chat with agent at end of chain after prompting
+)
+```
+
+####
 
 ### Secrets File
 
