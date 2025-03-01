@@ -38,8 +38,6 @@ fast = FastAgent("Evaluator-Optimizer")
     Summarize your evaluation as a structured response with:
     - Overall quality rating.
     - Specific feedback and areas for improvement.""",
-    # instructor doesn't seem to work for sonnet37
-    # model="sonnet35",
 )
 # Define the evaluator-optimizer workflow
 @fast.evaluator_optimizer(

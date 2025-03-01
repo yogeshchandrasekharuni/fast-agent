@@ -60,10 +60,6 @@ and whispers of a hidden agenda linger among the villagers.
     and give an overall grade based on the feedback.""",
     model="o3-mini.low",
 )
-@fast.agent(
-    name="cats-to-dogs",
-    instruction="you should take any text, and change references about cats to dogs",
-)
 @fast.parallel(
     fan_out=["proofreader", "fact_checker", "style_enforcer"],
     fan_in="grader",

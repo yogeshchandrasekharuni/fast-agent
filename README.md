@@ -38,7 +38,10 @@ uv run agent.py                     # run your first agent
 uv run agent.py --model=o3-mini.low # specify a model
 fast-agent bootstrap workflow       # create "building effective agents" examples
 ```
+
 Other bootstrap examples include a Researcher Agent (with Evaluator-Optimizer workflow) and Data Analysis Agent (similar to the ChatGPT experience), demonstrating MCP Roots support.
+
+[!TIP]
 
 > Windows Users - there are a couple of configuration changes needed for the Filesystem and Docker MCP Servers - necessary changes are detailed within the configuration files.
 
@@ -237,6 +240,10 @@ See `orchestrator.py` in the workflow examples.
 ### Human Input
 
 When `human_input` is set to true for an Agent, it is presented with the option to prompt the User for input.
+
+[!TIP]
+
+> fast-agent will look recursively for a fastagent.secrets.yaml file, so you only need to manage this at the root folder of your agent definitions.
 
 ## Project Notes
 

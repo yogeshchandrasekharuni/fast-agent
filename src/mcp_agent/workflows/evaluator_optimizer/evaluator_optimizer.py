@@ -316,23 +316,50 @@ class EvaluatorOptimizerLLM(AugmentedLLM[MessageParamT, MessageT]):
     ) -> str:
         """Build the evaluation prompt for the evaluator"""
         return f"""
-        Evaluate the following response based on these criteria:
-        {self.evaluator.instruction}
+You are an expert evaluator for content quality. Your task is to evaluate a response against the user's original request.
 
-        Original Request: {original_request}
-        Current Response (Iteration {iteration + 1}): {current_response}
+Evaluate the response for iteration {iteration + 1} and provide structured feedback on its quality and areas for improvement.
 
-        Provide your evaluation as a structured response with:
-        1. A quality rating (EXCELLENT, GOOD, FAIR, or POOR)
-        2. Specific feedback and suggestions
-        3. Whether improvement is needed (true/false)
-        4. Focus areas for improvement
+<fastagent:data>
+<fastagent:request>
+{original_request}
+</fastagent:request>
 
-        Rate as EXCELLENT only if no improvements are needed.
-        Rate as GOOD if only minor improvements are possible.
-        Rate as FAIR if several improvements are needed.
-        Rate as POOR if major improvements are needed.
-        """
+<fastagent:response>
+{current_response}
+</fastagent:response>
+
+<fastagent:evaluation-criteria>
+{self.evaluator.instruction}
+</fastagent:evaluation-criteria>
+</fastagent:data>
+
+<fastagent:instruction>
+Provide a structured evaluation with the following components:
+
+<rating>
+Choose one: EXCELLENT, GOOD, FAIR, or POOR
+- EXCELLENT: No improvements needed
+- GOOD: Only minor improvements possible
+- FAIR: Several improvements needed
+- POOR: Major improvements needed
+</rating>
+
+<details>
+Provide specific, actionable feedback and suggestions for improvement.
+Be precise about what works well and what could be improved.
+</details>
+
+<needs_improvement>
+Indicate true/false whether further improvement is needed.
+</needs_improvement>
+
+<focus-areas>
+List 1-3 specific areas to focus on in the next iteration.
+Be concrete and actionable in your recommendations.
+</focus-areas>
+</fastagent:instruction>
+"""
 
     def _build_refinement_prompt(
         self,
@@ -342,17 +369,71 @@ class EvaluatorOptimizerLLM(AugmentedLLM[MessageParamT, MessageT]):
         iteration: int,
     ) -> str:
         """Build the refinement prompt for the optimizer"""
-        return f"""
-        Improve your previous response based on the evaluation feedback.
-        
-        Original Request: {original_request}
-        
-        Previous Response (Iteration {iteration + 1}): 
-        {current_response}
-        
-        Quality Rating: {feedback.rating}
-        Feedback: {feedback.feedback}
-        Areas to Focus On: {", ".join(feedback.focus_areas)}
-        
-        Generate an improved version addressing the feedback while maintaining accuracy and relevance.
-        """
+        history_enabled = hasattr(self, "history") and self.history
+
+        # Start with clear non-delimited instructions
+        prompt = f"""
+You are tasked with improving a response based on expert feedback. This is iteration {iteration + 1} of the refinement process.
+
+Your goal is to address all feedback points while maintaining accuracy and relevance to the original request.
+"""
+
+        # Add data section with all relevant information
+        prompt += """
+<fastagent:data>
+"""
+
+        # Add request
+        prompt += f"""
+<fastagent:request>
+{original_request}
+</fastagent:request>
+"""
+
+        # Only include previous response if history is not enabled
+        if not history_enabled:
+            prompt += f"""
+<fastagent:previous-response>
+{current_response}
+</fastagent:previous-response>
+"""
+
+        # Always include the feedback
+        prompt += f"""
+<fastagent:feedback>
+<rating>{feedback.rating}</rating>
+<details>{feedback.feedback}</details>
+<focus-areas>{", ".join(feedback.focus_areas) if feedback.focus_areas else "None specified"}</focus-areas>
+</fastagent:feedback>
+</fastagent:data>
+"""
+
+        # Customize instruction based on history availability
+        if not history_enabled:
+            prompt += """
+<fastagent:instruction>
+Create an improved version of the response that:
+1. Directly addresses each point in the feedback
+2. Focuses on the specific areas mentioned for improvement
+3. Maintains all the strengths of the original response
+4. Remains accurate and relevant to the original request
+
+Provide your complete improved response without explanations or commentary.
+</fastagent:instruction>
+"""
+        else:
+            prompt += """
+<fastagent:instruction>
+Your previous response is available in your conversation history.
+
+Create an improved version that:
+1. Directly addresses each point in the feedback
+2. Focuses on the specific areas mentioned for improvement
+3. Maintains all the strengths of your original response
+4. Remains accurate and relevant to the original request
+
+Provide your complete improved response without explanations or commentary.
+</fastagent:instruction>
+"""
+
+        return prompt

@@ -117,10 +117,11 @@ class AnthropicAugmentedLLM(AugmentedLLM[MessageParam, Message]):
         responses: List[Message] = []
         model = await self.select_model(params)
         chat_turn = (len(messages) + 1) // 2
-        self._log_chat_progress(chat_turn, model=model)
         self.show_user_message(str(message), model, chat_turn)
 
         for i in range(params.max_iterations):
+            chat_turn = (len(messages) + 1) // 2
+            self._log_chat_progress(chat_turn, model=model)
             arguments = {
                 "model": model,
                 "messages": messages,
