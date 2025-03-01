@@ -3,6 +3,7 @@ Enhanced prompt functionality with advanced prompt_toolkit features.
 """
 
 from typing import List
+from importlib.metadata import version
 from prompt_toolkit import PromptSession
 from prompt_toolkit.formatted_text import HTML
 from prompt_toolkit.history import InMemoryHistory
@@ -14,6 +15,12 @@ from pygments.lexers.python import PythonLexer
 from rich import print as rich_print
 
 from mcp_agent.core.exceptions import PromptExitError
+
+# Get the application version
+try:
+    app_version = version("fast-agent-mcp")
+except:
+    app_version = "unknown"
 
 # Map of agent names to their history
 agent_histories = {}
@@ -204,7 +211,7 @@ async def get_enhanced_input(
 
         shortcut_text = " | ".join(f"{key}:{action}" for key, action in shortcuts)
         return HTML(
-            f" <{toolbar_color}> {agent_name} </{toolbar_color}> | <b>Mode:</b> <{mode_style}> {mode_text} </{mode_style}> {newline} | {shortcut_text}"
+            f" <{toolbar_color}> {agent_name} </{toolbar_color}> | <b>Mode:</b> <{mode_style}> {mode_text} </{mode_style}> {newline} | {shortcut_text} | <dim>v{app_version}</dim>"
         )
 
     # Create session with history and completions
@@ -318,7 +325,8 @@ async def handle_special_commands(command, agent_app=None):
         rich_print(
             "  Enter          - Submit (normal mode) / New line (multiline mode)"
         )
-        rich_print("  Ctrl+Enter      - Always submit (even in multiline mode)")
+        rich_print("  \\ + Enter     - Insert new line in normal mode")
+        rich_print("  Ctrl+Enter      - Always submit (in any mode)")
         rich_print("  Ctrl+T         - Toggle multiline mode")
         rich_print("  Ctrl+L         - Clear input")
         rich_print("  Up/Down        - Navigate history")
