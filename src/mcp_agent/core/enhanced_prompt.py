@@ -19,7 +19,7 @@ from mcp_agent.core.exceptions import PromptExitError
 # Get the application version
 try:
     app_version = version("fast-agent-mcp")
-except:
+except:  # noqa: E722
     app_version = "unknown"
 
 # Map of agent names to their history
