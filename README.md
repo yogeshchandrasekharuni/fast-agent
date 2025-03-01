@@ -41,8 +41,7 @@ fast-agent bootstrap workflow       # create "building effective agents" example
 
 Other bootstrap examples include a Researcher Agent (with Evaluator-Optimizer workflow) and Data Analysis Agent (similar to the ChatGPT experience), demonstrating MCP Roots support.
 
-[!TIP]
-
+> [!TIP]
 > Windows Users - there are a couple of configuration changes needed for the Filesystem and Docker MCP Servers - necessary changes are detailed within the configuration files.
 
 ### Basic Agents
@@ -151,7 +150,7 @@ async with fast.run() as agent:
 
 ```
 
-This starts an interactive session, which produces a short social media post for a given URL. If a _chain_ is prompted, by default it returns to a chat with last Agent in the chain.
+This starts an interactive session, which produces a short social media post for a given URL. If a _chain_ is prompted it returns to a chat with last Agent in the chain. You can switch the agent to prompt by typing `@agent-name`.
 
 Chains can be incorporated in other workflows, or contain other workflow elements (including other Chains). You can set an `instruction` to precisely describe it's capabilities to other workflow steps if needed.
 
@@ -241,8 +240,7 @@ See `orchestrator.py` in the workflow examples.
 
 When `human_input` is set to true for an Agent, it is presented with the option to prompt the User for input.
 
-[!TIP]
-
+> [!TIP]
 > fast-agent will look recursively for a fastagent.secrets.yaml file, so you only need to manage this at the root folder of your agent definitions.
 
 ## Project Notes
@@ -252,7 +250,7 @@ When `human_input` is set to true for an Agent, it is presented with the option 
 ### llmindset.co.uk fork:
 
 - "FastAgent" style prototyping, with per-agent models
-- Api keys through Environment Variables
+- API keys through Environment Variables
 - Warm-up / Post-Workflow Agent Interactions
 - Quick Setup
 - Interactive Prompt Mode
