@@ -22,7 +22,7 @@ Prompts and configurations that define your Agent Applications are stored in sim
 
 Chat with individual Agents and Components before, during and after workflow execution to tune and diagnose your application.
 
-Simple model selection makes testing Model <-> MCP Server interaction painless.
+Simple model selection makes testing Model <-> MCP Server interaction painless. You can read more about the motivation behind this project [here](llmindset.co.uk/resources/fast-agent/)
 
 ![fast-agent](https://github.com/user-attachments/assets/3e692103-bf97-489a-b519-2d0fee036369)
 
@@ -121,7 +121,7 @@ async def main():
         )
 ```
 
-All Agents and Workflows respond to `.send("message")` and `.prompt()` to begin a chat session.
+All Agents and Workflows respond to `.send("message")` or `.prompt()` to begin a chat session.
 
 Saved as `social.py` we can now run this workflow from the command line with:
 
@@ -129,7 +129,7 @@ Saved as `social.py` we can now run this workflow from the command line with:
 uv run social.py --agent social_media --message "<url>"
 ```
 
-Add the `--quiet` switch to only return the final response.
+Add the `--quiet` switch to only return the final response, which is useful for simple automations.
 
 ## Workflows
 
@@ -174,9 +174,9 @@ The Parallel Workflow sends the same message to multiple Agents simultaneously (
 )
 ```
 
-Look at the `parallel.py` workflow example for more examples. If you don't specify a `fan-in` agent, the `parallel` returns Agent results verbatim.
+Look at the `parallel.py` workflow example for more examples. If you don't specify a `fan-in` agent, the `parallel` returns the combined Agent results verbatim.
 
-The Parallel is also useful to ensemble ideas from different LLMs.
+`parallel` is also useful to ensemble ideas from different LLMs.
 
 ### Evaluator-Optimizer
 
@@ -231,14 +231,16 @@ See `orchestrator.py` in the workflow examples.
   instructions="instructions",
   servers=["filesystem"],     # list of MCP Servers for the agent, configured in fastagent.config.yaml
   model="o3-mini.high",       # specify a model for the agent
-  use_history=True,           # agent can maintain chat history
+  use_history=True,           # agent maintains chat history
   human_input=True,           # agent can request human input
 )
 ```
 
 ### Human Input
 
-When `human_input` is set to true for an Agent, it is presented with the option to prompt the User for input.
+When `human_input` is set to true for an Agent, a Tool is made available to the Agent to prompt the User for input. The `human_input.py` example demonstrates this.
+
+### Secrets File
 
 > [!TIP]
 > fast-agent will look recursively for a fastagent.secrets.yaml file, so you only need to manage this at the root folder of your agent definitions.
