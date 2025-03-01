@@ -13,5 +13,6 @@
       "mcp-agent.secrets.yaml",
       "mcp_agent.secrets.yaml"
     ]
-  }
+  },
+  "editor.fontFamily": "BlexMono Nerd Font"
 }

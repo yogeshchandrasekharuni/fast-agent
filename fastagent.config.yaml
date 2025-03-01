@@ -1,9 +1,28 @@
-default_model: sonnet
 mcp:
-    servers:
-        fetch:
-            command: "uvx"
-            args: ["mcp-server-fetch"]
-        filesystem:
-            command: "npx"
-            args: ["@modelcontextprotocol/server-filesystem","."]
+  servers:
+    fetch:
+      args:
+      - mcp-server-fetch
+      command: uvx
+      transport: stdio
+    filesystem:
+      args:
+      - '@modelcontextprotocol/server-filesystem'
+      - .
+      command: npx
+      transport: stdio
+    foobar:
+      command: foo
+      description: the description
+      name: blah-de-blah
+      transport: SSE
+    foobr:
+      args:
+      - foo
+      - br
+      - b
+      command: npx
+      description: ' tst srvr'
+      name: foobr
+      read_timeout_seconds: 50
+      transport: stdio
