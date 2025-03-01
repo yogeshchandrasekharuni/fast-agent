@@ -247,7 +247,7 @@ agent["greeter"].send("Good Evening!")          # Dictionary access is supported
 
 ### Defining Agents
 
-#### Agent:
+#### Basic Agent
 
 ```python
 @fast.agent(
@@ -261,22 +261,66 @@ agent["greeter"].send("Good Evening!")          # Dictionary access is supported
 )
 ```
 
-#### Human Input
-
-When `human_input` is set to true for an Agent, a Tool is made available to the Agent to prompt the User for input. The `human_input.py` example demonstrates this.
-
 #### Chain
 
 ```python
 @fast.chain(
-  name="chain",                            # name of the chain
-  sequence=["agent1", "agent2", "agent3"], # list of agents in execution order
-  instruction="instruction",               # instruction to explain chain for other workflows
-  continue_with_final=True,                # open chat with agent at end of chain after prompting
+  name="chain",                          # name of the chain
+  sequence=["agent1", "agent2", ...],    # list of agents in execution order
+  instruction="instruction",             # instruction to describe the chain for other workflows
+  continue_with_final=True,              # open chat with agent at end of chain after prompting
 )
 ```
 
-####
+#### Parallel
+
+```python
+@fast.parallel(
+  name="parallel",                       # name of the parallel workflow
+  fan_out=["agent1", "agent2"],          # list of agents to run in parallel
+  fan_in="aggregator",                   # name of agent that combines results (optional)
+  instruction="instruction",             # instruction to describe the parallel for other workflows
+  include_request=True,                  # include original request in fan-in message
+)
+```
+
+#### Evaluator-Optimizer
+
+```python
+@fast.evaluator_optimizer(
+  name="researcher",                     # name of the workflow
+  generator="web_searcher",              # name of the content generator agent
+  evaluator="quality_assurance",         # name of the evaluator agent
+  min_rating="GOOD",                     # minimum acceptable quality (EXCELLENT, GOOD, FAIR, POOR)
+  max_refinements=3,                     # maximum number of refinement iterations
+)
+```
+
+#### Router
+
+```python
+@fast.router(
+  name="route",                          # name of the router
+  agents=["agent1", "agent2", "agent3"], # list of agent names router can delegate to
+  model="o3-mini.high",                  # specify routing model
+  use_history=True,                      # router maintains chat history
+  human_input=False,                     # whether router can request human input
+)
+```
+
+#### Orchestrator
+
+```python
+@fast.orchestrator(
+  name="orchestrator",                   # name of the orchestrator
+  instruction="instruction",             # base instruction for the orchestrator
+  agents=["agent1", "agent2"],           # list of agent names this orchestrator can use
+  model="o3-mini.high",                  # specify orchestrator planning model
+  use_history=False,                     # orchestrator doesn't maintain chat history by default
+  human_input=False,                     # whether orchestrator can request human input
+  plan_type="full",                      # planning approach: "full" or "iterative"
+)
+```
 
 ### Secrets File
 
@@ -307,3 +351,7 @@ When `human_input` is set to true for an Agent, a Tool is made available to the 
 ### Features to add.
 
 - Chat History Clear.
+
+```
+
+```
