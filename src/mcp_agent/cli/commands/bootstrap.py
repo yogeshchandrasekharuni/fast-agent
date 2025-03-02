@@ -135,7 +135,7 @@ def copy_example_files(
 
 def show_overview():
     """Display an overview of available examples in a nicely formatted table."""
-    console.print("\n[bold cyan]FastAgent Example Applications[/bold cyan]")
+    console.print("\n[bold cyan]fast-agent Example Applications[/bold cyan]")
     console.print("Build agents and compose workflows through practical examples\n")
 
     # Create a table for better organization

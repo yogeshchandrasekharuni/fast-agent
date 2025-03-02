@@ -244,10 +244,22 @@ class FastAgent(ContextDependent):
                     if child_data["type"] == AgentType.BASIC.value:
                         # For basic agents, we'll validate LLM config during creation
                         continue
-                    elif not isinstance(child_data["func"], AugmentedLLM):
+                    # Check if it's a workflow type or has LLM capability
+                    # Workflows like EvaluatorOptimizer and Parallel are valid for orchestrator
+                    func = child_data["func"]
+                    workflow_types = [
+                        AgentType.EVALUATOR_OPTIMIZER.value,
+                        AgentType.PARALLEL.value,
+                        AgentType.ROUTER.value, 
+                        AgentType.CHAIN.value
+                    ]
+                    
+                    if not (isinstance(func, AugmentedLLM) or 
+                            child_data["type"] in workflow_types or
+                            (hasattr(func, "_llm") and func._llm is not None)):
                         raise AgentConfigError(
                             f"Agent '{agent_name}' used by orchestrator '{name}' lacks LLM capability",
-                            "All agents used by orchestrators must be LLM-capable",
+                            "All agents used by orchestrators must be LLM-capable (either an AugmentedLLM or have an _llm property)",
                         )
 
             elif agent_type == AgentType.ROUTER.value:
@@ -1271,28 +1283,38 @@ class FastAgent(ContextDependent):
                 self._validate_workflow_references()
 
                 # Create all types of agents in dependency order
+                # First create basic agents
                 active_agents = await self._create_basic_agents(agent_app)
-
-                orchestrators = await self._create_orchestrators(
-                    agent_app, active_agents
-                )
-                parallel_agents = await self._create_parallel_agents(
-                    agent_app, active_agents
-                )
+                
+                # Create workflow types that don't depend on other workflows first
                 evaluator_optimizers = await self._create_evaluator_optimizers(
                     agent_app, active_agents
                 )
+                active_agents.update(evaluator_optimizers)
+                
+                # Create parallel agents next as they might be dependencies
+                parallel_agents = await self._create_parallel_agents(
+                    agent_app, active_agents
+                )
+                active_agents.update(parallel_agents)
+                
+                # Create routers next
                 routers = await self._create_routers(agent_app, active_agents)
+                active_agents.update(routers)
+                
+                # Create chains next
                 chains = await self._create_agents_in_dependency_order(
                     agent_app, active_agents, AgentType.CHAIN
                 )
-
-                # Merge all agents into active_agents
-                active_agents.update(orchestrators)
-                active_agents.update(parallel_agents)
-                active_agents.update(evaluator_optimizers)
-                active_agents.update(routers)
                 active_agents.update(chains)
+                
+                # Create orchestrators last as they might depend on any other agent type
+                orchestrators = await self._create_orchestrators(
+                    agent_app, active_agents
+                )
+
+                # Add orchestrators to active_agents (other types were already added)
+                active_agents.update(orchestrators)
 
                 # Create wrapper with all agents
                 wrapper = AgentApp(agent_app, active_agents)

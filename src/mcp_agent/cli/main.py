@@ -22,7 +22,14 @@ console = Console()
 
 def show_welcome():
     """Show a welcome message with available commands."""
-    console.print("\n[bold]Welcome to MCP Agent![/bold]")
+    from importlib.metadata import version
+
+    try:
+        app_version = version("fast-agent-mcp")
+    except:  # noqa: E722
+        app_version = "unknown"
+
+    console.print(f"\n[bold]fast-agent (fast-agent-mcp) {app_version}[/bold]")
     console.print("Build effective agents using Model Context Protocol (MCP)")
 
     # Create a table for commands
@@ -41,8 +48,11 @@ def show_welcome():
     console.print("\n[bold]Getting Started:[/bold]")
     console.print("1. Set up a new project:")
     console.print("   fastagent setup")
-    console.print("\n2. Try an example workflow:")
-    console.print("   fastagent bootstrap create workflow")
+    console.print("\n2. Create Building Effective Agents  workflow examples:")
+    console.print("   fastagent bootstrap workflow")
+    console.print("\n3. Explore other examples:")
+    console.print("   fastagent bootstrap")
+
     console.print("\nUse --help with any command for more information")
     console.print("Example: fastagent bootstrap --help")
 

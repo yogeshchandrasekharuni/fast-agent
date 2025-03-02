@@ -52,7 +52,7 @@ class AgentCompleter(Completer):
             "clear": "Clear the screen",
             "agents": "List available agents",
             "STOP": "Stop this prompting session and move to next workflow step",
-            "EXIT": "Exit FastAgent, terminating any running workflows",
+            "EXIT": "Exit fast-agent, terminating any running workflows",
             **(commands or {}),  # Allow custom commands to be passed in
         }
         if is_human_input:
@@ -319,7 +319,7 @@ async def handle_special_commands(command, agent_app=None):
         rich_print("  @agent_name    - Switch to agent")
         rich_print("  STOP           - Return control back to the workflow")
         rich_print(
-            "  EXIT           - Exit FastAgent, terminating any running workflows"
+            "  EXIT           - Exit fast-agent, terminating any running workflows"
         )
         rich_print("\n[bold]Keyboard Shortcuts:[/bold]")
         rich_print(
@@ -338,7 +338,7 @@ async def handle_special_commands(command, agent_app=None):
         return True
 
     elif command == "EXIT":
-        raise PromptExitError("User requested to exit FastAgent session")
+        raise PromptExitError("User requested to exit fast-agent session")
 
     elif command == "LIST_AGENTS":
         if available_agents:

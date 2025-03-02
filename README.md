@@ -1,4 +1,4 @@
-## FastAgent
+## fast-agent
 
 <p align="center">
 <a href="https://pypi.org/project/fast-agent-mcp/"><img src="https://img.shields.io/pypi/v/fast-agent-mcp?color=%2334D058&label=pypi" /></a>
@@ -194,6 +194,8 @@ Evaluator-Optimizers combine 2 agents: one to generate content (the `generator`)
 async with fast.run() as agent:
   await agent.researcher.send("produce a report on how to make the perfect espresso")
 ```
+
+When used in a workflow, it returns the last `generator` message as the result.
 
 See the `evaluator.py` workflow example, or `fast-agent bootstrap researcher` for a more complete example.
 
