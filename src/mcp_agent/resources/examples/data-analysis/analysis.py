@@ -7,6 +7,10 @@ from mcp_agent.workflows.llm.augmented_llm import RequestParams
 fast = FastAgent("Data Analysis (Roots)")
 
 
+# The sample data is under Database Contents License (DbCL) v1.0.
+# Available here : https://www.kaggle.com/datasets/pavansubhasht/ibm-hr-analytics-attrition-dataset
+
+
 @fast.agent(
     name="data_analysis",
     instruction="""

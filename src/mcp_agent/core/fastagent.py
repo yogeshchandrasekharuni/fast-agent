@@ -497,6 +497,7 @@ class FastAgent(ContextDependent):
         request_params: Optional[Dict] = None,
         human_input: bool = False,
         plan_type: Literal["full", "iterative"] = "full",
+        max_iterations: int = 30,  # Add the max_iterations parameter with default value
     ) -> Callable:
         """
         Decorator to create and register an orchestrator.
@@ -510,12 +511,20 @@ class FastAgent(ContextDependent):
             request_params: Additional request parameters for the LLM
             human_input: Whether to enable human input capabilities
             plan_type: Planning approach - "full" generates entire plan first, "iterative" plans one step at a time
+            max_iterations: Maximum number of planning iterations (default: 10)
         """
         default_instruction = """
             You are an expert planner. Given an objective task and a list of MCP servers (which are collections of tools)
             or Agents (which are collections of servers), your job is to break down the objective into a series of steps,
             which can be performed by LLMs with access to the servers or agents.
             """
+
+        # Handle request_params update with max_iterations
+        if request_params is None:
+            request_params = {"max_iterations": max_iterations}
+        elif isinstance(request_params, dict):
+            if "max_iterations" not in request_params:
+                request_params["max_iterations"] = max_iterations
 
         decorator = self._create_decorator(
             AgentType.ORCHESTRATOR,

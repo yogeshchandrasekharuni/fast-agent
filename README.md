@@ -242,7 +242,7 @@ Given a complex task, the Orchestrator uses an LLM to generate a plan to divide 
 )
 ```
 
-See `orchestrator.py` in the workflow examples.
+See the `orchestrator.py` or `agent_build.py` workflow example.
 
 ## Agent Features
 
@@ -337,9 +337,10 @@ agent["greeter"].send("Good Evening!")          # Dictionary access is supported
   instruction="instruction",             # base instruction for the orchestrator
   agents=["agent1", "agent2"],           # list of agent names this orchestrator can use
   model="o3-mini.high",                  # specify orchestrator planning model
-  use_history=False,                     # orchestrator doesn't maintain chat history by default
+  use_history=False,                     # orchestrator doesn't maintain chat history (no effect).
   human_input=False,                     # whether orchestrator can request human input
   plan_type="full",                      # planning approach: "full" or "iterative"
+  max_iterations=5,                      # maximum number of full plan attempts, or iterations
 )
 ```
 

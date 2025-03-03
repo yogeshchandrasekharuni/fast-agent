@@ -1,3 +1,8 @@
+"""
+Prompt templates used by the Orchestrator workflow.
+"""
+
+# Templates for formatting results
 TASK_RESULT_TEMPLATE = """Task: {task_description}
 Result: {task_result}"""
 
@@ -30,6 +35,7 @@ You can analyze results from the previous steps already executed to decide if th
 
 <fastagent:status>
 {plan_status}
+{iterations_info}
 </fastagent:status>
 </fastagent:data>
 
@@ -38,6 +44,10 @@ If the previous results achieve the objective, return is_complete=True.
 Otherwise, generate remaining steps needed.
 
 <fastagent:instruction>
+You are operating in "full plan" mode, where you generate a complete plan with ALL remaining steps needed.
+After receiving your plan, the system will execute ALL steps in your plan before asking for your input again.
+If the plan needs multiple iterations, you'll be called again with updated results.
+
 Generate a plan with all remaining steps needed.
 Steps are sequential, but each Step can have parallel subtasks.
 For each Step, specify a description of the step and independent subtasks that can run in parallel.
@@ -68,6 +78,8 @@ Return your response in the following JSON structure:
         "is_complete": false
     }}
 
+Set "is_complete" to true ONLY if you are confident the objective has been fully achieved based on work completed so far.
+
 You must respond with valid JSON only, with no triple backticks. No markdown formatting.
 No extra text. Do not wrap in ```json code fences.
 </fastagent:instruction>
@@ -92,6 +104,7 @@ to decide what to do next.
 
 <fastagent:status>
 {plan_status}
+{iterations_info}
 </fastagent:status>
 </fastagent:data>
 
@@ -100,6 +113,9 @@ If the previous results achieve the objective, return is_complete=True.
 Otherwise, generate the next Step.
 
 <fastagent:instruction>
+You are operating in "iterative plan" mode, where you generate ONLY ONE STEP at a time.
+After each step is executed, you'll be called again to determine the next step based on updated results.
+
 Generate the next step, by specifying a description of the step and independent subtasks that can run in parallel:
 For each subtask specify:
     1. Clear description of the task that an LLM can execute  
@@ -119,6 +135,8 @@ Return your response in the following JSON structure:
         ],
         "is_complete": false
     }}
+
+Set "is_complete" to true ONLY if you are confident the objective has been fully achieved based on work completed so far.
 
 You must respond with valid JSON only, with no triple backticks. No markdown formatting.
 No extra text. Do not wrap in ```json code fences.
@@ -184,5 +202,35 @@ Create a comprehensive final response that addresses the original objective.
 Integrate all the information gathered across all plan steps.
 Provide a clear, complete answer that achieves the objective.
 Focus on delivering value through your synthesis, not just summarizing.
+
+If the plan was marked as incomplete but the maximum number of iterations was reached,
+make sure to state clearly what was accomplished and what remains to be done.
+</fastagent:instruction>
+"""
+
+# New template for incomplete plans due to iteration limits
+SYNTHESIZE_INCOMPLETE_PLAN_TEMPLATE = """You need to synthesize the results of all completed plan steps into a final response.
+
+<fastagent:data>
+<fastagent:plan-results>
+{plan_result}
+</fastagent:plan-results>
+</fastagent:data>
+
+<fastagent:status>
+The maximum number of iterations ({max_iterations}) was reached before the objective could be completed.
+</fastagent:status>
+
+<fastagent:instruction>
+Create a comprehensive response that summarizes what was accomplished so far.
+The objective was NOT fully completed due to reaching the maximum number of iterations.
+
+In your response:
+1. Clearly state that the objective was not fully completed
+2. Summarize what WAS accomplished across all the executed steps
+3. Identify what remains to be done to complete the objective
+4. Organize the information to provide maximum value despite being incomplete
+
+Focus on being transparent about the incomplete status while providing as much value as possible.
 </fastagent:instruction>
 """

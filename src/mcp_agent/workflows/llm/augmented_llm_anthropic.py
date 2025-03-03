@@ -246,14 +246,15 @@ class AnthropicAugmentedLLM(AugmentedLLM[MessageParam, Message]):
                             style="dim green italic",
                         )
 
-                    await self.show_assistant_message(message_text)
-
                     # Process all tool calls and collect results
                     tool_results = []
-                    for content in tool_uses:
+                    for i, content in enumerate(tool_uses):
                         tool_name = content.name
                         tool_args = content.input
                         tool_use_id = content.id
+
+                        if i == 0:  # Only show message for first tool use
+                            await self.show_assistant_message(message_text, tool_name)
 
                         self.show_tool_call(available_tools, tool_name, tool_args)
                         tool_call_request = CallToolRequest(

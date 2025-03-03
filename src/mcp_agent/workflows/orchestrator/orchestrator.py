@@ -32,6 +32,7 @@ from mcp_agent.workflows.orchestrator.orchestrator_models import (
 from mcp_agent.workflows.orchestrator.orchestrator_prompts import (
     FULL_PLAN_PROMPT_TEMPLATE,
     ITERATIVE_PLAN_PROMPT_TEMPLATE,
+    SYNTHESIZE_INCOMPLETE_PLAN_TEMPLATE,  # Add the missing import
     SYNTHESIZE_PLAN_PROMPT_TEMPLATE,
     TASK_PROMPT_TEMPLATE,
 )
@@ -90,7 +91,7 @@ class Orchestrator(AugmentedLLM[MessageParamT, MessageT]):
         # Initialize with orchestrator-specific defaults
         orchestrator_params = RequestParams(
             use_history=False,  # Orchestrator doesn't support history
-            max_iterations=30,  # Higher default for complex tasks
+            max_iterations=10,  # Higher default for complex tasks
             maxTokens=8192,  # Higher default for planning
             parallel_tool_calls=True,
         )
@@ -126,7 +127,6 @@ class Orchestrator(AugmentedLLM[MessageParamT, MessageT]):
         self.agents = {agent.name: agent for agent in available_agents}
 
         # Initialize logger
-        self.logger = logger
         self.name = name
 
         # Store agents by name - COMPLETE REWRITE OF AGENT STORAGE
@@ -213,8 +213,12 @@ class Orchestrator(AugmentedLLM[MessageParamT, MessageT]):
     ) -> PlanResult:
         """Execute task with result chaining between steps"""
         iterations = 0
+        total_steps_executed = 0
 
         params = self.get_request_params(request_params)
+        max_steps = getattr(
+            params, "max_steps", params.max_iterations * 5
+        )  # Default to 5× max_iterations
 
         # Single progress event for orchestration start
         model = await self.select_model(params) or "unknown-model"
@@ -231,6 +235,9 @@ class Orchestrator(AugmentedLLM[MessageParamT, MessageT]):
         )
 
         plan_result = PlanResult(objective=objective, step_results=[])
+        plan_result.max_iterations_reached = (
+            False  # Add a flag to track if we hit the limit
+        )
 
         while iterations < params.max_iterations:
             if self.plan_type == "iterative":
@@ -279,6 +286,14 @@ class Orchestrator(AugmentedLLM[MessageParamT, MessageT]):
             # Execute each step, collecting results
             # Note that in iterative mode this will only be a single step
             for step in plan.steps:
+                # Check if we've hit the step limit
+                if total_steps_executed >= max_steps:
+                    self.logger.warning(
+                        f"Reached maximum step limit ({max_steps}) without completing objective."
+                    )
+                    plan_result.max_steps_reached = True
+                    break
+
                 step_result = await self._execute_step(
                     step=step,
                     previous_result=plan_result,
@@ -286,15 +301,39 @@ class Orchestrator(AugmentedLLM[MessageParamT, MessageT]):
                 )
 
                 plan_result.add_step_result(step_result)
+                total_steps_executed += 1
+
+            # Check for step limit after executing steps
+            if total_steps_executed >= max_steps:
+                plan_result.max_iterations_reached = True
+                break
 
             logger.debug(
                 f"Iteration {iterations}: Intermediate plan result:", data=plan_result
             )
             iterations += 1
 
-        raise RuntimeError(
-            f"Task failed to complete in {params.max_iterations} iterations"
+        # If we get here, we've hit the iteration limit without completing
+        self.logger.warning(
+            f"Failed to complete in {params.max_iterations} iterations."
         )
+
+        # Mark that we hit the iteration limit
+        plan_result.max_iterations_reached = True
+
+        # Synthesize what we have so far, but use a different prompt that explains the incomplete status
+        synthesis_prompt = SYNTHESIZE_INCOMPLETE_PLAN_TEMPLATE.format(
+            plan_result=format_plan_result(plan_result),
+            max_iterations=params.max_iterations,
+        )
+
+        # Generate a final synthesis that acknowledges the incomplete status
+        plan_result.result = await self.planner.generate_str(
+            message=synthesis_prompt,
+            request_params=params.model_copy(update={"max_iterations": 1}),
+        )
+
+        return plan_result
 
     async def _execute_step(
         self,
@@ -399,18 +438,11 @@ class Orchestrator(AugmentedLLM[MessageParamT, MessageT]):
         params = self.get_request_params(request_params)
         params = params.model_copy(update={"use_history": False})
 
-        # Debug: Print agent names before formatting
-        print("\n------ AGENT NAMES BEFORE FORMATTING ------")
-        for agent_name in self.agents.keys():
-            print(f"Agent name: '{agent_name}'")
-        print("------------------------------------------\n")
-
         # Format agents without numeric prefixes for cleaner XML
         agent_formats = []
         for agent_name in self.agents.keys():
             formatted = self._format_agent_info(agent_name)
             agent_formats.append(formatted)
-            print(f"Formatted agent '{agent_name}':\n{formatted[:200]}...\n")
 
         agents = "\n".join(agent_formats)
 
@@ -423,10 +455,23 @@ class Orchestrator(AugmentedLLM[MessageParamT, MessageT]):
                 else "Plan Status: In Progress"
             )
 
+        # Fix the iteration counting display
+        max_iterations = params.max_iterations
+        # Get the actual iteration number we're on (0-based → 1-based for display)
+        current_iteration = len(plan_result.step_results) // (
+            1 if self.plan_type == "iterative" else len(plan_result.step_results) or 1
+        )
+        current_iteration = min(current_iteration, max_iterations - 1)  # Cap at max-1
+        iterations_remaining = max(
+            0, max_iterations - current_iteration - 1
+        )  # Ensure non-negative
+        iterations_info = f"Planning Budget: Iteration {current_iteration + 1} of {max_iterations} (with {iterations_remaining} remaining)"
+
         prompt = FULL_PLAN_PROMPT_TEMPLATE.format(
             objective=objective,
             plan_result=format_plan_result(plan_result),
             plan_status=plan_status,
+            iterations_info=iterations_info,
             agents=agents,
         )
 
@@ -507,10 +552,17 @@ class Orchestrator(AugmentedLLM[MessageParamT, MessageT]):
                 else "Plan Status: In Progress"
             )
 
+        # Add max_iterations info for the LLM
+        max_iterations = params.max_iterations
+        current_iteration = len(plan_result.step_results)
+        iterations_remaining = max_iterations - current_iteration
+        iterations_info = f"Planning Budget: {iterations_remaining} of {max_iterations} iterations remaining"
+
         prompt = ITERATIVE_PLAN_PROMPT_TEMPLATE.format(
             objective=objective,
             plan_result=format_plan_result(plan_result),
             plan_status=plan_status,
+            iterations_info=iterations_info,
             agents=agents,
         )
 

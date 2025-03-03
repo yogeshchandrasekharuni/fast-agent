@@ -102,6 +102,9 @@ class PlanResult(BaseModel):
     is_complete: bool = False
     """Whether the overall plan objective is complete"""
 
+    max_iterations_reached: bool = False
+    """Whether the plan execution reached the maximum number of iterations without completing"""
+
     result: str | None = None
     """Result of executing the plan"""
 
