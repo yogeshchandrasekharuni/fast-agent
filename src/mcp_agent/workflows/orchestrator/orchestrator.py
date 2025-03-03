@@ -307,14 +307,14 @@ class Orchestrator(AugmentedLLM[MessageParamT, MessageT]):
             logger.debug(
                 f"Iteration {iterations}: Intermediate plan result:", data=plan_result
             )
-            
+
             # Check for diminishing returns
-            if iterations > 3 and len(plan.steps) <= 1:
+            if iterations > 2 and len(plan.steps) <= 1:
                 # If plan has 0-1 steps after multiple iterations, might be done
                 self.logger.info("Minimal new steps detected, marking plan as complete")
                 plan_result.is_complete = True
                 break
-                
+
             iterations += 1
 
         # If we get here, we've hit the iteration limit without completing

@@ -33,6 +33,8 @@ is expected to be adjusted and refined later.
 
 If you are unsure about how to proceed, request input from the Human.
 
+Use the filesystem tools to save your completed fastagent program, in an appropriately named '.py' file. 
+
  """,
     servers=["filesystem", "fetch"],
     request_params=RequestParams(maxTokens=8192),
