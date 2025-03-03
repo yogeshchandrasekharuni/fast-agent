@@ -20,7 +20,7 @@ Evaluate how different models handle Agent and MCP Server calling tasks, then bu
 
 Prompts and configurations that define your Agent Applications are stored in simple files, with minimal boilerplate, enabling simple management and version control.
 
-Chat with individual Agents and Components before, during and after workflow execution to tune and diagnose your application.
+Chat with individual Agents and Components before, during and after workflow execution to tune and diagnose your application. Agents can request human input to get additional context for task completion.
 
 Simple model selection makes testing Model <-> MCP Server interaction painless. You can read more about the motivation behind this project [here](https://llmindset.co.uk/resources/fast-agent/)
 
@@ -167,7 +167,7 @@ Agents can request Human Input to assist with a task or get additional context:
 await agent("print the next number in the sequence")
 ```
 
-In the example `human_input.py`, the Agent will ask for additional information to complete the task.
+In the example `human_input.py`, the Agent will prompt the User for additional information to complete the task.
 
 ### Parallel
 
