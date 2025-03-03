@@ -154,6 +154,21 @@ This starts an interactive session, which produces a short social media post for
 
 Chains can be incorporated in other workflows, or contain other workflow elements (including other Chains). You can set an `instruction` to precisely describe it's capabilities to other workflow steps if needed.
 
+### Human Input
+
+Agents can request Human Input to assist with a task or get additional context:
+
+```python
+@fast.agent(
+    instruction="An AI agent that assists with basic tasks. Request Human Input when needed.",
+    human_input=True,
+)
+
+await agent("print the next number in the sequence")
+```
+
+In the example `human_input.py`, the Agent will ask for additional information to complete the task.
+
 ### Parallel
 
 The Parallel Workflow sends the same message to multiple Agents simultaneously (`fan-out`), then uses the `fan-in` Agent to process the combined content.
