@@ -129,48 +129,26 @@ class Orchestrator(AugmentedLLM[MessageParamT, MessageT]):
         self.logger = logger
         self.name = name
 
-        # Debug: Print all incoming agents before storing them
-        print("\n------ INCOMING AGENTS TO ORCHESTRATOR ------")
-        for idx, agent in enumerate(available_agents):
-            print(f"Agent {idx}: name='{agent.name}', type={type(agent).__name__}")
-            # Print agent.__dict__ keys to see available properties
-            print(f"  Properties: {sorted(agent.__dict__.keys())}")
-            if hasattr(agent, "config"):
-                print(f"  Config name: '{agent.config.name}'")
-        print("--------------------------------------------\n")
-
         # Store agents by name - COMPLETE REWRITE OF AGENT STORAGE
         self.agents = {}
         for agent in available_agents:
             # Fix: Remove all special handling of agent names and store them exactly as they are
             agent_name = agent.name
-            print(f"Registering agent: '{agent_name}' (type: {type(agent).__name__})")
 
             # Verify if the name is actually "None" (string) or None (NoneType)
             if agent_name == "None":
-                print(f"WARNING: Agent has name 'None' (string): {agent}")
                 # Try to get a better name from config if available
                 if hasattr(agent, "config") and agent.config and agent.config.name:
-                    print(f"  Using config.name instead: '{agent.config.name}'")
                     agent_name = agent.config.name
             elif agent_name is None:
-                print(f"WARNING: Agent has None (NoneType) name: {agent}")
                 # Try to get a better name from config if available
                 if hasattr(agent, "config") and agent.config and agent.config.name:
-                    print(f"  Using config.name instead: '{agent.config.name}'")
                     agent_name = agent.config.name
                 else:
                     agent_name = f"unnamed_agent_{len(self.agents)}"
-                    print(f"  Using generated name: '{agent_name}'")
 
             self.logger.info(f"Adding agent '{agent_name}' to orchestrator")
             self.agents[agent_name] = agent
-
-        # Debug: Print all registered agents
-        print("\n------ REGISTERED AGENTS IN ORCHESTRATOR ------")
-        for agent_name, agent in self.agents.items():
-            print(f"Registered: '{agent_name}' -> {type(agent).__name__}")
-        print("-----------------------------------------------\n")
 
     async def generate(
         self,
@@ -616,18 +594,22 @@ class Orchestrator(AugmentedLLM[MessageParamT, MessageT]):
         """Format Agent information for display to planners using XML tags"""
         from mcp_agent.workflows.llm.prompt_utils import format_agent_info
 
-        # print(f"Formatting agent info for: '{agent_name}'")
         agent = self.agents.get(agent_name)
         if not agent:
-            print(f"ERROR: Agent '{agent_name}' not found in self.agents")
             self.logger.error(f"Agent '{agent_name}' not found in orchestrator agents")
             return ""
         instruction = agent.instruction
-        formatted = format_agent_info(
-            agent_name,  # Use the dictionary key instead of agent.name
-            instruction,
-            None,  # Skip server info in debug mode for cleaner output
-        )
 
-        print(f"  Final formatted name: '{agent_name}'")
-        return formatted
+        # Get servers information
+        server_info = []
+        for server_name in agent.server_names:
+            server_config = self.server_registry.get_server_config(server_name)
+            description = ""
+            if server_config and server_config.description:
+                description = server_config.description
+
+            server_info.append({"name": server_name, "description": description})
+
+        return format_agent_info(
+            agent.name, instruction, server_info if server_info else None
+        )

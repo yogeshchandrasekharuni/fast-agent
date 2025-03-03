@@ -227,6 +227,9 @@ def init(
             console.print(
                 "2. Keep fastagent.secrets.yaml secure and never commit it to version control"
             )
+            console.print(
+                "3. Update fastagent.config.yaml to set a default model (currently system default is 'haiku')"
+            )
         console.print("\nTo get started, run:")
         console.print("  uv run agent.py")
     else:
