@@ -91,7 +91,7 @@ class Orchestrator(AugmentedLLM[MessageParamT, MessageT]):
         # Initialize with orchestrator-specific defaults
         orchestrator_params = RequestParams(
             use_history=False,  # Orchestrator doesn't support history
-            max_iterations=10,  # Higher default for complex tasks
+            max_iterations=5,  # Reduced from 10 to prevent excessive iterations
             maxTokens=8192,  # Higher default for planning
             parallel_tool_calls=True,
         )
@@ -262,26 +262,22 @@ class Orchestrator(AugmentedLLM[MessageParamT, MessageT]):
             plan_result.plan = plan
 
             if plan.is_complete:
-                # Only mark as complete if we have actually executed some steps
-                if len(plan_result.step_results) > 0:
-                    plan_result.is_complete = True
+                # Modified: Remove the requirement for steps to be executed
+                plan_result.is_complete = True
 
-                    # Synthesize final result into a single message
-                    # Use the structured XML format for better context
-                    synthesis_prompt = SYNTHESIZE_PLAN_PROMPT_TEMPLATE.format(
-                        plan_result=format_plan_result(plan_result)
-                    )
+                # Synthesize final result into a single message
+                # Use the structured XML format for better context
+                synthesis_prompt = SYNTHESIZE_PLAN_PROMPT_TEMPLATE.format(
+                    plan_result=format_plan_result(plan_result)
+                )
 
-                    # Use planner directly - planner already has PLANNING verb
-                    plan_result.result = await self.planner.generate_str(
-                        message=synthesis_prompt,
-                        request_params=params.model_copy(update={"max_iterations": 1}),
-                    )
+                # Use planner directly - planner already has PLANNING verb
+                plan_result.result = await self.planner.generate_str(
+                    message=synthesis_prompt,
+                    request_params=params.model_copy(update={"max_iterations": 1}),
+                )
 
-                    return plan_result
-                else:
-                    # Don't allow completion without executing steps
-                    plan.is_complete = False
+                return plan_result
 
             # Execute each step, collecting results
             # Note that in iterative mode this will only be a single step
@@ -311,6 +307,14 @@ class Orchestrator(AugmentedLLM[MessageParamT, MessageT]):
             logger.debug(
                 f"Iteration {iterations}: Intermediate plan result:", data=plan_result
             )
+            
+            # Check for diminishing returns
+            if iterations > 3 and len(plan.steps) <= 1:
+                # If plan has 0-1 steps after multiple iterations, might be done
+                self.logger.info("Minimal new steps detected, marking plan as complete")
+                plan_result.is_complete = True
+                break
+                
             iterations += 1
 
         # If we get here, we've hit the iteration limit without completing
@@ -457,10 +461,8 @@ class Orchestrator(AugmentedLLM[MessageParamT, MessageT]):
 
         # Fix the iteration counting display
         max_iterations = params.max_iterations
-        # Get the actual iteration number we're on (0-based → 1-based for display)
-        current_iteration = len(plan_result.step_results) // (
-            1 if self.plan_type == "iterative" else len(plan_result.step_results) or 1
-        )
+        # Simplified iteration counting logic
+        current_iteration = len(plan_result.step_results)
         current_iteration = min(current_iteration, max_iterations - 1)  # Cap at max-1
         iterations_remaining = max(
             0, max_iterations - current_iteration - 1

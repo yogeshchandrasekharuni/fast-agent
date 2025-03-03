@@ -78,7 +78,13 @@ Return your response in the following JSON structure:
         "is_complete": false
     }}
 
-Set "is_complete" to true ONLY if you are confident the objective has been fully achieved based on work completed so far.
+Set "is_complete" to true when ANY of these conditions are met:
+1. The objective has been achieved in full or substantively
+2. The remaining work is minor or trivial compared to what's been accomplished
+3. Additional steps provide minimal value toward the core objective
+4. The plan has gathered sufficient information to answer the original request
+
+Be decisive - avoid excessive planning steps that add little value. It's better to complete a plan early than to continue with marginal improvements. Focus on the core intent of the objective, not perfection.
 
 You must respond with valid JSON only, with no triple backticks. No markdown formatting.
 No extra text. Do not wrap in ```json code fences.
@@ -136,7 +142,13 @@ Return your response in the following JSON structure:
         "is_complete": false
     }}
 
-Set "is_complete" to true ONLY if you are confident the objective has been fully achieved based on work completed so far.
+Set "is_complete" to true when ANY of these conditions are met:
+1. The objective has been achieved in full or substantively
+2. The remaining work is minor or trivial compared to what's been accomplished
+3. Additional steps provide minimal value toward the core objective
+4. The plan has gathered sufficient information to answer the original request
+
+Be decisive - avoid excessive planning steps that add little value. It's better to complete a plan early than to continue with marginal improvements. Focus on the core intent of the objective, not perfection.
 
 You must respond with valid JSON only, with no triple backticks. No markdown formatting.
 No extra text. Do not wrap in ```json code fences.
