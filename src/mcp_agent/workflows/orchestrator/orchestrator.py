@@ -129,6 +129,49 @@ class Orchestrator(AugmentedLLM[MessageParamT, MessageT]):
         self.logger = logger
         self.name = name
 
+        # Debug: Print all incoming agents before storing them
+        print("\n------ INCOMING AGENTS TO ORCHESTRATOR ------")
+        for idx, agent in enumerate(available_agents):
+            print(f"Agent {idx}: name='{agent.name}', type={type(agent).__name__}")
+            # Print agent.__dict__ keys to see available properties
+            print(f"  Properties: {sorted(agent.__dict__.keys())}")
+            if hasattr(agent, "config"):
+                print(f"  Config name: '{agent.config.name}'")
+        print("--------------------------------------------\n")
+
+        # Store agents by name - COMPLETE REWRITE OF AGENT STORAGE
+        self.agents = {}
+        for agent in available_agents:
+            # Fix: Remove all special handling of agent names and store them exactly as they are
+            agent_name = agent.name
+            print(f"Registering agent: '{agent_name}' (type: {type(agent).__name__})")
+
+            # Verify if the name is actually "None" (string) or None (NoneType)
+            if agent_name == "None":
+                print(f"WARNING: Agent has name 'None' (string): {agent}")
+                # Try to get a better name from config if available
+                if hasattr(agent, "config") and agent.config and agent.config.name:
+                    print(f"  Using config.name instead: '{agent.config.name}'")
+                    agent_name = agent.config.name
+            elif agent_name is None:
+                print(f"WARNING: Agent has None (NoneType) name: {agent}")
+                # Try to get a better name from config if available
+                if hasattr(agent, "config") and agent.config and agent.config.name:
+                    print(f"  Using config.name instead: '{agent.config.name}'")
+                    agent_name = agent.config.name
+                else:
+                    agent_name = f"unnamed_agent_{len(self.agents)}"
+                    print(f"  Using generated name: '{agent_name}'")
+
+            self.logger.info(f"Adding agent '{agent_name}' to orchestrator")
+            self.agents[agent_name] = agent
+
+        # Debug: Print all registered agents
+        print("\n------ REGISTERED AGENTS IN ORCHESTRATOR ------")
+        for agent_name, agent in self.agents.items():
+            print(f"Registered: '{agent_name}' -> {type(agent).__name__}")
+        print("-----------------------------------------------\n")
+
     async def generate(
         self,
         message: str | MessageParamT | List[MessageParamT],
@@ -165,19 +208,21 @@ class Orchestrator(AugmentedLLM[MessageParamT, MessageT]):
         """Request a structured LLM generation and return the result as a Pydantic model."""
         import json
         from pydantic import ValidationError
-        
+
         params = self.get_request_params(request_params)
         result_str = await self.generate_str(message=message, request_params=params)
-        
+
         try:
             # Directly parse JSON and create model instance
             parsed_data = json.loads(result_str)
             return response_model(**parsed_data)
         except (json.JSONDecodeError, ValidationError) as e:
             # Log the error and fall back to the original method if direct parsing fails
-            self.logger.error(f"Direct JSON parsing failed: {str(e)}. Falling back to standard method.")
+            self.logger.error(
+                f"Direct JSON parsing failed: {str(e)}. Falling back to standard method."
+            )
             self.logger.debug(f"Failed JSON content: {result_str}")
-            
+
             # Use AugmentedLLM's structured output handling as fallback
             return await super().generate_structured(
                 message=result_str,
@@ -312,8 +357,14 @@ class Orchestrator(AugmentedLLM[MessageParamT, MessageT]):
                 context=context,
             )
 
-            # All agents should now be LLM-capable
-            futures.append(agent._llm.generate_str(message=task_description))
+            # Handle both Agent objects and AugmentedLLM objects
+            from mcp_agent.workflows.llm.augmented_llm import AugmentedLLM
+
+            if isinstance(agent, AugmentedLLM):
+                futures.append(agent.generate_str(message=task_description))
+            else:
+                # Traditional Agent objects with _llm property
+                futures.append(agent._llm.generate_str(message=task_description))
 
         # Wait for all tasks (only if we have valid futures)
         results = await self.executor.execute(*futures) if futures else []
@@ -332,7 +383,7 @@ class Orchestrator(AugmentedLLM[MessageParamT, MessageT]):
                 task_result = TaskWithResult(
                     description=task_model["description"],
                     agent=task_model["agent"],  # Track which agent produced this result
-                    result=str(result)
+                    result=str(result),
                 )
                 step_result.add_task_result(task_result)
                 task_index += 1
@@ -344,7 +395,7 @@ class Orchestrator(AugmentedLLM[MessageParamT, MessageT]):
                 TaskWithResult(
                     description=task_model["description"],
                     agent=task_model["agent"],
-                    result=f"ERROR: {error_message}"
+                    result=f"ERROR: {error_message}",
                 )
             )
 
@@ -361,21 +412,39 @@ class Orchestrator(AugmentedLLM[MessageParamT, MessageT]):
         """Generate full plan considering previous results"""
         import json
         from pydantic import ValidationError
-        from mcp_agent.workflows.orchestrator.orchestrator_models import Plan, Step, AgentTask
+        from mcp_agent.workflows.orchestrator.orchestrator_models import (
+            Plan,
+            Step,
+            AgentTask,
+        )
 
         params = self.get_request_params(request_params)
         params = params.model_copy(update={"use_history": False})
 
+        # Debug: Print agent names before formatting
+        print("\n------ AGENT NAMES BEFORE FORMATTING ------")
+        for agent_name in self.agents.keys():
+            print(f"Agent name: '{agent_name}'")
+        print("------------------------------------------\n")
+
         # Format agents without numeric prefixes for cleaner XML
-        agents = "\n".join(
-            [self._format_agent_info(agent) for agent in self.agents]
-        )
+        agent_formats = []
+        for agent_name in self.agents.keys():
+            formatted = self._format_agent_info(agent_name)
+            agent_formats.append(formatted)
+            print(f"Formatted agent '{agent_name}':\n{formatted[:200]}...\n")
+
+        agents = "\n".join(agent_formats)
 
         # Create clear plan status indicator for the template
         plan_status = "Plan Status: Not Started"
         if hasattr(plan_result, "is_complete"):
-            plan_status = "Plan Status: Complete" if plan_result.is_complete else "Plan Status: In Progress"
-        
+            plan_status = (
+                "Plan Status: Complete"
+                if plan_result.is_complete
+                else "Plan Status: In Progress"
+            )
+
         prompt = FULL_PLAN_PROMPT_TEMPLATE.format(
             objective=objective,
             plan_result=format_plan_result(plan_result),
@@ -388,50 +457,44 @@ class Orchestrator(AugmentedLLM[MessageParamT, MessageT]):
             message=prompt,
             request_params=params,
         )
-        
+
         try:
             # Parse JSON directly
             data = json.loads(result_str)
-            
+
             # Create models manually to ensure agent names are preserved exactly as returned
             steps = []
-            for step_data in data.get('steps', []):
+            for step_data in data.get("steps", []):
                 tasks = []
-                for task_data in step_data.get('tasks', []):
+                for task_data in step_data.get("tasks", []):
                     # Create AgentTask directly from dict, preserving exact agent string
                     task = AgentTask(
-                        description=task_data.get('description', ''),
-                        agent=task_data.get('agent', '')  # Preserve exact agent name
+                        description=task_data.get("description", ""),
+                        agent=task_data.get("agent", ""),  # Preserve exact agent name
                     )
                     tasks.append(task)
-                
+
                 # Create Step with the exact task objects we created
-                step = Step(
-                    description=step_data.get('description', ''),
-                    tasks=tasks
-                )
+                step = Step(description=step_data.get("description", ""), tasks=tasks)
                 steps.append(step)
-            
+
             # Create final Plan
-            plan = Plan(
-                steps=steps,
-                is_complete=data.get('is_complete', False)
-            )
-            
+            plan = Plan(steps=steps, is_complete=data.get("is_complete", False))
+
             return plan
-            
+
         except (json.JSONDecodeError, ValidationError, KeyError) as e:
             # Log detailed error and fall back to the original method as last resort
             self.logger.error(f"Error parsing plan JSON: {str(e)}")
             self.logger.debug(f"Failed JSON content: {result_str}")
-            
+
             # Use the normal structured parsing as fallback
             plan = await self.planner.generate_structured(
                 message=result_str,
                 response_model=Plan,
                 request_params=params,
             )
-            
+
             return plan
 
     async def _get_next_step(
@@ -443,21 +506,29 @@ class Orchestrator(AugmentedLLM[MessageParamT, MessageT]):
         """Generate just the next needed step"""
         import json
         from pydantic import ValidationError
-        from mcp_agent.workflows.orchestrator.orchestrator_models import NextStep, AgentTask
-        
+        from mcp_agent.workflows.orchestrator.orchestrator_models import (
+            NextStep,
+            AgentTask,
+        )
+
         params = self.get_request_params(request_params)
         params = params.model_copy(update={"use_history": False})
 
         # Format agents without numeric prefixes for cleaner XML
+        # FIX: Iterate over agent names instead of agent objects
         agents = "\n".join(
-            [self._format_agent_info(agent) for agent in self.agents]
+            [self._format_agent_info(agent_name) for agent_name in self.agents.keys()]
         )
 
         # Create clear plan status indicator for the template
         plan_status = "Plan Status: Not Started"
         if hasattr(plan_result, "is_complete"):
-            plan_status = "Plan Status: Complete" if plan_result.is_complete else "Plan Status: In Progress"
-            
+            plan_status = (
+                "Plan Status: Complete"
+                if plan_result.is_complete
+                else "Plan Status: In Progress"
+            )
+
         prompt = ITERATIVE_PLAN_PROMPT_TEMPLATE.format(
             objective=objective,
             plan_result=format_plan_result(plan_result),
@@ -470,55 +541,55 @@ class Orchestrator(AugmentedLLM[MessageParamT, MessageT]):
             message=prompt,
             request_params=params,
         )
-        
+
         try:
             # Parse JSON directly
             data = json.loads(result_str)
-            
+
             # Create task objects manually to preserve exact agent names
             tasks = []
-            for task_data in data.get('tasks', []):
+            for task_data in data.get("tasks", []):
                 # Preserve the exact agent name as specified in the JSON
                 task = AgentTask(
-                    description=task_data.get('description', ''),
-                    agent=task_data.get('agent', '')
+                    description=task_data.get("description", ""),
+                    agent=task_data.get("agent", ""),
                 )
                 tasks.append(task)
-            
+
             # Create step with manually constructed tasks
             next_step = NextStep(
-                description=data.get('description', ''),
+                description=data.get("description", ""),
                 tasks=tasks,
-                is_complete=data.get('is_complete', False)
+                is_complete=data.get("is_complete", False),
             )
-            
+
             return next_step
-            
+
         except (json.JSONDecodeError, ValidationError, KeyError) as e:
             # Log detailed error and fall back to the original method
             self.logger.error(f"Error parsing next step JSON: {str(e)}")
             self.logger.debug(f"Failed JSON content: {result_str}")
-            
+
             # Use the normal structured parsing as fallback
             next_step = await self.planner.generate_structured(
                 message=result_str,
                 response_model=NextStep,
                 request_params=params,
             )
-            
+
             return next_step
 
     def _format_server_info(self, server_name: str) -> str:
         """Format server information for display to planners using XML tags"""
         from mcp_agent.workflows.llm.prompt_utils import format_server_info
-        
+
         server_config = self.server_registry.get_server_config(server_name)
-        
+
         # Get description or empty string if not available
         description = ""
         if server_config and server_config.description:
             description = server_config.description
-        
+
         return format_server_info(server_name, description)
 
     def _validate_agent_names(self, plan: Plan) -> None:
@@ -527,12 +598,12 @@ class Orchestrator(AugmentedLLM[MessageParamT, MessageT]):
         This helps catch invalid agent references early.
         """
         invalid_agents = []
-        
+
         for step in plan.steps:
             for task in step.tasks:
                 if task.agent not in self.agents:
                     invalid_agents.append(task.agent)
-        
+
         if invalid_agents:
             available_agents = ", ".join(self.agents.keys())
             invalid_list = ", ".join(invalid_agents)
@@ -540,28 +611,52 @@ class Orchestrator(AugmentedLLM[MessageParamT, MessageT]):
             self.logger.error(error_msg)
             # We don't raise an exception here as the execution will handle invalid agents
             # by logging errors for individual tasks
-    
+
     def _format_agent_info(self, agent_name: str) -> str:
         """Format Agent information for display to planners using XML tags"""
         from mcp_agent.workflows.llm.prompt_utils import format_agent_info
-        
+
+        print(f"Formatting agent info for: '{agent_name}'")
         agent = self.agents.get(agent_name)
         if not agent:
+            print(f"ERROR: Agent '{agent_name}' not found in self.agents")
+            self.logger.error(f"Agent '{agent_name}' not found in orchestrator agents")
             return ""
 
-        # Get agent instruction as string
-        instruction = agent.instruction
-        if callable(instruction):
-            instruction = instruction({})
-        
-        # Get servers information
-        server_info = []
-        for server_name in agent.server_names:
-            server_config = self.server_registry.get_server_config(server_name)
-            description = ""
-            if server_config and server_config.description:
-                description = server_config.description
-            
-            server_info.append({"name": server_name, "description": description})
-            
-        return format_agent_info(agent.name, instruction, server_info if server_info else None)
+        # Get agent type and print its class hierarchy to debug special cases
+        agent_type = type(agent).__name__
+        mro = [base.__name__ for base in type(agent).__mro__]
+        print(f"  Agent type: {agent_type}, MRO: {mro}")
+
+        # Get agent instruction
+        instruction = None
+        instruction_source = "unknown"
+
+        if hasattr(agent, "instruction"):
+            instruction = agent.instruction
+            instruction_source = "agent.instruction"
+            if callable(instruction):
+                instruction = instruction({})
+                instruction_source += " (called)"
+        elif hasattr(agent, "config") and hasattr(agent.config, "instruction"):
+            instruction = agent.config.instruction
+            instruction_source = "agent.config.instruction"
+
+        # If we still don't have an instruction, use a default
+        if not instruction:
+            instruction = f"Agent: {agent_name}"
+            instruction_source = "default"
+
+        print(f"  Instruction source: {instruction_source}")
+        print(f"  Instruction preview: {str(instruction)[:50]}...")
+
+        # FIX: Use the dictionary key name instead of agent.name
+        # This ensures we're using the name that was assigned during registration
+        formatted = format_agent_info(
+            agent_name,  # Use the dictionary key instead of agent.name
+            instruction,
+            None,  # Skip server info in debug mode for cleaner output
+        )
+
+        print(f"  Final formatted name: '{agent_name}'")
+        return formatted

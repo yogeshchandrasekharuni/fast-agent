@@ -178,9 +178,13 @@ Look at the `parallel.py` workflow example for more examples. If you don't speci
 
 `parallel` is also useful to ensemble ideas from different LLMs.
 
+When using `parallel` in other workflows, specify an `instruction` to describe its operation.
+
 ### Evaluator-Optimizer
 
-Evaluator-Optimizers combine 2 agents: one to generate content (the `generator`), and the other to judge that content and provide actionable feedback (the `evaluator`). Messages are sent to the generator first, then the pair run in a loop until either the evaluator is satisfied with the quality, or the maximum number of refinements is reached.
+Evaluator-Optimizers combine 2 agents: one to generate content (the `generator`), and the other to judge that content and provide actionable feedback (the `evaluator`). Messages are sent to the generator first, then the pair run in a loop until either the evaluator is satisfied with the quality, or the maximum number of refinements is reached. The final result from the Generator is returned.
+
+If the Generator has `use_history` off, the previous iteration is returned when asking for improvements - otherwise conversational context is used.
 
 ```python
 @fast.evaluator_optimizer(
@@ -305,7 +309,7 @@ agent["greeter"].send("Good Evening!")          # Dictionary access is supported
   name="route",                          # name of the router
   agents=["agent1", "agent2", "agent3"], # list of agent names router can delegate to
   model="o3-mini.high",                  # specify routing model
-  use_history=True,                      # router maintains chat history
+  use_history=False,                     # router maintains conversation history
   human_input=False,                     # whether router can request human input
 )
 ```
@@ -335,6 +339,7 @@ agent["greeter"].send("Good Evening!")          # Dictionary access is supported
 
 ### llmindset.co.uk fork:
 
+- Overhaul of Eval/Opt for Conversation Management
 - Remove instructor use for Orchestrator
 - Improved handling of Parallel/Fan-In and respose option
 - XML based generated prompts
@@ -355,9 +360,3 @@ agent["greeter"].send("Good Evening!")          # Dictionary access is supported
 - Numerous defect fixes
 
 ### Features to add.
-
-- Chat History Clear.
-
-```
-
-```

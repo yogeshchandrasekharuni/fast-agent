@@ -10,7 +10,7 @@ from mcp_agent.workflows.llm.augmented_llm import (
     ModelT,
     RequestParams,
 )
-from mcp_agent.agents.agent import Agent
+from mcp_agent.agents.agent import Agent, AgentConfig
 from mcp_agent.logging.logger import get_logger
 
 if TYPE_CHECKING:
@@ -64,6 +64,25 @@ class EvaluatorOptimizerLLM(AugmentedLLM[MessageParamT, MessageT]):
     - Document writing requiring multiple revisions
     """
 
+    def _initialize_default_params(self, kwargs: dict) -> RequestParams:
+        """Initialize default parameters using the workflow's settings."""
+        return RequestParams(
+            modelPreferences=self.model_preferences,
+            systemPrompt=self.instruction,
+            parallel_tool_calls=True,
+            max_iterations=10,
+            use_history=self.generator_use_history,  # Use generator's history setting
+        )
+
+    def _init_request_params(self):
+        """Initialize request parameters for both generator and evaluator components."""
+        # Set up workflow's default params based on generator's history setting
+        self.default_request_params = self._initialize_default_params({})
+
+        # Ensure evaluator's request params have history disabled
+        if hasattr(self.evaluator_llm, "default_request_params"):
+            self.evaluator_llm.default_request_params.use_history = False
+
     def __init__(
         self,
         generator: Agent | AugmentedLLM,
@@ -73,6 +92,8 @@ class EvaluatorOptimizerLLM(AugmentedLLM[MessageParamT, MessageT]):
         llm_factory: Callable[[Agent], AugmentedLLM]
         | None = None,  # TODO: Remove legacy - factory should only be needed for str evaluator
         context: Optional["Context"] = None,
+        name: Optional[str] = None,  # Allow overriding the name
+        instruction: Optional[str] = None,  # Allow overriding the instruction
     ):
         """
         Initialize the evaluator-optimizer workflow.
@@ -87,16 +108,50 @@ class EvaluatorOptimizerLLM(AugmentedLLM[MessageParamT, MessageT]):
             min_rating: Minimum acceptable quality rating
             max_refinements: Maximum refinement iterations
             llm_factory: Optional factory to create LLMs from agents
-        """
-        super().__init__(context=context)
+            name: Optional name for the workflow (defaults to generator's name)
+            instruction: Optional instruction (defaults to generator's instruction)
 
-        # Set up the optimizer
-        self.name = generator.name
+        Note on History Management:
+            This workflow manages two distinct history contexts:
+            1. Generator History: Controlled by the generator's use_history setting. When False,
+               each refinement iteration starts fresh without previous context.
+            2. Evaluator History: Always disabled as each evaluation should be independent
+               and based solely on the current response.
+        """
+        # Set up initial instance attributes - allow name override
+        self.name = name or generator.name
         self.llm_factory = llm_factory
         self.generator = generator
         self.evaluator = evaluator
+        self.min_rating = min_rating
+        self.max_refinements = max_refinements
 
-        # TODO: Remove legacy - optimizer should always be an AugmentedLLM, no conversion needed
+        # Determine generator's history setting before super().__init__
+        if isinstance(generator, Agent):
+            self.generator_use_history = generator.config.use_history
+        elif isinstance(generator, AugmentedLLM):
+            if hasattr(generator, "aggregator") and isinstance(
+                generator.aggregator, Agent
+            ):
+                self.generator_use_history = generator.aggregator.config.use_history
+            else:
+                self.generator_use_history = getattr(
+                    generator,
+                    "use_history",
+                    getattr(generator.default_request_params, "use_history", False),
+                )
+        else:
+            raise ValueError(f"Unsupported optimizer type: {type(generator)}")
+
+        # Now we can call super().__init__ which will use generator_use_history
+        super().__init__(context=context, name=name or generator.name)
+
+        # Add a PassthroughLLM as _llm property for compatibility with Orchestrator
+        from mcp_agent.workflows.llm.augmented_llm import PassthroughLLM
+
+        self._llm = PassthroughLLM(name=f"{self.name}_passthrough", context=context)
+
+        # Set up the generator
         if isinstance(generator, Agent):
             if not llm_factory:
                 raise ValueError("llm_factory is required when using an Agent")
@@ -109,9 +164,12 @@ class EvaluatorOptimizerLLM(AugmentedLLM[MessageParamT, MessageT]):
 
             self.aggregator = generator
             self.instruction = (
-                generator.instruction
-                if isinstance(generator.instruction, str)
-                else None
+                instruction  # Use provided instruction if any
+                or (
+                    generator.instruction
+                    if isinstance(generator.instruction, str)
+                    else None
+                )  # Fallback to generator's
             )
 
         elif isinstance(generator, AugmentedLLM):
@@ -119,45 +177,57 @@ class EvaluatorOptimizerLLM(AugmentedLLM[MessageParamT, MessageT]):
             self.aggregator = generator.aggregator
             self.instruction = generator.instruction
 
-        else:
-            raise ValueError(f"Unsupported optimizer type: {type(generator)}")
-
-        self.history = self.generator_llm.history
-
-        # Set up the evaluator
+        # Set up the evaluator - evaluations should be independent, so history is always disabled
         if isinstance(evaluator, AugmentedLLM):
             self.evaluator_llm = evaluator
-        # TODO: Remove legacy - evaluator should be either AugmentedLLM or str
+            # Override evaluator's history setting
+            if hasattr(evaluator, "default_request_params"):
+                evaluator.default_request_params.use_history = False
         elif isinstance(evaluator, Agent):
             if not llm_factory:
                 raise ValueError(
                     "llm_factory is required when using an Agent evaluator"
                 )
 
-            # Only create new LLM if agent doesn't have one
+            # Create evaluator with history disabled
             if hasattr(evaluator, "_llm") and evaluator._llm:
                 self.evaluator_llm = evaluator._llm
+                if hasattr(self.evaluator_llm, "default_request_params"):
+                    self.evaluator_llm.default_request_params.use_history = False
             else:
+                # Force history off in config before creating LLM
+                evaluator.config.use_history = False
                 self.evaluator_llm = llm_factory(agent=evaluator)
         elif isinstance(evaluator, str):
-            # If a string is passed as the evaluator, we use it as the evaluation criteria
-            # and create an evaluator agent with that instruction
             if not llm_factory:
                 raise ValueError(
                     "llm_factory is required when using a string evaluator"
                 )
 
-            self.evaluator_llm = llm_factory(
-                agent=Agent(name="Evaluator", instruction=evaluator)
+            # Create evaluator agent with history disabled
+            evaluator_agent = Agent(
+                name="Evaluator",
+                instruction=evaluator,
+                config=AgentConfig(
+                    name="Evaluator",
+                    instruction=evaluator,
+                    servers=[],
+                    use_history=False,  # Force history off for evaluator
+                ),
             )
+            self.evaluator_llm = llm_factory(agent=evaluator_agent)
         else:
             raise ValueError(f"Unsupported evaluator type: {type(evaluator)}")
 
-        self.min_rating = min_rating
-        self.max_refinements = max_refinements
-
-        # Track iteration history
+        # Track iteration history (for the workflow itself)
         self.refinement_history = []
+
+        # Set up workflow's default params based on generator's history setting
+        self.default_request_params = self._initialize_default_params({})
+
+        # Ensure evaluator's request params have history disabled
+        if hasattr(self.evaluator_llm, "default_request_params"):
+            self.evaluator_llm.default_request_params.use_history = False
 
     async def generate(
         self,
@@ -171,6 +241,9 @@ class EvaluatorOptimizerLLM(AugmentedLLM[MessageParamT, MessageT]):
         best_rating = QualityRating.POOR
         self.refinement_history = []
 
+        # Get request params with proper use_history setting
+        params = self.get_request_params(request_params)
+
         # Use a single AsyncExitStack for the entire method to maintain connections
         async with contextlib.AsyncExitStack() as stack:
             # Enter all agent contexts once at the beginning
@@ -180,22 +253,20 @@ class EvaluatorOptimizerLLM(AugmentedLLM[MessageParamT, MessageT]):
                 await stack.enter_async_context(self.evaluator)
 
             # Initial generation
-            response = await self.generator_llm.generate(
+            response = await self.generator_llm.generate_str(
                 message=message,
-                request_params=request_params,
+                request_params=params,  # Pass params which may override use_history
             )
 
             best_response = response
 
             while refinement_count < self.max_refinements:
-                logger.debug("Optimizer result:", data=response)
+                logger.debug("Generator result:", data=response)
 
                 # Evaluate current response
                 eval_prompt = self._build_eval_prompt(
                     original_request=str(message),
-                    current_response="\n".join(str(r) for r in response)
-                    if isinstance(response, list)
-                    else str(response),
+                    current_response=response,  # response is already a string
                     iteration=refinement_count,
                 )
 
@@ -244,22 +315,23 @@ class EvaluatorOptimizerLLM(AugmentedLLM[MessageParamT, MessageT]):
                 # Generate refined response
                 refinement_prompt = self._build_refinement_prompt(
                     original_request=str(message),
-                    current_response="\n".join(str(r) for r in response)
-                    if isinstance(response, list)
-                    else str(response),
+                    current_response=response,
                     feedback=evaluation_result,
                     iteration=refinement_count,
+                    use_history=self.generator_use_history,  # Use the generator's history setting
                 )
 
-                # No nested AsyncExitStack here either
-                response = await self.generator_llm.generate(
+                response = await self.generator_llm.generate_str(
                     message=refinement_prompt,
-                    request_params=request_params,
+                    request_params=params,  # Pass params which may override use_history
                 )
 
                 refinement_count += 1
 
-            return best_response
+            # Return the best response as a list with a single string element
+            # This makes it consistent with other AugmentedLLM implementations
+            # that return List[MessageT]
+            return [best_response]
 
     async def generate_str(
         self,
@@ -271,28 +343,8 @@ class EvaluatorOptimizerLLM(AugmentedLLM[MessageParamT, MessageT]):
             message=message,
             request_params=request_params,
         )
-
-        # Handle case where response is a single message
-        if not isinstance(response, list):
-            return str(response)
-
-        # Convert all messages to strings, handling different message types
-        result_strings = []
-        for r in response:
-            if hasattr(r, "text"):
-                result_strings.append(r.text)
-            elif hasattr(r, "content"):
-                # Handle ToolUseBlock and similar
-                if isinstance(r.content, list):
-                    # Typically content is a list of blocks
-                    result_strings.extend(str(block) for block in r.content)
-                else:
-                    result_strings.append(str(r.content))
-            else:
-                # Fallback to string representation
-                result_strings.append(str(r))
-
-        return "\n".join(result_strings)
+        # Since generate now returns [best_response], just return the first element
+        return str(response[0])
 
     async def generate_structured(
         self,
@@ -367,9 +419,14 @@ Be concrete and actionable in your recommendations.
         current_response: str,
         feedback: EvaluationResult,
         iteration: int,
+        use_history: bool = None,
     ) -> str:
         """Build the refinement prompt for the optimizer"""
-        history_enabled = hasattr(self, "history") and self.history
+        # Get the correct history setting - use param if provided, otherwise class default
+        if use_history is None:
+            use_history = (
+                self.generator_use_history
+            )  # Use generator's setting as default
 
         # Start with clear non-delimited instructions
         prompt = f"""
@@ -391,7 +448,7 @@ Your goal is to address all feedback points while maintaining accuracy and relev
 """
 
         # Only include previous response if history is not enabled
-        if not history_enabled:
+        if not use_history:
             prompt += f"""
 <fastagent:previous-response>
 {current_response}
@@ -409,7 +466,7 @@ Your goal is to address all feedback points while maintaining accuracy and relev
 """
 
         # Customize instruction based on history availability
-        if not history_enabled:
+        if not use_history:
             prompt += """
 <fastagent:instruction>
 Create an improved version of the response that:

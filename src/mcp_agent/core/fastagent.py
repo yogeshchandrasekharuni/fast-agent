@@ -89,21 +89,23 @@ class FastAgent(ContextDependent):
             help="Specify the agent to send a message to (used with --message)",
         )
         parser.add_argument(
-            "-m", "--message",
+            "-m",
+            "--message",
             help="Message to send to the specified agent (requires --agent)",
         )
         parser.add_argument(
-            "--quiet", action="store_true",
+            "--quiet",
+            action="store_true",
             help="Disable progress display, tool and message logging for cleaner output",
         )
         self.args = parser.parse_args()
-        
+
         # Quiet mode will be handled in _load_config()
 
         self.name = name
         self.config_path = config_path
         self._load_config()
-        
+
         # Create the MCPApp with the config
         self.app = MCPApp(
             name=name,
@@ -250,13 +252,15 @@ class FastAgent(ContextDependent):
                     workflow_types = [
                         AgentType.EVALUATOR_OPTIMIZER.value,
                         AgentType.PARALLEL.value,
-                        AgentType.ROUTER.value, 
-                        AgentType.CHAIN.value
+                        AgentType.ROUTER.value,
+                        AgentType.CHAIN.value,
                     ]
-                    
-                    if not (isinstance(func, AugmentedLLM) or 
-                            child_data["type"] in workflow_types or
-                            (hasattr(func, "_llm") and func._llm is not None)):
+
+                    if not (
+                        isinstance(func, AugmentedLLM)
+                        or child_data["type"] in workflow_types
+                        or (hasattr(func, "_llm") and func._llm is not None)
+                    ):
                         raise AgentConfigError(
                             f"Agent '{agent_name}' used by orchestrator '{name}' lacks LLM capability",
                             "All agents used by orchestrators must be LLM-capable (either an AugmentedLLM or have an _llm property)",
@@ -548,7 +552,7 @@ class FastAgent(ContextDependent):
         Args:
             name: Name of the parallel executing agent
             fan_out: List of parallel execution agents
-            fan_in: Optional name of collecting agent. If not provided, a passthrough agent 
+            fan_in: Optional name of collecting agent. If not provided, a passthrough agent
                     will be created automatically with the name "{name}_fan_in"
             instruction: Optional instruction for the parallel agent
             model: Model specification string
@@ -559,7 +563,7 @@ class FastAgent(ContextDependent):
         # If fan_in is not provided, create a passthrough agent with a derived name
         if fan_in is None:
             passthrough_name = f"{name}_fan_in"
-            
+
             # Register the passthrough agent directly in self.agents
             self.agents[passthrough_name] = {
                 "config": AgentConfig(
@@ -571,10 +575,10 @@ class FastAgent(ContextDependent):
                 "type": AgentType.BASIC.value,  # Using BASIC type since we're just attaching a PassthroughLLM
                 "func": lambda x: x,  # Simple passthrough function (never actually called)
             }
-            
+
             # Use this passthrough as the fan-in
             fan_in = passthrough_name
-        
+
         decorator = self._create_decorator(
             AgentType.PARALLEL,
             default_instruction="",
@@ -601,6 +605,7 @@ class FastAgent(ContextDependent):
         max_refinements: int = 3,
         use_history: bool = True,
         request_params: Optional[Dict] = None,
+        instruction: Optional[str] = None,
     ) -> Callable:
         """
         Decorator to create and register an evaluator-optimizer workflow.
@@ -613,10 +618,11 @@ class FastAgent(ContextDependent):
             max_refinements: Maximum number of refinement iterations
             use_history: Whether to maintain conversation history
             request_params: Additional request parameters for the LLM
+            instruction: Optional instruction for the workflow (if not provided, uses generator's instruction)
         """
         decorator = self._create_decorator(
             AgentType.EVALUATOR_OPTIMIZER,
-            default_instruction="",
+            default_instruction="",  # We'll get instruction from generator or override
             default_servers=[],
             default_use_history=True,
             wrapper_needed=True,
@@ -628,6 +634,7 @@ class FastAgent(ContextDependent):
             max_refinements=max_refinements,
             use_history=use_history,
             request_params=request_params,
+            instruction=instruction,  # Pass through any custom instruction
         )
         return decorator
 
@@ -657,7 +664,7 @@ class FastAgent(ContextDependent):
             AgentType.ROUTER,
             default_instruction="",
             default_servers=[],
-            default_use_history=True,
+            default_use_history=False,
             wrapper_needed=True,
         )(
             name=name,
@@ -720,17 +727,14 @@ class FastAgent(ContextDependent):
             continue_with_final=continue_with_final,
         )
         return decorator
-        
+
     def passthrough(
-        self,
-        name: str = "Passthrough",
-        use_history: bool = True,
-        **kwargs
+        self, name: str = "Passthrough", use_history: bool = True, **kwargs
     ) -> Callable:
         """
         Decorator to create and register a passthrough agent.
         A passthrough agent simply returns any input message without modification.
-        
+
         This is useful for parallel workflows where no fan-in aggregation is needed
         (the fan-in agent can be a passthrough that simply returns the combined outputs).
 
@@ -786,15 +790,17 @@ class FastAgent(ContextDependent):
                 if agent_type == AgentType.BASIC:
                     # Get the agent name for special handling
                     agent_name = agent_data["config"].name
-                    
+
                     # Check if this is an agent that should use the PassthroughLLM
-                    if agent_name.endswith("_fan_in") or agent_name.startswith("passthrough"):
+                    if agent_name.endswith("_fan_in") or agent_name.startswith(
+                        "passthrough"
+                    ):
                         # Import here to avoid circular imports
                         from mcp_agent.workflows.llm.augmented_llm import PassthroughLLM
-                        
+
                         # Create basic agent with configuration
                         agent = Agent(config=config, context=agent_app.context)
-                        
+
                         # Set up a PassthroughLLM directly
                         async with agent:
                             agent._llm = PassthroughLLM(
@@ -803,13 +809,13 @@ class FastAgent(ContextDependent):
                                 agent=agent,
                                 default_request_params=config.default_request_params,
                             )
-                            
+
                         # Store the agent
                         instance = agent
                     else:
                         # Standard basic agent with LLM
                         agent = Agent(config=config, context=agent_app.context)
-    
+
                         # Set up LLM with proper configuration
                         async with agent:
                             llm_factory = self._get_model_factory(
@@ -817,7 +823,7 @@ class FastAgent(ContextDependent):
                                 request_params=config.default_request_params,
                             )
                             agent._llm = await agent.attach_llm(llm_factory)
-    
+
                         # Store the agent
                         instance = agent
 
@@ -897,18 +903,19 @@ class FastAgent(ContextDependent):
                             f"evaluator={agent_data['evaluator']}"
                         )
 
-                    # TODO: Remove legacy - factory usage is only needed for str evaluators
-                    # Later this should only be passed when evaluator is a string
                     optimizer_model = (
                         generator.config.model if isinstance(generator, Agent) else None
                     )
+
                     instance = EvaluatorOptimizerLLM(
+                        name=config.name,  # Pass name from config
                         generator=generator,
                         evaluator=evaluator,
                         min_rating=QualityRating[agent_data["min_rating"]],
                         max_refinements=agent_data["max_refinements"],
                         llm_factory=self._get_model_factory(model=optimizer_model),
                         context=agent_app.context,
+                        instruction=config.instruction,  # Pass any custom instruction
                     )
 
                 elif agent_type == AgentType.ROUTER:
@@ -1261,23 +1268,28 @@ class FastAgent(ContextDependent):
         """
         active_agents = {}
         had_error = False
-        
+
         # Handle quiet mode by disabling logger settings after initialization
         quiet_mode = hasattr(self, "args") and self.args.quiet
-        
+
         try:
             async with self.app.run() as agent_app:
                 # Apply quiet mode directly to the context's config if needed
-                if quiet_mode and hasattr(agent_app.context, "config") and hasattr(agent_app.context.config, "logger"):
+                if (
+                    quiet_mode
+                    and hasattr(agent_app.context, "config")
+                    and hasattr(agent_app.context.config, "logger")
+                ):
                     # Apply after initialization but before agents are created
                     agent_app.context.config.logger.progress_display = False
                     agent_app.context.config.logger.show_chat = False
                     agent_app.context.config.logger.show_tools = False
-                    
+
                     # Directly disable the progress display singleton
                     from mcp_agent.progress_display import progress_display
+
                     progress_display.stop()  # This will stop and hide the display
-                
+
                 # Pre-flight validation
                 self._validate_server_references()
                 self._validate_workflow_references()
@@ -1285,29 +1297,29 @@ class FastAgent(ContextDependent):
                 # Create all types of agents in dependency order
                 # First create basic agents
                 active_agents = await self._create_basic_agents(agent_app)
-                
+
                 # Create workflow types that don't depend on other workflows first
                 evaluator_optimizers = await self._create_evaluator_optimizers(
                     agent_app, active_agents
                 )
                 active_agents.update(evaluator_optimizers)
-                
+
                 # Create parallel agents next as they might be dependencies
                 parallel_agents = await self._create_parallel_agents(
                     agent_app, active_agents
                 )
                 active_agents.update(parallel_agents)
-                
+
                 # Create routers next
                 routers = await self._create_routers(agent_app, active_agents)
                 active_agents.update(routers)
-                
+
                 # Create chains next
                 chains = await self._create_agents_in_dependency_order(
                     agent_app, active_agents, AgentType.CHAIN
                 )
                 active_agents.update(chains)
-                
+
                 # Create orchestrators last as they might depend on any other agent type
                 orchestrators = await self._create_orchestrators(
                     agent_app, active_agents
@@ -1318,30 +1330,34 @@ class FastAgent(ContextDependent):
 
                 # Create wrapper with all agents
                 wrapper = AgentApp(agent_app, active_agents)
-                
+
                 # Handle direct message sending if --agent and --message are provided
                 if self.args.agent and self.args.message:
                     agent_name = self.args.agent
                     message = self.args.message
-                    
+
                     if agent_name not in active_agents:
                         available_agents = ", ".join(active_agents.keys())
-                        print(f"\n\nError: Agent '{agent_name}' not found. Available agents: {available_agents}")
+                        print(
+                            f"\n\nError: Agent '{agent_name}' not found. Available agents: {available_agents}"
+                        )
                         raise SystemExit(1)
-                    
+
                     try:
                         # Get response
                         response = await wrapper[agent_name].send(message)
-                        
+
                         # Only print the response in quiet mode
                         if self.args.quiet:
                             print(f"{response}")
-                        
+
                         raise SystemExit(0)
                     except Exception as e:
-                        print(f"\n\nError sending message to agent '{agent_name}': {str(e)}")
+                        print(
+                            f"\n\nError sending message to agent '{agent_name}': {str(e)}"
+                        )
                         raise SystemExit(1)
-                
+
                 yield wrapper
 
         except ServerConfigError as e:

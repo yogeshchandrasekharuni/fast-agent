@@ -129,7 +129,7 @@ class AgentApp:
                     continue
 
             result = await self.send(agent, user_input)
-            
+
             # Check if current agent is a chain that should continue with final agent
             if agent_types.get(agent) == "Chain":
                 proxy = self._agents[agent]
