@@ -616,42 +616,13 @@ class Orchestrator(AugmentedLLM[MessageParamT, MessageT]):
         """Format Agent information for display to planners using XML tags"""
         from mcp_agent.workflows.llm.prompt_utils import format_agent_info
 
-        print(f"Formatting agent info for: '{agent_name}'")
+        # print(f"Formatting agent info for: '{agent_name}'")
         agent = self.agents.get(agent_name)
         if not agent:
             print(f"ERROR: Agent '{agent_name}' not found in self.agents")
             self.logger.error(f"Agent '{agent_name}' not found in orchestrator agents")
             return ""
-
-        # Get agent type and print its class hierarchy to debug special cases
-        agent_type = type(agent).__name__
-        mro = [base.__name__ for base in type(agent).__mro__]
-        print(f"  Agent type: {agent_type}, MRO: {mro}")
-
-        # Get agent instruction
-        instruction = None
-        instruction_source = "unknown"
-
-        if hasattr(agent, "instruction"):
-            instruction = agent.instruction
-            instruction_source = "agent.instruction"
-            if callable(instruction):
-                instruction = instruction({})
-                instruction_source += " (called)"
-        elif hasattr(agent, "config") and hasattr(agent.config, "instruction"):
-            instruction = agent.config.instruction
-            instruction_source = "agent.config.instruction"
-
-        # If we still don't have an instruction, use a default
-        if not instruction:
-            instruction = f"Agent: {agent_name}"
-            instruction_source = "default"
-
-        print(f"  Instruction source: {instruction_source}")
-        print(f"  Instruction preview: {str(instruction)[:50]}...")
-
-        # FIX: Use the dictionary key name instead of agent.name
-        # This ensures we're using the name that was assigned during registration
+        instruction = agent.instruction
         formatted = format_agent_info(
             agent_name,  # Use the dictionary key instead of agent.name
             instruction,
