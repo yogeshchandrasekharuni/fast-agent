@@ -1,6 +1,6 @@
 import contextlib
 from enum import Enum
-from typing import Callable, List, Optional, Type, TYPE_CHECKING, Any
+from typing import Callable, List, Optional, Type, TYPE_CHECKING
 from pydantic import BaseModel, Field
 
 from mcp_agent.workflows.llm.augmented_llm import (
@@ -142,7 +142,7 @@ class EvaluatorOptimizerLLM(AugmentedLLM[MessageParamT, MessageT]):
                     getattr(generator.default_request_params, "use_history", False),
                 )
         # Handle ChainProxy with type checking
-        elif hasattr(generator, '_sequence') and hasattr(generator, '_agent_proxies'):
+        elif hasattr(generator, "_sequence") and hasattr(generator, "_agent_proxies"):
             # This is how we detect a ChainProxy without directly importing it
             # For ChainProxy, we'll default use_history to False
             self.generator_use_history = False
@@ -158,7 +158,7 @@ class EvaluatorOptimizerLLM(AugmentedLLM[MessageParamT, MessageT]):
         self._llm = PassthroughLLM(name=f"{self.name}_passthrough", context=context)
 
         # Set up the generator
-        
+
         if isinstance(generator, Agent):
             if not llm_factory:
                 raise ValueError("llm_factory is required when using an Agent")
@@ -178,7 +178,7 @@ class EvaluatorOptimizerLLM(AugmentedLLM[MessageParamT, MessageT]):
                     else None
                 )  # Fallback to generator's
             )
-        elif hasattr(generator, '_sequence') and hasattr(generator, '_agent_proxies'):
+        elif hasattr(generator, "_sequence") and hasattr(generator, "_agent_proxies"):
             # For ChainProxy, use it directly for generation
             self.generator_llm = generator
             self.aggregator = None
