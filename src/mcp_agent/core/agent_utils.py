@@ -8,10 +8,11 @@ from mcp_agent.event_progress import ProgressAction
 
 # Handle circular imports
 if TYPE_CHECKING:
-    from mcp_agent.core.proxies import BaseAgentProxy, LLMAgentProxy
+    from mcp_agent.core.proxies import BaseAgentProxy
     from mcp_agent.core.types import AgentOrWorkflow, ProxyDict
 else:
-    from mcp_agent.core.proxies import BaseAgentProxy, LLMAgentProxy
+    from mcp_agent.core.proxies import BaseAgentProxy
+
     # Define minimal types for runtime
     AgentOrWorkflow = object  # Simple placeholder
     ProxyDict = dict  # Simple placeholder
@@ -28,7 +29,7 @@ def unwrap_proxy(proxy: BaseAgentProxy) -> AgentOrWorkflow:
         The underlying Agent or workflow instance
     """
     from mcp_agent.core.proxies import LLMAgentProxy, ChainProxy
-    
+
     if isinstance(proxy, LLMAgentProxy):
         return proxy._agent
     elif isinstance(proxy, ChainProxy):
@@ -56,7 +57,7 @@ def get_agent_instances(
 def log_agent_load(app, agent_name: str) -> None:
     """
     Log agent loading event to application logger.
-    
+
     Args:
         app: The application instance
         agent_name: Name of the agent being loaded

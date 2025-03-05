@@ -11,15 +11,9 @@ from mcp_agent.app import MCPApp
 # Handle circular imports
 if TYPE_CHECKING:
     from mcp_agent.core.types import WorkflowType, ProxyDict
-    from mcp_agent.workflows.orchestrator.orchestrator import Orchestrator
-    from mcp_agent.workflows.parallel.parallel_llm import ParallelLLM
-    from mcp_agent.workflows.evaluator_optimizer.evaluator_optimizer import (
-        EvaluatorOptimizerLLM,
-    )
-    from mcp_agent.workflows.router.router_llm import LLMRouter
 else:
     # Define minimal versions for runtime
-    from typing import Union, Any
+    from typing import Any
 
     # Use Any for runtime to avoid circular imports
     WorkflowType = Any
