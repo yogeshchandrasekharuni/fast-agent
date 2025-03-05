@@ -11,14 +11,15 @@ from mcp_agent.app import MCPApp
 # Handle circular imports
 if TYPE_CHECKING:
     from mcp_agent.core.types import WorkflowType, ProxyDict
-else:
-    # Define minimal versions for runtime
     from mcp_agent.workflows.orchestrator.orchestrator import Orchestrator
     from mcp_agent.workflows.parallel.parallel_llm import ParallelLLM
     from mcp_agent.workflows.evaluator_optimizer.evaluator_optimizer import EvaluatorOptimizerLLM
     from mcp_agent.workflows.router.router_llm import LLMRouter
-    from typing import Union
-    WorkflowType = Union[Orchestrator, ParallelLLM, EvaluatorOptimizerLLM, LLMRouter]
+else:
+    # Define minimal versions for runtime
+    from typing import Union, Any
+    # Use Any for runtime to avoid circular imports
+    WorkflowType = Any 
     ProxyDict = Dict[str, "BaseAgentProxy"]
 
 
@@ -51,7 +52,8 @@ class BaseAgentProxy:
 class AgentProxy(BaseAgentProxy):
     """Legacy proxy for individual agent operations"""
 
-    async def generate_str(self, message: str) -> str:
+    async def generate_str(self, message: str, **kwargs) -> str:
+        """Forward only the message to app.send, ignoring kwargs for legacy compatibility"""
         return await self._app.send(self._name, message)
 
 
@@ -62,8 +64,9 @@ class LLMAgentProxy(BaseAgentProxy):
         super().__init__(app, name)
         self._agent = agent
 
-    async def generate_str(self, message: str) -> str:
-        return await self._agent._llm.generate_str(message)
+    async def generate_str(self, message: str, **kwargs) -> str:
+        """Forward message and all kwargs to the agent's LLM"""
+        return await self._agent._llm.generate_str(message, **kwargs)
 
 
 class WorkflowProxy(BaseAgentProxy):
@@ -73,8 +76,9 @@ class WorkflowProxy(BaseAgentProxy):
         super().__init__(app, name)
         self._workflow = workflow
 
-    async def generate_str(self, message: str) -> str:
-        return await self._workflow.generate_str(message)
+    async def generate_str(self, message: str, **kwargs) -> str:
+        """Forward message and all kwargs to the underlying workflow"""
+        return await self._workflow.generate_str(message, **kwargs)
 
 
 class RouterProxy(BaseAgentProxy):
@@ -84,7 +88,11 @@ class RouterProxy(BaseAgentProxy):
         super().__init__(app, name)
         self._workflow = workflow
 
-    async def generate_str(self, message: str) -> str:
+    async def generate_str(self, message: str, **kwargs) -> str:
+        """
+        Route the message and forward kwargs to the resulting agent if applicable.
+        Note: For now, route() itself doesn't accept kwargs.
+        """
         results = await self._workflow.route(message)
         if not results:
             return "No appropriate route found for the request."
@@ -92,10 +100,9 @@ class RouterProxy(BaseAgentProxy):
         # Get the top result
         top_result = results[0]
         if isinstance(top_result.result, Agent):
-            # Agent route - delegate to the agent
+            # Agent route - delegate to the agent, passing along kwargs
             agent = top_result.result
-
-            return await agent._llm.generate_str(message)
+            return await agent._llm.generate_str(message, **kwargs)
         elif isinstance(top_result.result, str):
             # Server route - use the router directly
             return "Tool call requested by router - not yet supported"
@@ -113,15 +120,50 @@ class ChainProxy(BaseAgentProxy):
         self._sequence = sequence
         self._agent_proxies = agent_proxies
         self._continue_with_final = True  # Default behavior
+        self._cumulative = False  # Default to sequential chaining
 
-    async def generate_str(self, message: str) -> str:
-        """Chain message through a sequence of agents"""
-        current_message = message
-
-        for agent_name in self._sequence:
-            proxy = self._agent_proxies[agent_name]
-            current_message = await proxy.generate_str(current_message)
-
-        return current_message
+    async def generate_str(self, message: str, **kwargs) -> str:
+        """Chain message through a sequence of agents.
+        
+        For the first agent in the chain, pass all kwargs to maintain transparency.
+        
+        Two modes of operation:
+        1. Sequential (default): Each agent receives only the output of the previous agent
+        2. Cumulative: Each agent receives all previous agent responses concatenated
+        """
+        if not self._sequence:
+            return message
+        
+        # Process the first agent (same for both modes)
+        first_agent = self._sequence[0]
+        first_proxy = self._agent_proxies[first_agent]
+        first_response = await first_proxy.generate_str(message, **kwargs)
+        
+        if len(self._sequence) == 1:
+            return first_response
+            
+        if self._cumulative:
+            # Cumulative mode: each agent gets all previous responses
+            cumulative_response = f"<{first_agent}>\n{first_response}\n</{first_agent}>"
+            
+            # Process subsequent agents with cumulative results
+            for agent_name in self._sequence[1:]:
+                proxy = self._agent_proxies[agent_name]
+                # Pass all previous responses to next agent
+                agent_response = await proxy.generate_str(cumulative_response)
+                # Add this agent's response to the cumulative result
+                cumulative_response += f"\n\n<{agent_name}>\n{agent_response}\n</{agent_name}>"
+            
+            return cumulative_response
+        else:
+            # Sequential chaining (original behavior)
+            current_message = first_response
+            
+            # For subsequent agents, just pass the message from previous agent
+            for agent_name in self._sequence[1:]:
+                proxy = self._agent_proxies[agent_name]
+                current_message = await proxy.generate_str(current_message)
+    
+            return current_message
 
 

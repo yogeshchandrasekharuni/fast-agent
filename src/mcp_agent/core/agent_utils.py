@@ -27,8 +27,13 @@ def unwrap_proxy(proxy: BaseAgentProxy) -> AgentOrWorkflow:
     Returns:
         The underlying Agent or workflow instance
     """
+    from mcp_agent.core.proxies import LLMAgentProxy, ChainProxy
+    
     if isinstance(proxy, LLMAgentProxy):
         return proxy._agent
+    elif isinstance(proxy, ChainProxy):
+        # Return the ChainProxy itself as the workflow
+        return proxy
     return proxy._workflow
 
 

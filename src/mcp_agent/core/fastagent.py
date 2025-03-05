@@ -696,6 +696,7 @@ class FastAgent(ContextDependent):
         use_history: bool = True,
         request_params: Optional[Dict] = None,
         continue_with_final: bool = True,
+        cumulative: bool = False,
     ) -> Callable:
         """
         Decorator to create and register a chain of agents.
@@ -709,6 +710,8 @@ class FastAgent(ContextDependent):
             use_history: Whether to maintain conversation history
             request_params: Additional request parameters
             continue_with_final: When using prompt(), whether to continue with the final agent after processing chain (default: True)
+            cumulative: When True, each agent receives all previous agent responses concatenated (default: False)
+                        When False, each agent only gets the output of the previous agent (default behavior)
         """
         # Support both parameter names
         agent_sequence = sequence or agents
@@ -717,8 +720,11 @@ class FastAgent(ContextDependent):
 
         # Auto-generate instruction if not provided
         if instruction is None:
-            # We'll generate it later when we have access to the agent configs and can see servers
-            instruction = f"Chain of agents: {', '.join(agent_sequence)}"
+            # Generate an appropriate instruction based on mode
+            if cumulative:
+                instruction = f"Cumulative chain of agents: {', '.join(agent_sequence)}"
+            else:
+                instruction = f"Chain of agents: {', '.join(agent_sequence)}"
 
         decorator = self._create_decorator(
             AgentType.CHAIN,
@@ -734,6 +740,7 @@ class FastAgent(ContextDependent):
             use_history=use_history,
             request_params=request_params,
             continue_with_final=continue_with_final,
+            cumulative=cumulative,
         )
         return decorator
 
@@ -912,9 +919,13 @@ class FastAgent(ContextDependent):
                             f"evaluator={agent_data['evaluator']}"
                         )
 
-                    optimizer_model = (
-                        generator.config.model if isinstance(generator, Agent) else None
-                    )
+                    # Get model from generator if it's an Agent, or from config otherwise
+                    optimizer_model = None
+                    if isinstance(generator, Agent):
+                        optimizer_model = generator.config.model
+                    elif hasattr(generator, '_sequence') and hasattr(generator, '_agent_proxies'):
+                        # For ChainProxy, use the config model directly
+                        optimizer_model = config.model
 
                     instance = EvaluatorOptimizerLLM(
                         name=config.name,  # Pass name from config
@@ -992,6 +1003,10 @@ class FastAgent(ContextDependent):
                     # Set continue_with_final behavior from configuration
                     instance._continue_with_final = agent_data.get(
                         "continue_with_final", True
+                    )
+                    # Set cumulative behavior from configuration
+                    instance._cumulative = agent_data.get(
+                        "cumulative", False
                     )
 
                 # We removed the AgentType.PASSTHROUGH case
@@ -1307,12 +1322,6 @@ class FastAgent(ContextDependent):
                 # First create basic agents
                 active_agents = await self._create_basic_agents(agent_app)
 
-                # Create workflow types that don't depend on other workflows first
-                evaluator_optimizers = await self._create_evaluator_optimizers(
-                    agent_app, active_agents
-                )
-                active_agents.update(evaluator_optimizers)
-
                 # Create parallel agents next as they might be dependencies
                 parallel_agents = await self._create_parallel_agents(
                     agent_app, active_agents
@@ -1323,11 +1332,17 @@ class FastAgent(ContextDependent):
                 routers = await self._create_routers(agent_app, active_agents)
                 active_agents.update(routers)
 
-                # Create chains next
+                # Create chains next - MOVED UP because evaluator-optimizers might depend on chains
                 chains = await self._create_agents_in_dependency_order(
                     agent_app, active_agents, AgentType.CHAIN
                 )
                 active_agents.update(chains)
+                
+                # Now create evaluator-optimizers AFTER chains are available
+                evaluator_optimizers = await self._create_evaluator_optimizers(
+                    agent_app, active_agents
+                )
+                active_agents.update(evaluator_optimizers)
 
                 # Create orchestrators last as they might depend on any other agent type
                 orchestrators = await self._create_orchestrators(

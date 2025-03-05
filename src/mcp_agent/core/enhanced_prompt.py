@@ -211,30 +211,19 @@ async def get_enhanced_input(
         shortcuts = [(k, v) for k, v in shortcuts if v]
 
         shortcut_text = " | ".join(f"{key}:{action}" for key, action in shortcuts)
+
         return HTML(
-            f" <{toolbar_color}> {agent_name} </{toolbar_color}> | <b>Mode:</b> <{mode_style}> {mode_text} </{mode_style}> {newline} | {shortcut_text} | <dim>v{app_version}</dim>"
+            f" <style fg='{toolbar_color}' bg='ansiblack'> {agent_name} </style> Mode: <style fg='{mode_style}' bg='ansiblack'> {mode_text} </style> {newline} | {shortcut_text} | v{app_version}"
         )
 
     # A more terminal-agnostic style that should work across themes
     custom_style = Style.from_dict(
         {
-            # Completion menu - using ANSI colors where possible
-            # "completion-menu": "bg:#ansiblack #ansigreen",
             "completion-menu.completion": "bg:#ansiblack #ansigreen",
             "completion-menu.completion.current": "bg:#ansiblack bold #ansigreen",
             "completion-menu.meta.completion": "bg:#ansiblack #ansiblue",
             "completion-menu.meta.completion.current": "bg:#ansibrightblack #ansiblue",
-            # Input area
-            # "prompt": "Orange",
-            # "prompt.user": "Orange",
-            # Bottom toolbar - subtle but functional
-            # "bottom-toolbar": "bg:ansiblack #ansibrightblack",
-            # "bottom-toolbar.text": "bg:ansiblack #ansiwhite",
-            # "bottom-toolbar.mode": "bg:ansiblack #ansigreen",
-            # "bottom-toolbar.mode.multiline": "bg:ansiblack #ansired bold",
-            # Agent/command highlighting
-            # "agent": "Orange",
-            # "command": "ansiyellow",
+            "bottom-toolbar": "#ansiblack bg:#ansigray",
         }
     )
     # Create session with history and completions
