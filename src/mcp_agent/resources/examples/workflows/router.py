@@ -48,7 +48,6 @@ SAMPLE_REQUESTS = [
 async def main():
     async with fast.run() as agent:
         for request in SAMPLE_REQUESTS:
-            await agent()
             await agent.route(request)
 
 

@@ -332,15 +332,21 @@ class AnthropicAugmentedLLM(AugmentedLLM[MessageParam, Message]):
 
         final_text: List[str] = []
 
+        # Process all responses and collect all text content
         for response in responses:
+            # Extract text content from each message
+            message_text = ""
             for content in response.content:
                 if content.type == "text":
-                    final_text.append(content.text)
-        #             elif content.type == "tool_use":
-        #                 final_text.append(
-        #                     f"[Calling tool {content.name} with args {content.input}]"
-        #                 )
-        # TODO -- check whether this should be reinstated - OpenAI doesn't return this....
+                    # Extract text from text blocks
+                    message_text += content.text
+
+            # Only append non-empty text
+            if message_text:
+                final_text.append(message_text)
+
+        # TODO -- make tool detail inclusion behaviour configurable
+        # Join all collected text
         return "\n".join(final_text)
 
     async def generate_structured(
