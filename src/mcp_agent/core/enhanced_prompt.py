@@ -259,8 +259,6 @@ async def get_enhanced_input(
     # Only show hints at startup if requested
     if show_stop_hint:
         if default == "STOP":
-            rich_print("[yellow]Press <ENTER> to finish.[/yellow]")
-        else:
             rich_print("Enter a prompt, [red]STOP[/red] to finish")
             if default:
                 rich_print(
