@@ -13,13 +13,16 @@ if TYPE_CHECKING:
     from mcp_agent.core.types import WorkflowType, ProxyDict
     from mcp_agent.workflows.orchestrator.orchestrator import Orchestrator
     from mcp_agent.workflows.parallel.parallel_llm import ParallelLLM
-    from mcp_agent.workflows.evaluator_optimizer.evaluator_optimizer import EvaluatorOptimizerLLM
+    from mcp_agent.workflows.evaluator_optimizer.evaluator_optimizer import (
+        EvaluatorOptimizerLLM,
+    )
     from mcp_agent.workflows.router.router_llm import LLMRouter
 else:
     # Define minimal versions for runtime
     from typing import Union, Any
+
     # Use Any for runtime to avoid circular imports
-    WorkflowType = Any 
+    WorkflowType = Any
     ProxyDict = Dict[str, "BaseAgentProxy"]
 
 
@@ -122,48 +125,52 @@ class ChainProxy(BaseAgentProxy):
         self._continue_with_final = True  # Default behavior
         self._cumulative = False  # Default to sequential chaining
 
-    async def generate_str(self, message: str, **kwargs) -> str:
-        """Chain message through a sequence of agents.
-        
-        For the first agent in the chain, pass all kwargs to maintain transparency.
-        
-        Two modes of operation:
-        1. Sequential (default): Each agent receives only the output of the previous agent
-        2. Cumulative: Each agent receives all previous agent responses concatenated
-        """
-        if not self._sequence:
-            return message
-        
-        # Process the first agent (same for both modes)
-        first_agent = self._sequence[0]
-        first_proxy = self._agent_proxies[first_agent]
-        first_response = await first_proxy.generate_str(message, **kwargs)
-        
-        if len(self._sequence) == 1:
-            return first_response
-            
-        if self._cumulative:
-            # Cumulative mode: each agent gets all previous responses
-            cumulative_response = f"<{first_agent}>\n{first_response}\n</{first_agent}>"
-            
-            # Process subsequent agents with cumulative results
-            for agent_name in self._sequence[1:]:
-                proxy = self._agent_proxies[agent_name]
-                # Pass all previous responses to next agent
-                agent_response = await proxy.generate_str(cumulative_response)
-                # Add this agent's response to the cumulative result
-                cumulative_response += f"\n\n<{agent_name}>\n{agent_response}\n</{agent_name}>"
-            
-            return cumulative_response
-        else:
-            # Sequential chaining (original behavior)
-            current_message = first_response
-            
-            # For subsequent agents, just pass the message from previous agent
-            for agent_name in self._sequence[1:]:
+    async def generate_str(self, message: str) -> str:
+        """Chain message through a sequence of agents with optional cumulative behavior"""
+        if not self._cumulative:
+            # Original sequential behavior
+            current_message = message
+            for agent_name in self._sequence:
                 proxy = self._agent_proxies[agent_name]
                 current_message = await proxy.generate_str(current_message)
-    
             return current_message
+        else:
+            # Cumulative behavior
+            original_message = message
+            agent_responses = {}
 
+            for agent_name in self._sequence:
+                proxy = self._agent_proxies[agent_name]
 
+                if not agent_responses:  # First agent
+                    response = await proxy.generate_str(original_message)
+                else:
+                    # Construct context with previous responses
+                    context_message = "The following request was sent to the agents:\n"
+                    context_message += f"<fastagent:request>\n{original_message}\n</fastagent:request>\n\n"
+
+                    context_message += "Previous agent responses:\n"
+
+                    for prev_name in self._sequence:
+                        if prev_name in agent_responses:
+                            prev_response = agent_responses[prev_name]
+                            context_message += f'<fastagent:response agent="{prev_name}">\n{prev_response}\n</fastagent:response>\n\n'
+
+                    context_message += f"Your task is to build upon this work to address: {original_message}"
+
+                    response = await proxy.generate_str(context_message)
+
+                agent_responses[agent_name] = response
+
+            # Format final output with ALL responses in XML format
+            final_output = "The following request was sent to the agents:\n"
+            final_output += (
+                f"<fastagent:request>\n{original_message}\n</fastagent:request>\n\n"
+            )
+
+            for agent_name in self._sequence:
+                response = agent_responses[agent_name]
+                final_output += f'<fastagent:response agent="{agent_name}">\n{response}\n</fastagent:response>\n\n'
+
+            # Return the XML-structured combination of all responses
+            return final_output.strip()

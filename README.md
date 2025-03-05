@@ -129,7 +129,7 @@ Saved as `social.py` we can now run this workflow from the command line with:
 uv run social.py --agent social_media --message "<url>"
 ```
 
-Add the `--quiet` switch to only return the final response, which is useful for simple automations.
+Add the `--quiet` switch to disable progress and message display and return only the final response - useful for simple automations.
 
 ## Workflows
 
@@ -189,7 +189,7 @@ The Parallel Workflow sends the same message to multiple Agents simultaneously (
 )
 ```
 
-Look at the `parallel.py` workflow example for more examples. If you don't specify a `fan-in` agent, the `parallel` returns the combined Agent results verbatim.
+If you don't specify a `fan-in` agent, the `parallel` returns the combined Agent results verbatim.
 
 `parallel` is also useful to ensemble ideas from different LLMs.
 
@@ -289,6 +289,7 @@ agent["greeter"].send("Good Evening!")          # Dictionary access is supported
   name="chain",                          # name of the chain
   sequence=["agent1", "agent2", ...],    # list of agents in execution order
   instruction="instruction",             # instruction to describe the chain for other workflows
+  cumulative=False                       # whether to accumulate messages through the chain
   continue_with_final=True,              # open chat with agent at end of chain after prompting
 )
 ```
