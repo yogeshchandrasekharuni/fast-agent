@@ -7,6 +7,7 @@ from mcp_agent.core.exceptions import ModelConfigError
 from mcp_agent.workflows.llm.augmented_llm_anthropic import AnthropicAugmentedLLM
 from mcp_agent.workflows.llm.augmented_llm_openai import OpenAIAugmentedLLM
 from mcp_agent.workflows.llm.augmented_llm import RequestParams
+from mcp_agent.workflows.llm.enhanced_passthrough import EnhancedPassthroughLLM
 
 # Type alias for LLM classes
 LLMClass = Union[Type[AnthropicAugmentedLLM], Type[OpenAIAugmentedLLM]]
@@ -17,6 +18,7 @@ class Provider(Enum):
 
     ANTHROPIC = auto()
     OPENAI = auto()
+    SIMULATOR = auto()
 
 
 class ReasoningEffort(Enum):
@@ -91,6 +93,7 @@ class ModelFactory:
     PROVIDER_CLASSES: Dict[Provider, LLMClass] = {
         Provider.ANTHROPIC: AnthropicAugmentedLLM,
         Provider.OPENAI: OpenAIAugmentedLLM,
+        Provider.SIMULATOR: EnhancedPassthroughLLM,
     }
 
     @classmethod

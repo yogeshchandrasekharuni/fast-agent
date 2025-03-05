@@ -11,6 +11,7 @@ from prompt_toolkit.key_binding import KeyBindings
 from prompt_toolkit.completion import Completer, Completion
 from prompt_toolkit.lexers import PygmentsLexer
 from prompt_toolkit.filters import Condition
+from prompt_toolkit.styles import Style
 from pygments.lexers.python import PythonLexer
 from rich import print as rich_print
 
@@ -31,8 +32,8 @@ available_agents = set()
 # Keep track of multi-line mode state
 in_multiline_mode = False
 
-# Track which agents have already shown welcome messages
-agent_messages_shown = set()
+# Track whether help text has been shown globally
+help_message_shown = False
 
 
 class AgentCompleter(Completer):
@@ -87,7 +88,7 @@ class AgentCompleter(Completer):
                         start_position=-len(agent_name),
                         display=agent,
                         display_meta=agent_type,
-                        style="bg:ansiblack fg:ansiblue",
+                        #                        style="bg:ansiblack fg:ansiblue",
                     )
 
 
@@ -168,7 +169,7 @@ async def get_enhanced_input(
     Returns:
         User input string
     """
-    global in_multiline_mode, available_agents
+    global in_multiline_mode, available_agents, help_message_shown
 
     # Update global state
     in_multiline_mode = multiline
@@ -214,6 +215,28 @@ async def get_enhanced_input(
             f" <{toolbar_color}> {agent_name} </{toolbar_color}> | <b>Mode:</b> <{mode_style}> {mode_text} </{mode_style}> {newline} | {shortcut_text} | <dim>v{app_version}</dim>"
         )
 
+    # A more terminal-agnostic style that should work across themes
+    custom_style = Style.from_dict(
+        {
+            # Completion menu - using ANSI colors where possible
+            # "completion-menu": "bg:#ansiblack #ansigreen",
+            "completion-menu.completion": "bg:#ansiblack #ansigreen",
+            "completion-menu.completion.current": "bg:#ansiblack bold #ansigreen",
+            "completion-menu.meta.completion": "bg:#ansiblack #ansiblue",
+            "completion-menu.meta.completion.current": "bg:#ansibrightblack #ansiblue",
+            # Input area
+            # "prompt": "Orange",
+            # "prompt.user": "Orange",
+            # Bottom toolbar - subtle but functional
+            # "bottom-toolbar": "bg:ansiblack #ansibrightblack",
+            # "bottom-toolbar.text": "bg:ansiblack #ansiwhite",
+            # "bottom-toolbar.mode": "bg:ansiblack #ansigreen",
+            # "bottom-toolbar.mode.multiline": "bg:ansiblack #ansired bold",
+            # Agent/command highlighting
+            # "agent": "Orange",
+            # "command": "ansiyellow",
+        }
+    )
     # Create session with history and completions
     session = PromptSession(
         history=agent_histories[agent_name],
@@ -227,7 +250,8 @@ async def get_enhanced_input(
         multiline=Condition(lambda: in_multiline_mode),
         complete_in_thread=True,
         mouse_support=False,
-        bottom_toolbar=get_toolbar,  # Pass the function here
+        bottom_toolbar=get_toolbar,
+        style=custom_style,
     )
 
     # Create key bindings with a reference to the app
@@ -237,7 +261,7 @@ async def get_enhanced_input(
     session.app.key_bindings = bindings
 
     # Create formatted prompt text
-    prompt_text = f"<ansicyan>{agent_name}</ansicyan> > "
+    prompt_text = f"<ansibrightblue>{agent_name}</ansibrightblue> > "
 
     # Add default value display if requested
     if show_default and default and default != "STOP":
@@ -248,23 +272,24 @@ async def get_enhanced_input(
         if default == "STOP":
             rich_print("[yellow]Press <ENTER> to finish.[/yellow]")
         else:
-            rich_print("Enter a prompt, or [red]STOP[/red] to finish")
+            rich_print("Enter a prompt, [red]STOP[/red] to finish")
             if default:
                 rich_print(
                     f"Press <ENTER> to use the default prompt:\n[cyan]{default}[/cyan]"
                 )
 
-    # Mention available features but only on first usage for this agent
-    if agent_name not in agent_messages_shown:
+    # Mention available features but only on first usage globally
+    if not help_message_shown:
         if is_human_input:
             rich_print(
-                "[dim]Tip: Type /help for commands. Ctrl+T toggles multiline mode. Ctrl+Enter to submit in multiline mode.[/dim]"
+                "[dim]Type /help for commands. Ctrl+T toggles multiline mode.[/dim]"
             )
         else:
             rich_print(
-                "[dim]Tip: Type /help for commands, @Agent to switch agent. Ctrl+T toggles multiline mode. [/dim]"
+                "[dim]Type /help for commands, @agent to switch agent. Ctrl+T toggles multiline mode. [/dim]"
             )
-        agent_messages_shown.add(agent_name)
+        rich_print()
+        help_message_shown = True
 
     # Process special commands
     def pre_process_input(text):
@@ -325,7 +350,6 @@ async def handle_special_commands(command, agent_app=None):
         rich_print(
             "  Enter          - Submit (normal mode) / New line (multiline mode)"
         )
-        rich_print("  \\ + Enter     - Insert new line in normal mode")
         rich_print("  Ctrl+Enter      - Always submit (in any mode)")
         rich_print("  Ctrl+T         - Toggle multiline mode")
         rich_print("  Ctrl+L         - Clear input")
