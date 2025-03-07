@@ -3,6 +3,7 @@ Decorator-based interface for MCP Agent applications.
 Provides a simplified way to create and manage agents using decorators.
 """
 
+import asyncio
 from typing import (
     Optional,
     Dict,
@@ -58,6 +59,8 @@ from mcp_agent.core.factory import (
 
 from rich import print
 
+from mcp_agent.mcp_server import AgentMCPServer
+
 T = TypeVar("T")  # For the wrapper classes
 
 
@@ -112,7 +115,7 @@ class FastAgent(ContextDependent):
             settings=Settings(**self.config) if hasattr(self, "config") else None,
         )
         self.agents: Dict[str, Dict[str, Any]] = {}
-        
+
         # Bind decorator methods to this instance
         self._create_decorator = _create_decorator.__get__(self)
         self.agent = agent.__get__(self)
@@ -159,9 +162,8 @@ class FastAgent(ContextDependent):
             self.context,
             model=model,
             request_params=request_params,
-            cli_model=self.args.model if hasattr(self, 'args') else None
+            cli_model=self.args.model if hasattr(self, "args") else None,
         )
-
 
     async def _create_agents_by_type(
         self,
@@ -184,14 +186,14 @@ class FastAgent(ContextDependent):
         """
         # Create a model factory function that we can pass to the factory module
         model_factory_func = partial(self._get_model_factory)
-        
+
         return await create_agents_by_type(
-            agent_app, 
-            self.agents, 
-            agent_type, 
-            active_agents, 
+            agent_app,
+            self.agents,
+            agent_type,
+            active_agents,
             model_factory_func=model_factory_func,
-            **kwargs
+            **kwargs,
         )
 
     async def _create_basic_agents(self, agent_app: MCPApp) -> ProxyDict:
@@ -256,7 +258,11 @@ class FastAgent(ContextDependent):
         """
         model_factory_func = partial(self._get_model_factory)
         return await create_agents_in_dependency_order(
-            agent_app, self.agents, active_agents, AgentType.PARALLEL, model_factory_func
+            agent_app,
+            self.agents,
+            active_agents,
+            AgentType.PARALLEL,
+            model_factory_func,
         )
 
     async def _create_agents_in_dependency_order(
@@ -349,7 +355,7 @@ class FastAgent(ContextDependent):
                     agent_app, active_agents, AgentType.CHAIN
                 )
                 active_agents.update(chains)
-                
+
                 # Now create evaluator-optimizers AFTER chains are available
                 evaluator_optimizers = await self._create_evaluator_optimizers(
                     agent_app, active_agents
@@ -485,3 +491,66 @@ class FastAgent(ContextDependent):
     def _log_agent_load(self, agent_name: str) -> None:
         # This function is no longer needed - agent loading is now handled in factory.py
         pass
+
+    def create_mcp_server(
+        self,
+        agent_app_instance: AgentApp,
+        server_name: str = None,
+        server_description: str = None,
+    ) -> AgentMCPServer:
+        """
+        Create an MCP server that exposes the agents as tools.
+
+        Args:
+            agent_app_instance: The AgentApp instance with initialized agents
+            server_name: Optional custom name for the MCP server
+            server_description: Optional description for the MCP server
+
+        Returns:
+            An AgentMCPServer instance ready to be run
+        """
+        return AgentMCPServer(
+            agent_app=agent_app_instance,
+            server_name=server_name or f"{self.name}-MCP-Server",
+            server_description=server_description,
+        )
+
+    async def run_with_mcp_server(
+        self,
+        transport: str = "sse",
+        host: str = "0.0.0.0",
+        port: int = 8000,
+        server_name: str = None,
+        server_description: str = None,
+    ):
+        """
+        Run the FastAgent application and expose agents through an MCP server.
+
+        Args:
+            transport: Transport protocol to use ("stdio" or "sse")
+            host: Host address for the server when using SSE
+            port: Port for the server when using SSE
+            server_name: Optional custom name for the MCP server
+            server_description: Optional description for the MCP server
+        """
+        async with self.run() as agent_app:
+            # Create the MCP server
+            mcp_server = self.create_mcp_server(
+                agent_app_instance=agent_app,
+                server_name=server_name,
+                server_description=server_description,
+            )
+
+            # Run the MCP server in a separate task
+            server_task = asyncio.create_task(
+                mcp_server.run_async(transport=transport, host=host, port=port)
+            )
+
+            try:
+                # Wait for the server task to complete (or be cancelled)
+                await server_task
+            except asyncio.CancelledError:
+                # Propagate cancellation
+                server_task.cancel()
+                await asyncio.gather(server_task, return_exceptions=True)
+                raise
