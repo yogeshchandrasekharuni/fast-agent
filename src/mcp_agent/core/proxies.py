@@ -141,7 +141,7 @@ class ChainProxy(BaseAgentProxy):
 
         if self._cumulative:
             # Cumulative mode: each agent gets all previous responses
-            cumulative_response = f"<{first_agent}>\n{first_response}\n</{first_agent}>"
+            cumulative_response = f'<fastagent:response agent="{first_agent}">\n{first_response}\n</fastagent:response>'
 
             # Process subsequent agents with cumulative results
             for agent_name in self._sequence[1:]:
@@ -149,9 +149,7 @@ class ChainProxy(BaseAgentProxy):
                 # Pass all previous responses to next agent
                 agent_response = await proxy.generate_str(cumulative_response)
                 # Add this agent's response to the cumulative result
-                cumulative_response += (
-                    f"\n\n<{agent_name}>\n{agent_response}\n</{agent_name}>"
-                )
+                cumulative_response += f'\n\n<fastagent:response agent="{agent_name}">\n{agent_response}\n</fastagent:response>'
 
             return cumulative_response
         else:
