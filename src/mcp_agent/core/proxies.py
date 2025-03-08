@@ -45,13 +45,9 @@ class BaseAgentProxy:
         """Generate response for a message - must be implemented by subclasses"""
         raise NotImplementedError("Subclasses must implement generate_str")
 
-
-class AgentProxy(BaseAgentProxy):
-    """Legacy proxy for individual agent operations"""
-
-    async def generate_str(self, message: str, **kwargs) -> str:
-        """Forward only the message to app.send, ignoring kwargs for legacy compatibility"""
-        return await self._app.send(self._name, message)
+    async def load_prompt(self, prompt_name: str = None) -> str:
+        """Use a Prompt from an MCP Server - implemented by subclasses"""
+        raise NotImplementedError("Subclasses must implement mcp-prompt")
 
 
 class LLMAgentProxy(BaseAgentProxy):
@@ -64,6 +60,9 @@ class LLMAgentProxy(BaseAgentProxy):
     async def generate_str(self, message: str, **kwargs) -> str:
         """Forward message and all kwargs to the agent's LLM"""
         return await self._agent._llm.generate_str(message, **kwargs)
+
+    async def load_prompt(self, prompt_name: str = None) -> str:
+        return await self._agent.load_prompt(prompt_name)
 
 
 class WorkflowProxy(BaseAgentProxy):

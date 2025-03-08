@@ -39,6 +39,7 @@ from mcp_agent.workflows.llm.augmented_llm import (
 )
 from mcp_agent.core.exceptions import ProviderKeyError
 from mcp_agent.logging.logger import get_logger
+from mcp.types import PromptMessage
 from rich.text import Text
 
 DEFAULT_ANTHROPIC_MODEL = "claude-3-7-sonnet-latest"
@@ -524,6 +525,47 @@ class AnthropicMCPTypeConverter(ProviderToMCPConverter[MessageParam, Message]):
             content=mcp_content,
             **typed_dict_extras(param, ["role", "content"]),
         )
+
+    @classmethod
+    def from_mcp_prompt_message(cls, message: PromptMessage) -> MessageParam:
+        """Convert an MCP PromptMessage to an Anthropic MessageParam."""
+
+        # Extract extras for flexibility
+        extras = message.model_dump(exclude={"role", "content"})
+
+        if message.role == "user":
+            # User messages have simple text content
+            content_text = (
+                message.content.text
+                if hasattr(message.content, "text")
+                else str(message.content)
+            )
+            return {"role": "user", "content": content_text, **extras}
+        elif message.role == "assistant":
+            # Assistant messages have structured content
+            content_text = (
+                message.content.text
+                if hasattr(message.content, "text")
+                else str(message.content)
+            )
+            return {
+                "role": "assistant",
+                "content": [{"type": "text", "text": content_text}],
+                **extras,
+            }
+        elif message.role == "system":
+            # Handle system messages for completeness
+            content_text = (
+                message.content.text
+                if hasattr(message.content, "text")
+                else str(message.content)
+            )
+            # Note: System messages aren't directly supported in message history
+            # They should be passed separately in the API call
+            # This is a best-effort adaptation
+            return {"role": "user", "content": f"[SYSTEM] {content_text}", **extras}
+        else:
+            raise ValueError(f"Unsupported role in PromptMessage: {message.role}")
 
 
 def mcp_content_to_anthropic_content(

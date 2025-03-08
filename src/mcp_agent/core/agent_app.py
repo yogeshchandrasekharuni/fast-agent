@@ -15,7 +15,6 @@ from mcp_agent.workflows.evaluator_optimizer.evaluator_optimizer import (
 # Import proxies directly - they handle their own circular imports
 from mcp_agent.core.proxies import (
     BaseAgentProxy,
-    AgentProxy,
     LLMAgentProxy,
     RouterProxy,
     ChainProxy,
@@ -145,13 +144,13 @@ class AgentApp:
         """Support: agent.researcher"""
         if name not in self._agents:
             raise AttributeError(f"No agent named '{name}'")
-        return AgentProxy(self, name)
+        return self._agents[name]
 
     def __getitem__(self, name: str) -> BaseAgentProxy:
         """Support: agent['researcher']"""
         if name not in self._agents:
             raise KeyError(f"No agent named '{name}'")
-        return AgentProxy(self, name)
+        return self._agents[name]
 
     async def __call__(
         self, message: Optional[str] = "", agent_name: Optional[str] = None

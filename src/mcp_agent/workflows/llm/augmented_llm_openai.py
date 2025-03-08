@@ -1,7 +1,7 @@
 import json
 import os
 from typing import Iterable, List, Type
-
+from mcp.types import PromptMessage
 import instructor
 from openai import OpenAI, AuthenticationError
 from openai.types.chat import (
@@ -53,6 +53,10 @@ class OpenAIAugmentedLLM(
     """
 
     def __init__(self, *args, **kwargs):
+        # Set type_converter before calling super().__init__
+        if "type_converter" not in kwargs:
+            kwargs["type_converter"] = MCPOpenAITypeConverter
+            
         super().__init__(*args, **kwargs)
 
         self.provider = "OpenAI"
@@ -583,6 +587,37 @@ class MCPOpenAITypeConverter(
             raise ValueError(
                 f"Unexpected role: {param.role}, MCP only supports 'assistant', 'user', 'tool', 'system', 'developer', and 'function'"
             )
+
+    @classmethod
+    def from_mcp_prompt_message(
+        cls, message: PromptMessage
+    ) -> ChatCompletionMessageParam:
+        """Convert an MCP PromptMessage to an OpenAI ChatCompletionMessageParam."""
+
+        # Extract content
+        content = None
+        if hasattr(message.content, "text"):
+            content = message.content.text
+        else:
+            content = str(message.content)
+
+        # Extract extras
+        extras = message.model_dump(exclude={"role", "content"})
+
+        if message.role == "user":
+            return ChatCompletionUserMessageParam(
+                role="user", content=content, **extras
+            )
+        elif message.role == "assistant":
+            return ChatCompletionAssistantMessageParam(
+                role="assistant", content=content, **extras
+            )
+        elif message.role == "system":
+            return ChatCompletionSystemMessageParam(
+                role="system", content=content, **extras
+            )
+        else:
+            raise ValueError(f"Unsupported role in PromptMessage: {message.role}")
 
 
 def mcp_content_to_openai_content(

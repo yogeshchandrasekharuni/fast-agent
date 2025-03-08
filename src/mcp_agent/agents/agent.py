@@ -319,3 +319,21 @@ class Agent(MCPAggregator):
                     )
                 ],
             )
+
+    async def load_prompt(self, prompt_name: str) -> str:
+        """
+        Apply an MCP Server Prompt by name and return the it.
+
+        Args:
+            prompt_name: The name of the prompt to apply"
+        """
+        prompt_result = await self.get_prompt(prompt_name)
+
+        if not prompt_result.messages:
+            return f"Prompt '{prompt_name}' contains no messages"
+
+        if hasattr(self, "_llm") and self._llm:
+            await self._llm.apply_prompt_template(prompt_result.messages)
+            return f"Applied prompt template: {prompt_name}"
+        else:
+            raise RuntimeError("Agent has no attached LLM")

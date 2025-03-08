@@ -8,9 +8,11 @@ mcp = FastMCP("MCP Root Tester")
 def sizing_prompt():
     return [
         UserMessage("What is the size of the moon?"),
-        AssistantMessage("OBJECT: MOON\nSIZE: 3,474.8\nUNITS: KM"),
+        AssistantMessage("OBJECT: MOON\nSIZE: 3,474.8\nUNITS: KM\nTYPE: MINERAL"),
         UserMessage("What is the size of the Earth?"),
-        AssistantMessage("OBJECT: EARTH\nSIZE: 12,742\nUNITS: KM"),
+        AssistantMessage("OBJECT: EARTH\nSIZE: 12,742\nUNITS: KM\nTYPE: MINERAL"),
+        UserMessage("A tiger"),
+        AssistantMessage("OBJECT: TIGER\nSIZE: 1.2\nUNITS: M\nTYPE: ANIMAL"),
     ]
 
 

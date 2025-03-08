@@ -21,6 +21,7 @@ from mcp.types import (
     CreateMessageResult,
     ModelPreferences,
     SamplingMessage,
+    PromptMessage,
     TextContent,
 )
 
@@ -315,14 +316,6 @@ class AugmentedLLM(ContextDependent, AugmentedLLMProtocol[MessageParamT, Message
         self, default_params: RequestParams, provided_params: RequestParams
     ) -> RequestParams:
         """Merge default and provided request parameters"""
-        # Log parameter merging if debug logging is enabled
-        # self.context.config.logger.debug(
-        #     "Merging provided request params with defaults",
-        #     extra={
-        #         "defaults": default_params.model_dump(),
-        #         "provided": provided_params.model_dump(),
-        #     },
-        # )
 
         merged = default_params.model_dump()
         merged.update(provided_params.model_dump(exclude_unset=True))
@@ -373,6 +366,9 @@ class AugmentedLLM(ContextDependent, AugmentedLLMProtocol[MessageParamT, Message
     def from_mcp_message_param(self, param: MCPMessageParam) -> MessageParamT:
         """Convert an MCP message (SamplingMessage) to an LLM input type."""
         return self.type_converter.from_mcp_message_param(param)
+
+    def from_mcp_prompt_message(self, message: PromptMessage) -> MessageParamT:
+        return self.type_converter.from_mcp_prompt_message(message)
 
     @classmethod
     def convert_message_to_message_param(
@@ -668,6 +664,33 @@ class AugmentedLLM(ContextDependent, AugmentedLLMProtocol[MessageParamT, Message
         }
         self.logger.debug("Chat finished", data=data)
 
+    async def apply_prompt_template(self, prompt_messages: List[PromptMessage]) -> None:
+        """
+        Apply a prompt template by adding it to the conversation history.
+
+        Args:
+            prompt_messages: List of PromptMessage objects from MCP
+        """
+
+        # Convert prompt messages to this LLM's native format
+        converted_messages = []
+
+        for message in prompt_messages:
+            converted = self.type_converter.from_mcp_prompt_message(message)
+            converted_messages.append(converted)
+
+        # Add directly to the conversation history
+        self.history.extend(converted_messages)
+
+    def _convert_prompt_messages(
+        self, prompt_messages: List[PromptMessage]
+    ) -> List[MessageParamT]:
+        """
+        Convert prompt messages to this LLM's specific message format.
+        To be implemented by concrete LLM classes.
+        """
+        raise NotImplementedError("Must be implemented by subclass")
+
 
 class PassthroughLLM(AugmentedLLM):
     """
@@ -731,3 +754,17 @@ class PassthroughLLM(AugmentedLLM):
             raise ValueError(
                 f"Cannot convert message of type {type(message)} to {response_model}"
             )
+
+    # Modify generate method to include prompt context when building messages
+    # async def generate(self, message, request_params=None):
+    #     messages = []
+
+    #     # Add prompt context first (if exists)
+    #     if hasattr(self, "_prompt_context") and self._prompt_context:
+    #         messages.extend(self._prompt_context)
+
+    #     # Then add history if needed
+    #     if request_params.use_history:
+    #         messages.extend(self.history.get())
+
+    #     # Rest of generate implementation...

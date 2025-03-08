@@ -1,6 +1,6 @@
 from asyncio import Lock, gather
 from typing import List, Dict, Optional, TYPE_CHECKING
-
+from mcp import GetPromptResult
 from pydantic import BaseModel, ConfigDict
 from mcp.client.session import ClientSession
 from mcp.server.lowlevel.server import Server
@@ -355,6 +355,141 @@ class MCPAggregator(ContextDependent):
                 )
                 return result
 
+    async def get_prompt(self, prompt_name: str = None) -> GetPromptResult:
+        """
+        Get a prompt from a server.
+        
+        :param prompt_name: Name of the prompt, optionally namespaced with server name 
+                           using the format 'server_name-prompt_name'
+        :return: GetPromptResult containing the prompt description and messages
+        """
+        if not self.initialized:
+            await self.load_servers()
+            
+        server_name: str = None
+        local_prompt_name: str = None
+        
+        if prompt_name and SEP in prompt_name:  # Namespaced prompt name
+            server_name, local_prompt_name = prompt_name.split(SEP, 1)
+        elif prompt_name:
+            # If not namespaced, use the first server that has the prompt
+            local_prompt_name = prompt_name
+            server_name = self.server_names[0] if self.server_names else None
+        else:
+            # If no prompt name provided, use the first server's default prompt
+            server_name = self.server_names[0] if self.server_names else None
+            local_prompt_name = None
+            
+        if not server_name:
+            logger.error("Error: No servers available for getting prompts")
+            return GetPromptResult(
+                description="Error: No servers available for getting prompts",
+                messages=[],
+            )
+            
+        logger.info(
+            "Requesting prompt",
+            data={
+                "progress_action": ProgressAction.STARTING,
+                "prompt_name": local_prompt_name,
+                "server_name": server_name,
+                "agent_name": self.agent_name,
+            },
+        )
+        
+        async def try_get_prompt(client: ClientSession):
+            try:
+                return await client.get_prompt(name=local_prompt_name)
+            except Exception as e:
+                logger.error(f"Failed to get prompt '{local_prompt_name}' from server '{server_name}': {e}")
+                return GetPromptResult(
+                    description=f"Error: Failed to get prompt '{local_prompt_name}' from server '{server_name}': {e}",
+                    messages=[],
+                )
+                
+        if self.connection_persistence:
+            server_connection = await self._persistent_connection_manager.get_server(
+                server_name, client_session_factory=MCPAgentClientSession
+            )
+            return await try_get_prompt(server_connection.session)
+        else:
+            logger.debug(
+                f"Creating temporary connection to server: {server_name}",
+                data={
+                    "progress_action": ProgressAction.STARTING,
+                    "server_name": server_name,
+                    "agent_name": self.agent_name,
+                },
+            )
+            async with gen_client(
+                server_name, server_registry=self.context.server_registry
+            ) as client:
+                result = await try_get_prompt(client)
+                logger.debug(
+                    f"Closing temporary connection to server: {server_name}",
+                    data={
+                        "progress_action": ProgressAction.SHUTDOWN,
+                        "server_name": server_name,
+                        "agent_name": self.agent_name,
+                    },
+                )
+                return result
+
+    async def list_prompts(self, server_name: str = None):
+        """
+        List available prompts from one or all servers.
+        
+        :param server_name: Optional server name to list prompts from. If not provided, 
+                           lists prompts from all servers.
+        :return: Dictionary mapping server names to lists of available prompts
+        """
+        if not self.initialized:
+            await self.load_servers()
+            
+        results = {}
+        
+        async def try_list_prompts(s_name, client):
+            try:
+                prompts = await client.list_prompts()
+                return s_name, prompts
+            except Exception as e:
+                logger.error(f"Failed to list prompts from server '{s_name}': {e}")
+                return s_name, []
+                
+        async def get_server_prompts(s_name):
+            if self.connection_persistence:
+                server_connection = await self._persistent_connection_manager.get_server(
+                    s_name, client_session_factory=MCPAgentClientSession
+                )
+                s_name, prompts = await try_list_prompts(s_name, server_connection.session)
+                return s_name, prompts
+            else:
+                async with gen_client(
+                    s_name, server_registry=self.context.server_registry
+                ) as client:
+                    s_name, prompts = await try_list_prompts(s_name, client)
+                    return s_name, prompts
+        
+        # If server_name is provided, only list prompts from that server
+        if server_name:
+            if server_name in self.server_names:
+                s_name, prompts = await get_server_prompts(server_name)
+                results[s_name] = prompts
+            else:
+                logger.error(f"Server '{server_name}' not found")
+        else:
+            # Gather prompts from all servers concurrently
+            tasks = [get_server_prompts(s_name) for s_name in self.server_names]
+            server_results = await gather(*tasks, return_exceptions=True)
+            
+            for result in server_results:
+                if isinstance(result, BaseException):
+                    continue
+                s_name, prompts = result
+                results[s_name] = prompts
+                
+        return results
+
 
 class MCPCompoundServer(Server):
     """
@@ -365,10 +500,11 @@ class MCPCompoundServer(Server):
         super().__init__(name)
         self.aggregator = MCPAggregator(server_names)
 
-        # Register handlers
-        # TODO: saqadri - once we support resources and prompts, add handlers for those as well
+        # Register handlers for tools, prompts, and resources
         self.list_tools()(self._list_tools)
         self.call_tool()(self._call_tool)
+        self.get_prompt()(self._get_prompt)
+        self.list_prompts()(self._list_prompts)
 
     async def _list_tools(self) -> List[Tool]:
         """List all tools aggregated from connected MCP servers."""
@@ -384,6 +520,25 @@ class MCPCompoundServer(Server):
             return result.content
         except Exception as e:
             return CallToolResult(isError=True, message=f"Error calling tool: {e}")
+            
+    async def _get_prompt(self, name: str = None) -> GetPromptResult:
+        """Get a prompt from the aggregated servers."""
+        try:
+            result = await self.aggregator.get_prompt(prompt_name=name)
+            return result
+        except Exception as e:
+            return GetPromptResult(
+                description=f"Error getting prompt: {e}",
+                messages=[]
+            )
+            
+    async def _list_prompts(self, server_name: str = None) -> Dict[str, List[str]]:
+        """List available prompts from the aggregated servers."""
+        try:
+            return await self.aggregator.list_prompts(server_name=server_name)
+        except Exception as e:
+            logger.error(f"Error listing prompts: {e}")
+            return {}
 
     async def run_stdio_async(self) -> None:
         """Run the server using stdio transport."""
