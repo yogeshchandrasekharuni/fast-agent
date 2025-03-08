@@ -4,8 +4,6 @@ from mcp.server.fastmcp import FastMCP
 
 # Remove circular import
 from mcp_agent.core.agent_app import AgentApp
-import asyncio
-from typing import Dict, Any, Optional
 from mcp.server.fastmcp import Context as MCPContext
 
 
