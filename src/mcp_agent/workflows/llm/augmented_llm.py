@@ -595,6 +595,7 @@ class AugmentedLLM(ContextDependent, AugmentedLLMProtocol[MessageParamT, Message
         prompt_name: str,
         description: Optional[str] = None,
         message_count: int = 0,
+        source_server: Optional[str] = None,
     ):
         """Display information about a loaded prompt template."""
         await self.display.show_prompt_loaded(
@@ -603,6 +604,7 @@ class AugmentedLLM(ContextDependent, AugmentedLLMProtocol[MessageParamT, Message
             message_count=message_count,
             agent_name=self.name,
             aggregator=self.aggregator,
+            source_server=source_server,
         )
 
     async def apply_prompt_template(
@@ -628,11 +630,15 @@ class AugmentedLLM(ContextDependent, AugmentedLLMProtocol[MessageParamT, Message
         # Add directly to the prompt messages section of history
         self.history.extend(converted_messages, is_prompt=True)
 
+        # Get the source server if available
+        source_server = getattr(prompt_result, 'source_server', None)
+        
         # Display information about the loaded prompt
         await self.show_prompt_loaded(
             prompt_name=prompt_name,
             description=description,
             message_count=len(converted_messages),
+            source_server=source_server,
         )
 
 

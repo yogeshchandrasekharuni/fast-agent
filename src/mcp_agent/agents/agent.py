@@ -322,31 +322,26 @@ class Agent(MCPAggregator):
 
     async def load_prompt(self, prompt_name: str) -> str:
         """
-        Apply an MCP Server Prompt by name and return the it.
+        Apply an MCP Server Prompt by name and return it.
+        Will search all available servers for the prompt if not namespaced.
 
         Args:
-            prompt_name: The name of the prompt to apply"
+            prompt_name: The name of the prompt to apply
         """
-        prompt_result = await self.get_prompt(prompt_name)
-
-        if not prompt_result.messages:
-            return f"Prompt '{prompt_name}' contains no messages"
-
+        # If we don't have an LLM, we can't apply the prompt
         if not hasattr(self, "_llm") or not self._llm:
             raise RuntimeError("Agent has no attached LLM")
+
+        # Get the prompt - this will search all servers if needed
+        self.logger.debug(f"Loading prompt '{prompt_name}'")
+        prompt_result = await self.get_prompt(prompt_name)
+
+        if not prompt_result or not prompt_result.messages:
+            error_msg = f"Prompt '{prompt_name}' could not be found or contains no messages"
+            self.logger.warning(error_msg)
+            return error_msg
         
-        # If prompt name isn't namespaced, create proper namespaced name for display
-        server_name, local_name = await self._parse_resource_name(prompt_name, "prompt")
-        
-        self.logger.debug(
-            f"Resolved prompt: '{prompt_name}' to server: '{server_name}', local name: '{local_name}'"
-        )
-        
-        # Only create namespaced prompt name if we have a valid server name
-        namespaced_prompt_name = prompt_name
-        if not SEP in prompt_name and server_name:
-            namespaced_prompt_name = f"{server_name}{SEP}{prompt_name}"
-            self.logger.debug(f"Created namespaced prompt name: '{namespaced_prompt_name}'") 
-        
-        await self._llm.apply_prompt_template(prompt_result, namespaced_prompt_name)
+        # Apply the prompt template with the original prompt name
+        # Source server will be passed separately for UI display
+        await self._llm.apply_prompt_template(prompt_result, prompt_name)
         return f"Applied prompt template: {prompt_name}"

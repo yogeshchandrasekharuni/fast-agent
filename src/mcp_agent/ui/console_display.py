@@ -208,6 +208,7 @@ class ConsoleDisplay:
         message_count: int = 0,
         agent_name: Optional[str] = None,
         aggregator = None,
+        source_server: Optional[str] = None,
     ):
         """
         Display information about a loaded prompt template.
@@ -218,14 +219,22 @@ class ConsoleDisplay:
             message_count: Number of messages added to the conversation history
             agent_name: Name of the agent using the prompt
             aggregator: Optional aggregator instance to use for server highlighting
+            source_server: Server where the prompt was found (for non-namespaced prompts)
         """
         if not self.config or not self.config.logger.show_tools:
             return
 
-        # Get server name from namespaced prompt_name
-        mcp_server_name = (
-            prompt_name.split(SEP)[0] if SEP in prompt_name else None
-        )
+        # Get server name from namespaced prompt_name or source_server
+        mcp_server_name = None
+        if SEP in prompt_name:
+            # For namespaced prompts, use the server from the prompt name
+            mcp_server_name = prompt_name.split(SEP)[0]
+        elif source_server:
+            # For non-namespaced prompts, use the source server if provided
+            mcp_server_name = source_server
+        elif aggregator and aggregator.server_names:
+            # Fallback to first server if source not available
+            mcp_server_name = aggregator.server_names[0]
 
         # Build the server list with highlighting
         display_server_list = Text()
@@ -236,18 +245,16 @@ class ConsoleDisplay:
 
         # Create content text
         content = Text()
-        content.append("Loaded prompt template: ", style="cyan bold")
-        content.append(f"'{prompt_name}'", style="cyan")
+        messages_phrase = f"Loaded {message_count} message{'s' if message_count != 1 else ''}"
+        content.append(f"{messages_phrase} from template ", style="cyan")
+        content.append(f"'{prompt_name}'", style="cyan bold")
+        
+        if agent_name:
+            content.append(f" for {agent_name}", style="cyan")
 
         if description:
             content.append("\n\n", style="default")
             content.append(description, style="dim white")
-
-        # Create message count text
-        count_text = f"{message_count} messages" if message_count else ""
-        agent_text = f"for {agent_name}" if agent_name else ""
-        content.append(agent_text)
-        content.append(count_text)
 
         # Create panel
         panel = Panel(

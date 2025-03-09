@@ -392,7 +392,8 @@ class MCPAggregator(ContextDependent):
                             break
                     if server_name:
                         break
-            # For other resource types, use the first server
+            # For all other resource types, use the first server
+            # (prompt resource type is specially handled in get_prompt)
             else:
                 local_name = name
                 server_name = self.server_names[0] if self.server_names else None
@@ -438,25 +439,78 @@ class MCPAggregator(ContextDependent):
         if not prompt_name:
             server_name = self.server_names[0] if self.server_names else None
             local_prompt_name = None
+        # Handle namespaced prompt name
+        elif SEP in prompt_name:
+            server_name, local_prompt_name = prompt_name.split(SEP, 1)
+        # Plain prompt name - will search all servers
         else:
-            server_name, local_prompt_name = await self._parse_resource_name(
-                prompt_name, "prompt"
+            local_prompt_name = prompt_name
+            server_name = None
+            
+        # If we have a specific server to check
+        if server_name:
+            if server_name not in self.server_names:
+                logger.error(f"Error: Server '{server_name}' not found")
+                return GetPromptResult(
+                    description=f"Error: Server '{server_name}' not found",
+                    messages=[],
+                )
+                
+            # Try to get the prompt from the specified server
+            result = await self._execute_on_server(
+                server_name=server_name,
+                operation_type="prompt",
+                operation_name=local_prompt_name or "default",
+                method_name="get_prompt",
+                method_args={"name": local_prompt_name} if local_prompt_name else {},
+                error_factory=lambda msg: GetPromptResult(description=msg, messages=[]),
             )
-
-        if not server_name:
+            
+            # For consistency, also add source_server to namespaced prompt results
+            if result and result.messages:
+                result.source_server = server_name
+                
+            return result
+            
+        # No specific server - try all servers in order
+        logger.debug(f"Searching for prompt '{local_prompt_name}' on all servers")
+        
+        # First try the default (first) server
+        default_server = self.server_names[0] if self.server_names else None
+        if not default_server:
             logger.error("Error: No servers available for getting prompts")
             return GetPromptResult(
                 description="Error: No servers available for getting prompts",
                 messages=[],
             )
-
-        return await self._execute_on_server(
-            server_name=server_name,
-            operation_type="prompt",
-            operation_name=local_prompt_name or "default",
-            method_name="get_prompt",
-            method_args={"name": local_prompt_name} if local_prompt_name else {},
-            error_factory=lambda msg: GetPromptResult(description=msg, messages=[]),
+            
+        # Try all servers until we find the prompt
+        for s_name in self.server_names:
+            try:
+                result = await self._execute_on_server(
+                    server_name=s_name,
+                    operation_type="prompt",
+                    operation_name=local_prompt_name,
+                    method_name="get_prompt",
+                    method_args={"name": local_prompt_name},
+                    error_factory=lambda _: None,  # Return None instead of an error
+                )
+                
+                # If we got a successful result with messages, return it
+                if result and result.messages:
+                    logger.debug(f"Found prompt '{local_prompt_name}' on server '{s_name}'")
+                    # Add source_server info to the result so UI can highlight the correct server
+                    result.source_server = s_name
+                    return result
+                    
+            except Exception as e:
+                logger.debug(f"Error checking for prompt on server '{s_name}': {e}")
+        
+        # If we get here, we couldn't find the prompt on any server
+        logger.warning(f"Prompt '{local_prompt_name}' not found on any server")
+        return GetPromptResult(
+            description=f"Error: Prompt '{local_prompt_name}' not found on any server",
+            messages=[],
         )
 
     async def list_prompts(self, server_name: str = None):
@@ -502,8 +556,11 @@ class MCPAggregator(ContextDependent):
             for i, result in enumerate(server_results):
                 if isinstance(result, BaseException):
                     continue
-                results[self.server_names[i]] = result
-
+                    
+                s_name = self.server_names[i]
+                results[s_name] = result
+                
+        logger.debug(f"Available prompts across servers: {results}")
         return results
 
 
