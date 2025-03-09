@@ -341,7 +341,9 @@ class Agent(MCPAggregator):
             self.logger.warning(error_msg)
             return error_msg
         
-        # Apply the prompt template with the original prompt name
-        # Source server will be passed separately for UI display
-        await self._llm.apply_prompt_template(prompt_result, prompt_name)
+        # Get the display name (namespaced version)
+        display_name = getattr(prompt_result, 'namespaced_name', prompt_name)
+        
+        # Apply the prompt template with the display name for proper UI highlighting
+        await self._llm.apply_prompt_template(prompt_result, display_name)
         return f"Applied prompt template: {prompt_name}"

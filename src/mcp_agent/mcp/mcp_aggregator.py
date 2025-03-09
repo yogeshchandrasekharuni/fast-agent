@@ -431,6 +431,7 @@ class MCPAggregator(ContextDependent):
         :param prompt_name: Name of the prompt, optionally namespaced with server name
                            using the format 'server_name-prompt_name'
         :return: GetPromptResult containing the prompt description and messages
+                 with a namespaced_name property for display purposes
         """
         if not self.initialized:
             await self.load_servers()
@@ -439,13 +440,16 @@ class MCPAggregator(ContextDependent):
         if not prompt_name:
             server_name = self.server_names[0] if self.server_names else None
             local_prompt_name = None
+            namespaced_name = None
         # Handle namespaced prompt name
         elif SEP in prompt_name:
             server_name, local_prompt_name = prompt_name.split(SEP, 1)
+            namespaced_name = prompt_name  # Already namespaced
         # Plain prompt name - will search all servers
         else:
             local_prompt_name = prompt_name
             server_name = None
+            namespaced_name = None  # Will be set when server is found
             
         # If we have a specific server to check
         if server_name:
@@ -466,9 +470,9 @@ class MCPAggregator(ContextDependent):
                 error_factory=lambda msg: GetPromptResult(description=msg, messages=[]),
             )
             
-            # For consistency, also add source_server to namespaced prompt results
+            # Add namespaced name and source server to the result
             if result and result.messages:
-                result.source_server = server_name
+                result.namespaced_name = namespaced_name or f"{server_name}{SEP}{local_prompt_name}"
                 
             return result
             
@@ -499,8 +503,8 @@ class MCPAggregator(ContextDependent):
                 # If we got a successful result with messages, return it
                 if result and result.messages:
                     logger.debug(f"Found prompt '{local_prompt_name}' on server '{s_name}'")
-                    # Add source_server info to the result so UI can highlight the correct server
-                    result.source_server = s_name
+                    # Add namespaced name using the actual server where found
+                    result.namespaced_name = f"{s_name}{SEP}{local_prompt_name}"
                     return result
                     
             except Exception as e:

@@ -207,33 +207,28 @@ class ConsoleDisplay:
         description: Optional[str] = None,
         message_count: int = 0,
         agent_name: Optional[str] = None,
-        aggregator = None,
-        source_server: Optional[str] = None,
+        aggregator=None,
     ):
         """
         Display information about a loaded prompt template.
 
         Args:
-            prompt_name: The name of the prompt that was loaded
+            prompt_name: The name of the prompt that was loaded (should be namespaced)
             description: Optional description of the prompt
             message_count: Number of messages added to the conversation history
             agent_name: Name of the agent using the prompt
             aggregator: Optional aggregator instance to use for server highlighting
-            source_server: Server where the prompt was found (for non-namespaced prompts)
         """
         if not self.config or not self.config.logger.show_tools:
             return
 
-        # Get server name from namespaced prompt_name or source_server
+        # Get server name from the namespaced prompt_name
         mcp_server_name = None
         if SEP in prompt_name:
-            # For namespaced prompts, use the server from the prompt name
+            # Extract the server from the namespaced prompt name
             mcp_server_name = prompt_name.split(SEP)[0]
-        elif source_server:
-            # For non-namespaced prompts, use the source server if provided
-            mcp_server_name = source_server
         elif aggregator and aggregator.server_names:
-            # Fallback to first server if source not available
+            # Fallback to first server if not namespaced
             mcp_server_name = aggregator.server_names[0]
 
         # Build the server list with highlighting
@@ -245,12 +240,14 @@ class ConsoleDisplay:
 
         # Create content text
         content = Text()
-        messages_phrase = f"Loaded {message_count} message{'s' if message_count != 1 else ''}"
-        content.append(f"{messages_phrase} from template ", style="cyan")
-        content.append(f"'{prompt_name}'", style="cyan bold")
-        
+        messages_phrase = (
+            f"Loaded {message_count} message{'s' if message_count != 1 else ''}"
+        )
+        content.append(f"{messages_phrase} from template ", style="cyan italic")
+        content.append(f"'{prompt_name}'", style="cyan bold italic")
+
         if agent_name:
-            content.append(f" for {agent_name}", style="cyan")
+            content.append(f" for {agent_name}", style="cyan italic")
 
         if description:
             content.append("\n\n", style="default")
