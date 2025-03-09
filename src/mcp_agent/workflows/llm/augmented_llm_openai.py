@@ -38,6 +38,7 @@ from mcp_agent.core.exceptions import ProviderKeyError
 from mcp_agent.logging.logger import get_logger
 from rich.text import Text
 
+_logger = get_logger(__name__)
 
 DEFAULT_OPENAI_MODEL = "gpt-4o"
 DEFAULT_REASONING_EFFORT = "medium"
@@ -56,7 +57,7 @@ class OpenAIAugmentedLLM(
         # Set type_converter before calling super().__init__
         if "type_converter" not in kwargs:
             kwargs["type_converter"] = MCPOpenAITypeConverter
-            
+
         super().__init__(*args, **kwargs)
 
         self.provider = "OpenAI"
@@ -612,12 +613,14 @@ class MCPOpenAITypeConverter(
             return ChatCompletionAssistantMessageParam(
                 role="assistant", content=content, **extras
             )
-        elif message.role == "system":
-            return ChatCompletionSystemMessageParam(
-                role="system", content=content, **extras
-            )
         else:
-            raise ValueError(f"Unsupported role in PromptMessage: {message.role}")
+            # Fall back to user for any unrecognized role, including "system"
+            _logger.warning(
+                f"Unsupported role '{message.role}' in PromptMessage. Falling back to 'user' role."
+            )
+            return ChatCompletionUserMessageParam(
+                role="user", content=f"[{message.role.upper()}] {content}", **extras
+            )
 
 
 def mcp_content_to_openai_content(

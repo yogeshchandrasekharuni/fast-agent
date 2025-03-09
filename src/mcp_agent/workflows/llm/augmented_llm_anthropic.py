@@ -42,6 +42,7 @@ from mcp_agent.logging.logger import get_logger
 from mcp.types import PromptMessage
 from rich.text import Text
 
+_logger = get_logger(__name__)
 DEFAULT_ANTHROPIC_MODEL = "claude-3-7-sonnet-latest"
 
 
@@ -530,42 +531,35 @@ class AnthropicMCPTypeConverter(ProviderToMCPConverter[MessageParam, Message]):
     def from_mcp_prompt_message(cls, message: PromptMessage) -> MessageParam:
         """Convert an MCP PromptMessage to an Anthropic MessageParam."""
 
+        # Extract content text
+        content_text = (
+            message.content.text
+            if hasattr(message.content, "text")
+            else str(message.content)
+        )
+
         # Extract extras for flexibility
         extras = message.model_dump(exclude={"role", "content"})
 
+        # Handle based on role
         if message.role == "user":
-            # User messages have simple text content
-            content_text = (
-                message.content.text
-                if hasattr(message.content, "text")
-                else str(message.content)
-            )
             return {"role": "user", "content": content_text, **extras}
         elif message.role == "assistant":
-            # Assistant messages have structured content
-            content_text = (
-                message.content.text
-                if hasattr(message.content, "text")
-                else str(message.content)
-            )
             return {
                 "role": "assistant",
                 "content": [{"type": "text", "text": content_text}],
                 **extras,
             }
-        elif message.role == "system":
-            # Handle system messages for completeness
-            content_text = (
-                message.content.text
-                if hasattr(message.content, "text")
-                else str(message.content)
-            )
-            # Note: System messages aren't directly supported in message history
-            # They should be passed separately in the API call
-            # This is a best-effort adaptation
-            return {"role": "user", "content": f"[SYSTEM] {content_text}", **extras}
         else:
-            raise ValueError(f"Unsupported role in PromptMessage: {message.role}")
+            # Fall back to user for any unrecognized role, including "system"
+            _logger.warning(
+                f"Unsupported role '{message.role}' in PromptMessage. Falling back to 'user' role."
+            )
+            return {
+                "role": "user",
+                "content": f"[{message.role.upper()}] {content_text}",
+                **extras,
+            }
 
 
 def mcp_content_to_anthropic_content(

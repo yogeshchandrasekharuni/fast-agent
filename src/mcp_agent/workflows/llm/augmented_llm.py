@@ -28,11 +28,10 @@ from mcp.types import (
 from mcp_agent.context_dependent import ContextDependent
 from mcp_agent.core.exceptions import PromptExitError
 from mcp_agent.event_progress import ProgressAction
-from mcp_agent.mcp.mcp_aggregator import MCPAggregator, SEP
+from mcp_agent.mcp.mcp_aggregator import MCPAggregator
 from mcp_agent.workflows.llm.llm_selector import ModelSelector
-from rich.panel import Panel
+from mcp_agent.ui.console_display import ConsoleDisplay
 from rich.text import Text
-from mcp_agent import console
 
 if TYPE_CHECKING:
     from mcp_agent.agents.agent import Agent
@@ -225,6 +224,9 @@ class AugmentedLLM(ContextDependent, AugmentedLLMProtocol[MessageParamT, Message
         )
         self.history: Memory[MessageParamT] = SimpleMemory[MessageParamT]()
 
+        # Initialize the display component
+        self.display = ConsoleDisplay(config=self.context.config)
+
         # Set initial model preferences
         self.model_preferences = ModelPreferences(
             costPriority=0.3,
@@ -393,113 +395,15 @@ class AugmentedLLM(ContextDependent, AugmentedLLMProtocol[MessageParamT, Message
 
     def show_tool_result(self, result: CallToolResult):
         """Display a tool result in a formatted panel."""
-
-        if not self.context.config.logger.show_tools:
-            return
-
-        if result.isError:
-            style = "red"
-        else:
-            style = "magenta"
-
-        panel = Panel(
-            Text(
-                str(result.content), overflow="..."
-            ),  # TODO support multi-model/multi-part responses
-            title="[TOOL RESULT]",
-            title_align="right",
-            style=style,
-            border_style="bold white",
-            padding=(1, 2),
-        )
-
-        if self.context.config.logger.truncate_tools:
-            if len(str(result.content)) > 360:
-                panel.height = 8
-
-        console.console.print(panel)
-        console.console.print("\n")
+        self.display.show_tool_result(result)
 
     def show_oai_tool_result(self, result):
         """Display a tool result in a formatted panel."""
-
-        if not self.context.config.logger.show_tools:
-            return
-
-        panel = Panel(
-            Text(str(result), overflow="..."),  # TODO update openai support
-            title="[TOOL RESULT]",
-            title_align="right",
-            style="magenta",
-            border_style="bold white",
-            padding=(1, 2),
-        )
-
-        if self.context.config.logger.truncate_tools:
-            if len(str(result)) > 360:
-                panel.height = 8
-
-        console.console.print(panel)
-        console.console.print("\n")
+        self.display.show_oai_tool_result(result)
 
     def show_tool_call(self, available_tools, tool_name, tool_args):
         """Display a tool call in a formatted panel."""
-
-        if not self.context.config.logger.show_tools:
-            return
-
-        display_tool_list = Text()
-        for display_tool in available_tools:
-            # Handle both OpenAI and Anthropic tool formats
-            # TODO -- this should really be using the ToolCall abstraction and converting at the concrete layer??
-            if isinstance(display_tool, dict):
-                if "function" in display_tool:
-                    # OpenAI format
-                    tool_call_name = display_tool["function"]["name"]
-                else:
-                    # Anthropic format
-                    tool_call_name = display_tool["name"]
-            else:
-                # Handle potential object format (e.g., Pydantic models)
-                tool_call_name = (
-                    display_tool.function.name
-                    if hasattr(display_tool, "function")
-                    else display_tool.name
-                )
-
-            parts = (
-                tool_call_name.split(SEP)
-                if SEP in tool_call_name
-                else [tool_call_name, tool_call_name]
-            )
-            if tool_name.split(SEP)[0] == parts[0]:
-                if tool_call_name == tool_name:
-                    style = "magenta"
-                else:
-                    style = "dim white"
-
-                shortened_name = (
-                    parts[1] if len(parts[1]) <= 12 else parts[1][:11] + "…"
-                )
-                display_tool_list.append(f"[{shortened_name}] ", style)
-
-        panel = Panel(
-            Text(str(tool_args), overflow="ellipsis"),
-            title="[TOOL CALL]",
-            title_align="left",
-            style="magenta",
-            border_style="bold white",
-            subtitle=display_tool_list,
-            subtitle_align="left",
-            padding=(1, 2),
-        )
-
-        if self.context.config.logger.truncate_tools:
-            if len(str(tool_args)) > 360:
-                panel.height = 8
-
-        console.console.print(panel)
-        console.console.print("\n")
+        self.display.show_tool_call(available_tools, tool_name, tool_args)
 
     async def show_assistant_message(
         self,
@@ -508,62 +412,17 @@ class AugmentedLLM(ContextDependent, AugmentedLLMProtocol[MessageParamT, Message
         title: str = "ASSISTANT",
     ):
         """Display an assistant message in a formatted panel."""
-
-        if not self.context.config.logger.show_chat:
-            return
-
-        mcp_server_name = (
-            highlight_namespaced_tool.split(SEP)
-            if SEP in highlight_namespaced_tool
-            else [highlight_namespaced_tool]
-        )
-
-        display_server_list = Text()
-
-        tools = await self.aggregator.list_tools()
-        if any(tool.name == HUMAN_INPUT_TOOL_NAME for tool in tools.tools):
-            style = (
-                "green"
-                if highlight_namespaced_tool == HUMAN_INPUT_TOOL_NAME
-                else "dim white"
-            )
-            display_server_list.append("[human] ", style)
-
-        for server_name in await self.aggregator.list_servers():
-            style = "green" if server_name == mcp_server_name[0] else "dim white"
-            display_server_list.append(f"[{server_name}] ", style)
-
-        panel = Panel(
+        await self.display.show_assistant_message(
             message_text,
-            title=f"[{title}]{f' ({self.name})' if self.name else ''}",
-            title_align="left",
-            style="green",
-            border_style="bold white",
-            padding=(1, 2),
-            subtitle=display_server_list,
-            subtitle_align="left",
+            aggregator=self.aggregator,
+            highlight_namespaced_tool=highlight_namespaced_tool,
+            title=title,
+            name=self.name,
         )
-        console.console.print(panel)
-        console.console.print("\n")
 
     def show_user_message(self, message, model: str | None, chat_turn: int):
         """Display a user message in a formatted panel."""
-
-        if not self.context.config.logger.show_chat:
-            return
-
-        panel = Panel(
-            message,
-            title=f"{f'({self.name}) [USER]' if self.name else '[USER]'}",
-            title_align="right",
-            style="blue",
-            border_style="bold white",
-            padding=(1, 2),
-            subtitle=Text(f"{model} turn {chat_turn}", style="dim white"),
-            subtitle_align="left",
-        )
-        console.console.print(panel)
-        console.console.print("\n")
+        self.display.show_user_message(message, model, chat_turn, name=self.name)
 
     async def pre_tool_call(
         self, tool_call_id: str | None, request: CallToolRequest
@@ -664,24 +523,6 @@ class AugmentedLLM(ContextDependent, AugmentedLLMProtocol[MessageParamT, Message
         }
         self.logger.debug("Chat finished", data=data)
 
-    async def apply_prompt_template(self, prompt_messages: List[PromptMessage]) -> None:
-        """
-        Apply a prompt template by adding it to the conversation history.
-
-        Args:
-            prompt_messages: List of PromptMessage objects from MCP
-        """
-
-        # Convert prompt messages to this LLM's native format
-        converted_messages = []
-
-        for message in prompt_messages:
-            converted = self.type_converter.from_mcp_prompt_message(message)
-            converted_messages.append(converted)
-
-        # Add directly to the conversation history
-        self.history.extend(converted_messages)
-
     def _convert_prompt_messages(
         self, prompt_messages: List[PromptMessage]
     ) -> List[MessageParamT]:
@@ -690,6 +531,65 @@ class AugmentedLLM(ContextDependent, AugmentedLLMProtocol[MessageParamT, Message
         To be implemented by concrete LLM classes.
         """
         raise NotImplementedError("Must be implemented by subclass")
+
+    def show_prompt_loaded(
+        self,
+        prompt_name: str,
+        description: Optional[str] = None,
+        message_count: int = 0,
+        server_name: Optional[str] = None,
+    ):
+        """Display information about a loaded prompt template."""
+        self.display.show_prompt_loaded(
+            prompt_name=prompt_name,
+            description=description,
+            message_count=message_count,
+            server_name=server_name,
+            agent_name=self.name,
+        )
+
+    async def apply_prompt_template(self, prompt_messages: List[PromptMessage]) -> None:
+        """
+        Apply a prompt template by adding it to the conversation history.
+
+        Args:
+            prompt_messages: List of PromptMessage objects from MCP
+        """
+        # Extract metadata from the prompt messages if available
+        prompt_name = "Unknown Prompt"
+        description = None
+        server_name = None
+
+        # Try to extract metadata from the first message
+        if prompt_messages and hasattr(prompt_messages[0], "metadata"):
+            metadata = prompt_messages[0].metadata
+            if metadata:
+                # Extract prompt name from metadata if available
+                if hasattr(metadata, "name") and metadata.name:
+                    prompt_name = metadata.name
+                # Extract description from metadata if available
+                if hasattr(metadata, "description") and metadata.description:
+                    description = metadata.description
+                # Try to extract server name if available
+                if hasattr(metadata, "server") and metadata.server:
+                    server_name = metadata.server
+
+        # Convert prompt messages to this LLM's native format
+        converted_messages = []
+        for message in prompt_messages:
+            converted = self.type_converter.from_mcp_prompt_message(message)
+            converted_messages.append(converted)
+
+        # Add directly to the conversation history
+        self.history.extend(converted_messages)
+
+        # Display information about the loaded prompt
+        self.show_prompt_loaded(
+            prompt_name=prompt_name,
+            description=description,
+            message_count=len(converted_messages),
+            server_name=server_name,
+        )
 
 
 class PassthroughLLM(AugmentedLLM):
