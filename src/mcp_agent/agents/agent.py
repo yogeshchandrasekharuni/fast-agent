@@ -12,7 +12,7 @@ from mcp.types import (
 )
 
 from mcp_agent.core.exceptions import PromptExitError
-from mcp_agent.mcp.mcp_aggregator import MCPAggregator
+from mcp_agent.mcp.mcp_aggregator import MCPAggregator, SEP
 from mcp_agent.workflows.llm.augmented_llm import RequestParams
 from mcp_agent.human_input.types import (
     HumanInputCallback,
@@ -332,8 +332,21 @@ class Agent(MCPAggregator):
         if not prompt_result.messages:
             return f"Prompt '{prompt_name}' contains no messages"
 
-        if hasattr(self, "_llm") and self._llm:
-            await self._llm.apply_prompt_template(prompt_result.messages)
-            return f"Applied prompt template: {prompt_name}"
-        else:
+        if not hasattr(self, "_llm") or not self._llm:
             raise RuntimeError("Agent has no attached LLM")
+        
+        # If prompt name isn't namespaced, create proper namespaced name for display
+        server_name, local_name = await self._parse_resource_name(prompt_name, "prompt")
+        
+        self.logger.debug(
+            f"Resolved prompt: '{prompt_name}' to server: '{server_name}', local name: '{local_name}'"
+        )
+        
+        # Only create namespaced prompt name if we have a valid server name
+        namespaced_prompt_name = prompt_name
+        if not SEP in prompt_name and server_name:
+            namespaced_prompt_name = f"{server_name}{SEP}{prompt_name}"
+            self.logger.debug(f"Created namespaced prompt name: '{namespaced_prompt_name}'") 
+        
+        await self._llm.apply_prompt_template(prompt_result, namespaced_prompt_name)
+        return f"Applied prompt template: {prompt_name}"

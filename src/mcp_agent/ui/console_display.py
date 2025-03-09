@@ -201,13 +201,13 @@ class ConsoleDisplay:
         console.console.print(panel)
         console.console.print("\n")
 
-    def show_prompt_loaded(
+    async def show_prompt_loaded(
         self,
         prompt_name: str,
         description: Optional[str] = None,
         message_count: int = 0,
-        server_name: Optional[str] = None,
         agent_name: Optional[str] = None,
+        aggregator = None,
     ):
         """
         Display information about a loaded prompt template.
@@ -216,31 +216,38 @@ class ConsoleDisplay:
             prompt_name: The name of the prompt that was loaded
             description: Optional description of the prompt
             message_count: Number of messages added to the conversation history
-            server_name: Name of the server the prompt was loaded from
             agent_name: Name of the agent using the prompt
+            aggregator: Optional aggregator instance to use for server highlighting
         """
         if not self.config or not self.config.logger.show_tools:
             return
 
-        # Build the subtitle string
-        subtitle_parts = []
-        if message_count:
-            subtitle_parts.append(f"{message_count} messages")
-        if server_name:
-            subtitle_parts.append(f"from {server_name}")
-        if agent_name:
-            subtitle_parts.append(f"for {agent_name} / {description}")
+        # Get server name from namespaced prompt_name
+        mcp_server_name = (
+            prompt_name.split(SEP)[0] if SEP in prompt_name else None
+        )
 
-        subtitle = " ".join(subtitle_parts)
+        # Build the server list with highlighting
+        display_server_list = Text()
+        if aggregator:
+            for server_name in await aggregator.list_servers():
+                style = "green" if server_name == mcp_server_name else "dim white"
+                display_server_list.append(f"[{server_name}] ", style)
 
-        # Create content text with description if available
+        # Create content text
         content = Text()
         content.append("Loaded prompt template: ", style="cyan bold")
-        content.append(prompt_name, style="cyan")
+        content.append(f"'{prompt_name}'", style="cyan")
 
         if description:
             content.append("\n\n", style="default")
             content.append(description, style="dim white")
+
+        # Create message count text
+        count_text = f"{message_count} messages" if message_count else ""
+        agent_text = f"for {agent_name}" if agent_name else ""
+        content.append(agent_text)
+        content.append(count_text)
 
         # Create panel
         panel = Panel(
@@ -250,7 +257,7 @@ class ConsoleDisplay:
             style="cyan",
             border_style="bold white",
             padding=(1, 2),
-            subtitle=Text(subtitle, style="dim white") if subtitle else None,
+            subtitle=display_server_list,
             subtitle_align="left",
         )
 

@@ -152,8 +152,9 @@ class OpenAIAugmentedLLM(
                 ChatCompletionSystemMessageParam(role="system", content=system_prompt)
             )
 
-        if params.use_history:
-            messages.extend(self.history.get())
+        # Always include prompt messages, but only include conversation history 
+        # if use_history is True
+        messages.extend(self.history.get(include_history=params.use_history))
 
         if isinstance(message, str):
             messages.append(
@@ -328,8 +329,17 @@ class OpenAIAugmentedLLM(
                     await self.show_assistant_message(message_text, "")
                 break
 
+        # Only save the new conversation messages to history if use_history is true
+        # Keep the prompt messages separate
         if params.use_history:
-            self.history.set(messages)
+            # Get current prompt messages
+            prompt_messages = self.history.get(include_history=False)
+            
+            # Calculate new conversation messages (excluding prompts)
+            new_messages = messages[len(prompt_messages):]
+            
+            # Update conversation history
+            self.history.set(new_messages)
 
         self._log_chat_finished(model=model)
 

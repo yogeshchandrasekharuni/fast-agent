@@ -7,7 +7,6 @@ from typing import (
     Any,
     Callable,
     TypeVar,
-    Awaitable,
 )
 from mcp import GetPromptResult
 from pydantic import BaseModel, ConfigDict

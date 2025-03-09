@@ -23,6 +23,7 @@ from mcp.types import (
     SamplingMessage,
     PromptMessage,
     TextContent,
+    GetPromptResult,
 )
 
 from mcp_agent.context_dependent import ContextDependent
@@ -63,39 +64,96 @@ class Memory(Protocol, Generic[MessageParamT]):
 
     def __init__(self): ...
 
-    def extend(self, messages: List[MessageParamT]) -> None: ...
+    def extend(
+        self, messages: List[MessageParamT], is_prompt: bool = False
+    ) -> None: ...
 
-    def set(self, messages: List[MessageParamT]) -> None: ...
+    def set(self, messages: List[MessageParamT], is_prompt: bool = False) -> None: ...
 
-    def append(self, message: MessageParamT) -> None: ...
+    def append(self, message: MessageParamT, is_prompt: bool = False) -> None: ...
 
-    def get(self) -> List[MessageParamT]: ...
+    def get(self, include_history: bool = True) -> List[MessageParamT]: ...
 
-    def clear(self) -> None: ...
+    def clear(self, clear_prompts: bool = False) -> None: ...
 
 
 class SimpleMemory(Memory, Generic[MessageParamT]):
     """
     Simple memory management for storing past interactions in-memory.
+
+    Maintains both prompt messages (which are always included) and
+    generated conversation history (which is included based on use_history setting).
     """
 
     def __init__(self):
         self.history: List[MessageParamT] = []
+        self.prompt_messages: List[MessageParamT] = []  # Always included
 
-    def extend(self, messages: List[MessageParamT]):
-        self.history.extend(messages)
+    def extend(self, messages: List[MessageParamT], is_prompt: bool = False):
+        """
+        Add multiple messages to history.
 
-    def set(self, messages: List[MessageParamT]):
-        self.history = messages.copy()
+        Args:
+            messages: Messages to add
+            is_prompt: If True, add to prompt_messages instead of regular history
+        """
+        if is_prompt:
+            self.prompt_messages.extend(messages)
+        else:
+            self.history.extend(messages)
 
-    def append(self, message: MessageParamT):
-        self.history.append(message)
+    def set(self, messages: List[MessageParamT], is_prompt: bool = False):
+        """
+        Replace messages in history.
 
-    def get(self) -> List[MessageParamT]:
-        return self.history
+        Args:
+            messages: Messages to set
+            is_prompt: If True, replace prompt_messages instead of regular history
+        """
+        if is_prompt:
+            self.prompt_messages = messages.copy()
+        else:
+            self.history = messages.copy()
 
-    def clear(self):
+    def append(self, message: MessageParamT, is_prompt: bool = False):
+        """
+        Add a single message to history.
+
+        Args:
+            message: Message to add
+            is_prompt: If True, add to prompt_messages instead of regular history
+        """
+        if is_prompt:
+            self.prompt_messages.append(message)
+        else:
+            self.history.append(message)
+
+    def get(self, include_history: bool = True) -> List[MessageParamT]:
+        """
+        Get all messages in memory.
+
+        Args:
+            include_history: If True, include regular history messages
+                             If False, only return prompt messages
+
+        Returns:
+            Combined list of prompt messages and optionally history messages
+        """
+        if include_history:
+            return self.prompt_messages + self.history
+        else:
+            return self.prompt_messages.copy()
+
+    def clear(self, clear_prompts: bool = False):
+        """
+        Clear history and optionally prompt messages.
+
+        Args:
+            clear_prompts: If True, also clear prompt messages
+        """
         self.history = []
+        if clear_prompts:
+            self.prompt_messages = []
 
 
 class RequestParams(CreateMessageRequestParams):
@@ -532,23 +590,24 @@ class AugmentedLLM(ContextDependent, AugmentedLLMProtocol[MessageParamT, Message
         """
         raise NotImplementedError("Must be implemented by subclass")
 
-    def show_prompt_loaded(
+    async def show_prompt_loaded(
         self,
         prompt_name: str,
         description: Optional[str] = None,
         message_count: int = 0,
-        server_name: Optional[str] = None,
     ):
         """Display information about a loaded prompt template."""
-        self.display.show_prompt_loaded(
+        await self.display.show_prompt_loaded(
             prompt_name=prompt_name,
             description=description,
             message_count=message_count,
-            server_name=server_name,
             agent_name=self.name,
+            aggregator=self.aggregator,
         )
 
-    async def apply_prompt_template(self, prompt_messages: List[PromptMessage]) -> None:
+    async def apply_prompt_template(
+        self, prompt_result: GetPromptResult, prompt_name: str
+    ) -> None:
         """
         Apply a prompt template by adding it to the conversation history.
 
@@ -556,23 +615,9 @@ class AugmentedLLM(ContextDependent, AugmentedLLMProtocol[MessageParamT, Message
             prompt_messages: List of PromptMessage objects from MCP
         """
         # Extract metadata from the prompt messages if available
-        prompt_name = "Unknown Prompt"
-        description = None
-        server_name = None
+        description = prompt_result.description
 
-        # Try to extract metadata from the first message
-        if prompt_messages and hasattr(prompt_messages[0], "metadata"):
-            metadata = prompt_messages[0].metadata
-            if metadata:
-                # Extract prompt name from metadata if available
-                if hasattr(metadata, "name") and metadata.name:
-                    prompt_name = metadata.name
-                # Extract description from metadata if available
-                if hasattr(metadata, "description") and metadata.description:
-                    description = metadata.description
-                # Try to extract server name if available
-                if hasattr(metadata, "server") and metadata.server:
-                    server_name = metadata.server
+        prompt_messages: List[PromptMessage] = prompt_result.messages
 
         # Convert prompt messages to this LLM's native format
         converted_messages = []
@@ -580,15 +625,14 @@ class AugmentedLLM(ContextDependent, AugmentedLLMProtocol[MessageParamT, Message
             converted = self.type_converter.from_mcp_prompt_message(message)
             converted_messages.append(converted)
 
-        # Add directly to the conversation history
-        self.history.extend(converted_messages)
+        # Add directly to the prompt messages section of history
+        self.history.extend(converted_messages, is_prompt=True)
 
         # Display information about the loaded prompt
-        self.show_prompt_loaded(
+        await self.show_prompt_loaded(
             prompt_name=prompt_name,
             description=description,
             message_count=len(converted_messages),
-            server_name=server_name,
         )
 
 
