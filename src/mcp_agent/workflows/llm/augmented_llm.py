@@ -696,17 +696,3 @@ class PassthroughLLM(AugmentedLLM):
             raise ValueError(
                 f"Cannot convert message of type {type(message)} to {response_model}"
             )
-
-    # Modify generate method to include prompt context when building messages
-    # async def generate(self, message, request_params=None):
-    #     messages = []
-
-    #     # Add prompt context first (if exists)
-    #     if hasattr(self, "_prompt_context") and self._prompt_context:
-    #         messages.extend(self._prompt_context)
-
-    #     # Then add history if needed
-    #     if request_params.use_history:
-    #         messages.extend(self.history.get())
-
-    #     # Rest of generate implementation...

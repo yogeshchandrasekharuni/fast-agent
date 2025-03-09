@@ -12,7 +12,7 @@ from mcp.types import (
 )
 
 from mcp_agent.core.exceptions import PromptExitError
-from mcp_agent.mcp.mcp_aggregator import MCPAggregator, SEP
+from mcp_agent.mcp.mcp_aggregator import MCPAggregator
 from mcp_agent.workflows.llm.augmented_llm import RequestParams
 from mcp_agent.human_input.types import (
     HumanInputCallback,
@@ -337,13 +337,15 @@ class Agent(MCPAggregator):
         prompt_result = await self.get_prompt(prompt_name)
 
         if not prompt_result or not prompt_result.messages:
-            error_msg = f"Prompt '{prompt_name}' could not be found or contains no messages"
+            error_msg = (
+                f"Prompt '{prompt_name}' could not be found or contains no messages"
+            )
             self.logger.warning(error_msg)
             return error_msg
-        
+
         # Get the display name (namespaced version)
-        display_name = getattr(prompt_result, 'namespaced_name', prompt_name)
-        
+        display_name = getattr(prompt_result, "namespaced_name", prompt_name)
+
         # Apply the prompt template with the display name for proper UI highlighting
         await self._llm.apply_prompt_template(prompt_result, display_name)
         return f"Applied prompt template: {prompt_name}"
