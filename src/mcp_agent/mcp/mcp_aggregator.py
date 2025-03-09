@@ -1,5 +1,14 @@
 from asyncio import Lock, gather
-from typing import List, Dict, Optional, TYPE_CHECKING
+from typing import (
+    List,
+    Dict,
+    Optional,
+    TYPE_CHECKING,
+    Any,
+    Callable,
+    TypeVar,
+    Awaitable,
+)
 from mcp import GetPromptResult
 from pydantic import BaseModel, ConfigDict
 from mcp.client.session import ClientSession
@@ -28,6 +37,10 @@ logger = get_logger(
 )  # This will be replaced per-instance when agent_name is available
 
 SEP = "-"
+
+# Define type variables for the generalized method
+T = TypeVar("T")
+R = TypeVar("R")
 
 
 class NamespacedTool(BaseModel):
@@ -281,6 +294,112 @@ class MCPAggregator(ContextDependent):
             ]
         )
 
+    async def _execute_on_server(
+        self,
+        server_name: str,
+        operation_type: str,
+        operation_name: str,
+        method_name: str,
+        method_args: Dict[str, Any] = None,
+        error_factory: Callable[[str], R] = None,
+    ) -> R:
+        """
+        Generic method to execute operations on a specific server.
+
+        Args:
+            server_name: Name of the server to execute the operation on
+            operation_type: Type of operation (for logging) e.g., "tool", "prompt"
+            operation_name: Name of the specific operation being called (for logging)
+            method_name: Name of the method to call on the client session
+            method_args: Arguments to pass to the method
+            error_factory: Function to create an error return value if the operation fails
+
+        Returns:
+            Result from the operation or an error result
+        """
+        logger.info(
+            f"Requesting {operation_type}",
+            data={
+                "progress_action": ProgressAction.STARTING,
+                f"{operation_type}_name": operation_name,
+                "server_name": server_name,
+                "agent_name": self.agent_name,
+            },
+        )
+
+        async def try_execute(client: ClientSession):
+            try:
+                method = getattr(client, method_name)
+                return await method(**method_args) if method_args else await method()
+            except Exception as e:
+                error_msg = f"Failed to {method_name} '{operation_name}' on server '{server_name}': {e}"
+                logger.error(error_msg)
+                return error_factory(error_msg) if error_factory else None
+
+        if self.connection_persistence:
+            server_connection = await self._persistent_connection_manager.get_server(
+                server_name, client_session_factory=MCPAgentClientSession
+            )
+            return await try_execute(server_connection.session)
+        else:
+            logger.debug(
+                f"Creating temporary connection to server: {server_name}",
+                data={
+                    "progress_action": ProgressAction.STARTING,
+                    "server_name": server_name,
+                    "agent_name": self.agent_name,
+                },
+            )
+            async with gen_client(
+                server_name, server_registry=self.context.server_registry
+            ) as client:
+                result = await try_execute(client)
+                logger.debug(
+                    f"Closing temporary connection to server: {server_name}",
+                    data={
+                        "progress_action": ProgressAction.SHUTDOWN,
+                        "server_name": server_name,
+                        "agent_name": self.agent_name,
+                    },
+                )
+                return result
+
+    async def _parse_resource_name(
+        self, name: str, resource_type: str
+    ) -> tuple[str, str]:
+        """
+        Parse a possibly namespaced resource name into server name and local resource name.
+
+        Args:
+            name: The resource name, possibly namespaced
+            resource_type: Type of resource (for error messages), e.g. "tool", "prompt"
+
+        Returns:
+            Tuple of (server_name, local_resource_name)
+        """
+        server_name = None
+        local_name = None
+
+        if SEP in name:  # Namespaced resource name
+            server_name, local_name = name.split(SEP, 1)
+        else:
+            # For tools, search all servers for the tool
+            if resource_type == "tool":
+                for _, tools in self._server_to_tool_map.items():
+                    for namespaced_tool in tools:
+                        if namespaced_tool.tool.name == name:
+                            server_name = namespaced_tool.server_name
+                            local_name = name
+                            break
+                    if server_name:
+                        break
+            # For other resource types, use the first server
+            else:
+                local_name = name
+                server_name = self.server_names[0] if self.server_names else None
+
+        return server_name, local_name
+
     async def call_tool(
         self, name: str, arguments: dict | None = None
     ) -> CallToolResult:
@@ -290,204 +409,102 @@ class MCPAggregator(ContextDependent):
         if not self.initialized:
             await self.load_servers()
 
-        server_name: str = None
-        local_tool_name: str = None
+        server_name, local_tool_name = await self._parse_resource_name(name, "tool")
 
-        if SEP in name:  # Namespaced tool name
-            server_name, local_tool_name = name.split(SEP, 1)
-        else:
-            # Assume un-namespaced, loop through all servers to find the tool. First match wins.
-            for _, tools in self._server_to_tool_map.items():
-                for namespaced_tool in tools:
-                    if namespaced_tool.tool.name == name:
-                        server_name = namespaced_tool.server_name
-                        local_tool_name = name
-                        break
+        if server_name is None or local_tool_name is None:
+            logger.error(f"Error: Tool '{name}' not found")
+            return CallToolResult(isError=True, message=f"Tool '{name}' not found")
 
-            if server_name is None or local_tool_name is None:
-                logger.error(f"Error: Tool '{name}' not found")
-                return CallToolResult(isError=True, message=f"Tool '{name}' not found")
-
-        logger.info(
-            "Requesting tool call",
-            data={
-                "progress_action": ProgressAction.CALLING_TOOL,
-                "tool_name": local_tool_name,
-                "server_name": server_name,
-                "agent_name": self.agent_name,
-            },
+        return await self._execute_on_server(
+            server_name=server_name,
+            operation_type="tool",
+            operation_name=local_tool_name,
+            method_name="call_tool",
+            method_args={"name": local_tool_name, "arguments": arguments},
+            error_factory=lambda msg: CallToolResult(isError=True, message=msg),
         )
-
-        async def try_call_tool(client: ClientSession):
-            try:
-                return await client.call_tool(name=local_tool_name, arguments=arguments)
-            except Exception as e:
-                return CallToolResult(
-                    isError=True,
-                    message=f"Failed to call tool '{local_tool_name}' on server '{server_name}': {e}",
-                )
-
-        if self.connection_persistence:
-            server_connection = await self._persistent_connection_manager.get_server(
-                server_name, client_session_factory=MCPAgentClientSession
-            )
-            return await try_call_tool(server_connection.session)
-        else:
-            logger.debug(
-                f"Creating temporary connection to server: {server_name}",
-                data={
-                    "progress_action": ProgressAction.STARTING,
-                    "server_name": server_name,
-                    "agent_name": self.agent_name,
-                },
-            )
-            async with gen_client(
-                server_name, server_registry=self.context.server_registry
-            ) as client:
-                result = await try_call_tool(client)
-                logger.debug(
-                    f"Closing temporary connection to server: {server_name}",
-                    data={
-                        "progress_action": ProgressAction.SHUTDOWN,
-                        "server_name": server_name,
-                        "agent_name": self.agent_name,
-                    },
-                )
-                return result
 
     async def get_prompt(self, prompt_name: str = None) -> GetPromptResult:
         """
         Get a prompt from a server.
-        
-        :param prompt_name: Name of the prompt, optionally namespaced with server name 
+
+        :param prompt_name: Name of the prompt, optionally namespaced with server name
                            using the format 'server_name-prompt_name'
         :return: GetPromptResult containing the prompt description and messages
         """
         if not self.initialized:
             await self.load_servers()
-            
-        server_name: str = None
-        local_prompt_name: str = None
-        
-        if prompt_name and SEP in prompt_name:  # Namespaced prompt name
-            server_name, local_prompt_name = prompt_name.split(SEP, 1)
-        elif prompt_name:
-            # If not namespaced, use the first server that has the prompt
-            local_prompt_name = prompt_name
-            server_name = self.server_names[0] if self.server_names else None
-        else:
-            # If no prompt name provided, use the first server's default prompt
+
+        # Handle the case where prompt_name is None
+        if not prompt_name:
             server_name = self.server_names[0] if self.server_names else None
             local_prompt_name = None
-            
+        else:
+            server_name, local_prompt_name = await self._parse_resource_name(
+                prompt_name, "prompt"
+            )
+
         if not server_name:
             logger.error("Error: No servers available for getting prompts")
             return GetPromptResult(
                 description="Error: No servers available for getting prompts",
                 messages=[],
             )
-            
-        logger.info(
-            "Requesting prompt",
-            data={
-                "progress_action": ProgressAction.STARTING,
-                "prompt_name": local_prompt_name,
-                "server_name": server_name,
-                "agent_name": self.agent_name,
-            },
+
+        return await self._execute_on_server(
+            server_name=server_name,
+            operation_type="prompt",
+            operation_name=local_prompt_name or "default",
+            method_name="get_prompt",
+            method_args={"name": local_prompt_name} if local_prompt_name else {},
+            error_factory=lambda msg: GetPromptResult(description=msg, messages=[]),
         )
-        
-        async def try_get_prompt(client: ClientSession):
-            try:
-                return await client.get_prompt(name=local_prompt_name)
-            except Exception as e:
-                logger.error(f"Failed to get prompt '{local_prompt_name}' from server '{server_name}': {e}")
-                return GetPromptResult(
-                    description=f"Error: Failed to get prompt '{local_prompt_name}' from server '{server_name}': {e}",
-                    messages=[],
-                )
-                
-        if self.connection_persistence:
-            server_connection = await self._persistent_connection_manager.get_server(
-                server_name, client_session_factory=MCPAgentClientSession
-            )
-            return await try_get_prompt(server_connection.session)
-        else:
-            logger.debug(
-                f"Creating temporary connection to server: {server_name}",
-                data={
-                    "progress_action": ProgressAction.STARTING,
-                    "server_name": server_name,
-                    "agent_name": self.agent_name,
-                },
-            )
-            async with gen_client(
-                server_name, server_registry=self.context.server_registry
-            ) as client:
-                result = await try_get_prompt(client)
-                logger.debug(
-                    f"Closing temporary connection to server: {server_name}",
-                    data={
-                        "progress_action": ProgressAction.SHUTDOWN,
-                        "server_name": server_name,
-                        "agent_name": self.agent_name,
-                    },
-                )
-                return result
 
     async def list_prompts(self, server_name: str = None):
         """
         List available prompts from one or all servers.
-        
-        :param server_name: Optional server name to list prompts from. If not provided, 
+
+        :param server_name: Optional server name to list prompts from. If not provided,
                            lists prompts from all servers.
         :return: Dictionary mapping server names to lists of available prompts
         """
         if not self.initialized:
             await self.load_servers()
-            
+
         results = {}
-        
-        async def try_list_prompts(s_name, client):
-            try:
-                prompts = await client.list_prompts()
-                return s_name, prompts
-            except Exception as e:
-                logger.error(f"Failed to list prompts from server '{s_name}': {e}")
-                return s_name, []
-                
-        async def get_server_prompts(s_name):
-            if self.connection_persistence:
-                server_connection = await self._persistent_connection_manager.get_server(
-                    s_name, client_session_factory=MCPAgentClientSession
-                )
-                s_name, prompts = await try_list_prompts(s_name, server_connection.session)
-                return s_name, prompts
-            else:
-                async with gen_client(
-                    s_name, server_registry=self.context.server_registry
-                ) as client:
-                    s_name, prompts = await try_list_prompts(s_name, client)
-                    return s_name, prompts
-        
+
         # If server_name is provided, only list prompts from that server
         if server_name:
             if server_name in self.server_names:
-                s_name, prompts = await get_server_prompts(server_name)
-                results[s_name] = prompts
+                result = await self._execute_on_server(
+                    server_name=server_name,
+                    operation_type="prompts-list",
+                    operation_name="",
+                    method_name="list_prompts",
+                    error_factory=lambda _: [],
+                )
+                results[server_name] = result
             else:
                 logger.error(f"Server '{server_name}' not found")
         else:
             # Gather prompts from all servers concurrently
-            tasks = [get_server_prompts(s_name) for s_name in self.server_names]
+            tasks = [
+                self._execute_on_server(
+                    server_name=s_name,
+                    operation_type="prompts-list",
+                    operation_name="",
+                    method_name="list_prompts",
+                    error_factory=lambda _: [],
+                )
+                for s_name in self.server_names
+            ]
             server_results = await gather(*tasks, return_exceptions=True)
-            
-            for result in server_results:
+
+            for i, result in enumerate(server_results):
                 if isinstance(result, BaseException):
                     continue
-                s_name, prompts = result
-                results[s_name] = prompts
-                
+                results[self.server_names[i]] = result
+
         return results
 
 
@@ -520,7 +537,7 @@ class MCPCompoundServer(Server):
             return result.content
         except Exception as e:
             return CallToolResult(isError=True, message=f"Error calling tool: {e}")
-            
+
     async def _get_prompt(self, name: str = None) -> GetPromptResult:
         """Get a prompt from the aggregated servers."""
         try:
@@ -528,10 +545,9 @@ class MCPCompoundServer(Server):
             return result
         except Exception as e:
             return GetPromptResult(
-                description=f"Error getting prompt: {e}",
-                messages=[]
+                description=f"Error getting prompt: {e}", messages=[]
             )
-            
+
     async def _list_prompts(self, server_name: str = None) -> Dict[str, List[str]]:
         """List available prompts from the aggregated servers."""
         try:
