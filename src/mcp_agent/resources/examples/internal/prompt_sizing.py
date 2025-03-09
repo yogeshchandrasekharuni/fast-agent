@@ -13,6 +13,7 @@ def sizing_prompt():
         AssistantMessage("OBJECT: EARTH\nSIZE: 12,742\nUNITS: KM\nTYPE: MINERAL"),
         UserMessage("A tiger"),
         AssistantMessage("OBJECT: TIGER\nSIZE: 1.2\nUNITS: M\nTYPE: ANIMAL"),
+        UserMessage("Domestic Cat"),
     ]
 
 

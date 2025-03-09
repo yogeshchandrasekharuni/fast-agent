@@ -546,11 +546,62 @@ class AugmentedLLM(ContextDependent, AugmentedLLMProtocol[MessageParamT, Message
             )
 
     def message_param_str(self, message: MessageParamT) -> str:
-        """Convert an input message to a string representation."""
+        """
+        Convert an input message to a string representation.
+        Tries to extract just the content when possible.
+        """
+        if isinstance(message, dict):
+            # For dictionary format messages
+            if "content" in message:
+                content = message["content"]
+                # Handle both string and structured content formats
+                if isinstance(content, str):
+                    return content
+                elif isinstance(content, list) and content:
+                    # Try to extract text from content parts
+                    text_parts = []
+                    for part in content:
+                        if isinstance(part, dict) and "text" in part:
+                            text_parts.append(part["text"])
+                        elif hasattr(part, "text"):
+                            text_parts.append(part.text)
+                    if text_parts:
+                        return "\n".join(text_parts)
+                    
+        # For objects with content attribute
+        if hasattr(message, "content"):
+            content = message.content
+            if isinstance(content, str):
+                return content
+            elif hasattr(content, "text"):
+                return content.text
+                
+        # Default fallback
         return str(message)
 
     def message_str(self, message: MessageT) -> str:
-        """Convert an output message to a string representation."""
+        """
+        Convert an output message to a string representation.
+        Tries to extract just the content when possible.
+        """
+        # First try to use the same method for consistency
+        result = self.message_param_str(message)
+        if result != str(message):
+            return result
+            
+        # Additional handling for output-specific formats
+        if hasattr(message, "content"):
+            content = message.content
+            if isinstance(content, list):
+                # Extract text from content blocks
+                text_parts = []
+                for block in content:
+                    if hasattr(block, "text") and block.text:
+                        text_parts.append(block.text)
+                if text_parts:
+                    return "\n".join(text_parts)
+        
+        # Default fallback
         return str(message)
 
     def _log_chat_progress(
@@ -607,31 +658,67 @@ class AugmentedLLM(ContextDependent, AugmentedLLMProtocol[MessageParamT, Message
 
     async def apply_prompt_template(
         self, prompt_result: GetPromptResult, prompt_name: str
-    ) -> None:
+    ) -> str:
         """
         Apply a prompt template by adding it to the conversation history.
+        If the last message in the prompt is from a user, automatically
+        generate an assistant response.
 
         Args:
-            prompt_messages: List of PromptMessage objects from MCP
+            prompt_result: The GetPromptResult containing prompt messages
+            prompt_name: The name of the prompt being applied
+
+        Returns:
+            String representation of the assistant's response if generated, 
+            or the last assistant message in the prompt
         """
-
         prompt_messages: List[PromptMessage] = prompt_result.messages
-
-        # Convert prompt messages to this LLM's native format
-        converted_messages = []
-        for message in prompt_messages:
-            converted = self.type_converter.from_mcp_prompt_message(message)
-            converted_messages.append(converted)
-
-        # Add directly to the prompt messages section of history
-        self.history.extend(converted_messages, is_prompt=True)
+        
+        # Check if we have any messages
+        if not prompt_messages:
+            return "Prompt contains no messages"
 
         # Display information about the loaded prompt
         await self.show_prompt_loaded(
             prompt_name=prompt_name,
             description=prompt_result.description,
-            message_count=len(converted_messages),
+            message_count=len(prompt_messages),
         )
+        
+        # Check the last message role
+        last_message = prompt_messages[-1]
+        
+        if last_message.role == "user":
+            # For user messages: Add all previous messages to history, then generate response to the last one
+            self.logger.debug("Last message in prompt is from user, generating assistant response")
+            
+            # Add all but the last message to history
+            if len(prompt_messages) > 1:
+                previous_messages = prompt_messages[:-1]
+                converted = []
+                for msg in previous_messages:
+                    converted.append(self.type_converter.from_mcp_prompt_message(msg))
+                self.history.extend(converted, is_prompt=True)
+            
+            # Extract the user's question and generate a response
+            user_content = last_message.content
+            user_text = user_content.text if hasattr(user_content, "text") else str(user_content)
+            
+            return await self.generate_str(user_text)
+        else:
+            # For assistant messages: Add all messages to history and return the last one
+            self.logger.debug("Last message in prompt is from assistant, returning it directly")
+            
+            # Convert and add all messages to history
+            converted = []
+            for msg in prompt_messages:
+                converted.append(self.type_converter.from_mcp_prompt_message(msg))
+            self.history.extend(converted, is_prompt=True)
+            
+            # Return the assistant's message
+            content = last_message.content
+            return content.text if hasattr(content, "text") else str(content)
+        
 
 
 class PassthroughLLM(AugmentedLLM):

@@ -248,7 +248,6 @@ class ConsoleDisplay:
 
         if agent_name:
             content.append(f" for {agent_name}", style="cyan italic")
-
         if description:
             content.append("\n\n", style="default")
             content.append(description, style="dim white")
