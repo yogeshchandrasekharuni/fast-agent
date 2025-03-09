@@ -229,7 +229,7 @@ class ConsoleDisplay:
         if server_name:
             subtitle_parts.append(f"from {server_name}")
         if agent_name:
-            subtitle_parts.append(f"for {agent_name}")
+            subtitle_parts.append(f"for {agent_name} / {description}")
 
         subtitle = " ".join(subtitle_parts)
 
