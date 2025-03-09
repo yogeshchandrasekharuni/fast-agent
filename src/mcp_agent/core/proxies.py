@@ -46,7 +46,8 @@ class BaseAgentProxy:
         raise NotImplementedError("Subclasses must implement generate_str")
 
     async def load_prompt(self, prompt_name: str = None) -> str:
-        """Use a Prompt from an MCP Server - implemented by subclasses"""
+        """Use a Prompt from an MCP Server - implemented by subclasses.
+        Always returns an Assistant message"""
         raise NotImplementedError("Subclasses must implement mcp-prompt")
 
 

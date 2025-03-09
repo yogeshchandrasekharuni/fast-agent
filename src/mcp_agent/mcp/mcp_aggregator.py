@@ -17,6 +17,8 @@ from mcp.types import (
     CallToolResult,
     ListToolsResult,
     Tool,
+    Prompt,
+    ListPromptsResult,
 )
 
 from mcp_agent.event_progress import ProgressAction
@@ -124,7 +126,9 @@ class MCPAggregator(ContextDependent):
         self._server_to_tool_map: Dict[str, List[NamespacedTool]] = {}
         self._tool_map_lock = Lock()
 
-        # TODO: saqadri - add resources and prompt maps as well
+        # Cache for prompt names, maps server_name -> list of prompt names
+        self._prompt_cache: Dict[str, List[str]] = {}
+        self._prompt_cache_lock = Lock()
 
     async def close(self):
         """
@@ -184,6 +188,7 @@ class MCPAggregator(ContextDependent):
     async def load_servers(self):
         """
         Discover tools from each server in parallel and build an index of namespaced tool names.
+        Also populate the prompt cache.
         """
         if self.initialized:
             logger.debug("MCPAggregator already initialized.")
@@ -192,6 +197,9 @@ class MCPAggregator(ContextDependent):
         async with self._tool_map_lock:
             self._namespaced_tool_map.clear()
             self._server_to_tool_map.clear()
+            
+        async with self._prompt_cache_lock:
+            self._prompt_cache.clear()
 
         for server_name in self.server_names:
             if self.connection_persistence:
@@ -222,9 +230,19 @@ class MCPAggregator(ContextDependent):
             except Exception as e:
                 logger.error(f"Error loading tools from server '{server_name}'", data=e)
                 return []
+                
+        async def fetch_prompts(client: ClientSession):
+            try:
+                result = await client.list_prompts()
+                return [prompt.name for prompt in result.prompts] if result and hasattr(result, "prompts") else []
+            except Exception as e:
+                logger.debug(f"Error loading prompts from server '{server_name}': {e}")
+                return []
 
-        async def load_server_tools(server_name: str):
+        async def load_server_data(server_name: str):
             tools: List[Tool] = []
+            prompts: List[str] = []
+            
             if self.connection_persistence:
                 server_connection = (
                     await self._persistent_connection_manager.get_server(
@@ -232,25 +250,30 @@ class MCPAggregator(ContextDependent):
                     )
                 )
                 tools = await fetch_tools(server_connection.session)
+                prompts = await fetch_prompts(server_connection.session)
             else:
                 async with gen_client(
                     server_name, server_registry=self.context.server_registry
                 ) as client:
                     tools = await fetch_tools(client)
+                    prompts = await fetch_prompts(client)
 
-            return server_name, tools
+            return server_name, tools, prompts
 
-        # Gather tools from all servers concurrently
+        # Gather data from all servers concurrently
         results = await gather(
-            *(load_server_tools(server_name) for server_name in self.server_names),
+            *(load_server_data(server_name) for server_name in self.server_names),
             return_exceptions=True,
         )
 
         for result in results:
             if isinstance(result, BaseException):
+                logger.error(f"Error loading server data: {result}")
                 continue
-            server_name, tools = result
+                
+            server_name, tools, prompts = result
 
+            # Process tools
             self._server_to_tool_map[server_name] = []
             for tool in tools:
                 namespaced_tool_name = f"{server_name}{SEP}{tool.name}"
@@ -262,14 +285,22 @@ class MCPAggregator(ContextDependent):
 
                 self._namespaced_tool_map[namespaced_tool_name] = namespaced_tool
                 self._server_to_tool_map[server_name].append(namespaced_tool)
+                
+            # Process prompts
+            async with self._prompt_cache_lock:
+                self._prompt_cache[server_name] = prompts
+                
             logger.debug(
-                "MCP Aggregator initialized",
+                f"MCP Aggregator initialized for server '{server_name}'",
                 data={
                     "progress_action": ProgressAction.INITIALIZED,
                     "server_name": server_name,
                     "agent_name": self.agent_name,
+                    "tool_count": len(tools),
+                    "prompt_count": len(prompts),
                 },
             )
+            
         self.initialized = True
 
     async def list_servers(self) -> List[str]:
@@ -445,7 +476,7 @@ class MCPAggregator(ContextDependent):
         elif SEP in prompt_name:
             server_name, local_prompt_name = prompt_name.split(SEP, 1)
             namespaced_name = prompt_name  # Already namespaced
-        # Plain prompt name - will search all servers
+        # Plain prompt name - will use cache to find the server
         else:
             local_prompt_name = prompt_name
             server_name = None
@@ -459,6 +490,16 @@ class MCPAggregator(ContextDependent):
                     description=f"Error: Server '{server_name}' not found",
                     messages=[],
                 )
+                
+            # Check the prompt cache to avoid unnecessary errors
+            if local_prompt_name:
+                async with self._prompt_cache_lock:
+                    if server_name in self._prompt_cache and local_prompt_name not in self._prompt_cache[server_name]:
+                        logger.debug(f"Prompt '{local_prompt_name}' not found in cache for server '{server_name}'")
+                        return GetPromptResult(
+                            description=f"Prompt '{local_prompt_name}' not found on server '{server_name}'",
+                            messages=[],
+                        )
                 
             # Try to get the prompt from the specified server
             result = await self._execute_on_server(
@@ -476,44 +517,80 @@ class MCPAggregator(ContextDependent):
                 
             return result
             
-        # No specific server - try all servers in order
-        logger.debug(f"Searching for prompt '{local_prompt_name}' on all servers")
+        # No specific server - use the cache to find servers that have this prompt
+        logger.debug(f"Searching for prompt '{local_prompt_name}' using cache")
         
-        # First try the default (first) server
-        default_server = self.server_names[0] if self.server_names else None
-        if not default_server:
-            logger.error("Error: No servers available for getting prompts")
-            return GetPromptResult(
-                description="Error: No servers available for getting prompts",
-                messages=[],
-            )
-            
-        # Try all servers until we find the prompt
-        for s_name in self.server_names:
-            try:
-                result = await self._execute_on_server(
-                    server_name=s_name,
-                    operation_type="prompt",
-                    operation_name=local_prompt_name,
-                    method_name="get_prompt",
-                    method_args={"name": local_prompt_name},
-                    error_factory=lambda _: None,  # Return None instead of an error
-                )
-                
-                # If we got a successful result with messages, return it
-                if result and result.messages:
-                    logger.debug(f"Found prompt '{local_prompt_name}' on server '{s_name}'")
-                    # Add namespaced name using the actual server where found
-                    result.namespaced_name = f"{s_name}{SEP}{local_prompt_name}"
-                    return result
+        # Find potential servers from the cache
+        potential_servers = []
+        async with self._prompt_cache_lock:
+            for s_name, prompt_list in self._prompt_cache.items():
+                if local_prompt_name in prompt_list:
+                    potential_servers.append(s_name)
                     
-            except Exception as e:
-                logger.debug(f"Error checking for prompt on server '{s_name}': {e}")
+        if potential_servers:
+            logger.debug(f"Found prompt '{local_prompt_name}' in cache for servers: {potential_servers}")
+            
+            # Try each server from the cache
+            for s_name in potential_servers:
+                try:
+                    result = await self._execute_on_server(
+                        server_name=s_name,
+                        operation_type="prompt",
+                        operation_name=local_prompt_name,
+                        method_name="get_prompt",
+                        method_args={"name": local_prompt_name},
+                        error_factory=lambda _: None,  # Return None instead of an error
+                    )
+                    
+                    # If we got a successful result with messages, return it
+                    if result and result.messages:
+                        logger.debug(f"Successfully retrieved prompt '{local_prompt_name}' from server '{s_name}'")
+                        # Add namespaced name using the actual server where found
+                        result.namespaced_name = f"{s_name}{SEP}{local_prompt_name}"
+                        return result
+                        
+                except Exception as e:
+                    logger.debug(f"Error retrieving prompt from server '{s_name}': {e}")
+        else:
+            logger.debug(f"Prompt '{local_prompt_name}' not found in any server's cache")
+            
+            # If not in cache, perform a full search as fallback (cache might be outdated)
+            # Try all servers in order
+            for s_name in self.server_names:
+                try:
+                    # Use a quiet approach - don't log errors if not found
+                    result = await self._execute_on_server(
+                        server_name=s_name,
+                        operation_type="prompt",
+                        operation_name=local_prompt_name,
+                        method_name="get_prompt",
+                        method_args={"name": local_prompt_name},
+                        error_factory=lambda _: None,  # Return None instead of an error
+                    )
+                    
+                    # If we got a successful result with messages, return it
+                    if result and result.messages:
+                        logger.debug(f"Found prompt '{local_prompt_name}' on server '{s_name}' (not in cache)")
+                        # Add namespaced name using the actual server where found
+                        result.namespaced_name = f"{s_name}{SEP}{local_prompt_name}"
+                        
+                        # Update the cache
+                        async with self._prompt_cache_lock:
+                            if s_name not in self._prompt_cache:
+                                self._prompt_cache[s_name] = []
+                            if local_prompt_name not in self._prompt_cache[s_name]:
+                                self._prompt_cache[s_name].append(local_prompt_name)
+                                
+                        return result
+                        
+                except Exception as e:
+                    # Don't log errors during fallback search
+                    pass
         
         # If we get here, we couldn't find the prompt on any server
-        logger.warning(f"Prompt '{local_prompt_name}' not found on any server")
+        logger.info(f"Prompt '{local_prompt_name}' not found on any server")
         return GetPromptResult(
-            description=f"Error: Prompt '{local_prompt_name}' not found on any server",
+            description=f"Prompt '{local_prompt_name}' not found on any server",
             messages=[],
         )
 
@@ -530,9 +607,28 @@ class MCPAggregator(ContextDependent):
 
         results = {}
 
+        # If we already have the data in cache and not requesting a specific server,
+        # we can use the cache directly
+        if not server_name:
+            async with self._prompt_cache_lock:
+                if all(s_name in self._prompt_cache for s_name in self.server_names):
+                    # Convert list of names to list of Prompt objects
+                    for s_name, prompt_names in self._prompt_cache.items():
+                        results[s_name] = [{"name": name} for name in prompt_names]
+                    logger.debug(f"Returning cached prompts for all servers")
+                    return results
+
         # If server_name is provided, only list prompts from that server
         if server_name:
             if server_name in self.server_names:
+                # Check if we can use the cache
+                async with self._prompt_cache_lock:
+                    if server_name in self._prompt_cache:
+                        results[server_name] = [{"name": name} for name in self._prompt_cache[server_name]]
+                        logger.debug(f"Returning cached prompts for server '{server_name}'")
+                        return results
+                
+                # If not in cache, fetch from server
                 result = await self._execute_on_server(
                     server_name=server_name,
                     operation_type="prompts-list",
@@ -540,6 +636,13 @@ class MCPAggregator(ContextDependent):
                     method_name="list_prompts",
                     error_factory=lambda _: [],
                 )
+                
+                # Update cache with the result
+                if hasattr(result, "prompts"):
+                    prompt_names = [prompt.name for prompt in result.prompts]
+                    async with self._prompt_cache_lock:
+                        self._prompt_cache[server_name] = prompt_names
+                
                 results[server_name] = result
             else:
                 logger.error(f"Server '{server_name}' not found")
@@ -563,6 +666,12 @@ class MCPAggregator(ContextDependent):
                     
                 s_name = self.server_names[i]
                 results[s_name] = result
+                
+                # Update cache with the result
+                if hasattr(result, "prompts"):
+                    prompt_names = [prompt.name for prompt in result.prompts]
+                    async with self._prompt_cache_lock:
+                        self._prompt_cache[s_name] = prompt_names
                 
         logger.debug(f"Available prompts across servers: {results}")
         return results
