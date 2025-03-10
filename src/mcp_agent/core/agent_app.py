@@ -325,15 +325,11 @@ class AgentApp:
                                         )
 
                                     # Ask user to select one
-                                    prompt_session = PromptSession()
-                                    try:
-                                        selection = await prompt_session.prompt_async(
-                                            "Enter prompt number to select: ", default="1"
-                                        )
-                                    finally:
-                                        # Force cleanup of prompt session
-                                        if prompt_session.app.is_running:
-                                            prompt_session.app.exit()
+                                    from mcp_agent.core.enhanced_prompt import get_selection_input
+                                    selection = await get_selection_input(
+                                        "Enter prompt number to select: ", 
+                                        default="1"
+                                    )
 
                                     try:
                                         idx = int(selection) - 1
@@ -389,15 +385,12 @@ class AgentApp:
                                 completer = WordCompleter(prompt_names)
 
                                 # Ask user to select a prompt
-                                prompt_session = PromptSession(completer=completer)
-                                try:
-                                    selection = await prompt_session.prompt_async(
-                                        "Enter prompt number to select (or press Enter to cancel): "
-                                    )
-                                finally:
-                                    # Force cleanup of prompt session
-                                    if prompt_session.app.is_running:
-                                        prompt_session.app.exit()
+                                from mcp_agent.core.enhanced_prompt import get_selection_input
+                                selection = await get_selection_input(
+                                    "Enter prompt number to select (or press Enter to cancel): ", 
+                                    options=prompt_names, 
+                                    allow_cancel=True
+                                )
 
                                 # Make cancellation easier
                                 if not selection or selection.strip() == "":
@@ -447,53 +440,36 @@ class AgentApp:
 
                                 # Collect required arguments
                                 for arg_name in required_args:
-                                    # Show description if available
+                                    # Get description if available
                                     description = arg_descriptions.get(arg_name, "")
-                                    if description:
-                                        rich_print(
-                                            f"  [dim]{arg_name}: {description}[/dim]"
-                                        )
                                     
                                     # Collect required argument value
-                                    prompt_session = PromptSession()
-                                    try:
-                                        arg_value = await prompt_session.prompt_async(
-                                            HTML(
-                                                f"Enter value for <ansibrightcyan>{arg_name}</ansibrightcyan> (required): "
-                                            )
-                                        )
-                                        # Add to arg_values
+                                    from mcp_agent.core.enhanced_prompt import get_argument_input
+                                    arg_value = await get_argument_input(
+                                        arg_name=arg_name,
+                                        description=description,
+                                        required=True
+                                    )
+                                    # Add to arg_values if a value was provided
+                                    if arg_value is not None:
                                         arg_values[arg_name] = arg_value
-                                    finally:
-                                        # Force cleanup of prompt session
-                                        if prompt_session.app.is_running:
-                                            prompt_session.app.exit()
 
                                 # Only include non-empty values for optional arguments
                                 if optional_args:
                                     # Collect optional arguments
                                     for arg_name in optional_args:
-                                        # Show description if available
+                                        # Get description if available
                                         description = arg_descriptions.get(arg_name, "")
-                                        if description:
-                                            rich_print(
-                                                f"  [dim]{arg_name}: {description}[/dim]"
-                                            )
 
-                                        prompt_session = PromptSession()
-                                        try:
-                                            arg_value = await prompt_session.prompt_async(
-                                                HTML(
-                                                    f"Enter value for <ansibrightcyan>{arg_name}</ansibrightcyan> (optional, press Enter to skip): "
-                                                )
-                                            )
-                                            # Only include non-empty values for optional arguments
-                                            if arg_value:
-                                                arg_values[arg_name] = arg_value
-                                        finally:
-                                            # Force cleanup of prompt session
-                                            if prompt_session.app.is_running:
-                                                prompt_session.app.exit()
+                                        from mcp_agent.core.enhanced_prompt import get_argument_input
+                                        arg_value = await get_argument_input(
+                                            arg_name=arg_name,
+                                            description=description,
+                                            required=False
+                                        )
+                                        # Only include non-empty values for optional arguments
+                                        if arg_value:
+                                            arg_values[arg_name] = arg_value
 
                             # Apply the prompt with or without arguments
                             rich_print(

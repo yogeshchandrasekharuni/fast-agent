@@ -40,35 +40,30 @@ async def console_input_callback(request: HumanInputRequest) -> HumanInputRespon
         console.print(panel)
 
         try:
-            try:
-                if request.timeout_seconds:
-                    try:
-                        # Use get_enhanced_input with empty agent list to disable agent switching
-                        response = await asyncio.wait_for(
-                            get_enhanced_input(
-                                agent_name=agent_name,
-                                available_agent_names=[],  # No agents for selection
-                                show_stop_hint=False,
-                                is_human_input=True,
-                                toolbar_color="ansimagenta",
-                            ),
-                            request.timeout_seconds,
-                        )
-                    except asyncio.TimeoutError:
-                        console.print("\n[red]Timeout waiting for input[/red]")
-                        raise TimeoutError("No response received within timeout period")
-                else:
-                    response = await get_enhanced_input(
-                        agent_name=agent_name,
-                        available_agent_names=[],  # No agents for selection
-                        show_stop_hint=False,
-                        is_human_input=True,
-                        toolbar_color="ansimagenta",
+            if request.timeout_seconds:
+                try:
+                    # Use get_enhanced_input with empty agent list to disable agent switching
+                    response = await asyncio.wait_for(
+                        get_enhanced_input(
+                            agent_name=agent_name,
+                            available_agent_names=[],  # No agents for selection
+                            show_stop_hint=False,
+                            is_human_input=True,
+                            toolbar_color="ansimagenta",
+                        ),
+                        request.timeout_seconds,
                     )
-            finally:
-                pass
-                # Ensure any dangling PromptSession resources are cleaned up
-                # PromptSession is created inside get_enhanced_input
+                except asyncio.TimeoutError:
+                    console.print("\n[red]Timeout waiting for input[/red]")
+                    raise TimeoutError("No response received within timeout period")
+            else:
+                response = await get_enhanced_input(
+                    agent_name=agent_name,
+                    available_agent_names=[],  # No agents for selection
+                    show_stop_hint=False,
+                    is_human_input=True,
+                    toolbar_color="ansimagenta",
+                )
 
             # Handle special commands but ignore dictionary results as they require app context
             command_result = await handle_special_commands(response)

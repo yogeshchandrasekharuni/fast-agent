@@ -2,13 +2,13 @@
 Enhanced prompt functionality with advanced prompt_toolkit features.
 """
 
-from typing import List
+from typing import List, Optional, Dict, Union, Any
 from importlib.metadata import version
 from prompt_toolkit import PromptSession
 from prompt_toolkit.formatted_text import HTML
 from prompt_toolkit.history import InMemoryHistory
 from prompt_toolkit.key_binding import KeyBindings
-from prompt_toolkit.completion import Completer, Completion
+from prompt_toolkit.completion import Completer, Completion, WordCompleter
 from prompt_toolkit.lexers import PygmentsLexer
 from prompt_toolkit.filters import Condition
 from prompt_toolkit.styles import Style
@@ -337,6 +337,103 @@ async def get_enhanced_input(
             session.app.exit()
 
 
+async def get_selection_input(
+    prompt_text: str,
+    options: List[str] = None,
+    default: str = None,
+    allow_cancel: bool = True,
+    complete_options: bool = True,
+) -> Optional[str]:
+    """
+    Display a selection prompt and return the user's selection.
+    
+    Args:
+        prompt_text: Text to display as the prompt
+        options: List of valid options (for auto-completion)
+        default: Default value if user presses enter
+        allow_cancel: Whether to allow cancellation with empty input
+        complete_options: Whether to use the options for auto-completion
+        
+    Returns:
+        Selected value, or None if cancelled
+    """
+    try:
+        # Initialize completer if options provided and completion requested
+        completer = WordCompleter(options) if options and complete_options else None
+        
+        # Create prompt session
+        prompt_session = PromptSession(completer=completer)
+        
+        try:
+            # Get user input
+            selection = await prompt_session.prompt_async(
+                prompt_text, default=default or ""
+            )
+            
+            # Handle cancellation
+            if allow_cancel and not selection.strip():
+                return None
+                
+            return selection
+        finally:
+            # Ensure prompt session cleanup
+            if prompt_session.app.is_running:
+                prompt_session.app.exit()
+    except (KeyboardInterrupt, EOFError):
+        return None
+    except Exception as e:
+        rich_print(f"\n[red]Error getting selection: {e}[/red]")
+        return None
+
+
+async def get_argument_input(
+    arg_name: str,
+    description: str = None,
+    required: bool = True,
+) -> Optional[str]:
+    """
+    Prompt for an argument value with formatting and help text.
+    
+    Args:
+        arg_name: Name of the argument
+        description: Optional description of the argument
+        required: Whether this argument is required
+        
+    Returns:
+        Input value, or None if cancelled/skipped
+    """
+    # Format the prompt differently based on whether it's required
+    required_text = "(required)" if required else "(optional, press Enter to skip)"
+    
+    # Show description if available
+    if description:
+        rich_print(f"  [dim]{arg_name}: {description}[/dim]")
+    
+    prompt_text = HTML(f"Enter value for <ansibrightcyan>{arg_name}</ansibrightcyan> {required_text}: ")
+    
+    # Create prompt session
+    prompt_session = PromptSession()
+    
+    try:
+        # Get user input
+        arg_value = await prompt_session.prompt_async(prompt_text)
+        
+        # For optional arguments, empty input means skip
+        if not required and not arg_value:
+            return None
+            
+        return arg_value
+    except (KeyboardInterrupt, EOFError):
+        return None
+    except Exception as e:
+        rich_print(f"\n[red]Error getting input: {e}[/red]")
+        return None
+    finally:
+        # Ensure prompt session cleanup
+        if prompt_session.app.is_running:
+            prompt_session.app.exit()
+
+
 async def handle_special_commands(command, agent_app=None):
     """Handle special input commands."""
     # Quick guard for empty or None commands
@@ -399,24 +496,6 @@ async def handle_special_commands(command, agent_app=None):
         isinstance(command, str) and command.startswith("SELECT_PROMPT:")
     ):
         # Handle prompt selection UI
-        if agent_app:
-            # If it's a specific prompt, extract the name
-            prompt_name = None
-            if isinstance(command, str) and command.startswith("SELECT_PROMPT:"):
-                prompt_name = command.split(":", 1)[1].strip()
-
-            # Return a dictionary with a select_prompt action to be handled by the caller
-            return {"select_prompt": True, "prompt_name": prompt_name}
-        else:
-            rich_print(
-                "[yellow]Prompt selection is not available outside of an agent context[/yellow]"
-            )
-            return True
-
-    elif command == "SELECT_PROMPT" or (
-        isinstance(command, str) and command.startswith("SELECT_PROMPT:")
-    ):
-        # Handle prompt selection UI (previously named "list_prompts" action)
         if agent_app:
             # If it's a specific prompt, extract the name
             prompt_name = None
