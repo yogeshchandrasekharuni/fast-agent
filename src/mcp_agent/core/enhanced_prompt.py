@@ -335,11 +335,6 @@ async def get_enhanced_input(
 async def handle_special_commands(command, agent_app=None):
     """Handle special input commands."""
     # Quick guard for empty or None commands
-
-
-async def handle_special_commands(command, agent_app=None):
-    """Handle special input commands."""
-    # Quick guard for empty or None commands
     if not command:
         return False
 

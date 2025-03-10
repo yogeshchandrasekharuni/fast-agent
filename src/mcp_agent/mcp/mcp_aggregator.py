@@ -18,8 +18,6 @@ from mcp.types import (
     ListToolsResult,
     Tool,
     Prompt,
-    ListPromptsResult,
-    ServerCapabilities,
 )
 
 from mcp_agent.event_progress import ProgressAction
@@ -480,7 +478,9 @@ class MCPAggregator(ContextDependent):
             error_factory=lambda msg: CallToolResult(isError=True, message=msg),
         )
 
-    async def get_prompt(self, prompt_name: str = None, arguments: dict[str, str] = None) -> GetPromptResult:
+    async def get_prompt(
+        self, prompt_name: str = None, arguments: dict[str, str] = None
+    ) -> GetPromptResult:
         """
         Get a prompt from a server.
 
@@ -548,7 +548,7 @@ class MCPAggregator(ContextDependent):
             method_args = {"name": local_prompt_name} if local_prompt_name else {}
             if arguments:
                 method_args["arguments"] = arguments
-                
+
             result = await self._execute_on_server(
                 server_name=server_name,
                 operation_type="prompt",
@@ -563,7 +563,7 @@ class MCPAggregator(ContextDependent):
                 result.namespaced_name = (
                     namespaced_name or f"{server_name}{SEP}{local_prompt_name}"
                 )
-                
+
                 # Store the arguments in the result for display purposes
                 if arguments:
                     result.arguments = arguments
@@ -591,14 +591,16 @@ class MCPAggregator(ContextDependent):
                 # Check if this server supports prompts
                 capabilities = await self.get_capabilities(s_name)
                 if not capabilities or not capabilities.prompts:
-                    logger.debug(f"Server '{s_name}' does not support prompts, skipping")
+                    logger.debug(
+                        f"Server '{s_name}' does not support prompts, skipping"
+                    )
                     continue
 
                 try:
                     method_args = {"name": local_prompt_name}
                     if arguments:
                         method_args["arguments"] = arguments
-                        
+
                     result = await self._execute_on_server(
                         server_name=s_name,
                         operation_type="prompt",
@@ -615,11 +617,11 @@ class MCPAggregator(ContextDependent):
                         )
                         # Add namespaced name using the actual server where found
                         result.namespaced_name = f"{s_name}{SEP}{local_prompt_name}"
-                        
+
                         # Store the arguments in the result for display purposes
                         if arguments:
                             result.arguments = arguments
-                            
+
                         return result
 
                 except Exception as e:
@@ -637,7 +639,9 @@ class MCPAggregator(ContextDependent):
                 if capabilities and capabilities.prompts:
                     supported_servers.append(s_name)
                 else:
-                    logger.debug(f"Server '{s_name}' does not support prompts, skipping from fallback search")
+                    logger.debug(
+                        f"Server '{s_name}' does not support prompts, skipping from fallback search"
+                    )
 
             # Try all supported servers in order
             for s_name in supported_servers:
@@ -646,7 +650,7 @@ class MCPAggregator(ContextDependent):
                     method_args = {"name": local_prompt_name}
                     if arguments:
                         method_args["arguments"] = arguments
-                        
+
                     result = await self._execute_on_server(
                         server_name=s_name,
                         operation_type="prompt",
@@ -663,7 +667,7 @@ class MCPAggregator(ContextDependent):
                         )
                         # Add namespaced name using the actual server where found
                         result.namespaced_name = f"{s_name}{SEP}{local_prompt_name}"
-                        
+
                         # Store the arguments in the result for display purposes
                         if arguments:
                             result.arguments = arguments
@@ -679,15 +683,21 @@ class MCPAggregator(ContextDependent):
                             )
 
                             prompts = getattr(prompt_list_result, "prompts", [])
-                            matching_prompts = [p for p in prompts if p.name == local_prompt_name]
+                            matching_prompts = [
+                                p for p in prompts if p.name == local_prompt_name
+                            ]
                             if matching_prompts:
                                 async with self._prompt_cache_lock:
                                     if s_name not in self._prompt_cache:
                                         self._prompt_cache[s_name] = []
                                     # Add if not already in the cache
-                                    prompt_names_in_cache = [p.name for p in self._prompt_cache[s_name]]
+                                    prompt_names_in_cache = [
+                                        p.name for p in self._prompt_cache[s_name]
+                                    ]
                                     if local_prompt_name not in prompt_names_in_cache:
-                                        self._prompt_cache[s_name].append(matching_prompts[0])
+                                        self._prompt_cache[s_name].append(
+                                            matching_prompts[0]
+                                        )
                         except Exception:
                             # Ignore errors when updating cache
                             pass
@@ -772,7 +782,9 @@ class MCPAggregator(ContextDependent):
                 if capabilities and capabilities.prompts:
                     supported_servers.append(s_name)
                 else:
-                    logger.debug(f"Server '{s_name}' does not support prompts, skipping")
+                    logger.debug(
+                        f"Server '{s_name}' does not support prompts, skipping"
+                    )
                     # Add empty list to results for this server
                     results[s_name] = []
 
@@ -835,16 +847,20 @@ class MCPCompoundServer(Server):
         except Exception as e:
             return CallToolResult(isError=True, message=f"Error calling tool: {e}")
 
-    async def _get_prompt(self, name: str = None, arguments: dict[str, str] = None) -> GetPromptResult:
+    async def _get_prompt(
+        self, name: str = None, arguments: dict[str, str] = None
+    ) -> GetPromptResult:
         """
         Get a prompt from the aggregated servers.
-        
+
         Args:
             name: Name of the prompt to get (optionally namespaced)
             arguments: Optional dictionary of string arguments for prompt templating
         """
         try:
-            result = await self.aggregator.get_prompt(prompt_name=name, arguments=arguments)
+            result = await self.aggregator.get_prompt(
+                prompt_name=name, arguments=arguments
+            )
             return result
         except Exception as e:
             return GetPromptResult(
