@@ -332,7 +332,8 @@ class AgentApp:
                                         )
                                     finally:
                                         # Force cleanup of prompt session
-                                        prompt_session.app.exit()
+                                        if prompt_session.app.is_running:
+                                            prompt_session.app.exit()
 
                                     try:
                                         idx = int(selection) - 1
@@ -395,7 +396,8 @@ class AgentApp:
                                     )
                                 finally:
                                     # Force cleanup of prompt session
-                                    prompt_session.app.exit()
+                                    if prompt_session.app.is_running:
+                                        prompt_session.app.exit()
 
                                 # Make cancellation easier
                                 if not selection or selection.strip() == "":
@@ -464,7 +466,8 @@ class AgentApp:
                                         arg_values[arg_name] = arg_value
                                     finally:
                                         # Force cleanup of prompt session
-                                        prompt_session.app.exit()
+                                        if prompt_session.app.is_running:
+                                            prompt_session.app.exit()
 
                                 # Only include non-empty values for optional arguments
                                 if optional_args:
@@ -489,7 +492,8 @@ class AgentApp:
                                                 arg_values[arg_name] = arg_value
                                         finally:
                                             # Force cleanup of prompt session
-                                            prompt_session.app.exit()
+                                            if prompt_session.app.is_running:
+                                                prompt_session.app.exit()
 
                             # Apply the prompt with or without arguments
                             rich_print(
