@@ -443,6 +443,15 @@ class AgentApp:
                                         rich_print(
                                             f"  [dim]{arg_name}: {description}[/dim]"
                                         )
+                                    
+                                    # Collect required argument value
+                                    arg_value = await PromptSession().prompt_async(
+                                        HTML(
+                                            f"Enter value for <ansibrightcyan>{arg_name}</ansibrightcyan> (required): "
+                                        )
+                                    )
+                                    # Add to arg_values
+                                    arg_values[arg_name] = arg_value
 
                                 # Only include non-empty values for optional arguments
                                 if optional_args:
