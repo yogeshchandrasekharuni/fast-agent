@@ -177,9 +177,6 @@ class AgentApp:
                         from rich import print as rich_print
                         from rich.table import Table
                         from rich.console import Console
-                        from prompt_toolkit import PromptSession
-                        from prompt_toolkit.formatted_text import HTML
-                        from prompt_toolkit.completion import WordCompleter
 
                         console = Console()
 
@@ -325,10 +322,12 @@ class AgentApp:
                                         )
 
                                     # Ask user to select one
-                                    from mcp_agent.core.enhanced_prompt import get_selection_input
+                                    from mcp_agent.core.enhanced_prompt import (
+                                        get_selection_input,
+                                    )
+
                                     selection = await get_selection_input(
-                                        "Enter prompt number to select: ", 
-                                        default="1"
+                                        "Enter prompt number to select: ", default="1"
                                     )
 
                                     try:
@@ -382,14 +381,16 @@ class AgentApp:
                                 prompt_names = [
                                     str(i + 1) for i in range(len(all_prompts))
                                 ]
-                                completer = WordCompleter(prompt_names)
 
                                 # Ask user to select a prompt
-                                from mcp_agent.core.enhanced_prompt import get_selection_input
+                                from mcp_agent.core.enhanced_prompt import (
+                                    get_selection_input,
+                                )
+
                                 selection = await get_selection_input(
-                                    "Enter prompt number to select (or press Enter to cancel): ", 
-                                    options=prompt_names, 
-                                    allow_cancel=True
+                                    "Enter prompt number to select (or press Enter to cancel): ",
+                                    options=prompt_names,
+                                    allow_cancel=True,
                                 )
 
                                 # Make cancellation easier
@@ -442,13 +443,16 @@ class AgentApp:
                                 for arg_name in required_args:
                                     # Get description if available
                                     description = arg_descriptions.get(arg_name, "")
-                                    
+
                                     # Collect required argument value
-                                    from mcp_agent.core.enhanced_prompt import get_argument_input
+                                    from mcp_agent.core.enhanced_prompt import (
+                                        get_argument_input,
+                                    )
+
                                     arg_value = await get_argument_input(
                                         arg_name=arg_name,
                                         description=description,
-                                        required=True
+                                        required=True,
                                     )
                                     # Add to arg_values if a value was provided
                                     if arg_value is not None:
@@ -461,11 +465,14 @@ class AgentApp:
                                         # Get description if available
                                         description = arg_descriptions.get(arg_name, "")
 
-                                        from mcp_agent.core.enhanced_prompt import get_argument_input
+                                        from mcp_agent.core.enhanced_prompt import (
+                                            get_argument_input,
+                                        )
+
                                         arg_value = await get_argument_input(
                                             arg_name=arg_name,
                                             description=description,
-                                            required=False
+                                            required=False,
                                         )
                                         # Only include non-empty values for optional arguments
                                         if arg_value:

@@ -788,19 +788,23 @@ class MCPAggregator(ContextDependent):
                     # Add empty list to results for this server
                     results[s_name] = []
 
-            # Gather prompts from supported servers concurrently
+            # Process servers sequentially to ensure proper resource cleanup
+            # This helps prevent resource leaks especially on Windows
             if supported_servers:
-                tasks = [
-                    self._execute_on_server(
-                        server_name=s_name,
-                        operation_type="prompts-list",
-                        operation_name="",
-                        method_name="list_prompts",
-                        error_factory=lambda _: [],
-                    )
-                    for s_name in supported_servers
-                ]
-                server_results = await gather(*tasks, return_exceptions=True)
+                server_results = []
+                for s_name in supported_servers:
+                    try:
+                        result = await self._execute_on_server(
+                            server_name=s_name,
+                            operation_type="prompts-list",
+                            operation_name="",
+                            method_name="list_prompts",
+                            error_factory=lambda _: [],
+                        )
+                        server_results.append(result)
+                    except Exception as e:
+                        logger.debug(f"Error fetching prompts from {s_name}: {e}")
+                        server_results.append(e)
 
                 for i, result in enumerate(server_results):
                     if isinstance(result, BaseException):

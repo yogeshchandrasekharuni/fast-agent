@@ -2,7 +2,7 @@
 Enhanced prompt functionality with advanced prompt_toolkit features.
 """
 
-from typing import List, Optional, Dict, Union, Any
+from typing import List, Optional
 from importlib.metadata import version
 from prompt_toolkit import PromptSession
 from prompt_toolkit.formatted_text import HTML
@@ -346,34 +346,34 @@ async def get_selection_input(
 ) -> Optional[str]:
     """
     Display a selection prompt and return the user's selection.
-    
+
     Args:
         prompt_text: Text to display as the prompt
         options: List of valid options (for auto-completion)
         default: Default value if user presses enter
         allow_cancel: Whether to allow cancellation with empty input
         complete_options: Whether to use the options for auto-completion
-        
+
     Returns:
         Selected value, or None if cancelled
     """
     try:
         # Initialize completer if options provided and completion requested
         completer = WordCompleter(options) if options and complete_options else None
-        
+
         # Create prompt session
         prompt_session = PromptSession(completer=completer)
-        
+
         try:
             # Get user input
             selection = await prompt_session.prompt_async(
                 prompt_text, default=default or ""
             )
-            
+
             # Handle cancellation
             if allow_cancel and not selection.strip():
                 return None
-                
+
             return selection
         finally:
             # Ensure prompt session cleanup
@@ -393,35 +393,37 @@ async def get_argument_input(
 ) -> Optional[str]:
     """
     Prompt for an argument value with formatting and help text.
-    
+
     Args:
         arg_name: Name of the argument
         description: Optional description of the argument
         required: Whether this argument is required
-        
+
     Returns:
         Input value, or None if cancelled/skipped
     """
     # Format the prompt differently based on whether it's required
     required_text = "(required)" if required else "(optional, press Enter to skip)"
-    
+
     # Show description if available
     if description:
         rich_print(f"  [dim]{arg_name}: {description}[/dim]")
-    
-    prompt_text = HTML(f"Enter value for <ansibrightcyan>{arg_name}</ansibrightcyan> {required_text}: ")
-    
+
+    prompt_text = HTML(
+        f"Enter value for <ansibrightcyan>{arg_name}</ansibrightcyan> {required_text}: "
+    )
+
     # Create prompt session
     prompt_session = PromptSession()
-    
+
     try:
         # Get user input
         arg_value = await prompt_session.prompt_async(prompt_text)
-        
+
         # For optional arguments, empty input means skip
         if not required and not arg_value:
             return None
-            
+
         return arg_value
     except (KeyboardInterrupt, EOFError):
         return None
