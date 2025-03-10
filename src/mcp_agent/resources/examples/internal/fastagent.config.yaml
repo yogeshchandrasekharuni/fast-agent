@@ -46,4 +46,7 @@ mcp:
       args: ["-y", "@modelcontextprotocol/server-brave-search"]
     sizer:
       command: "uv"
-      args: ["run", "prompt_server.py"]
+      args: ["run", "prompt_sizing.py"]
+    category:
+      command: "uv"
+      args: ["run", "prompt_category.py"]

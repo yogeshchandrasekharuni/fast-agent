@@ -50,10 +50,10 @@ class AgentCompleter(Completer):
         # Map commands to their descriptions for better completion hints
         self.commands = {
             "help": "Show available commands",
-            "clear": "Clear the screen",
-            "agents": "List available agents",
             "prompts": "List and select MCP prompts",  # Changed description
             "prompt": "Apply a specific prompt by name (/prompt <name>)",  # New command
+            "agents": "List available agents",
+            "clear": "Clear the screen",
             "STOP": "Stop this prompting session and move to next workflow step",
             "EXIT": "Exit fast-agent, terminating any running workflows",
             **(commands or {}),  # Allow custom commands to be passed in
