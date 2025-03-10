@@ -279,7 +279,7 @@ async def get_enhanced_input(
             )
         else:
             rich_print(
-                "[dim]Type /help for commands, @agent to switch agent, # to use prompts. Ctrl+T toggles multiline mode.[/dim]"
+                "[dim]Type /help for commands, @agent to switch agent. Ctrl+T toggles multiline mode.[/dim]"
             )
         rich_print()
         help_message_shown = True
