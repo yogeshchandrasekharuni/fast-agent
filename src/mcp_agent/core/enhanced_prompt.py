@@ -430,7 +430,7 @@ async def handle_special_commands(command, agent_app=None):
         agent_name = command.split(":", 1)[1]
         if agent_name in available_agents:
             if agent_app:
-                rich_print(f"[green]Switching to agent: {agent_name}[/green]")
+                #                rich_print(f"[green]Switching to agent: {agent_name}[/green]")
                 return {"switch_agent": agent_name}
             else:
                 rich_print(

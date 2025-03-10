@@ -372,6 +372,9 @@ class FastAgent(ContextDependent):
 
                 # Create wrapper with all agents
                 wrapper = AgentApp(agent_app, active_agents)
+                
+                # Store reference to AgentApp in MCPApp for proxies to access
+                agent_app._agent_app = wrapper
 
                 # Handle direct message sending if --agent and --message are provided
                 if self.args.agent and self.args.message:

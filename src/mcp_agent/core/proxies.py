@@ -28,18 +28,35 @@ class BaseAgentProxy:
         self._name = name
 
     async def __call__(self, message: Optional[str] = None) -> str:
-        """Allow: agent.researcher('message')"""
+        """Allow: agent.researcher('message') or just agent.researcher()"""
+        if message is None:
+            # When called with no arguments, use prompt() to open the interactive interface
+            return await self.prompt()
         return await self.send(message)
 
     async def send(self, message: Optional[str] = None) -> str:
         """Allow: agent.researcher.send('message')"""
         if message is None:
+            # For consistency with agent(), use prompt() to open the interactive interface
             return await self.prompt()
         return await self.generate_str(message)
 
     async def prompt(self, default_prompt: str = "") -> str:
         """Allow: agent.researcher.prompt()"""
-        return await self._app.prompt(self._name, default_prompt)
+        from mcp_agent.core.agent_app import AgentApp
+        
+        # First check if _app is directly an AgentApp
+        if isinstance(self._app, AgentApp):
+            return await self._app.prompt(self._name, default_prompt)
+            
+        # If not, check if it's an MCPApp with an _agent_app attribute
+        if hasattr(self._app, "_agent_app"):
+            agent_app = self._app._agent_app
+            if agent_app:
+                return await agent_app.prompt(self._name, default_prompt)
+        
+        # If we can't find an AgentApp, return an error message
+        return "ERROR: Cannot prompt() - AgentApp not found"
 
     async def generate_str(self, message: str) -> str:
         """Generate response for a message - must be implemented by subclasses"""
