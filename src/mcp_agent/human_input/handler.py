@@ -65,8 +65,11 @@ async def console_input_callback(request: HumanInputRequest) -> HumanInputRespon
                     toolbar_color="ansimagenta",
                 )
 
-            #            if response and (response.startswith("/") or response.startswith("@")):
-            await handle_special_commands(response)
+            # Handle special commands but ignore dictionary results as they require app context
+            command_result = await handle_special_commands(response)
+            if isinstance(command_result, dict) and "list_prompts" in command_result:
+                from rich import print as rich_print
+                rich_print("[yellow]Prompt listing not available in human input context[/yellow]")
 
         except KeyboardInterrupt:
             console.print("\n[yellow]Input interrupted[/yellow]")

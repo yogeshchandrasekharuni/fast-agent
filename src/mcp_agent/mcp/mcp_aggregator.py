@@ -17,8 +17,6 @@ from mcp.types import (
     CallToolResult,
     ListToolsResult,
     Tool,
-    Prompt,
-    ListPromptsResult,
 )
 
 from mcp_agent.event_progress import ProgressAction
@@ -583,7 +581,7 @@ class MCPAggregator(ContextDependent):
                                 
                         return result
                         
-                except Exception as e:
+                except Exception:
                     # Don't log errors during fallback search
                     pass
         
@@ -615,7 +613,7 @@ class MCPAggregator(ContextDependent):
                     # Convert list of names to list of Prompt objects
                     for s_name, prompt_names in self._prompt_cache.items():
                         results[s_name] = [{"name": name} for name in prompt_names]
-                    logger.debug(f"Returning cached prompts for all servers")
+                    logger.debug("Returning cached prompts for all servers")
                     return results
 
         # If server_name is provided, only list prompts from that server

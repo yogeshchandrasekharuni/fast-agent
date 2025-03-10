@@ -111,12 +111,43 @@ class AgentApp:
                 command_result = await handle_special_commands(user_input, self)
 
                 # Check if we should switch agents
-                if (
-                    isinstance(command_result, dict)
-                    and "switch_agent" in command_result
-                ):
-                    agent = command_result["switch_agent"]
-                    continue
+                if isinstance(command_result, dict):
+                    if "switch_agent" in command_result:
+                        agent = command_result["switch_agent"]
+                        continue
+                    elif "list_prompts" in command_result:
+                        # Handle listing of prompts
+                        from rich import print as rich_print
+                        
+                        try:
+                            # Check if we have any agents with aggregator capabilities
+                            found_prompts = False
+                            for agent_name, agent_proxy in self._agents.items():
+                                # Check if agent has an mcp_aggregator (agent instance)
+                                if hasattr(agent_proxy, "_agent") and hasattr(agent_proxy._agent, "list_prompts"):
+                                    rich_print(f"\n[bold]Fetching prompts for agent [cyan]{agent_name}[/cyan]...[/bold]")
+                                    prompt_servers = await agent_proxy._agent.list_prompts()
+                                    
+                                    if prompt_servers:
+                                        found_prompts = True
+                                        for server_name, prompts_info in prompt_servers.items():
+                                            if prompts_info and hasattr(prompts_info, "prompts") and prompts_info.prompts:
+                                                rich_print(f"\n[bold cyan]{server_name}:[/bold cyan]")
+                                                for prompt in prompts_info.prompts:
+                                                    rich_print(f"  {prompt.name}")
+                                            elif isinstance(prompts_info, list) and prompts_info:
+                                                rich_print(f"\n[bold cyan]{server_name}:[/bold cyan]")
+                                                for prompt in prompts_info:
+                                                    if isinstance(prompt, dict) and "name" in prompt:
+                                                        rich_print(f"  {prompt['name']}")
+                                                    else:
+                                                        rich_print(f"  {prompt}")
+                                    
+                            if not found_prompts:
+                                rich_print("[yellow]No prompts available[/yellow]")
+                        except Exception as e:
+                            rich_print(f"[red]Error listing prompts: {e}[/red]")
+                        continue
 
                 # Skip further processing if command was handled
                 if command_result:

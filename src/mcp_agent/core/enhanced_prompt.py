@@ -52,12 +52,14 @@ class AgentCompleter(Completer):
             "help": "Show available commands",
             "clear": "Clear the screen",
             "agents": "List available agents",
+            "prompts": "List available MCP prompts",
             "STOP": "Stop this prompting session and move to next workflow step",
             "EXIT": "Exit fast-agent, terminating any running workflows",
             **(commands or {}),  # Allow custom commands to be passed in
         }
         if is_human_input:
             self.commands.pop("agents")
+            self.commands.pop("prompts")  # Remove prompts command in human input mode
         self.agent_types = agent_types or {}
 
     def get_completions(self, document, complete_event):
@@ -273,7 +275,7 @@ async def get_enhanced_input(
             )
         else:
             rich_print(
-                "[dim]Type /help for commands, @agent to switch agent. Ctrl+T toggles multiline mode. [/dim]"
+                "[dim]Type /help for commands, @agent to switch agent, /prompts to list prompts. Ctrl+T toggles multiline mode.[/dim]"
             )
         rich_print()
         help_message_shown = True
@@ -289,6 +291,8 @@ async def get_enhanced_input(
                 return "CLEAR"
             elif cmd == "agents":
                 return "LIST_AGENTS"
+            elif cmd == "prompts":
+                return "LIST_PROMPTS"
             elif cmd == "exit":
                 return "EXIT"
             elif cmd == "stop":
@@ -328,6 +332,7 @@ async def handle_special_commands(command, agent_app=None):
         rich_print("  /help          - Show this help")
         rich_print("  /clear         - Clear screen")
         rich_print("  /agents        - List available agents")
+        rich_print("  /prompts       - List available MCP prompts")
         rich_print("  @agent_name    - Switch to agent")
         rich_print("  STOP           - Return control back to the workflow")
         rich_print(
@@ -359,6 +364,16 @@ async def handle_special_commands(command, agent_app=None):
         else:
             rich_print("[yellow]No agents available[/yellow]")
         return True
+        
+    elif command == "LIST_PROMPTS":
+        # Return a dictionary with a list_prompts action to be handled by the caller
+        # The actual prompt listing is implemented in the AgentApp class
+        if agent_app:
+            rich_print("\n[bold]Fetching available MCP prompts...[/bold]")
+            return {"list_prompts": True}
+        else:
+            rich_print("[yellow]Prompt listing is not available outside of an agent context[/yellow]")
+            return True
 
     elif isinstance(command, str) and command.startswith("SWITCH:"):
         agent_name = command.split(":", 1)[1]
