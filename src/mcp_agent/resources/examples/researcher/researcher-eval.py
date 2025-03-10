@@ -2,7 +2,7 @@ import asyncio
 
 from mcp_agent.core.fastagent import FastAgent
 
-agents = FastAgent(name="Researcher")
+agents = FastAgent(name="Researcher Agent (EO)")
 
 
 @agents.agent(
