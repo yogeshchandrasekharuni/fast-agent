@@ -326,9 +326,13 @@ class AgentApp:
 
                                     # Ask user to select one
                                     prompt_session = PromptSession()
-                                    selection = await prompt_session.prompt_async(
-                                        "Enter prompt number to select: ", default="1"
-                                    )
+                                    try:
+                                        selection = await prompt_session.prompt_async(
+                                            "Enter prompt number to select: ", default="1"
+                                        )
+                                    finally:
+                                        # Force cleanup of prompt session
+                                        prompt_session.app.exit()
 
                                     try:
                                         idx = int(selection) - 1
@@ -385,9 +389,13 @@ class AgentApp:
 
                                 # Ask user to select a prompt
                                 prompt_session = PromptSession(completer=completer)
-                                selection = await prompt_session.prompt_async(
-                                    "Enter prompt number to select (or press Enter to cancel): "
-                                )
+                                try:
+                                    selection = await prompt_session.prompt_async(
+                                        "Enter prompt number to select (or press Enter to cancel): "
+                                    )
+                                finally:
+                                    # Force cleanup of prompt session
+                                    prompt_session.app.exit()
 
                                 # Make cancellation easier
                                 if not selection or selection.strip() == "":
@@ -445,13 +453,18 @@ class AgentApp:
                                         )
                                     
                                     # Collect required argument value
-                                    arg_value = await PromptSession().prompt_async(
-                                        HTML(
-                                            f"Enter value for <ansibrightcyan>{arg_name}</ansibrightcyan> (required): "
+                                    prompt_session = PromptSession()
+                                    try:
+                                        arg_value = await prompt_session.prompt_async(
+                                            HTML(
+                                                f"Enter value for <ansibrightcyan>{arg_name}</ansibrightcyan> (required): "
+                                            )
                                         )
-                                    )
-                                    # Add to arg_values
-                                    arg_values[arg_name] = arg_value
+                                        # Add to arg_values
+                                        arg_values[arg_name] = arg_value
+                                    finally:
+                                        # Force cleanup of prompt session
+                                        prompt_session.app.exit()
 
                                 # Only include non-empty values for optional arguments
                                 if optional_args:
@@ -464,14 +477,19 @@ class AgentApp:
                                                 f"  [dim]{arg_name}: {description}[/dim]"
                                             )
 
-                                        arg_value = await PromptSession().prompt_async(
-                                            HTML(
-                                                f"Enter value for <ansibrightcyan>{arg_name}</ansibrightcyan> (optional, press Enter to skip): "
+                                        prompt_session = PromptSession()
+                                        try:
+                                            arg_value = await prompt_session.prompt_async(
+                                                HTML(
+                                                    f"Enter value for <ansibrightcyan>{arg_name}</ansibrightcyan> (optional, press Enter to skip): "
+                                                )
                                             )
-                                        )
-                                        # Only include non-empty values for optional arguments
-                                        if arg_value:
-                                            arg_values[arg_name] = arg_value
+                                            # Only include non-empty values for optional arguments
+                                            if arg_value:
+                                                arg_values[arg_name] = arg_value
+                                        finally:
+                                            # Force cleanup of prompt session
+                                            prompt_session.app.exit()
 
                             # Apply the prompt with or without arguments
                             rich_print(

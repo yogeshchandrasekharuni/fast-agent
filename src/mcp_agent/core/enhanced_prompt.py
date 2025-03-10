@@ -330,6 +330,10 @@ async def get_enhanced_input(
         # Log and gracefully handle other exceptions
         print(f"\nInput error: {type(e).__name__}: {e}")
         return "STOP"
+    finally:
+        # Ensure the prompt session is properly cleaned up
+        # This is especially important on Windows to prevent resource leaks
+        session.app.exit()
 
 
 async def handle_special_commands(command, agent_app=None):
