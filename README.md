@@ -282,6 +282,10 @@ agent["greeter"].send("Good Evening!")          # Dictionary access is supported
 )
 ```
 
+### Prompts
+
+MCP Prompts are supported with `apply_prompt(name)`. Prompts can be
+
 #### Chain
 
 ```python

@@ -1,7 +1,7 @@
 from mcp.server.fastmcp import FastMCP
 from mcp.server.fastmcp.prompts.base import UserMessage, AssistantMessage
 
-mcp = FastMCP("MCP Root Tester")
+mcp = FastMCP("MCP Prompt Tester")
 
 
 @mcp.prompt(name="sizing_prompt", description="set up the sizing protocol")
