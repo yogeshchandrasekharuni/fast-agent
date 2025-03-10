@@ -52,7 +52,8 @@ class AgentCompleter(Completer):
             "help": "Show available commands",
             "clear": "Clear the screen",
             "agents": "List available agents",
-            "prompts": "List available MCP prompts",
+            "prompts": "List and select MCP prompts",  # Changed description
+            "prompt": "Apply a specific prompt by name (/prompt <name>)",  # New command
             "STOP": "Stop this prompting session and move to next workflow step",
             "EXIT": "Exit fast-agent, terminating any running workflows",
             **(commands or {}),  # Allow custom commands to be passed in
@@ -60,6 +61,9 @@ class AgentCompleter(Completer):
         if is_human_input:
             self.commands.pop("agents")
             self.commands.pop("prompts")  # Remove prompts command in human input mode
+            self.commands.pop(
+                "prompt", None
+            )  # Remove prompt command in human input mode
         self.agent_types = agent_types or {}
 
     def get_completions(self, document, complete_event):
@@ -69,6 +73,7 @@ class AgentCompleter(Completer):
         # Complete commands
         if text.startswith("/"):
             cmd = text[1:]
+            # Simple command completion - match beginning of command
             for command, description in self.commands.items():
                 if command.lower().startswith(cmd):
                     yield Completion(
@@ -90,19 +95,7 @@ class AgentCompleter(Completer):
                         start_position=-len(agent_name),
                         display=agent,
                         display_meta=agent_type,
-                        #                        style="bg:ansiblack fg:ansiblue",
                     )
-                    
-        # Complete prompt selection with # command
-        elif text.startswith("#"):
-            # Return a completion that will trigger the prompt selection UI
-            # The actual implementation happens in handle_special_commands
-            yield Completion(
-                "prompts",
-                start_position=-len(text) + 1,  # Only replace after the # character
-                display="prompts",
-                display_meta="Select a prompt to apply",
-            )
 
 
 def create_keybindings(on_toggle_multiline=None, app=None):
@@ -292,10 +285,13 @@ async def get_enhanced_input(
         help_message_shown = True
 
     # Process special commands
+
     def pre_process_input(text):
         # Command processing
         if text and text.startswith("/"):
-            cmd = text[1:].strip().lower()
+            cmd_parts = text[1:].strip().split(maxsplit=1)
+            cmd = cmd_parts[0].lower()
+
             if cmd == "help":
                 return "HELP"
             elif cmd == "clear":
@@ -303,7 +299,10 @@ async def get_enhanced_input(
             elif cmd == "agents":
                 return "LIST_AGENTS"
             elif cmd == "prompts":
-                return "LIST_PROMPTS"
+                return "SELECT_PROMPT"  # Changed from LIST_PROMPTS to directly launch selection UI
+            elif cmd == "prompt" and len(cmd_parts) > 1:
+                # Direct prompt selection with name
+                return f"SELECT_PROMPT:{cmd_parts[1].strip()}"
             elif cmd == "exit":
                 return "EXIT"
             elif cmd == "stop":
@@ -312,14 +311,8 @@ async def get_enhanced_input(
         # Agent switching
         if text and text.startswith("@"):
             return f"SWITCH:{text[1:].strip()}"
-            
-        # Prompt selection with #
-        if text and text.startswith("#"):
-            cmd = text[1:].strip().lower()
-            if cmd == "prompts" or cmd == "":
-                return "SELECT_PROMPT"
-            # If it's a specific prompt name after #, we'll handle it in the special commands
-            return f"SELECT_PROMPT:{text[1:].strip()}"
+
+        # Remove the # command handling completely
 
         return text
 
@@ -342,6 +335,11 @@ async def get_enhanced_input(
 async def handle_special_commands(command, agent_app=None):
     """Handle special input commands."""
     # Quick guard for empty or None commands
+
+
+async def handle_special_commands(command, agent_app=None):
+    """Handle special input commands."""
+    # Quick guard for empty or None commands
     if not command:
         return False
 
@@ -351,8 +349,8 @@ async def handle_special_commands(command, agent_app=None):
         rich_print("  /help          - Show this help")
         rich_print("  /clear         - Clear screen")
         rich_print("  /agents        - List available agents")
-        rich_print("  /prompts       - List available MCP prompts")
-        rich_print("  #              - Select a prompt to apply")
+        rich_print("  /prompts       - List and select MCP prompts")
+        rich_print("  /prompt <name> - Apply a specific prompt by name")
         rich_print("  @agent_name    - Switch to agent")
         rich_print("  STOP           - Return control back to the workflow")
         rich_print(
@@ -384,7 +382,7 @@ async def handle_special_commands(command, agent_app=None):
         else:
             rich_print("[yellow]No agents available[/yellow]")
         return True
-        
+
     elif command == "LIST_PROMPTS":
         # Return a dictionary with a list_prompts action to be handled by the caller
         # The actual prompt listing is implemented in the AgentApp class
@@ -392,21 +390,45 @@ async def handle_special_commands(command, agent_app=None):
             rich_print("\n[bold]Fetching available MCP prompts...[/bold]")
             return {"list_prompts": True}
         else:
-            rich_print("[yellow]Prompt listing is not available outside of an agent context[/yellow]")
+            rich_print(
+                "[yellow]Prompt listing is not available outside of an agent context[/yellow]"
+            )
             return True
-            
-    elif command == "SELECT_PROMPT" or (isinstance(command, str) and command.startswith("SELECT_PROMPT:")):
+
+    elif command == "SELECT_PROMPT" or (
+        isinstance(command, str) and command.startswith("SELECT_PROMPT:")
+    ):
         # Handle prompt selection UI
         if agent_app:
             # If it's a specific prompt, extract the name
             prompt_name = None
             if isinstance(command, str) and command.startswith("SELECT_PROMPT:"):
                 prompt_name = command.split(":", 1)[1].strip()
-                
+
             # Return a dictionary with a select_prompt action to be handled by the caller
             return {"select_prompt": True, "prompt_name": prompt_name}
         else:
-            rich_print("[yellow]Prompt selection is not available outside of an agent context[/yellow]")
+            rich_print(
+                "[yellow]Prompt selection is not available outside of an agent context[/yellow]"
+            )
+            return True
+
+    elif command == "SELECT_PROMPT" or (
+        isinstance(command, str) and command.startswith("SELECT_PROMPT:")
+    ):
+        # Handle prompt selection UI (previously named "list_prompts" action)
+        if agent_app:
+            # If it's a specific prompt, extract the name
+            prompt_name = None
+            if isinstance(command, str) and command.startswith("SELECT_PROMPT:"):
+                prompt_name = command.split(":", 1)[1].strip()
+
+            # Return a dictionary with a select_prompt action to be handled by the caller
+            return {"select_prompt": True, "prompt_name": prompt_name}
+        else:
+            rich_print(
+                "[yellow]Prompt selection is not available outside of an agent context[/yellow]"
+            )
             return True
 
     elif isinstance(command, str) and command.startswith("SWITCH:"):

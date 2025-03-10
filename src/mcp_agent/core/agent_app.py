@@ -378,8 +378,6 @@ class AgentApp:
                                     )
 
                                 console.print(table)
-
-                                # Create completions for prompt names
                                 prompt_names = [
                                     str(i + 1) for i in range(len(all_prompts))
                                 ]
@@ -388,10 +386,11 @@ class AgentApp:
                                 # Ask user to select a prompt
                                 prompt_session = PromptSession(completer=completer)
                                 selection = await prompt_session.prompt_async(
-                                    "Enter prompt number to select (or CANCEL): "
+                                    "Enter prompt number to select (or press Enter to cancel): "
                                 )
 
-                                if selection.upper() == "CANCEL":
+                                # Make cancellation easier
+                                if not selection or selection.strip() == "":
                                     rich_print(
                                         "[yellow]Prompt selection cancelled[/yellow]"
                                     )
@@ -445,26 +444,25 @@ class AgentApp:
                                             f"  [dim]{arg_name}: {description}[/dim]"
                                         )
 
-                                    arg_value = await PromptSession().prompt_async(
-                                        HTML(f"Enter value for <ansibrightcyan><b>{arg_name}</b></ansibrightcyan> (required): ")
-                                    )
-                                    arg_values[arg_name] = arg_value
+                                # Only include non-empty values for optional arguments
+                                if optional_args:
+                                    # Collect optional arguments
+                                    for arg_name in optional_args:
+                                        # Show description if available
+                                        description = arg_descriptions.get(arg_name, "")
+                                        if description:
+                                            rich_print(
+                                                f"  [dim]{arg_name}: {description}[/dim]"
+                                            )
 
-                                # Collect optional arguments
-                                for arg_name in optional_args:
-                                    # Show description if available
-                                    description = arg_descriptions.get(arg_name, "")
-                                    if description:
-                                        rich_print(
-                                            f"  [dim]{arg_name}: {description}[/dim]"
+                                        arg_value = await PromptSession().prompt_async(
+                                            HTML(
+                                                f"Enter value for <ansibrightcyan>{arg_name}</ansibrightcyan> (optional, press Enter to skip): "
+                                            )
                                         )
-
-                                    arg_value = await PromptSession().prompt_async(
-                                        HTML(f"Enter value for <ansibrightcyan>{arg_name}</ansibrightcyan> (optional, press Enter to skip): ")
-                                    )
-                                    # Only include non-empty values for optional arguments
-                                    if arg_value:
-                                        arg_values[arg_name] = arg_value
+                                        # Only include non-empty values for optional arguments
+                                        if arg_value:
+                                            arg_values[arg_name] = arg_value
 
                             # Apply the prompt with or without arguments
                             rich_print(
