@@ -17,6 +17,7 @@ from mcp.types import (
     CallToolResult,
     ListToolsResult,
     Tool,
+    Prompt,
 )
 
 from mcp_agent.event_progress import ProgressAction
@@ -124,8 +125,8 @@ class MCPAggregator(ContextDependent):
         self._server_to_tool_map: Dict[str, List[NamespacedTool]] = {}
         self._tool_map_lock = Lock()
 
-        # Cache for prompt names, maps server_name -> list of prompt names
-        self._prompt_cache: Dict[str, List[str]] = {}
+        # Cache for prompt objects, maps server_name -> list of prompt objects
+        self._prompt_cache: Dict[str, List[Prompt]] = {}
         self._prompt_cache_lock = Lock()
 
     async def close(self):
@@ -232,14 +233,14 @@ class MCPAggregator(ContextDependent):
         async def fetch_prompts(client: ClientSession):
             try:
                 result = await client.list_prompts()
-                return [prompt.name for prompt in result.prompts] if result and hasattr(result, "prompts") else []
+                return result.prompts if result and hasattr(result, "prompts") else []
             except Exception as e:
                 logger.debug(f"Error loading prompts from server '{server_name}': {e}")
                 return []
 
         async def load_server_data(server_name: str):
             tools: List[Tool] = []
-            prompts: List[str] = []
+            prompts: List[Prompt] = []
             
             if self.connection_persistence:
                 server_connection = (
@@ -492,12 +493,15 @@ class MCPAggregator(ContextDependent):
             # Check the prompt cache to avoid unnecessary errors
             if local_prompt_name:
                 async with self._prompt_cache_lock:
-                    if server_name in self._prompt_cache and local_prompt_name not in self._prompt_cache[server_name]:
-                        logger.debug(f"Prompt '{local_prompt_name}' not found in cache for server '{server_name}'")
-                        return GetPromptResult(
-                            description=f"Prompt '{local_prompt_name}' not found on server '{server_name}'",
-                            messages=[],
-                        )
+                    if server_name in self._prompt_cache:
+                        # Check if any prompt in the cache has this name
+                        prompt_names = [prompt.name for prompt in self._prompt_cache[server_name]]
+                        if local_prompt_name not in prompt_names:
+                            logger.debug(f"Prompt '{local_prompt_name}' not found in cache for server '{server_name}'")
+                            return GetPromptResult(
+                                description=f"Prompt '{local_prompt_name}' not found on server '{server_name}'",
+                                messages=[],
+                            )
                 
             # Try to get the prompt from the specified server
             result = await self._execute_on_server(
@@ -522,7 +526,8 @@ class MCPAggregator(ContextDependent):
         potential_servers = []
         async with self._prompt_cache_lock:
             for s_name, prompt_list in self._prompt_cache.items():
-                if local_prompt_name in prompt_list:
+                prompt_names = [prompt.name for prompt in prompt_list]
+                if local_prompt_name in prompt_names:
                     potential_servers.append(s_name)
                     
         if potential_servers:
@@ -572,12 +577,29 @@ class MCPAggregator(ContextDependent):
                         # Add namespaced name using the actual server where found
                         result.namespaced_name = f"{s_name}{SEP}{local_prompt_name}"
                         
-                        # Update the cache
-                        async with self._prompt_cache_lock:
-                            if s_name not in self._prompt_cache:
-                                self._prompt_cache[s_name] = []
-                            if local_prompt_name not in self._prompt_cache[s_name]:
-                                self._prompt_cache[s_name].append(local_prompt_name)
+                        # Update the cache - need to fetch the prompt object to store in cache
+                        try:
+                            prompt_list_result = await self._execute_on_server(
+                                server_name=s_name,
+                                operation_type="prompts-list",
+                                operation_name="",
+                                method_name="list_prompts",
+                                error_factory=lambda _: None,
+                            )
+                            
+                            if prompt_list_result and hasattr(prompt_list_result, "prompts"):
+                                matching_prompts = [p for p in prompt_list_result.prompts if p.name == local_prompt_name]
+                                if matching_prompts:
+                                    async with self._prompt_cache_lock:
+                                        if s_name not in self._prompt_cache:
+                                            self._prompt_cache[s_name] = []
+                                        # Add if not already in the cache
+                                        prompt_names_in_cache = [p.name for p in self._prompt_cache[s_name]]
+                                        if local_prompt_name not in prompt_names_in_cache:
+                                            self._prompt_cache[s_name].append(matching_prompts[0])
+                        except Exception:
+                            # Ignore errors when updating cache
+                            pass
                                 
                         return result
                         
@@ -610,9 +632,9 @@ class MCPAggregator(ContextDependent):
         if not server_name:
             async with self._prompt_cache_lock:
                 if all(s_name in self._prompt_cache for s_name in self.server_names):
-                    # Convert list of names to list of Prompt objects
-                    for s_name, prompt_names in self._prompt_cache.items():
-                        results[s_name] = [{"name": name} for name in prompt_names]
+                    # Return the cached prompt objects
+                    for s_name, prompt_list in self._prompt_cache.items():
+                        results[s_name] = prompt_list
                     logger.debug("Returning cached prompts for all servers")
                     return results
 
@@ -622,7 +644,7 @@ class MCPAggregator(ContextDependent):
                 # Check if we can use the cache
                 async with self._prompt_cache_lock:
                     if server_name in self._prompt_cache:
-                        results[server_name] = [{"name": name} for name in self._prompt_cache[server_name]]
+                        results[server_name] = self._prompt_cache[server_name]
                         logger.debug(f"Returning cached prompts for server '{server_name}'")
                         return results
                 
@@ -637,9 +659,8 @@ class MCPAggregator(ContextDependent):
                 
                 # Update cache with the result
                 if hasattr(result, "prompts"):
-                    prompt_names = [prompt.name for prompt in result.prompts]
                     async with self._prompt_cache_lock:
-                        self._prompt_cache[server_name] = prompt_names
+                        self._prompt_cache[server_name] = result.prompts
                 
                 results[server_name] = result
             else:
@@ -667,9 +688,8 @@ class MCPAggregator(ContextDependent):
                 
                 # Update cache with the result
                 if hasattr(result, "prompts"):
-                    prompt_names = [prompt.name for prompt in result.prompts]
                     async with self._prompt_cache_lock:
-                        self._prompt_cache[s_name] = prompt_names
+                        self._prompt_cache[s_name] = result.prompts
                 
         logger.debug(f"Available prompts across servers: {results}")
         return results
