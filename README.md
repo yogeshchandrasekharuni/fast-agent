@@ -282,10 +282,6 @@ agent["greeter"].send("Good Evening!")          # Dictionary access is supported
 )
 ```
 
-### Prompts
-
-MCP Prompts are supported with `apply_prompt(name)`, which always returns an Assistant Message. If the last message from the MCP Server is a 'User' message, it is sent to the LLM for processing. Prompts applied to the Agent's Context are retained - meaning that with `use_history=False`, Agents can act as finely tuned responders. 
-
 #### Chain
 
 ```python
@@ -348,6 +344,12 @@ MCP Prompts are supported with `apply_prompt(name)`, which always returns an Ass
   max_iterations=5,                      # maximum number of full plan attempts, or iterations
 )
 ```
+
+### Prompts
+
+MCP Prompts are supported with `apply_prompt(name,arguments)`, which always returns an Assistant Message. If the last message from the MCP Server is a 'User' message, it is sent to the LLM for processing. Prompts applied to the Agent's Context are retained - meaning that with `use_history=False`, Agents can act as finely tuned responders.
+
+Prompts can also be applied interactively through the interactive interface by using the `/prompt` command.
 
 ### Secrets File
 
