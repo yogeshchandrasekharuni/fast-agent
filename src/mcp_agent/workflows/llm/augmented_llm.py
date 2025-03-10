@@ -646,14 +646,24 @@ class AugmentedLLM(ContextDependent, AugmentedLLMProtocol[MessageParamT, Message
         prompt_name: str,
         description: Optional[str] = None,
         message_count: int = 0,
+        arguments: Optional[dict[str, str]] = None,
     ):
-        """Display information about a loaded prompt template."""
+        """
+        Display information about a loaded prompt template.
+        
+        Args:
+            prompt_name: The name of the prompt
+            description: Optional description of the prompt
+            message_count: Number of messages in the prompt
+            arguments: Optional dictionary of arguments passed to the prompt
+        """
         await self.display.show_prompt_loaded(
             prompt_name=prompt_name,
             description=description,
             message_count=message_count,
             agent_name=self.name,
             aggregator=self.aggregator,
+            arguments=arguments,
         )
 
     async def apply_prompt_template(
@@ -678,11 +688,15 @@ class AugmentedLLM(ContextDependent, AugmentedLLMProtocol[MessageParamT, Message
         if not prompt_messages:
             return "Prompt contains no messages"
 
+        # Extract arguments if they were stored in the result
+        arguments = getattr(prompt_result, "arguments", None)
+
         # Display information about the loaded prompt
         await self.show_prompt_loaded(
             prompt_name=prompt_name,
             description=prompt_result.description,
             message_count=len(prompt_messages),
+            arguments=arguments,
         )
         
         # Check the last message role

@@ -45,9 +45,15 @@ class BaseAgentProxy:
         """Generate response for a message - must be implemented by subclasses"""
         raise NotImplementedError("Subclasses must implement generate_str")
 
-    async def load_prompt(self, prompt_name: str = None) -> str:
-        """Use a Prompt from an MCP Server - implemented by subclasses.
-        Always returns an Assistant message"""
+    async def load_prompt(self, prompt_name: str = None, arguments: dict[str, str] = None) -> str:
+        """
+        Use a Prompt from an MCP Server - implemented by subclasses.
+        Always returns an Assistant message.
+        
+        Args:
+            prompt_name: Name of the prompt to load
+            arguments: Optional dictionary of string arguments for prompt templating
+        """
         raise NotImplementedError("Subclasses must implement mcp-prompt")
 
 
@@ -62,8 +68,18 @@ class LLMAgentProxy(BaseAgentProxy):
         """Forward message and all kwargs to the agent's LLM"""
         return await self._agent._llm.generate_str(message, **kwargs)
 
-    async def load_prompt(self, prompt_name: str = None) -> str:
-        return await self._agent.load_prompt(prompt_name)
+    async def load_prompt(self, prompt_name: str = None, arguments: dict[str, str] = None) -> str:
+        """
+        Load and apply a prompt from an MCP server.
+        
+        Args:
+            prompt_name: Name of the prompt to load
+            arguments: Optional dictionary of string arguments for prompt templating
+            
+        Returns:
+            The assistant's response
+        """
+        return await self._agent.load_prompt(prompt_name, arguments)
 
 
 class WorkflowProxy(BaseAgentProxy):

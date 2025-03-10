@@ -320,7 +320,7 @@ class Agent(MCPAggregator):
                 ],
             )
 
-    async def apply_prompt(self, prompt_name: str) -> str:
+    async def apply_prompt(self, prompt_name: str, arguments: dict[str, str] = None) -> str:
         """
         Apply an MCP Server Prompt by name and return the assistant's response.
         Will search all available servers for the prompt if not namespaced.
@@ -330,6 +330,7 @@ class Agent(MCPAggregator):
 
         Args:
             prompt_name: The name of the prompt to apply
+            arguments: Optional dictionary of string arguments to pass to the prompt template
             
         Returns:
             The assistant's response or error message
@@ -340,7 +341,7 @@ class Agent(MCPAggregator):
 
         # Get the prompt - this will search all servers if needed
         self.logger.debug(f"Loading prompt '{prompt_name}'")
-        prompt_result = await self.get_prompt(prompt_name)
+        prompt_result = await self.get_prompt(prompt_name, arguments)
 
         if not prompt_result or not prompt_result.messages:
             error_msg = (
@@ -358,9 +359,9 @@ class Agent(MCPAggregator):
         return result
 
     # For backward compatibility
-    async def load_prompt(self, prompt_name: str) -> str:
+    async def load_prompt(self, prompt_name: str, arguments: dict[str, str] = None) -> str:
         """
         Legacy method - use apply_prompt instead.
         This is maintained for backward compatibility.
         """
-        return await self.apply_prompt(prompt_name)
+        return await self.apply_prompt(prompt_name, arguments)

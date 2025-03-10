@@ -480,12 +480,14 @@ class MCPAggregator(ContextDependent):
             error_factory=lambda msg: CallToolResult(isError=True, message=msg),
         )
 
-    async def get_prompt(self, prompt_name: str = None) -> GetPromptResult:
+    async def get_prompt(self, prompt_name: str = None, arguments: dict[str, str] = None) -> GetPromptResult:
         """
         Get a prompt from a server.
 
         :param prompt_name: Name of the prompt, optionally namespaced with server name
                            using the format 'server_name-prompt_name'
+        :param arguments: Optional dictionary of string arguments to pass to the prompt template
+                         for templating
         :return: GetPromptResult containing the prompt description and messages
                  with a namespaced_name property for display purposes
         """
@@ -543,12 +545,16 @@ class MCPAggregator(ContextDependent):
                             )
 
             # Try to get the prompt from the specified server
+            method_args = {"name": local_prompt_name} if local_prompt_name else {}
+            if arguments:
+                method_args["arguments"] = arguments
+                
             result = await self._execute_on_server(
                 server_name=server_name,
                 operation_type="prompt",
                 operation_name=local_prompt_name or "default",
                 method_name="get_prompt",
-                method_args={"name": local_prompt_name} if local_prompt_name else {},
+                method_args=method_args,
                 error_factory=lambda msg: GetPromptResult(description=msg, messages=[]),
             )
 
@@ -557,6 +563,10 @@ class MCPAggregator(ContextDependent):
                 result.namespaced_name = (
                     namespaced_name or f"{server_name}{SEP}{local_prompt_name}"
                 )
+                
+                # Store the arguments in the result for display purposes
+                if arguments:
+                    result.arguments = arguments
 
             return result
 
@@ -585,12 +595,16 @@ class MCPAggregator(ContextDependent):
                     continue
 
                 try:
+                    method_args = {"name": local_prompt_name}
+                    if arguments:
+                        method_args["arguments"] = arguments
+                        
                     result = await self._execute_on_server(
                         server_name=s_name,
                         operation_type="prompt",
                         operation_name=local_prompt_name,
                         method_name="get_prompt",
-                        method_args={"name": local_prompt_name},
+                        method_args=method_args,
                         error_factory=lambda _: None,  # Return None instead of an error
                     )
 
@@ -601,6 +615,11 @@ class MCPAggregator(ContextDependent):
                         )
                         # Add namespaced name using the actual server where found
                         result.namespaced_name = f"{s_name}{SEP}{local_prompt_name}"
+                        
+                        # Store the arguments in the result for display purposes
+                        if arguments:
+                            result.arguments = arguments
+                            
                         return result
 
                 except Exception as e:
@@ -624,12 +643,16 @@ class MCPAggregator(ContextDependent):
             for s_name in supported_servers:
                 try:
                     # Use a quiet approach - don't log errors if not found
+                    method_args = {"name": local_prompt_name}
+                    if arguments:
+                        method_args["arguments"] = arguments
+                        
                     result = await self._execute_on_server(
                         server_name=s_name,
                         operation_type="prompt",
                         operation_name=local_prompt_name,
                         method_name="get_prompt",
-                        method_args={"name": local_prompt_name},
+                        method_args=method_args,
                         error_factory=lambda _: None,  # Return None instead of an error
                     )
 
@@ -640,6 +663,10 @@ class MCPAggregator(ContextDependent):
                         )
                         # Add namespaced name using the actual server where found
                         result.namespaced_name = f"{s_name}{SEP}{local_prompt_name}"
+                        
+                        # Store the arguments in the result for display purposes
+                        if arguments:
+                            result.arguments = arguments
 
                         # Update the cache - need to fetch the prompt object to store in cache
                         try:
@@ -808,10 +835,16 @@ class MCPCompoundServer(Server):
         except Exception as e:
             return CallToolResult(isError=True, message=f"Error calling tool: {e}")
 
-    async def _get_prompt(self, name: str = None) -> GetPromptResult:
-        """Get a prompt from the aggregated servers."""
+    async def _get_prompt(self, name: str = None, arguments: dict[str, str] = None) -> GetPromptResult:
+        """
+        Get a prompt from the aggregated servers.
+        
+        Args:
+            name: Name of the prompt to get (optionally namespaced)
+            arguments: Optional dictionary of string arguments for prompt templating
+        """
         try:
-            result = await self.aggregator.get_prompt(prompt_name=name)
+            result = await self.aggregator.get_prompt(prompt_name=name, arguments=arguments)
             return result
         except Exception as e:
             return GetPromptResult(

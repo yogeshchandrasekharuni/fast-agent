@@ -208,6 +208,7 @@ class ConsoleDisplay:
         message_count: int = 0,
         agent_name: Optional[str] = None,
         aggregator=None,
+        arguments: Optional[dict[str, str]] = None,
     ):
         """
         Display information about a loaded prompt template.
@@ -218,6 +219,7 @@ class ConsoleDisplay:
             message_count: Number of messages added to the conversation history
             agent_name: Name of the agent using the prompt
             aggregator: Optional aggregator instance to use for server highlighting
+            arguments: Optional dictionary of arguments passed to the prompt template
         """
         if not self.config or not self.config.logger.show_tools:
             return
@@ -248,6 +250,14 @@ class ConsoleDisplay:
 
         if agent_name:
             content.append(f" for {agent_name}", style="cyan italic")
+            
+        # Add template arguments if provided
+        if arguments:
+            content.append("\n\nArguments:", style="cyan")
+            for key, value in arguments.items():
+                content.append(f"\n  {key}: ", style="cyan bold")
+                content.append(value, style="white")
+                
         if description:
             content.append("\n\n", style="default")
             content.append(description, style="dim white")
