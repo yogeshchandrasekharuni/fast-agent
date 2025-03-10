@@ -21,12 +21,13 @@ from mcp.client.stdio import (
     get_default_environment,
 )
 from mcp.client.sse import sse_client
-from mcp.types import JSONRPCMessage
+from mcp.types import JSONRPCMessage, ServerCapabilities
 
 from mcp_agent.config import MCPServerSettings
 from mcp_agent.core.exceptions import ServerInitializationError
 from mcp_agent.event_progress import ProgressAction
 from mcp_agent.logging.logger import get_logger
+from mcp_agent.mcp.mcp_agent_client_session import MCPAgentClientSession
 from mcp_agent.mcp.stdio import stdio_client_with_rich_stderr
 from mcp_agent.context_dependent import ContextDependent
 
@@ -107,8 +108,9 @@ class ServerConnection:
         Must be called within an async context.
         """
 
-        await self.session.initialize()
+        result = await self.session.initialize()
 
+        self.server_capabilities = result.capabilities
         # If there's an init hook, run it
         if self._init_hook:
             logger.info(f"{self.server_name}: Executing init hook.")
@@ -332,6 +334,15 @@ class MCPConnectionManager(ContextDependent):
             )
 
         return server_conn
+
+    async def get_server_capabilities(
+        self, server_name: str
+    ) -> ServerCapabilities | None:
+        """Get the capabilities of a specific server."""
+        server_conn = await self.get_server(
+            server_name, client_session_factory=MCPAgentClientSession
+        )
+        return server_conn.server_capabilities if server_conn else None
 
     async def disconnect_server(self, server_name: str) -> None:
         """

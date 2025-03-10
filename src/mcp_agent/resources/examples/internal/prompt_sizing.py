@@ -1,4 +1,4 @@
-from dataclasses import Field
+from pydantic import Field
 from mcp.server.fastmcp import FastMCP
 from mcp.server.fastmcp.prompts.base import UserMessage, AssistantMessage
 
@@ -23,8 +23,9 @@ def sizing_prompt():
     description="set up the sizing protocol with metric or imperial units",
 )
 def sizing_prompt_units(
-    metric: bool = Field(description="Set True for metric, False for imperial"),
-    default=True,
+    metric: bool = Field(
+        description="Set to True for Metric, False for Imperial", default=True
+    ),
 ):
     if metric:
         return [
