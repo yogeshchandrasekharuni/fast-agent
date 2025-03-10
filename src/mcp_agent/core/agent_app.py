@@ -118,35 +118,371 @@ class AgentApp:
                     elif "list_prompts" in command_result:
                         # Handle listing of prompts
                         from rich import print as rich_print
-                        
+
                         try:
                             # Check if we have any agents with aggregator capabilities
                             found_prompts = False
                             for agent_name, agent_proxy in self._agents.items():
                                 # Check if agent has an mcp_aggregator (agent instance)
-                                if hasattr(agent_proxy, "_agent") and hasattr(agent_proxy._agent, "list_prompts"):
-                                    rich_print(f"\n[bold]Fetching prompts for agent [cyan]{agent_name}[/cyan]...[/bold]")
-                                    prompt_servers = await agent_proxy._agent.list_prompts()
-                                    
+                                if hasattr(agent_proxy, "_agent") and hasattr(
+                                    agent_proxy._agent, "list_prompts"
+                                ):
+                                    rich_print(
+                                        f"\n[bold]Fetching prompts for agent [cyan]{agent_name}[/cyan]...[/bold]"
+                                    )
+                                    prompt_servers = (
+                                        await agent_proxy._agent.list_prompts()
+                                    )
+
                                     if prompt_servers:
                                         found_prompts = True
-                                        for server_name, prompts_info in prompt_servers.items():
-                                            if prompts_info and hasattr(prompts_info, "prompts") and prompts_info.prompts:
-                                                rich_print(f"\n[bold cyan]{server_name}:[/bold cyan]")
+                                        for (
+                                            server_name,
+                                            prompts_info,
+                                        ) in prompt_servers.items():
+                                            if (
+                                                prompts_info
+                                                and hasattr(prompts_info, "prompts")
+                                                and prompts_info.prompts
+                                            ):
+                                                rich_print(
+                                                    f"\n[bold cyan]{server_name}:[/bold cyan]"
+                                                )
                                                 for prompt in prompts_info.prompts:
                                                     rich_print(f"  {prompt.name}")
-                                            elif isinstance(prompts_info, list) and prompts_info:
-                                                rich_print(f"\n[bold cyan]{server_name}:[/bold cyan]")
+                                            elif (
+                                                isinstance(prompts_info, list)
+                                                and prompts_info
+                                            ):
+                                                rich_print(
+                                                    f"\n[bold cyan]{server_name}:[/bold cyan]"
+                                                )
                                                 for prompt in prompts_info:
-                                                    if isinstance(prompt, dict) and "name" in prompt:
-                                                        rich_print(f"  {prompt['name']}")
+                                                    if (
+                                                        isinstance(prompt, dict)
+                                                        and "name" in prompt
+                                                    ):
+                                                        rich_print(
+                                                            f"  {prompt['name']}"
+                                                        )
                                                     else:
                                                         rich_print(f"  {prompt}")
-                                    
+
                             if not found_prompts:
                                 rich_print("[yellow]No prompts available[/yellow]")
                         except Exception as e:
                             rich_print(f"[red]Error listing prompts: {e}[/red]")
+                        continue
+                    elif "select_prompt" in command_result:
+                        from rich import print as rich_print
+                        from rich.table import Table
+                        from rich.console import Console
+                        from prompt_toolkit import PromptSession
+                        from prompt_toolkit.formatted_text import HTML
+                        from prompt_toolkit.completion import WordCompleter
+
+                        console = Console()
+
+                        # Get the current agent proxy
+                        current_proxy = self._agents[agent]
+
+                        # Check if the agent has prompt capabilities
+                        if not hasattr(current_proxy, "_agent") or not hasattr(
+                            current_proxy._agent, "list_prompts"
+                        ):
+                            rich_print(
+                                f"[red]Current agent '{agent}' does not support prompts[/red]"
+                            )
+                            continue
+
+                        try:
+                            # Create a list to store prompt data for selection
+                            all_prompts = []
+
+                            # Get prompts from the current agent
+                            rich_print(
+                                f"\n[bold]Fetching prompts for agent [cyan]{agent}[/cyan]...[/bold]"
+                            )
+                            prompt_servers = await current_proxy._agent.list_prompts()
+
+                            if not prompt_servers:
+                                rich_print(
+                                    "[yellow]No prompts available for this agent[/yellow]"
+                                )
+                                continue
+
+                            # Process retrieved prompts
+                            for server_name, prompts_info in prompt_servers.items():
+                                # Skip servers with no prompts
+                                if not prompts_info:
+                                    continue
+
+                                # Extract prompts from the response
+                                prompts = []
+                                if hasattr(prompts_info, "prompts"):
+                                    prompts = prompts_info.prompts
+                                elif isinstance(prompts_info, list):
+                                    prompts = prompts_info
+
+                                # Process each prompt
+                                for prompt in prompts:
+                                    # Basic prompt information
+                                    prompt_name = getattr(prompt, "name", "Unknown")
+                                    description = getattr(
+                                        prompt, "description", "No description"
+                                    )
+
+                                    # Extract argument information
+                                    arg_names = []
+                                    required_args = []
+                                    optional_args = []
+                                    arg_descriptions = {}
+
+                                    # Get arguments list from prompt (MCP SDK Prompt.arguments)
+                                    arguments = getattr(prompt, "arguments", None)
+                                    if arguments:
+                                        for arg in arguments:
+                                            # Each arg is a PromptArgument with name and required fields
+                                            name = getattr(arg, "name", None)
+                                            if name:
+                                                arg_names.append(name)
+
+                                                # Store description if available
+                                                description = getattr(
+                                                    arg, "description", None
+                                                )
+                                                if description:
+                                                    arg_descriptions[name] = description
+
+                                                # Check if required (default to False per MCP spec)
+                                                if getattr(arg, "required", False):
+                                                    required_args.append(name)
+                                                else:
+                                                    optional_args.append(name)
+
+                                    # Create a namespaced version with the server
+                                    namespaced_name = f"{server_name}-{prompt_name}"
+
+                                    # Add to our collection
+                                    all_prompts.append(
+                                        {
+                                            "server": server_name,
+                                            "name": prompt_name,
+                                            "namespaced_name": namespaced_name,
+                                            "description": description,
+                                            "arg_count": len(arg_names),
+                                            "arg_names": arg_names,
+                                            "required_args": required_args,
+                                            "optional_args": optional_args,
+                                            "arg_descriptions": arg_descriptions,
+                                        }
+                                    )
+
+                            # If no prompts were found
+                            if not all_prompts:
+                                rich_print(
+                                    "[yellow]No prompts available for this agent[/yellow]"
+                                )
+                                continue
+
+                            # Sort prompts by server then name
+                            all_prompts.sort(key=lambda p: (p["server"], p["name"]))
+
+                            # Check if a specific prompt was requested
+                            if (
+                                "prompt_name" in command_result
+                                and command_result["prompt_name"]
+                            ):
+                                requested_name = command_result["prompt_name"]
+                                # Find the prompt in our list (either by name or namespaced name)
+                                matching_prompts = [
+                                    p
+                                    for p in all_prompts
+                                    if p["name"] == requested_name
+                                    or p["namespaced_name"] == requested_name
+                                ]
+
+                                if not matching_prompts:
+                                    rich_print(
+                                        f"[red]Prompt '{requested_name}' not found[/red]"
+                                    )
+                                    rich_print("[yellow]Available prompts:[/yellow]")
+                                    for p in all_prompts:
+                                        rich_print(f"  {p['namespaced_name']}")
+                                    continue
+
+                                # If we found exactly one match, use it
+                                if len(matching_prompts) == 1:
+                                    selected_prompt = matching_prompts[0]
+                                else:
+                                    # If multiple matches, show them and ask user to be more specific
+                                    rich_print(
+                                        f"[yellow]Multiple prompts match '{requested_name}':[/yellow]"
+                                    )
+                                    for i, p in enumerate(matching_prompts):
+                                        rich_print(
+                                            f"  {i + 1}. {p['namespaced_name']} - {p['description']}"
+                                        )
+
+                                    # Ask user to select one
+                                    prompt_session = PromptSession()
+                                    selection = await prompt_session.prompt_async(
+                                        "Enter prompt number to select: ", default="1"
+                                    )
+
+                                    try:
+                                        idx = int(selection) - 1
+                                        if 0 <= idx < len(matching_prompts):
+                                            selected_prompt = matching_prompts[idx]
+                                        else:
+                                            rich_print("[red]Invalid selection[/red]")
+                                            continue
+                                    except ValueError:
+                                        rich_print(
+                                            "[red]Invalid input, please enter a number[/red]"
+                                        )
+                                        continue
+                            else:
+                                # Display prompt selection UI
+                                table = Table(title="Available MCP Prompts")
+                                table.add_column("#", justify="right", style="cyan")
+                                table.add_column("Server", style="green")
+                                table.add_column("Prompt Name", style="bright_blue")
+                                table.add_column("Description")
+                                table.add_column("Args", justify="center")
+
+                                # Add all prompts to the table
+                                for i, prompt in enumerate(all_prompts):
+                                    # Get argument counts
+                                    required_args = prompt["required_args"]
+                                    optional_args = prompt["optional_args"]
+
+                                    # Format args column nicely
+                                    if required_args and optional_args:
+                                        args_display = f"[bold]{len(required_args)}[/bold]+{len(optional_args)}"
+                                    elif required_args:
+                                        args_display = (
+                                            f"[bold]{len(required_args)}[/bold]"
+                                        )
+                                    elif optional_args:
+                                        args_display = f"{len(optional_args)} opt"
+                                    else:
+                                        args_display = "0"
+
+                                    table.add_row(
+                                        str(i + 1),
+                                        prompt["server"],
+                                        prompt["name"],
+                                        prompt["description"] or "No description",
+                                        args_display,
+                                    )
+
+                                console.print(table)
+
+                                # Create completions for prompt names
+                                prompt_names = [
+                                    str(i + 1) for i in range(len(all_prompts))
+                                ]
+                                completer = WordCompleter(prompt_names)
+
+                                # Ask user to select a prompt
+                                prompt_session = PromptSession(completer=completer)
+                                selection = await prompt_session.prompt_async(
+                                    "Enter prompt number to select (or CANCEL): "
+                                )
+
+                                if selection.upper() == "CANCEL":
+                                    rich_print(
+                                        "[yellow]Prompt selection cancelled[/yellow]"
+                                    )
+                                    continue
+
+                                try:
+                                    idx = int(selection) - 1
+                                    if 0 <= idx < len(all_prompts):
+                                        selected_prompt = all_prompts[idx]
+                                    else:
+                                        rich_print("[red]Invalid selection[/red]")
+                                        continue
+                                except ValueError:
+                                    rich_print(
+                                        "[red]Invalid input, please enter a number[/red]"
+                                    )
+                                    continue
+
+                            # Get our prompt arguments
+                            required_args = selected_prompt["required_args"]
+                            optional_args = selected_prompt["optional_args"]
+                            arg_descriptions = selected_prompt.get(
+                                "arg_descriptions", {}
+                            )
+
+                            # Always initialize arg_values
+                            arg_values = {}
+
+                            # Show argument info if we have any
+                            if required_args or optional_args:
+                                # Display information about the arguments
+                                if required_args and optional_args:
+                                    rich_print(
+                                        f"\n[bold]Prompt [cyan]{selected_prompt['name']}[/cyan] requires {len(required_args)} arguments and has {len(optional_args)} optional arguments:[/bold]"
+                                    )
+                                elif required_args:
+                                    rich_print(
+                                        f"\n[bold]Prompt [cyan]{selected_prompt['name']}[/cyan] requires {len(required_args)} arguments:[/bold]"
+                                    )
+                                elif optional_args:
+                                    rich_print(
+                                        f"\n[bold]Prompt [cyan]{selected_prompt['name']}[/cyan] has {len(optional_args)} optional arguments:[/bold]"
+                                    )
+
+                                # Collect required arguments
+                                for arg_name in required_args:
+                                    # Show description if available
+                                    description = arg_descriptions.get(arg_name, "")
+                                    if description:
+                                        rich_print(
+                                            f"  [dim]{arg_name}: {description}[/dim]"
+                                        )
+
+                                    arg_value = await PromptSession().prompt_async(
+                                        HTML(f"Enter value for <ansibrightcyan><b>{arg_name}</b></ansibrightcyan> (required): ")
+                                    )
+                                    arg_values[arg_name] = arg_value
+
+                                # Collect optional arguments
+                                for arg_name in optional_args:
+                                    # Show description if available
+                                    description = arg_descriptions.get(arg_name, "")
+                                    if description:
+                                        rich_print(
+                                            f"  [dim]{arg_name}: {description}[/dim]"
+                                        )
+
+                                    arg_value = await PromptSession().prompt_async(
+                                        HTML(f"Enter value for <ansibrightcyan>{arg_name}</ansibrightcyan> (optional, press Enter to skip): ")
+                                    )
+                                    # Only include non-empty values for optional arguments
+                                    if arg_value:
+                                        arg_values[arg_name] = arg_value
+
+                            # Apply the prompt with or without arguments
+                            rich_print(
+                                f"\n[bold]Applying prompt [cyan]{selected_prompt['namespaced_name']}[/cyan]...[/bold]"
+                            )
+
+                            # Call apply_prompt on the agent - always pass arg_values (empty dict if no args)
+                            await current_proxy._agent.apply_prompt(
+                                selected_prompt["namespaced_name"], arg_values
+                            )
+
+                        except Exception as e:
+                            import traceback
+
+                            rich_print(
+                                f"[red]Error selecting or applying prompt: {e}[/red]"
+                            )
+                            rich_print(f"[dim]{traceback.format_exc()}[/dim]")
                         continue
 
                 # Skip further processing if command was handled

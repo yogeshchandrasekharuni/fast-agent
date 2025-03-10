@@ -55,6 +55,18 @@ class BaseAgentProxy:
             arguments: Optional dictionary of string arguments for prompt templating
         """
         raise NotImplementedError("Subclasses must implement mcp-prompt")
+        
+    async def apply_prompt(self, prompt_name: str = None, arguments: dict[str, str] = None) -> str:
+        """
+        Apply a Prompt from an MCP Server - implemented by subclasses.
+        This is the preferred method for applying prompts.
+        Always returns an Assistant message.
+        
+        Args:
+            prompt_name: Name of the prompt to apply
+            arguments: Optional dictionary of string arguments for prompt templating
+        """
+        raise NotImplementedError("Subclasses must implement apply_prompt")
 
 
 class LLMAgentProxy(BaseAgentProxy):
@@ -80,6 +92,20 @@ class LLMAgentProxy(BaseAgentProxy):
             The assistant's response
         """
         return await self._agent.load_prompt(prompt_name, arguments)
+        
+    async def apply_prompt(self, prompt_name: str = None, arguments: dict[str, str] = None) -> str:
+        """
+        Apply a prompt from an MCP server.
+        This is the preferred method for applying prompts.
+        
+        Args:
+            prompt_name: Name of the prompt to apply
+            arguments: Optional dictionary of string arguments for prompt templating
+            
+        Returns:
+            The assistant's response
+        """
+        return await self._agent.apply_prompt(prompt_name, arguments)
 
 
 class WorkflowProxy(BaseAgentProxy):

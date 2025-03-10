@@ -92,6 +92,17 @@ class AgentCompleter(Completer):
                         display_meta=agent_type,
                         #                        style="bg:ansiblack fg:ansiblue",
                     )
+                    
+        # Complete prompt selection with # command
+        elif text.startswith("#"):
+            # Return a completion that will trigger the prompt selection UI
+            # The actual implementation happens in handle_special_commands
+            yield Completion(
+                "prompts",
+                start_position=-len(text) + 1,  # Only replace after the # character
+                display="prompts",
+                display_meta="Select a prompt to apply",
+            )
 
 
 def create_keybindings(on_toggle_multiline=None, app=None):
@@ -275,7 +286,7 @@ async def get_enhanced_input(
             )
         else:
             rich_print(
-                "[dim]Type /help for commands, @agent to switch agent, /prompts to list prompts. Ctrl+T toggles multiline mode.[/dim]"
+                "[dim]Type /help for commands, @agent to switch agent, # to use prompts. Ctrl+T toggles multiline mode.[/dim]"
             )
         rich_print()
         help_message_shown = True
@@ -301,6 +312,14 @@ async def get_enhanced_input(
         # Agent switching
         if text and text.startswith("@"):
             return f"SWITCH:{text[1:].strip()}"
+            
+        # Prompt selection with #
+        if text and text.startswith("#"):
+            cmd = text[1:].strip().lower()
+            if cmd == "prompts" or cmd == "":
+                return "SELECT_PROMPT"
+            # If it's a specific prompt name after #, we'll handle it in the special commands
+            return f"SELECT_PROMPT:{text[1:].strip()}"
 
         return text
 
@@ -333,6 +352,7 @@ async def handle_special_commands(command, agent_app=None):
         rich_print("  /clear         - Clear screen")
         rich_print("  /agents        - List available agents")
         rich_print("  /prompts       - List available MCP prompts")
+        rich_print("  #              - Select a prompt to apply")
         rich_print("  @agent_name    - Switch to agent")
         rich_print("  STOP           - Return control back to the workflow")
         rich_print(
@@ -373,6 +393,20 @@ async def handle_special_commands(command, agent_app=None):
             return {"list_prompts": True}
         else:
             rich_print("[yellow]Prompt listing is not available outside of an agent context[/yellow]")
+            return True
+            
+    elif command == "SELECT_PROMPT" or (isinstance(command, str) and command.startswith("SELECT_PROMPT:")):
+        # Handle prompt selection UI
+        if agent_app:
+            # If it's a specific prompt, extract the name
+            prompt_name = None
+            if isinstance(command, str) and command.startswith("SELECT_PROMPT:"):
+                prompt_name = command.split(":", 1)[1].strip()
+                
+            # Return a dictionary with a select_prompt action to be handled by the caller
+            return {"select_prompt": True, "prompt_name": prompt_name}
+        else:
+            rich_print("[yellow]Prompt selection is not available outside of an agent context[/yellow]")
             return True
 
     elif isinstance(command, str) and command.startswith("SWITCH:"):
