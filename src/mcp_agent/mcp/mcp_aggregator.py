@@ -243,7 +243,7 @@ class MCPAggregator(ContextDependent):
 
             try:
                 result = await client.list_prompts()
-                return result.prompts if result and hasattr(result, "prompts") else []
+                return getattr(result, "prompts", [])
             except Exception as e:
                 logger.debug(f"Error loading prompts from server '{server_name}': {e}")
                 return []
@@ -651,29 +651,16 @@ class MCPAggregator(ContextDependent):
                                 error_factory=lambda _: None,
                             )
 
-                            if prompt_list_result and hasattr(
-                                prompt_list_result, "prompts"
-                            ):
-                                matching_prompts = [
-                                    p
-                                    for p in prompt_list_result.prompts
-                                    if p.name == local_prompt_name
-                                ]
-                                if matching_prompts:
-                                    async with self._prompt_cache_lock:
-                                        if s_name not in self._prompt_cache:
-                                            self._prompt_cache[s_name] = []
-                                        # Add if not already in the cache
-                                        prompt_names_in_cache = [
-                                            p.name for p in self._prompt_cache[s_name]
-                                        ]
-                                        if (
-                                            local_prompt_name
-                                            not in prompt_names_in_cache
-                                        ):
-                                            self._prompt_cache[s_name].append(
-                                                matching_prompts[0]
-                                            )
+                            prompts = getattr(prompt_list_result, "prompts", [])
+                            matching_prompts = [p for p in prompts if p.name == local_prompt_name]
+                            if matching_prompts:
+                                async with self._prompt_cache_lock:
+                                    if s_name not in self._prompt_cache:
+                                        self._prompt_cache[s_name] = []
+                                    # Add if not already in the cache
+                                    prompt_names_in_cache = [p.name for p in self._prompt_cache[s_name]]
+                                    if local_prompt_name not in prompt_names_in_cache:
+                                        self._prompt_cache[s_name].append(matching_prompts[0])
                         except Exception:
                             # Ignore errors when updating cache
                             pass
@@ -744,9 +731,8 @@ class MCPAggregator(ContextDependent):
                 )
 
                 # Update cache with the result
-                if hasattr(result, "prompts"):
-                    async with self._prompt_cache_lock:
-                        self._prompt_cache[server_name] = result.prompts
+                async with self._prompt_cache_lock:
+                    self._prompt_cache[server_name] = getattr(result, "prompts", [])
 
                 results[server_name] = result
             else:
@@ -785,9 +771,8 @@ class MCPAggregator(ContextDependent):
                     results[s_name] = result
 
                     # Update cache with the result
-                    if hasattr(result, "prompts"):
-                        async with self._prompt_cache_lock:
-                            self._prompt_cache[s_name] = result.prompts
+                    async with self._prompt_cache_lock:
+                        self._prompt_cache[s_name] = getattr(result, "prompts", [])
 
         logger.debug(f"Available prompts across servers: {results}")
         return results
