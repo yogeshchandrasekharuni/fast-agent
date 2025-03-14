@@ -1,7 +1,6 @@
 from abc import abstractmethod
 
 from typing import (
-    Any,
     Generic,
     List,
     Optional,
@@ -9,7 +8,6 @@ from typing import (
     Type,
     TypeVar,
     TYPE_CHECKING,
-    Union,
 )
 
 from pydantic import Field
@@ -567,7 +565,7 @@ class AugmentedLLM(ContextDependent, AugmentedLLMProtocol[MessageParamT, Message
                             text_parts.append(part.text)
                     if text_parts:
                         return "\n".join(text_parts)
-                    
+
         # For objects with content attribute
         if hasattr(message, "content"):
             content = message.content
@@ -575,7 +573,7 @@ class AugmentedLLM(ContextDependent, AugmentedLLMProtocol[MessageParamT, Message
                 return content
             elif hasattr(content, "text"):
                 return content.text
-                
+
         # Default fallback
         return str(message)
 
@@ -588,7 +586,7 @@ class AugmentedLLM(ContextDependent, AugmentedLLMProtocol[MessageParamT, Message
         result = self.message_param_str(message)
         if result != str(message):
             return result
-            
+
         # Additional handling for output-specific formats
         if hasattr(message, "content"):
             content = message.content
@@ -600,7 +598,7 @@ class AugmentedLLM(ContextDependent, AugmentedLLMProtocol[MessageParamT, Message
                         text_parts.append(block.text)
                 if text_parts:
                     return "\n".join(text_parts)
-        
+
         # Default fallback
         return str(message)
 
@@ -650,7 +648,7 @@ class AugmentedLLM(ContextDependent, AugmentedLLMProtocol[MessageParamT, Message
     ):
         """
         Display information about a loaded prompt template.
-        
+
         Args:
             prompt_name: The name of the prompt
             description: Optional description of the prompt
@@ -679,11 +677,11 @@ class AugmentedLLM(ContextDependent, AugmentedLLMProtocol[MessageParamT, Message
             prompt_name: The name of the prompt being applied
 
         Returns:
-            String representation of the assistant's response if generated, 
+            String representation of the assistant's response if generated,
             or the last assistant message in the prompt
         """
         prompt_messages: List[PromptMessage] = prompt_result.messages
-        
+
         # Check if we have any messages
         if not prompt_messages:
             return "Prompt contains no messages"
@@ -698,14 +696,16 @@ class AugmentedLLM(ContextDependent, AugmentedLLMProtocol[MessageParamT, Message
             message_count=len(prompt_messages),
             arguments=arguments,
         )
-        
+
         # Check the last message role
         last_message = prompt_messages[-1]
-        
+
         if last_message.role == "user":
             # For user messages: Add all previous messages to history, then generate response to the last one
-            self.logger.debug("Last message in prompt is from user, generating assistant response")
-            
+            self.logger.debug(
+                "Last message in prompt is from user, generating assistant response"
+            )
+
             # Add all but the last message to history
             if len(prompt_messages) > 1:
                 previous_messages = prompt_messages[:-1]
@@ -713,87 +713,28 @@ class AugmentedLLM(ContextDependent, AugmentedLLMProtocol[MessageParamT, Message
                 for msg in previous_messages:
                     converted.append(self.type_converter.from_mcp_prompt_message(msg))
                 self.history.extend(converted, is_prompt=True)
-            
+
             # Extract the user's question and generate a response
             user_content = last_message.content
-            user_text = user_content.text if hasattr(user_content, "text") else str(user_content)
-            
+            user_text = (
+                user_content.text
+                if hasattr(user_content, "text")
+                else str(user_content)
+            )
+
             return await self.generate_str(user_text)
         else:
             # For assistant messages: Add all messages to history and return the last one
-            self.logger.debug("Last message in prompt is from assistant, returning it directly")
-            
+            self.logger.debug(
+                "Last message in prompt is from assistant, returning it directly"
+            )
+
             # Convert and add all messages to history
             converted = []
             for msg in prompt_messages:
                 converted.append(self.type_converter.from_mcp_prompt_message(msg))
             self.history.extend(converted, is_prompt=True)
-            
+
             # Return the assistant's message
             content = last_message.content
             return content.text if hasattr(content, "text") else str(content)
-        
-
-
-class PassthroughLLM(AugmentedLLM):
-    """
-    A specialized LLM implementation that simply passes through input messages without modification.
-
-    This is useful for cases where you need an object with the AugmentedLLM interface
-    but want to preserve the original message without any processing, such as in a
-    parallel workflow where no fan-in aggregation is needed.
-    """
-
-    def __init__(self, name: str = "Passthrough", context=None, **kwargs):
-        super().__init__(name=name, context=context, **kwargs)
-
-    async def generate(
-        self,
-        message: Union[str, MessageParamT, List[MessageParamT]],
-        request_params: Optional[RequestParams] = None,
-    ) -> Union[List[MessageT], Any]:
-        """Simply return the input message as is."""
-        # Return in the format expected by the caller
-        return [message] if isinstance(message, list) else message
-
-    async def generate_str(
-        self,
-        message: Union[str, MessageParamT, List[MessageParamT]],
-        request_params: Optional[RequestParams] = None,
-    ) -> str:
-        """Return the input message as a string."""
-        self.show_user_message(message, model="fastagent-passthrough", chat_turn=0)
-        await self.show_assistant_message(message, title="ASSISTANT/PASSTHROUGH")
-
-        return str(message)
-
-    async def generate_structured(
-        self,
-        message: Union[str, MessageParamT, List[MessageParamT]],
-        response_model: Type[ModelT],
-        request_params: Optional[RequestParams] = None,
-    ) -> ModelT:
-        """
-        Return the input message as the requested model type.
-        This is a best-effort implementation - it may fail if the
-        message cannot be converted to the requested model.
-        """
-        if isinstance(message, response_model):
-            return message
-        elif isinstance(message, dict):
-            return response_model(**message)
-        elif isinstance(message, str):
-            try:
-                # Try to parse as JSON if it's a string
-                import json
-
-                data = json.loads(message)
-                return response_model(**data)
-            except:  # noqa: E722
-                raise ValueError(
-                    f"Cannot convert message of type {type(message)} to {response_model}"
-                )
-        else:
-            raise ValueError(
-                f"Cannot convert message of type {type(message)} to {response_model}"
-            )

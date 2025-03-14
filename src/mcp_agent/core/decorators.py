@@ -256,7 +256,8 @@ def parallel(
         self.agents[passthrough_name] = {
             "config": AgentConfig(
                 name=passthrough_name,
-                instruction=f"Passthrough fan-in for {name}",
+                model="passthrough",
+                instruction=f"This agent combines the results from the fan-out agents verbatim. {name}",
                 servers=[],
                 use_history=use_history,
             ),

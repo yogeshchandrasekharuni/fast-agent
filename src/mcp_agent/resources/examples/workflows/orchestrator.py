@@ -49,6 +49,7 @@ fast = FastAgent("Orchestrator-Workers")
 )
 async def main():
     async with fast.run() as agent:
+        await agent()
         await agent.author(
             "write a 250 word short story about kittens discovering a castle, and save it to short_story.md"
         )

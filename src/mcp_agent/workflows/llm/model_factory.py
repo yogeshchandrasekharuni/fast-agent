@@ -7,7 +7,7 @@ from mcp_agent.core.exceptions import ModelConfigError
 from mcp_agent.workflows.llm.augmented_llm_anthropic import AnthropicAugmentedLLM
 from mcp_agent.workflows.llm.augmented_llm_openai import OpenAIAugmentedLLM
 from mcp_agent.workflows.llm.augmented_llm import RequestParams
-from mcp_agent.workflows.llm.enhanced_passthrough import EnhancedPassthroughLLM
+from mcp_agent.workflows.llm.augmented_llm_passthrough import PassthroughLLM
 
 # Type alias for LLM classes
 LLMClass = Union[Type[AnthropicAugmentedLLM], Type[OpenAIAugmentedLLM]]
@@ -18,7 +18,7 @@ class Provider(Enum):
 
     ANTHROPIC = auto()
     OPENAI = auto()
-    SIMULATOR = auto()
+    FAST_AGENT = auto()
 
 
 class ReasoningEffort(Enum):
@@ -45,6 +45,7 @@ class ModelFactory:
     PROVIDER_MAP = {
         "anthropic": Provider.ANTHROPIC,
         "openai": Provider.OPENAI,
+        "fast-agent": Provider.FAST_AGENT,
     }
 
     # Mapping of effort strings to enum values
@@ -59,6 +60,7 @@ class ModelFactory:
     # TODO -- bring model parameter configuration here
     # Mapping of model names to their default providers
     DEFAULT_PROVIDERS = {
+        "passthrough": Provider.FAST_AGENT,
         "gpt-4o": Provider.OPENAI,
         "gpt-4o-mini": Provider.OPENAI,
         "o1-mini": Provider.OPENAI,
@@ -93,7 +95,7 @@ class ModelFactory:
     PROVIDER_CLASSES: Dict[Provider, LLMClass] = {
         Provider.ANTHROPIC: AnthropicAugmentedLLM,
         Provider.OPENAI: OpenAIAugmentedLLM,
-        Provider.SIMULATOR: EnhancedPassthroughLLM,
+        Provider.FAST_AGENT: PassthroughLLM,
     }
 
     @classmethod

@@ -34,10 +34,7 @@ T = TypeVar("T")  # For the wrapper classes
 
 
 def create_proxy(
-    app: MCPApp,
-    name: str, 
-    instance: AgentOrWorkflow, 
-    agent_type: str
+    app: MCPApp, name: str, instance: AgentOrWorkflow, agent_type: str
 ) -> BaseAgentProxy:
     """Create appropriate proxy type based on agent type and validate instance type
 
@@ -61,9 +58,7 @@ def create_proxy(
         log_agent_load(app, name)
     if agent_type == AgentType.BASIC.value:
         if not isinstance(instance, Agent):
-            raise TypeError(
-                f"Expected Agent instance for {name}, got {type(instance)}"
-            )
+            raise TypeError(f"Expected Agent instance for {name}, got {type(instance)}")
         return LLMAgentProxy(app, name, instance)
     elif agent_type == AgentType.ORCHESTRATOR.value:
         if not isinstance(instance, Orchestrator):
@@ -177,42 +172,18 @@ async def create_agents_by_type(
             if agent_type == AgentType.BASIC:
                 # Get the agent name for special handling
                 agent_name = agent_data["config"].name
+                agent = Agent(config=config, context=app_instance.context)
 
-                # Check if this is an agent that should use the PassthroughLLM
-                if agent_name.endswith("_fan_in") or agent_name.startswith(
-                    "passthrough"
-                ):
-                    # Import here to avoid circular imports
-                    from mcp_agent.workflows.llm.augmented_llm import PassthroughLLM
+                # Set up LLM with proper configuration
+                async with agent:
+                    llm_factory = model_factory_func(
+                        model=config.model,
+                        request_params=config.default_request_params,
+                    )
+                    agent._llm = await agent.attach_llm(llm_factory)
 
-                    # Create basic agent with configuration
-                    agent = Agent(config=config, context=app_instance.context)
-
-                    # Set up a PassthroughLLM directly
-                    async with agent:
-                        agent._llm = PassthroughLLM(
-                            name=f"{config.name}_llm",
-                            context=app_instance.context,
-                            agent=agent,
-                            default_request_params=config.default_request_params,
-                        )
-
-                    # Store the agent
-                    instance = agent
-                else:
-                    # Standard basic agent with LLM
-                    agent = Agent(config=config, context=app_instance.context)
-
-                    # Set up LLM with proper configuration
-                    async with agent:
-                        llm_factory = model_factory_func(
-                            model=config.model,
-                            request_params=config.default_request_params,
-                        )
-                        agent._llm = await agent.attach_llm(llm_factory)
-
-                    # Store the agent
-                    instance = agent
+                # Store the agent
+                instance = agent
 
             elif agent_type == AgentType.ORCHESTRATOR:
                 # Get base params configured with model settings
@@ -276,12 +247,8 @@ async def create_agents_by_type(
 
             elif agent_type == AgentType.EVALUATOR_OPTIMIZER:
                 # Get the referenced agents - unwrap from proxies
-                generator = unwrap_proxy(
-                    active_agents[agent_data["generator"]]
-                )
-                evaluator = unwrap_proxy(
-                    active_agents[agent_data["evaluator"]]
-                )
+                generator = unwrap_proxy(active_agents[agent_data["generator"]])
+                evaluator = unwrap_proxy(active_agents[agent_data["evaluator"]])
 
                 if not generator or not evaluator:
                     raise ValueError(
@@ -294,7 +261,9 @@ async def create_agents_by_type(
                 optimizer_model = None
                 if isinstance(generator, Agent):
                     optimizer_model = generator.config.model
-                elif hasattr(generator, '_sequence') and hasattr(generator, '_agent_proxies'):
+                elif hasattr(generator, "_sequence") and hasattr(
+                    generator, "_agent_proxies"
+                ):
                     # For ChainProxy, use the config model directly
                     optimizer_model = config.model
 
@@ -311,9 +280,7 @@ async def create_agents_by_type(
 
             elif agent_type == AgentType.ROUTER:
                 # Get the router's agents - unwrap proxies
-                router_agents = get_agent_instances(
-                    agent_data["agents"], active_agents
-                )
+                router_agents = get_agent_instances(agent_data["agents"], active_agents)
 
                 # Create the router with proper configuration
                 llm_factory = model_factory_func(
@@ -376,20 +343,15 @@ async def create_agents_by_type(
                     "continue_with_final", True
                 )
                 # Set cumulative behavior from configuration
-                instance._cumulative = agent_data.get(
-                    "cumulative", False
-                )
+                instance._cumulative = agent_data.get("cumulative", False)
 
             elif agent_type == AgentType.PARALLEL:
-                # Get fan-out agents (could be basic agents or other parallels)
                 fan_out_agents = get_agent_instances(
                     agent_data["fan_out"], active_agents
                 )
 
                 # Get fan-in agent - unwrap proxy
-                fan_in_agent = unwrap_proxy(
-                    active_agents[agent_data["fan_in"]]
-                )
+                fan_in_agent = unwrap_proxy(active_agents[agent_data["fan_in"]])
 
                 # Create the parallel workflow
                 llm_factory = model_factory_func(config.model)
@@ -416,7 +378,7 @@ async def create_agents_by_type(
 
 
 async def create_basic_agents(
-    app_instance: MCPApp, 
+    app_instance: MCPApp,
     agents_dict: Dict[str, Dict[str, Any]],
     model_factory_func: Callable,
 ) -> ProxyDict:
@@ -432,17 +394,17 @@ async def create_basic_agents(
         Dictionary of initialized basic agents wrapped in appropriate proxies
     """
     return await create_agents_by_type(
-        app_instance, 
-        agents_dict, 
-        AgentType.BASIC, 
-        model_factory_func=model_factory_func
+        app_instance,
+        agents_dict,
+        AgentType.BASIC,
+        model_factory_func=model_factory_func,
     )
 
 
 async def create_agents_in_dependency_order(
-    app_instance: MCPApp, 
+    app_instance: MCPApp,
     agents_dict: Dict[str, Dict[str, Any]],
-    active_agents: ProxyDict, 
+    active_agents: ProxyDict,
     agent_type: AgentType,
     model_factory_func: Callable,
 ) -> ProxyDict:
