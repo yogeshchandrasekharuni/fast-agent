@@ -1,4 +1,6 @@
 from typing import Any, List, Optional, Type, Union
+
+from pydantic_core import from_json
 from mcp_agent.workflows.llm.augmented_llm import (
     AugmentedLLM,
     MessageParamT,
@@ -56,17 +58,4 @@ class PassthroughLLM(AugmentedLLM):
         elif isinstance(message, dict):
             return response_model(**message)
         elif isinstance(message, str):
-            try:
-                # Try to parse as JSON if it's a string
-                import json
-
-                data = json.loads(message)
-                return response_model(**data)
-            except:  # noqa: E722
-                raise ValueError(
-                    f"Cannot convert message of type {type(message)} to {response_model}"
-                )
-        else:
-            raise ValueError(
-                f"Cannot convert message of type {type(message)} to {response_model}"
-            )
+            return response_model.model_validate(from_json(message, allow_partial=True))

@@ -65,37 +65,31 @@ Follow these guidelines:
 """
 
 
-class LLMRouterResult(RouterResult[ResultT]):
-    """A class that represents the result of an LLMRouter.route request"""
+class ConfidenceRating(BaseModel):
+    """Base class for models with confidence ratings and reasoning"""
 
-    confidence: Literal["high", "medium", "low"]
     """The confidence level of the routing decision."""
-
-    reasoning: str | None = None
-    """
-    A brief explanation of the routing decision.
-    This is optional and may only be provided if the router is an LLM
-    """
+    confidence: Literal["high", "medium", "low"]
+    """A brief explanation of the routing decision."""
+    reasoning: str | None = None  # Make nullable to support both use cases
 
 
-class StructuredResponseCategory(BaseModel):
-    """A class that represents a single category returned by an LLM router"""
-
-    category: str
+# Used for LLM output parsing
+class StructuredResponseCategory(ConfidenceRating):
     """The name of the category (i.e. MCP server, Agent or function) to route the input to."""
 
-    confidence: Literal["high", "medium", "low"]
-    """The confidence level of the routing decision."""
-
-    reasoning: str | None = None
-    """A brief explanation of the routing decision."""
+    category: str  # Category name for lookup
 
 
 class StructuredResponse(BaseModel):
-    """A class that represents the structured response of an LLM router"""
-
     categories: List[StructuredResponseCategory]
-    """A list of categories to route the input to."""
+
+
+# Used for final router output
+class LLMRouterResult(RouterResult[ResultT], ConfidenceRating):
+    # Inherits 'result' from RouterResult
+    # Inherits 'confidence' and 'reasoning' from ConfidenceRating
+    pass
 
 
 class LLMRouter(Router):
@@ -282,7 +276,6 @@ class LLMRouter(Router):
         for r in response.categories:
             router_category = self.categories.get(r.category)
             if not router_category:
-                # Skip invalid categories
                 # TODO: log or raise an error
                 continue
 

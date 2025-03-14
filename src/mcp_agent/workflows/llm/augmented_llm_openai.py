@@ -2,15 +2,16 @@ import json
 import os
 from typing import Iterable, List, Type
 from mcp.types import PromptMessage
-import instructor
 from openai import OpenAI, AuthenticationError
+
+# from openai.types.beta.chat import
 from openai.types.chat import (
     ChatCompletionAssistantMessageParam,
+    ChatCompletionMessageParam,
     ChatCompletionContentPartParam,
     ChatCompletionContentPartTextParam,
     ChatCompletionContentPartRefusalParam,
     ChatCompletionMessage,
-    ChatCompletionMessageParam,
     ChatCompletionSystemMessageParam,
     ChatCompletionToolParam,
     ChatCompletionToolMessageParam,
@@ -25,6 +26,7 @@ from mcp.types import (
     TextContent,
     TextResourceContents,
 )
+from pydantic_core import from_json
 
 from mcp_agent.workflows.llm.augmented_llm import (
     AugmentedLLM,
@@ -128,7 +130,12 @@ class OpenAIAugmentedLLM(
             self.context.config.openai.base_url if self.context.config.openai else None
         )
 
-    async def generate(self, message, request_params: RequestParams | None = None):
+    async def generate(
+        self,
+        message,
+        request_params: RequestParams | None = None,
+        response_model: Type[ModelT] | None = None,
+    ) -> List[ChatCompletionMessage]:
         """
         Process a query using an LLM and available tools.
         The default implementation uses OpenAI's ChatCompletion as the LLM.
@@ -152,7 +159,7 @@ class OpenAIAugmentedLLM(
                 ChatCompletionSystemMessageParam(role="system", content=system_prompt)
             )
 
-        # Always include prompt messages, but only include conversation history 
+        # Always include prompt messages, but only include conversation history
         # if use_history is True
         messages.extend(self.history.get(include_history=params.use_history))
 
@@ -179,7 +186,7 @@ class OpenAIAugmentedLLM(
             for tool in response.tools
         ]
         if not available_tools:
-            available_tools = None
+            available_tools = []
 
         responses: List[ChatCompletionMessage] = []
         model = await self.select_model(params)
@@ -215,9 +222,16 @@ class OpenAIAugmentedLLM(
             self.logger.debug(f"{arguments}")
             self._log_chat_progress(chat_turn, model=model)
 
-            executor_result = await self.executor.execute(
-                openai_client.chat.completions.create, **arguments
-            )
+            if response_model is None:
+                executor_result = await self.executor.execute(
+                    openai_client.chat.completions.create, **arguments
+                )
+            else:
+                executor_result = await self.executor.execute(
+                    openai_client.beta.chat.completions.parse,
+                    **arguments,
+                    response_format=response_model,
+                )
 
             response = executor_result[0]
 
@@ -334,10 +348,10 @@ class OpenAIAugmentedLLM(
         if params.use_history:
             # Get current prompt messages
             prompt_messages = self.history.get(include_history=False)
-            
+
             # Calculate new conversation messages (excluding prompts)
-            new_messages = messages[len(prompt_messages):]
-            
+            new_messages = messages[len(prompt_messages) :]
+
             # Update conversation history
             self.history.set(new_messages)
 
@@ -379,40 +393,21 @@ class OpenAIAugmentedLLM(
         response_model: Type[ModelT],
         request_params: RequestParams | None = None,
     ) -> ModelT:
-        # First we invoke the LLM to generate a string response
-        # We need to do this in a two-step process because Instructor doesn't
-        # know how to invoke MCP tools via call_tool, so we'll handle all the
-        # processing first and then pass the final response through Instructor
-        response = await self.generate_str(
+        responses = await self.generate(
             message=message,
             request_params=request_params,
-        )
-
-        # Next we pass the text through instructor to extract structured data
-        client = instructor.from_openai(
-            OpenAI(
-                api_key=self._api_key(),
-                base_url=self._base_url(),
-            ),
-            mode=instructor.Mode.TOOLS_STRICT,
-        )
-
-        params = self.get_request_params(request_params)
-        model = await self.select_model(params)
-
-        # Extract structured data from natural language
-        structured_response = client.chat.completions.create(
-            model=model,
             response_model=response_model,
-            messages=[
-                {"role": "user", "content": response},
-            ],
         )
-        await self.show_assistant_message(
-            str(structured_response), title="ASSISTANT/STRUCTURED"
-        )
+        return responses[0].parsed
 
-        return structured_response
+        # return response_model.model_validate(
+        #     from_json(responses[0].content, allow_partial=True)
+        # )
+        # part1 = from_json(response, allow_partial=True)
+        # return response_model.model_validate(part1)
+
+        # TODO -- would prefer to use the OpenAI message[0].parsed function here
+        # return response_model.model_validate(from_json(response, allow_partial=True))
 
     async def pre_tool_call(self, tool_call_id: str | None, request: CallToolRequest):
         return request
