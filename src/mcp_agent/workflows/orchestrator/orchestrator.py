@@ -7,6 +7,7 @@ from typing import (
     Literal,
     Optional,
     TYPE_CHECKING,
+    Type,
 )
 
 from mcp_agent.agents.agent import Agent
@@ -15,6 +16,7 @@ from mcp_agent.workflows.llm.augmented_llm import (
     AugmentedLLM,
     MessageParamT,
     MessageT,
+    ModelT,
     RequestParams,
 )
 from mcp_agent.workflows.orchestrator.orchestrator_models import (
@@ -161,36 +163,13 @@ class Orchestrator(AugmentedLLM[MessageParamT, MessageT]):
 
         return str(result[0])
 
-    # async def generate_structured(
-    #     self,
-    #     message: str | MessageParamT | List[MessageParamT],
-    #     response_model: Type[ModelT],
-    #     request_params: RequestParams | None = None,
-    # ) -> ModelT:
-    #     """Request a structured LLM generation and return the result as a Pydantic model."""
-    #     import json
-    #     from pydantic import ValidationError
-
-    #     params = self.get_request_params(request_params)
-    #     result_str = await self.generate_str(message=message, request_params=params)
-
-    #     try:
-    #         # Directly parse JSON and create model instance
-    #         parsed_data = json.loads(result_str)
-    #         return response_model(**parsed_data)
-    #     except (json.JSONDecodeError, ValidationError) as e:
-    #         # Log the error and fall back to the original method if direct parsing fails
-    #         self.logger.error(
-    #             f"Direct JSON parsing failed: {str(e)}. Falling back to standard method."
-    #         )
-    #         self.logger.debug(f"Failed JSON content: {result_str}")
-
-    #         # Use AugmentedLLM's structured output handling as fallback
-    #         return await super().generate_structured(
-    #             message=result_str,
-    #             response_model=response_model,
-    #             request_params=params,
-    #         )
+    async def generate_structured(
+        self,
+        message: str | MessageParamT | List[MessageParamT],
+        response_model: Type[ModelT],
+        request_params: RequestParams | None = None,
+    ) -> ModelT:
+        return None
 
     async def execute(
         self, objective: str, request_params: RequestParams | None = None
