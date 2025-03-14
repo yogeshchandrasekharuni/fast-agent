@@ -6,7 +6,6 @@ from typing import (
     List,
     Literal,
     Optional,
-    Type,
     TYPE_CHECKING,
 )
 
@@ -16,7 +15,6 @@ from mcp_agent.workflows.llm.augmented_llm import (
     AugmentedLLM,
     MessageParamT,
     MessageT,
-    ModelT,
     RequestParams,
 )
 from mcp_agent.workflows.orchestrator.orchestrator_models import (
@@ -132,21 +130,7 @@ class Orchestrator(AugmentedLLM[MessageParamT, MessageT]):
         # Store agents by name - COMPLETE REWRITE OF AGENT STORAGE
         self.agents = {}
         for agent in available_agents:
-            # Fix: Remove all special handling of agent names and store them exactly as they are
             agent_name = agent.name
-
-            # Verify if the name is actually "None" (string) or None (NoneType)
-            if agent_name == "None":
-                # Try to get a better name from config if available
-                if hasattr(agent, "config") and agent.config and agent.config.name:
-                    agent_name = agent.config.name
-            elif agent_name is None:
-                # Try to get a better name from config if available
-                if hasattr(agent, "config") and agent.config and agent.config.name:
-                    agent_name = agent.config.name
-                else:
-                    agent_name = f"unnamed_agent_{len(self.agents)}"
-
             self.logger.info(f"Adding agent '{agent_name}' to orchestrator")
             self.agents[agent_name] = agent
 
@@ -169,7 +153,7 @@ class Orchestrator(AugmentedLLM[MessageParamT, MessageT]):
     ) -> str:
         """Request an LLM generation and return the string representation of the result"""
         params = self.get_request_params(request_params)
-        # TODO -- properly incorporate this in to message display etc.
+
         result = await self.generate(
             message=message,
             request_params=params,
@@ -177,36 +161,36 @@ class Orchestrator(AugmentedLLM[MessageParamT, MessageT]):
 
         return str(result[0])
 
-    async def generate_structured(
-        self,
-        message: str | MessageParamT | List[MessageParamT],
-        response_model: Type[ModelT],
-        request_params: RequestParams | None = None,
-    ) -> ModelT:
-        """Request a structured LLM generation and return the result as a Pydantic model."""
-        import json
-        from pydantic import ValidationError
+    # async def generate_structured(
+    #     self,
+    #     message: str | MessageParamT | List[MessageParamT],
+    #     response_model: Type[ModelT],
+    #     request_params: RequestParams | None = None,
+    # ) -> ModelT:
+    #     """Request a structured LLM generation and return the result as a Pydantic model."""
+    #     import json
+    #     from pydantic import ValidationError
 
-        params = self.get_request_params(request_params)
-        result_str = await self.generate_str(message=message, request_params=params)
+    #     params = self.get_request_params(request_params)
+    #     result_str = await self.generate_str(message=message, request_params=params)
 
-        try:
-            # Directly parse JSON and create model instance
-            parsed_data = json.loads(result_str)
-            return response_model(**parsed_data)
-        except (json.JSONDecodeError, ValidationError) as e:
-            # Log the error and fall back to the original method if direct parsing fails
-            self.logger.error(
-                f"Direct JSON parsing failed: {str(e)}. Falling back to standard method."
-            )
-            self.logger.debug(f"Failed JSON content: {result_str}")
+    #     try:
+    #         # Directly parse JSON and create model instance
+    #         parsed_data = json.loads(result_str)
+    #         return response_model(**parsed_data)
+    #     except (json.JSONDecodeError, ValidationError) as e:
+    #         # Log the error and fall back to the original method if direct parsing fails
+    #         self.logger.error(
+    #             f"Direct JSON parsing failed: {str(e)}. Falling back to standard method."
+    #         )
+    #         self.logger.debug(f"Failed JSON content: {result_str}")
 
-            # Use AugmentedLLM's structured output handling as fallback
-            return await super().generate_structured(
-                message=result_str,
-                response_model=response_model,
-                request_params=params,
-            )
+    #         # Use AugmentedLLM's structured output handling as fallback
+    #         return await super().generate_structured(
+    #             message=result_str,
+    #             response_model=response_model,
+    #             request_params=params,
+    #         )
 
     async def execute(
         self, objective: str, request_params: RequestParams | None = None
