@@ -1,4 +1,3 @@
-import pydantic_core
 import pytest
 from pydantic import BaseModel
 from typing import List, Literal

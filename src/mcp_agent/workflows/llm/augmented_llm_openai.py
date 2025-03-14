@@ -26,7 +26,6 @@ from mcp.types import (
     TextContent,
     TextResourceContents,
 )
-from pydantic_core import from_json
 
 from mcp_agent.workflows.llm.augmented_llm import (
     AugmentedLLM,

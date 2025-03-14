@@ -4,7 +4,6 @@ from typing import Iterable, List, Type
 
 from pydantic import BaseModel
 
-import instructor
 from anthropic import Anthropic, AuthenticationError
 from anthropic.types import (
     ContentBlock,
@@ -27,8 +26,8 @@ from mcp.types import (
     TextContent,
     TextResourceContents,
 )
+from pydantic_core import from_json
 
-from mcp_agent.workflows.router.router_llm import StructuredResponse
 from mcp_agent.workflows.llm.augmented_llm import (
     AugmentedLLM,
     ModelT,
@@ -96,7 +95,7 @@ class AnthropicAugmentedLLM(AugmentedLLM[MessageParam, Message]):
                 "Please check that your API key is valid and not expired.",
             ) from e
 
-        # Always include prompt messages, but only include conversation history 
+        # Always include prompt messages, but only include conversation history
         # if use_history is True
         messages.extend(self.history.get(include_history=params.use_history))
 
@@ -295,10 +294,10 @@ class AnthropicAugmentedLLM(AugmentedLLM[MessageParam, Message]):
         if params.use_history:
             # Get current prompt messages
             prompt_messages = self.history.get(include_history=False)
-            
+
             # Calculate new conversation messages (excluding prompts)
-            new_messages = messages[len(prompt_messages):]
-            
+            new_messages = messages[len(prompt_messages) :]
+
             # Update conversation history
             self.history.set(new_messages)
 
@@ -367,10 +366,7 @@ class AnthropicAugmentedLLM(AugmentedLLM[MessageParam, Message]):
         response_model: Type[ModelT],
         request_params: RequestParams | None = None,
     ) -> ModelT:
-        # First we invoke the LLM to generate a string response
-        # We need to do this in a two-step process because Instructor doesn't
-        # know how to invoke MCP tools via call_tool, so we'll handle all the
-        # processing first and then pass the final response through Instructor
+        # TODO -- simiar to the OAI version, we should create a tool call for the expected schema
         response = await self.generate_str(
             message=message,
             request_params=request_params,
@@ -378,27 +374,9 @@ class AnthropicAugmentedLLM(AugmentedLLM[MessageParam, Message]):
         # Don't try to parse if we got no response
         if not response:
             self.logger.error("No response from generate_str")
-            return StructuredResponse(categories=[])
+            return None
 
-        # Next we pass the text through instructor to extract structured data
-        client = instructor.from_anthropic(
-            Anthropic(api_key=self._api_key(self.context.config)),
-        )
-
-        params = self.get_request_params(request_params)
-        model = await self.select_model(params)
-
-        # Extract structured data from natural language
-        structured_response = client.chat.completions.create(
-            model=model,
-            response_model=response_model,
-            messages=[{"role": "user", "content": response}],
-            max_tokens=params.maxTokens,
-        )
-        await self.show_assistant_message(
-            str(structured_response), title="ASSISTANT/STRUCTURED"
-        )
-        return structured_response
+        return response_model.model_validate(from_json(response, allow_partial=True))
 
     @classmethod
     def convert_message_to_message_param(

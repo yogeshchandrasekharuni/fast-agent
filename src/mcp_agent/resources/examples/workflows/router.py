@@ -40,7 +40,7 @@ SAMPLE_REQUESTS = [
 )
 @fast.router(
     name="route",
-    model="gpt-4o",
+    model="sonnet",
     agents=["code_expert", "general_assistant", "fetcher"],
 )
 async def main():

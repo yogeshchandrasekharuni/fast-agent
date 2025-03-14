@@ -13,7 +13,8 @@ if TYPE_CHECKING:
 
 logger = get_logger(__name__)
 
-
+# TODO -- reinstate function/server routing
+# TODO -- Generate the Example Schema from the Pydantic Model
 DEFAULT_ROUTING_INSTRUCTION = """
 You are a highly accurate request router that directs incoming requests to the most appropriate category.
 A category is a specialized destination, such as a Function, an MCP Server (a collection of tools/functions), or an Agent (a collection of servers).
@@ -34,7 +35,7 @@ Your task is to analyze the request and determine the most appropriate categorie
 - Whether the request might benefit from multiple categories (up to {top_k})
 
 <fastagent:instruction>
-Respond in JSON format:
+Respond in JSON format. NEVER include Code Fences:
 {{
     "categories": [
         {{
