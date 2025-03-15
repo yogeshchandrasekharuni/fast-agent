@@ -1,5 +1,7 @@
 from typing import Any, List, Optional, Type, Union
 
+from mcp import GetPromptResult
+from mcp.types import PromptMessage
 from pydantic_core import from_json
 from mcp_agent.workflows.llm.augmented_llm import (
     AugmentedLLM,
@@ -8,6 +10,7 @@ from mcp_agent.workflows.llm.augmented_llm import (
     ModelT,
     RequestParams,
 )
+from mcp_agent.logging.logger import get_logger
 
 
 class PassthroughLLM(AugmentedLLM):
@@ -21,6 +24,10 @@ class PassthroughLLM(AugmentedLLM):
 
     def __init__(self, name: str = "Passthrough", context=None, **kwargs):
         super().__init__(name=name, context=context, **kwargs)
+        self.provider = "fast-agent"
+        # Initialize logger - keep it simple without name reference
+        self.logger = get_logger(__name__)
+        self._messages = [PromptMessage]
 
     async def generate(
         self,
@@ -59,3 +66,33 @@ class PassthroughLLM(AugmentedLLM):
             return response_model(**message)
         elif isinstance(message, str):
             return response_model.model_validate(from_json(message, allow_partial=True))
+
+    async def apply_prompt_template(
+        self, prompt_result: GetPromptResult, prompt_name: str
+    ) -> str:
+        """
+        Apply a prompt template by adding it to the conversation history.
+        If the last message in the prompt is from a user, automatically
+        generate an assistant response.
+
+        Args:
+            prompt_result: The GetPromptResult containing prompt messages
+            prompt_name: The name of the prompt being applied
+
+        Returns:
+            String representation of the assistant's response if generated,
+            or the last assistant message in the prompt
+        """
+        prompt_messages: List[PromptMessage] = prompt_result.messages
+
+        # Extract arguments if they were stored in the result
+        arguments = getattr(prompt_result, "arguments", None)
+
+        # Display information about the loaded prompt
+        await self.show_prompt_loaded(
+            prompt_name=prompt_name,
+            description=prompt_result.description,
+            message_count=len(prompt_messages),
+            arguments=arguments,
+        )
+        self._messages = prompt_messages

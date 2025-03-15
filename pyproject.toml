@@ -72,6 +72,10 @@ include = [
     "src/mcp_agent/resources/**/*.csv",
 ]
 
+[tool.pytest.ini_options]
+asyncio_mode = "strict"
+asyncio_default_fixture_loop_scope = "function"
+
 [dependency-groups]
 dev = [
     "anthropic>=0.42.0",

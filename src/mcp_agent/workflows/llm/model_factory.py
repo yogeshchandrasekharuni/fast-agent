@@ -8,9 +8,16 @@ from mcp_agent.workflows.llm.augmented_llm_anthropic import AnthropicAugmentedLL
 from mcp_agent.workflows.llm.augmented_llm_openai import OpenAIAugmentedLLM
 from mcp_agent.workflows.llm.augmented_llm import RequestParams
 from mcp_agent.workflows.llm.augmented_llm_passthrough import PassthroughLLM
+from mcp_agent.workflows.llm.augmented_llm_playback import PlaybackLLM
+
 
 # Type alias for LLM classes
-LLMClass = Union[Type[AnthropicAugmentedLLM], Type[OpenAIAugmentedLLM]]
+LLMClass = Union[
+    Type[AnthropicAugmentedLLM],
+    Type[OpenAIAugmentedLLM],
+    Type[PassthroughLLM],
+    Type[PlaybackLLM],
+]
 
 
 class Provider(Enum):
@@ -55,7 +62,7 @@ class ModelFactory:
         "high": ReasoningEffort.HIGH,
     }
 
-    # TODO -- add context window size information for display/mmanagement
+    # TODO -- add context window size information for display/management
     # TODO -- add audio supporting got-4o-audio-preview
     # TODO -- bring model parameter configuration here
     # Mapping of model names to their default providers
@@ -97,6 +104,12 @@ class ModelFactory:
         Provider.ANTHROPIC: AnthropicAugmentedLLM,
         Provider.OPENAI: OpenAIAugmentedLLM,
         Provider.FAST_AGENT: PassthroughLLM,
+    }
+
+    # Mapping of special model names to their specific LLM classes
+    # This overrides the provider-based class selection
+    MODEL_SPECIFIC_CLASSES: Dict[str, LLMClass] = {
+        "playback": PlaybackLLM,
     }
 
     @classmethod
@@ -152,7 +165,10 @@ class ModelFactory:
         """
         # Parse configuration up front
         config = cls.parse_model_string(model_string)
-        llm_class = cls.PROVIDER_CLASSES[config.provider]
+        if config.model_name in cls.MODEL_SPECIFIC_CLASSES:
+            llm_class = cls.MODEL_SPECIFIC_CLASSES[config.model_name]
+        else:
+            llm_class = cls.PROVIDER_CLASSES[config.provider]
 
         # Create a factory function matching the attach_llm protocol
         def factory(agent: Agent, **kwargs) -> LLMClass:
