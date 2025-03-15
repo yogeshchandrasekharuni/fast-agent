@@ -12,6 +12,7 @@ from mcp_agent.workflows.llm.augmented_llm import (
 )
 from mcp_agent.agents.agent import Agent, AgentConfig
 from mcp_agent.logging.logger import get_logger
+from mcp_agent.workflows.llm.augmented_llm_passthrough import PassthroughLLM
 
 if TYPE_CHECKING:
     from mcp_agent.context import Context
@@ -89,45 +90,33 @@ class EvaluatorOptimizerLLM(AugmentedLLM[MessageParamT, MessageT]):
         evaluator: str | Agent | AugmentedLLM,
         min_rating: QualityRating = QualityRating.GOOD,
         max_refinements: int = 3,
-        llm_factory: Callable[[Agent], AugmentedLLM]
-        | None = None,  # TODO: Remove legacy - factory should only be needed for str evaluator
+        llm_factory: Callable[[Agent], AugmentedLLM] | None = None,
         context: Optional["Context"] = None,
-        name: Optional[str] = None,  # Allow overriding the name
-        instruction: Optional[str] = None,  # Allow overriding the instruction
+        name: Optional[str] = None,
+        instruction: Optional[str] = None,
     ):
         """
         Initialize the evaluator-optimizer workflow.
 
         Args:
-            generator: The agent/LLM/workflow that generates responses. Can be:
-                     - An Agent that will be converted to an AugmentedLLM
-                     - An AugmentedLLM instance
-                     - An Orchestrator/Router/ParallelLLM workflow
-            evaluator_agent: The agent/LLM that evaluates responses
-            evaluation_criteria: Criteria for the evaluator to assess responses
+            generator: The agent/LLM/workflow that generates responses
+            evaluator: The evaluator (string instruction, Agent or AugmentedLLM)
             min_rating: Minimum acceptable quality rating
             max_refinements: Maximum refinement iterations
-            llm_factory: Optional factory to create LLMs from agents
+            llm_factory: Factory to create LLMs from agents when needed
             name: Optional name for the workflow (defaults to generator's name)
             instruction: Optional instruction (defaults to generator's instruction)
-
-        Note on History Management:
-            This workflow manages two distinct history contexts:
-            1. Generator History: Controlled by the generator's use_history setting. When False,
-               each refinement iteration starts fresh without previous context.
-            2. Evaluator History: Always disabled as each evaluation should be independent
-               and based solely on the current response.
         """
-        # Set up initial instance attributes - allow name override
-        self.name = name or generator.name
+        # Set initial attributes
+        self.name = name or getattr(generator, "name", "EvaluatorOptimizer")
         self.llm_factory = llm_factory
         self.generator = generator
         self.evaluator = evaluator
         self.min_rating = min_rating
         self.max_refinements = max_refinements
 
-        # Determine generator's history setting before super().__init__
-
+        # Determine generator's history setting directly based on type
+        self.generator_use_history = False
         if isinstance(generator, Agent):
             self.generator_use_history = generator.config.use_history
         elif isinstance(generator, AugmentedLLM):
@@ -135,90 +124,55 @@ class EvaluatorOptimizerLLM(AugmentedLLM[MessageParamT, MessageT]):
                 generator.aggregator, Agent
             ):
                 self.generator_use_history = generator.aggregator.config.use_history
-            else:
+            elif hasattr(generator, "default_request_params"):
                 self.generator_use_history = getattr(
-                    generator,
-                    "use_history",
-                    getattr(generator.default_request_params, "use_history", False),
+                    generator.default_request_params, "use_history", False
                 )
-        # Handle ChainProxy with type checking
-        elif hasattr(generator, "_sequence") and hasattr(generator, "_agent_proxies"):
-            # This is how we detect a ChainProxy without directly importing it
-            # For ChainProxy, we'll default use_history to False
-            self.generator_use_history = False
-        else:
-            raise ValueError(f"Unsupported optimizer type: {type(generator)}")
+        # All other types default to False
 
-        # Now we can call super().__init__ which will use generator_use_history
-        super().__init__(context=context, name=name or generator.name)
+        # Initialize parent class
+        super().__init__(context=context, name=name or getattr(generator, "name", None))
 
-        # Add a PassthroughLLM as _llm property for compatibility with Orchestrator
-        from mcp_agent.workflows.llm.augmented_llm import PassthroughLLM
-
+        # Create a PassthroughLLM as _llm property
+        # TODO -- remove this when we fix/remove the inheritance hierarchy
         self._llm = PassthroughLLM(name=f"{self.name}_passthrough", context=context)
 
-        # Set up the generator
-
+        # Set up the generator based on type
         if isinstance(generator, Agent):
             if not llm_factory:
-                raise ValueError("llm_factory is required when using an Agent")
+                raise ValueError(
+                    "llm_factory is required when using an Agent generator"
+                )
 
-            # Only create new LLM if agent doesn't have one
-            if hasattr(generator, "_llm") and generator._llm:
-                self.generator_llm = generator._llm
-            else:
-                self.generator_llm = llm_factory(agent=generator)
-
-            self.aggregator = generator
-            self.instruction = (
-                instruction  # Use provided instruction if any
-                or (
-                    generator.instruction
-                    if isinstance(generator.instruction, str)
-                    else None
-                )  # Fallback to generator's
+            # Use existing LLM if available, otherwise create new one
+            self.generator_llm = getattr(generator, "_llm", None) or llm_factory(
+                agent=generator
             )
-        elif hasattr(generator, "_sequence") and hasattr(generator, "_agent_proxies"):
-            # For ChainProxy, use it directly for generation
+            self.aggregator = generator
+            self.instruction = instruction or (
+                generator.instruction
+                if isinstance(generator.instruction, str)
+                else None
+            )
+        elif isinstance(generator, AugmentedLLM):
+            self.generator_llm = generator
+            self.aggregator = getattr(generator, "aggregator", None)
+            self.instruction = instruction or generator.instruction
+        else:
+            # ChainProxy-like object
             self.generator_llm = generator
             self.aggregator = None
             self.instruction = (
                 instruction or f"Chain of agents: {', '.join(generator._sequence)}"
             )
 
-        elif isinstance(generator, AugmentedLLM):
-            self.generator_llm = generator
-            self.aggregator = generator.aggregator
-            self.instruction = generator.instruction
-
-        # Set up the evaluator - evaluations should be independent, so history is always disabled
-        if isinstance(evaluator, AugmentedLLM):
-            self.evaluator_llm = evaluator
-            # Override evaluator's history setting
-            if hasattr(evaluator, "default_request_params"):
-                evaluator.default_request_params.use_history = False
-        elif isinstance(evaluator, Agent):
-            if not llm_factory:
-                raise ValueError(
-                    "llm_factory is required when using an Agent evaluator"
-                )
-
-            # Create evaluator with history disabled
-            if hasattr(evaluator, "_llm") and evaluator._llm:
-                self.evaluator_llm = evaluator._llm
-                if hasattr(self.evaluator_llm, "default_request_params"):
-                    self.evaluator_llm.default_request_params.use_history = False
-            else:
-                # Force history off in config before creating LLM
-                evaluator.config.use_history = False
-                self.evaluator_llm = llm_factory(agent=evaluator)
-        elif isinstance(evaluator, str):
+        # Set up the evaluator - always disable history
+        if isinstance(evaluator, str):
             if not llm_factory:
                 raise ValueError(
                     "llm_factory is required when using a string evaluator"
                 )
 
-            # Create evaluator agent with history disabled
             evaluator_agent = Agent(
                 name="Evaluator",
                 instruction=evaluator,
@@ -226,17 +180,33 @@ class EvaluatorOptimizerLLM(AugmentedLLM[MessageParamT, MessageT]):
                     name="Evaluator",
                     instruction=evaluator,
                     servers=[],
-                    use_history=False,  # Force history off for evaluator
+                    use_history=False,
                 ),
             )
             self.evaluator_llm = llm_factory(agent=evaluator_agent)
+        elif isinstance(evaluator, Agent):
+            if not llm_factory:
+                raise ValueError(
+                    "llm_factory is required when using an Agent evaluator"
+                )
+
+            # Disable history and use/create LLM
+            evaluator.config.use_history = False
+            self.evaluator_llm = getattr(evaluator, "_llm", None) or llm_factory(
+                agent=evaluator
+            )
+        elif isinstance(evaluator, AugmentedLLM):
+            self.evaluator_llm = evaluator
+            # Ensure history is disabled
+            if hasattr(self.evaluator_llm, "default_request_params"):
+                self.evaluator_llm.default_request_params.use_history = False
         else:
             raise ValueError(f"Unsupported evaluator type: {type(evaluator)}")
 
-        # Track iteration history (for the workflow itself)
+        # Track iteration history
         self.refinement_history = []
 
-        # Set up workflow's default params based on generator's history setting
+        # Set up workflow's default params
         self.default_request_params = self._initialize_default_params({})
 
         # Ensure evaluator's request params have history disabled
