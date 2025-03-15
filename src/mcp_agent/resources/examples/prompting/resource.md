@@ -6,3 +6,10 @@ sample.css
 Very good, we should change all of the colours to #000000. do you agree?
 ---USER
 Yes, great idea!
+---ASSISTANT
+ok, here's an image
+---RESOURCE
+image.png
+---USER
+thanks for that!
+

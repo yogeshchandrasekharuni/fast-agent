@@ -5,6 +5,7 @@ Unit tests for the prompt template module.
 import os
 import pytest
 import tempfile
+import base64
 from pathlib import Path
 
 from mcp_agent.resources.examples.prompting.prompt_template import (
@@ -13,6 +14,19 @@ from mcp_agent.resources.examples.prompting.prompt_template import (
     PromptTemplateLoader,
     PromptMetadata,
 )
+
+# Replace this with your actual TINY_IMAGE_PNG base64 content
+
+# Import the prompt server modules for testing
+from mcp_agent.resources.examples.prompting.prompt_server import (
+    is_image_mime_type,
+    create_image_content,
+    create_messages_with_resources,
+    guess_mime_type,
+)
+from mcp.types import ImageContent, TextContent
+
+TINY_IMAGE_PNG = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=="
 
 
 class TestPromptContent:
@@ -48,7 +62,7 @@ class TestPromptContent:
         content = PromptContent(
             text="Hello {{name}}! Your age is {{age}}.",
             role="user",
-            resources=["data_{{name}}.txt", "profile_{{age}}.json"]
+            resources=["data_{{name}}.txt", "profile_{{age}}.json"],
         )
         context = {"name": "Alice", "age": 30}
 
@@ -136,17 +150,19 @@ Let me know if you need more details.
 
         # Should have 2 sections (user and assistant), each with a resource
         assert len(template.content_sections) == 2
-        
+
         # Check user section
         assert template.content_sections[0].role == "user"
         assert "Hello! Check out this resource:" in template.content_sections[0].text
         assert "What do you think?" in template.content_sections[0].text
         assert template.content_sections[0].resources == ["sample.txt"]
-        
+
         # Check assistant section
         assert template.content_sections[1].role == "assistant"
         assert "I've analyzed the resource" in template.content_sections[1].text
-        assert "Let me know if you need more details." in template.content_sections[1].text
+        assert (
+            "Let me know if you need more details." in template.content_sections[1].text
+        )
         assert template.content_sections[1].resources == ["response.txt"]
 
     def test_multiple_resources_in_template(self):
@@ -177,14 +193,17 @@ Here are my thoughts.
 
         # Should have 2 sections (user and assistant), each with 2 resources
         assert len(template.content_sections) == 2
-        
+
         # Check user section
         assert template.content_sections[0].role == "user"
         assert template.content_sections[0].resources == ["file1.txt", "file2.txt"]
-        
+
         # Check assistant section
         assert template.content_sections[1].role == "assistant"
-        assert template.content_sections[1].resources == ["analysis1.txt", "analysis2.txt"]
+        assert template.content_sections[1].resources == [
+            "analysis1.txt",
+            "analysis2.txt",
+        ]
 
     def test_apply_substitutions(self):
         """Test applying substitutions to an entire template"""
@@ -245,7 +264,7 @@ Nice to meet you, {{name}}!
 ---RESOURCE
 another_resource.txt""")
             tf_path = Path(tf.name)
-            
+
         # Create the resource files in the same directory
         resource_path1 = tf_path.parent / "some_resource.txt"
         resource_path2 = tf_path.parent / "another_resource.txt"
@@ -303,31 +322,223 @@ another_resource.txt""")
         assert temp_delimited_file.stem not in metadata.description
         assert metadata.template_variables == {"name"}
         # Should find both resources
-        assert set(metadata.resource_paths) == {"some_resource.txt", "another_resource.txt"}
+        assert set(metadata.resource_paths) == {
+            "some_resource.txt",
+            "another_resource.txt",
+        }
         assert metadata.file_path == temp_delimited_file
-        
+
     def test_load_template_with_resources(self, temp_delimited_file):
         """Test loading a template with resources"""
         loader = PromptTemplateLoader()
         template = loader.load_from_file(temp_delimited_file)
-        
+
         # Check that we have the right number of sections
         assert len(template.content_sections) == 2
-        
+
         # Check that resources are properly associated with their sections
         user_section = template.content_sections[0]
         assistant_section = template.content_sections[1]
-        
+
         assert user_section.role == "user"
         assert "Hello {{name}}!" in user_section.text
         assert user_section.resources == ["some_resource.txt"]
-        
+
         assert assistant_section.role == "assistant"
         assert "Nice to meet you, {{name}}!" in assistant_section.text
         assert assistant_section.resources == ["another_resource.txt"]
 
 
 # Integration test with realistic examples
+class TestImageHandling:
+    """Tests for image handling in prompt templates"""
+
+    @pytest.fixture
+    def temp_image_file(self):
+        """Create a temporary PNG image file for testing"""
+        with tempfile.NamedTemporaryFile(mode="wb", suffix=".png", delete=False) as tf:
+            # Decode the base64 PNG and write to file
+            image_data = base64.b64decode(TINY_IMAGE_PNG)
+            tf.write(image_data)
+            tf_path = Path(tf.name)
+
+        yield tf_path
+
+        # Cleanup
+        os.unlink(tf_path)
+
+    @pytest.fixture
+    def temp_image_prompt_file(self, temp_image_file):
+        """Create a prompt file that references an image"""
+        with tempfile.NamedTemporaryFile(mode="w+", suffix=".txt", delete=False) as tf:
+            tf.write(f"""---USER
+Can you analyze this image?
+
+---RESOURCE
+{temp_image_file.name}
+
+---ASSISTANT
+Here's my analysis of the image:
+
+This appears to be a 1x1 pixel test image.
+""")
+            tf_path = Path(tf.name)
+
+        yield tf_path
+
+        # Cleanup
+        os.unlink(tf_path)
+
+    def test_is_image_mime_type(self):
+        """Test the image MIME type detection function"""
+        # Image types should return True
+        assert is_image_mime_type("image/png") is True
+        assert is_image_mime_type("image/jpeg") is True
+        assert is_image_mime_type("image/gif") is True
+        assert is_image_mime_type("image/webp") is True
+
+        # Non-image types should return False
+        assert is_image_mime_type("text/plain") is False
+        assert is_image_mime_type("application/json") is False
+        assert is_image_mime_type("text/html") is False
+
+        # SVG is treated as a special case (it's text-based)
+        assert is_image_mime_type("image/svg+xml") is False
+
+    def test_create_image_content(self):
+        """Test creating ImageContent objects"""
+        # Test with our sample PNG
+        image_content = create_image_content(data=TINY_IMAGE_PNG, mime_type="image/png")
+
+        # Verify structure
+        assert isinstance(image_content, ImageContent)
+        assert image_content.type == "image"
+        assert image_content.data == TINY_IMAGE_PNG
+        assert image_content.mimeType == "image/png"
+
+    def test_binary_resource_handling(self, temp_image_file):
+        """Test binary resource handling with images"""
+        # Test that we can properly detect and load binary resources
+        mime_type = guess_mime_type(str(temp_image_file))
+
+        # This should be detected as an image
+        assert is_image_mime_type(mime_type) is True
+
+        # Create an embedded resource from the image
+        from mcp_agent.resources.examples.prompting.prompt_server import (
+            load_resource_content,
+        )
+
+        # Load the binary content
+        content, mime_type, is_binary = load_resource_content(
+            str(temp_image_file), prompt_files=[Path(temp_image_file).parent]
+        )
+
+        # Verify it's handled as binary
+        assert is_binary is True
+        assert mime_type == "image/png"
+
+        # Ensure the content is a base64-encoded string
+        # Try to decode it to verify it's valid base64
+        try:
+            decoded = base64.b64decode(content)
+            assert len(decoded) > 0
+        except Exception as e:
+            pytest.fail(f"Failed to decode base64 content: {e}")
+
+    def test_prompt_template_with_image(self, temp_image_prompt_file, temp_image_file):
+        """Test parsing a template with an image resource"""
+        loader = PromptTemplateLoader()
+        template = loader.load_from_file(temp_image_prompt_file)
+
+        # Check that we have the right number of sections and the image resource
+        assert len(template.content_sections) == 2
+        assert template.content_sections[0].role == "user"
+        assert template.content_sections[0].resources == [temp_image_file.name]
+
+    def test_create_messages_with_image(self, temp_image_prompt_file, temp_image_file):
+        """Test creating messages with an image resource"""
+        loader = PromptTemplateLoader()
+        template = loader.load_from_file(temp_image_prompt_file)
+
+        # Get the content sections
+        content_sections = template.content_sections
+
+        # Create messages with resources
+        messages = create_messages_with_resources(
+            content_sections, prompt_files=[temp_image_prompt_file]
+        )
+
+        # We should have 4 messages:
+        # 1. User text message
+        # 2. User image message
+        # 3. Assistant text message
+        assert len(messages) == 3
+
+        # Check user text message
+        assert messages[0].role == "user"
+        assert isinstance(messages[0].content, TextContent)
+        assert "Can you analyze this image?" in messages[0].content.text
+
+        # Check user image message
+        assert messages[1].role == "user"
+        assert isinstance(messages[1].content, ImageContent)
+        assert messages[1].content.type == "image"
+        assert messages[1].content.mimeType == "image/png"
+        # The data should be our base64 PNG (or equivalent)
+        assert isinstance(messages[1].content.data, str)
+        assert len(messages[1].content.data) > 0
+
+        # Check assistant message
+        assert messages[2].role == "assistant"
+        assert isinstance(messages[2].content, TextContent)
+        assert "Here's my analysis of the image:" in messages[2].content.text
+        
+    def test_resource_handling_functions(self, temp_image_file):
+        """Test the internal resource handling functions used by the MCP server"""
+        import asyncio
+        from mcp_agent.resources.examples.prompting.prompt_server import is_image_mime_type, load_resource_content, guess_mime_type
+        
+        # Test a small custom resource handler function that mimics the server's implementation
+        async def read_resource(resource_path):
+            import base64
+            
+            mime_type = guess_mime_type(str(resource_path))
+            is_binary = is_image_mime_type(mime_type) or not mime_type.startswith("text/")
+            
+            if is_binary:
+                # For binary files, read as binary and base64 encode
+                with open(resource_path, "rb") as f:
+                    binary_data = f.read()
+                    # We need to explicitly base64 encode binary data 
+                    return base64.b64encode(binary_data).decode('utf-8')
+            else:
+                # For text files, read as text with UTF-8 encoding
+                with open(resource_path, "r", encoding="utf-8") as f:
+                    return f.read()
+            
+        # Run our simulated resource handler
+        path = str(temp_image_file)
+        file_result = asyncio.run(read_resource(path))
+        
+        # Verify it's a valid base64 string
+        try:
+            decoded = base64.b64decode(file_result)
+            assert len(decoded) > 0
+            # Verify the decoded content is a valid PNG file (should start with PNG signature)
+            assert decoded.startswith(b'\x89PNG')
+        except Exception as e:
+            pytest.fail(f"Resource handler did not return valid base64: {e}")
+            
+        # Also verify that our direct load_resource_content function produces valid base64
+        content, mime_type, is_binary = load_resource_content(
+            path, prompt_files=[Path(temp_image_file).parent]
+        )
+        
+        # The function should produce the same base64 content
+        assert content == file_result
+
+
 class TestIntegration:
     """Integration tests with realistic examples"""
 
@@ -386,7 +597,7 @@ analysis_{{language}}.txt
 
 Would you like me to explain anything in more detail?""")
             tf_path = Path(tf.name)
-            
+
         # Create sample resource files
         sample_path = tf_path.parent / "sample_python.txt"
         analysis_path = tf_path.parent / "analysis_python.txt"
@@ -456,7 +667,7 @@ Would you like me to explain anything in more detail?""")
 
         # Verify result
         assert len(result) == 2
-        
+
         # Check user section
         assert result[0].role == "user"
         assert "Can you analyze this python code?" in result[0].text

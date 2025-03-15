@@ -16,7 +16,13 @@ import httpx
 
 from mcp.server.fastmcp import FastMCP
 from mcp.server.fastmcp.prompts.base import UserMessage, AssistantMessage, Message
-from mcp.types import TextContent, EmbeddedResource, TextResourceContents
+from mcp.types import (
+    TextContent,
+    EmbeddedResource,
+    TextResourceContents,
+    BlobResourceContents,
+    ImageContent,
+)
 
 from mcp_agent.resources.examples.prompting.prompt_template import (
     PromptTemplateLoader,
@@ -30,6 +36,9 @@ logger = logging.getLogger("prompt_server")
 
 # Create FastMCP server
 mcp = FastMCP("Prompt Server")
+
+
+# MCP server already handles binary data - no need for special decorator
 
 
 class PromptConfig(PromptMetadata):
@@ -69,29 +78,59 @@ def guess_mime_type(file_path: str) -> str:
         ".png": "image/png",
         ".gif": "image/gif",
         ".svg": "image/svg+xml",
+        ".webp": "image/webp",
+        ".bmp": "image/bmp",
+        ".tiff": "image/tiff",
+        ".tif": "image/tiff",
+        ".ico": "image/x-icon",
         ".pdf": "application/pdf",
     }
     return mime_types.get(extension, "application/octet-stream")
 
 
-async def fetch_remote_resource(url: str) -> tuple[str, str]:
-    """Fetch a remote resource from a URL"""
+def is_image_mime_type(mime_type: str) -> bool:
+    """Check if a MIME type represents an image"""
+    return mime_type.startswith("image/") and mime_type != "image/svg+xml"
+
+
+async def fetch_remote_resource(url: str) -> tuple[str, str, bool]:
+    """
+    Fetch a remote resource from a URL
+
+    Returns:
+        Tuple of (content, mime_type, is_binary)
+        - content: Text content or base64-encoded binary content
+        - mime_type: The MIME type of the resource
+        - is_binary: Whether the content is binary (and base64-encoded)
+    """
+    import base64
+
     async with httpx.AsyncClient(timeout=config.http_timeout) as client:
         response = await client.get(url)
         response.raise_for_status()
-        content = response.text
 
         # Get the content type or guess from URL
         mime_type = response.headers.get("content-type", "").split(";")[0]
         if not mime_type:
             mime_type = guess_mime_type(url)
 
-        return content, mime_type
+        # Check if this is binary content (like an image)
+        is_binary = is_image_mime_type(mime_type) or not mime_type.startswith("text/")
+
+        if is_binary:
+            # For binary responses, get the binary content and base64 encode it
+            binary_content = response.content
+            content = base64.b64encode(binary_content).decode("utf-8")
+        else:
+            # For text responses, just get the text
+            content = response.text
+
+        return content, mime_type, is_binary
 
 
 def load_resource_content(
     resource_path: str, prompt_files: List[Path]
-) -> tuple[str, str]:
+) -> tuple[str, str, bool]:
     """
     Load a resource's content and determine its mime type
 
@@ -100,7 +139,10 @@ def load_resource_content(
         prompt_files: List of prompt files (to find relative paths)
 
     Returns:
-        Tuple of (content, mime_type)
+        Tuple of (content, mime_type, is_binary)
+        - content: String content for text files, base64-encoded string for binary files
+        - mime_type: The MIME type of the resource
+        - is_binary: Whether the content is binary (and base64-encoded)
 
     Raises:
         FileNotFoundError: If the resource cannot be found
@@ -116,25 +158,62 @@ def load_resource_content(
     if resource_file is None or not resource_file.exists():
         raise FileNotFoundError(f"Resource not found: {resource_path}")
 
-    # Load the content and determine mime type
+    # Determine mime type
     mime_type = guess_mime_type(str(resource_file))
-    with open(resource_file, "r", encoding="utf-8") as f:
-        content = f.read()
 
-    return content, mime_type
+    # Check if this is a binary file (like an image)
+    is_binary = is_image_mime_type(mime_type) or not mime_type.startswith("text/")
+
+    if is_binary:
+        # For binary files, read as binary and base64 encode
+        import base64
+
+        with open(resource_file, "rb") as f:
+            binary_content = f.read()
+            # Base64 encode the binary data
+            content = base64.b64encode(binary_content).decode("utf-8")
+    else:
+        # For text files, read as text
+        with open(resource_file, "r", encoding="utf-8") as f:
+            content = f.read()
+
+    return content, mime_type, is_binary
 
 
 def create_embedded_resource(
-    resource_path: str, content: str, mime_type: str
+    resource_path: str, content: str, mime_type: str, is_binary: bool = False
 ) -> EmbeddedResource:
     """Create an embedded resource content object"""
-    return EmbeddedResource(
-        type="resource",
-        resource=TextResourceContents(
-            uri=f"resource://{Path(resource_path).name}",
-            text=content,
-            mimeType=mime_type,
-        ),
+    resource_uri = f"resource://{Path(resource_path).name}"
+
+    if is_binary:
+        # For binary content (already base64-encoded)
+        return EmbeddedResource(
+            type="resource",
+            resource=BlobResourceContents(
+                uri=resource_uri,
+                blob=content,
+                mimeType=mime_type,
+            ),
+        )
+    else:
+        # For text content
+        return EmbeddedResource(
+            type="resource",
+            resource=TextResourceContents(
+                uri=resource_uri,
+                text=content,
+                mimeType=mime_type,
+            ),
+        )
+
+
+def create_image_content(data: str, mime_type: str) -> ImageContent:
+    """Create an image content object from base64-encoded data"""
+    return ImageContent(
+        type="image",
+        data=data,
+        mimeType=mime_type,
     )
 
 
@@ -143,10 +222,12 @@ def create_messages_with_resources(
 ) -> List[Message]:
     """
     Create a list of messages from content sections, with resources properly handled.
-    
+
     This implementation produces one message for each content section's text,
     followed by separate messages for each resource (with the same role type
     as the section they belong to).
+
+    Images are handled as ImageContent rather than EmbeddedResource when appropriate.
 
     Args:
         content_sections: List of PromptContent objects
@@ -160,7 +241,7 @@ def create_messages_with_resources(
     for section in content_sections:
         # Determine the message class based on the section role
         message_class = UserMessage if section.role == "user" else AssistantMessage
-        
+
         # Add the text message
         text_message = message_class(
             content=TextContent(type="text", text=section.text)
@@ -170,14 +251,29 @@ def create_messages_with_resources(
         # Add resource messages if any, with the same role type as the section
         for resource_path in section.resources:
             try:
-                resource_content, mime_type = load_resource_content(
+                # Load resource with information about its type
+                resource_content, mime_type, is_binary = load_resource_content(
                     resource_path, prompt_files
                 )
-                embedded_resource = create_embedded_resource(
-                    resource_path, resource_content, mime_type
-                )
-                # Resources inherit the role of their section
-                resource_message = message_class(content=embedded_resource)
+
+                # Handle images specially
+                if is_image_mime_type(mime_type):
+                    # For images, create an ImageContent
+                    image_content = create_image_content(
+                        data=resource_content,  # Already base64-encoded
+                        mime_type=mime_type,
+                    )
+                    # Create message with image content
+                    resource_message = message_class(content=image_content)
+                else:
+                    # For other resources, create an EmbeddedResource
+                    embedded_resource = create_embedded_resource(
+                        resource_path, resource_content, mime_type, is_binary
+                    )
+                    # Create message with embedded resource
+                    resource_message = message_class(content=embedded_resource)
+
+                # Add the resource message to our list
                 messages.append(resource_message)
             except Exception as e:
                 logger.error(f"Error loading resource {resource_path}: {e}")
@@ -191,37 +287,57 @@ def prompt_content_to_message(content: PromptContent) -> List[Message]:
 
     This version returns the text content and any resources as separate messages,
     each with the same role type (user or assistant).
-    
+
+    Note: This is a simplified version that doesn't actually load resources.
+    For actual resource loading with proper typing, use create_messages_with_resources.
+
     Returns:
         List of Message objects (one for text content, plus one for each resource)
     """
     messages = []
-    
+
     # Determine message class based on role
     message_class = UserMessage if content.role == "user" else AssistantMessage
-    
+
     # Create and add text message
     text_content = TextContent(type="text", text=content.text)
     messages.append(message_class(content=text_content))
-    
+
     # Add resource messages if any, with the same role
     for resource_path in content.resources:
         try:
-            # Here we'd load the resource, but for simple conversion without loading,
-            # we'll just create a placeholder. For actual use, use create_messages_with_resources
-            resource_content = f"Resource: {resource_path} (not loaded in this method)"
-            embedded_resource = EmbeddedResource(
-                type="resource",
-                resource=TextResourceContents(
-                    uri=f"resource://{Path(resource_path).name}",
-                    text=resource_content,
-                    mimeType="text/plain",
-                ),
-            )
-            messages.append(message_class(content=embedded_resource))
+            # Get the file extension to determine mime type
+            mime_type = guess_mime_type(resource_path)
+
+            # Here we just create placeholder messages since we're not actually loading resources
+            if is_image_mime_type(mime_type):
+                # For image paths, create a placeholder note (real implementation would load and base64 encode)
+                logger.info(f"Image resource would be loaded from: {resource_path}")
+                messages.append(
+                    message_class(
+                        content=TextContent(
+                            type="text",
+                            text=f"[Image would be loaded from: {resource_path}]",
+                        )
+                    )
+                )
+            else:
+                # For other resource types, create a placeholder embedded resource
+                resource_content = (
+                    f"Resource: {resource_path} (not loaded in this method)"
+                )
+                embedded_resource = EmbeddedResource(
+                    type="resource",
+                    resource=TextResourceContents(
+                        uri=f"resource://{Path(resource_path).name}",
+                        text=resource_content,
+                        mimeType=mime_type,
+                    ),
+                )
+                messages.append(message_class(content=embedded_resource))
         except Exception as e:
             logger.error(f"Error creating resource message for {resource_path}: {e}")
-    
+
     return messages
 
 
@@ -324,20 +440,37 @@ def register_prompt(file_path: Path):
                         exposed_resources[resource_id] = resource_file
                         mime_type = guess_mime_type(str(resource_file))
 
-                        # Define a closure to capture the current resource_file
-                        def create_resource_handler(resource_path):
+                        # Define a closure to capture the current resource_file and mime_type
+                        def create_resource_handler(resource_path, mime_type):
+                            # Fixed resources don't use URL parameters
                             async def get_resource() -> str:
-                                with open(resource_path, "r", encoding="utf-8") as f:
-                                    return f.read()
+                                # Check if it's a binary file based on mime type
+                                is_binary = is_image_mime_type(
+                                    mime_type
+                                ) or not mime_type.startswith("text/")
+
+                                if is_binary:
+                                    import base64
+                                    # For binary files, read in binary mode and base64 encode
+                                    with open(resource_path, "rb") as f:
+                                        binary_data = f.read()
+                                        # We need to explicitly base64 encode binary data
+                                        return base64.b64encode(binary_data).decode('utf-8')
+                                else:
+                                    # For text files, read as utf-8 text
+                                    with open(
+                                        resource_path, "r", encoding="utf-8"
+                                    ) as f:
+                                        return f.read()
 
                             return get_resource
 
-                        # Register with the correct resource ID
+                        # Register with the correct resource ID directly with MCP
                         mcp.resource(
                             resource_id,
                             description=f"Resource from {file_path.name}",
                             mime_type=mime_type,
-                        )(create_resource_handler(resource_file))
+                        )(create_resource_handler(resource_file, mime_type))
 
                         logger.info(
                             f"Registered resource: {resource_id} ({resource_file})"
@@ -432,9 +565,10 @@ async def async_main():
         port=args.port,
     )
 
-    # Register general file resource handler
+    # Register general file resource handler - using direct registration with MCP
+    # to avoid any parameter mismatches
     @mcp.resource("file://{path}")
-    async def get_file_resource(path: str) -> str:
+    async def get_file_resource(path: str):
         """Read a file from the given path."""
         try:
             # First check if it's a relative path from the prompt directory
@@ -452,14 +586,20 @@ async def async_main():
             mime_type = guess_mime_type(str(file_path))
 
             # Check if it's a binary file based on mime type
-            if mime_type.startswith("text/") or mime_type in [
-                "application/json",
-                "application/xml",
-            ]:
-                with open(file_path, "r", encoding="utf-8") as f:
-                    return f.read()
-            else:
+            is_binary = is_image_mime_type(mime_type) or not mime_type.startswith(
+                "text/"
+            )
+
+            if is_binary:
+                import base64
+                # For binary files, read as binary and base64 encode
                 with open(file_path, "rb") as f:
+                    binary_data = f.read()
+                    # We need to explicitly base64 encode binary data 
+                    return base64.b64encode(binary_data).decode('utf-8')
+            else:
+                # For text files, read as text with UTF-8 encoding
+                with open(file_path, "r", encoding="utf-8") as f:
                     return f.read()
         except Exception as e:
             # Log the error and re-raise
