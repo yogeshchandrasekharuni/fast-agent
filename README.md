@@ -362,8 +362,9 @@ Prompts can also be applied interactively through the interactive interface by u
 
 ### llmindset.co.uk fork:
 
+- Addition of MCP Prompts including Prompt Server and agent save/replay ability.
 - Overhaul of Eval/Opt for Conversation Management
-- Remove instructor use for Orchestrator
+- Removed instructor/double-llm calling - native structured outputs for OAI.
 - Improved handling of Parallel/Fan-In and respose option
 - XML based generated prompts
 - "FastAgent" style prototyping, with per-agent models
@@ -382,4 +383,7 @@ Prompts can also be applied interactively through the interactive interface by u
 - Declarative workflows
 - Numerous defect fixes
 
-### Features to add.
+### Features to add (Commmitted)
+- Run Agent as MCP Server, with interop
+- Multi-part content types supporing Vision, PDF and multi-part Text.
+- Improved test automation (supported by prompt_server.py and augmented_llm_playback.py)
