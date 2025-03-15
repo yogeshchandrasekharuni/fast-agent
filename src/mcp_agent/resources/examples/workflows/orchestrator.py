@@ -45,8 +45,7 @@ fast = FastAgent("Orchestrator-Workers")
 @fast.orchestrator(
     name="orchestrate",
     agents=["finder", "writer", "proofreader"],
-    plan_type="full",
-    model="sonnet"
+    plan_type="iterative",
 )
 async def main():
     async with fast.run() as agent:

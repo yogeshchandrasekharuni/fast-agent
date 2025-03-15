@@ -262,9 +262,11 @@ class Orchestrator(AugmentedLLM[MessageParamT, MessageT]):
                 plan_result.add_step_result(step_result)
                 total_steps_executed += 1
 
-            # Check for step limit after executing steps
-            if total_steps_executed >= max_steps:
-                plan_result.max_iterations_reached = True
+            # Check if we need to break from the main loop due to hitting max_steps
+            if (
+                hasattr(plan_result, "max_steps_reached")
+                and plan_result.max_steps_reached
+            ):
                 break
 
             logger.debug(
@@ -280,21 +282,38 @@ class Orchestrator(AugmentedLLM[MessageParamT, MessageT]):
 
             iterations += 1
 
-        # If we get here, we've hit the iteration limit without completing
-        self.logger.warning(
-            f"Failed to complete in {params.max_iterations} iterations."
-        )
+        # If we reach here, either:
+        # 1. We hit iteration limit without completing
+        # 2. We hit max_steps limit without completing
+        # 3. We detected diminishing returns (plan with 0-1 steps after multiple iterations)
 
-        # Mark that we hit the iteration limit
-        plan_result.max_iterations_reached = True
+        # Check if we hit iteration limits without completing
+        if iterations >= params.max_iterations and not plan_result.is_complete:
+            self.logger.warning(
+                f"Failed to complete in {params.max_iterations} iterations."
+            )
+            # Mark that we hit the iteration limit
+            plan_result.max_iterations_reached = True
 
-        # Synthesize what we have so far, but use a different prompt that explains the incomplete status
-        synthesis_prompt = SYNTHESIZE_INCOMPLETE_PLAN_TEMPLATE.format(
-            plan_result=format_plan_result(plan_result),
-            max_iterations=params.max_iterations,
-        )
+            # Use the incomplete template when we've hit iteration limits
+            synthesis_prompt = SYNTHESIZE_INCOMPLETE_PLAN_TEMPLATE.format(
+                plan_result=format_plan_result(plan_result),
+                max_iterations=params.max_iterations,
+            )
+        else:
+            # Either plan is complete or we had diminishing returns (which we mark as complete)
+            if not plan_result.is_complete:
+                self.logger.info(
+                    "Plan terminated due to diminishing returns, marking as complete"
+                )
+                plan_result.is_complete = True
 
-        # Generate a final synthesis that acknowledges the incomplete status
+            # Use standard template for complete plans
+            synthesis_prompt = SYNTHESIZE_PLAN_PROMPT_TEMPLATE.format(
+                plan_result=format_plan_result(plan_result)
+            )
+
+        # Generate the final synthesis with the appropriate template
         plan_result.result = await self.planner.generate_str(
             message=synthesis_prompt,
             request_params=params.model_copy(update={"max_iterations": 1}),
@@ -322,8 +341,6 @@ class Orchestrator(AugmentedLLM[MessageParamT, MessageT]):
             # Make sure we're using a valid agent name
             agent = self.agents.get(task.agent)
             if not agent:
-                # Log a more prominent error - this is a serious problem that shouldn't happen
-                # with the improved prompt
                 self.logger.error(
                     f"AGENT VALIDATION ERROR: No agent found matching '{task.agent}'. Available agents: {list(self.agents.keys())}"
                 )
@@ -394,18 +411,10 @@ class Orchestrator(AugmentedLLM[MessageParamT, MessageT]):
         request_params: RequestParams | None = None,
     ) -> Plan:
         """Generate full plan considering previous results"""
-        import json
-        from pydantic import ValidationError
-        from mcp_agent.workflows.orchestrator.orchestrator_models import (
-            Plan,
-            Step,
-            AgentTask,
-        )
 
         params = self.get_request_params(request_params)
         params = params.model_copy(update={"use_history": False})
 
-        # Format agents without numeric prefixes for cleaner XML
         agent_formats = []
         for agent_name in self.agents.keys():
             formatted = self._format_agent_info(agent_name)
@@ -415,7 +424,7 @@ class Orchestrator(AugmentedLLM[MessageParamT, MessageT]):
 
         # Create clear plan status indicator for the template
         plan_status = "Plan Status: Not Started"
-        if hasattr(plan_result, "is_complete"):
+        if plan_result.is_complete:
             plan_status = (
                 "Plan Status: Complete"
                 if plan_result.is_complete
@@ -441,49 +450,30 @@ class Orchestrator(AugmentedLLM[MessageParamT, MessageT]):
         )
 
         # Get raw JSON response from LLM
-        result_str = await self.planner.generate_str(
+        return await self.planner.generate_structured(
             message=prompt,
             request_params=params,
+            response_model=Plan,
         )
+        # return data
 
-        try:
-            # Parse JSON directly
-            data = json.loads(result_str)
+        # steps = []
+        # for step_data in data.steps:
+        #     tasks = []
+        #     for task_data in step_data.tasks:
+        #         task = AgentTask(
+        #             description=task_data.description,
+        #             agent=task_data.agent,
+        #         )
+        #         tasks.append(task)
 
-            # Create models manually to ensure agent names are preserved exactly as returned
-            steps = []
-            for step_data in data.get("steps", []):
-                tasks = []
-                for task_data in step_data.get("tasks", []):
-                    # Create AgentTask directly from dict, preserving exact agent string
-                    task = AgentTask(
-                        description=task_data.get("description", ""),
-                        agent=task_data.get("agent", ""),  # Preserve exact agent name
-                    )
-                    tasks.append(task)
+        #     # Create Step with the exact task objects we created
+        #     step = Step(description=step_data.description, tasks=tasks)
+        #     steps.append(step)
 
-                # Create Step with the exact task objects we created
-                step = Step(description=step_data.get("description", ""), tasks=tasks)
-                steps.append(step)
-
-            # Create final Plan
-            plan = Plan(steps=steps, is_complete=data.get("is_complete", False))
-
-            return plan
-
-        except (json.JSONDecodeError, ValidationError, KeyError) as e:
-            # Log detailed error and fall back to the original method as last resort
-            self.logger.error(f"Error parsing plan JSON: {str(e)}")
-            self.logger.debug(f"Failed JSON content: {result_str}")
-
-            # Use the normal structured parsing as fallback
-            plan = await self.planner.generate_structured(
-                message=result_str,
-                response_model=Plan,
-                request_params=params,
-            )
-
-            return plan
+        # # Create final Plan
+        # plan = Plan(steps=steps, is_complete=data.is_complete)
+        # return plan
 
     async def _get_next_step(
         self,
@@ -492,12 +482,6 @@ class Orchestrator(AugmentedLLM[MessageParamT, MessageT]):
         request_params: RequestParams | None = None,
     ) -> NextStep:
         """Generate just the next needed step"""
-        import json
-        from pydantic import ValidationError
-        from mcp_agent.workflows.orchestrator.orchestrator_models import (
-            NextStep,
-            AgentTask,
-        )
 
         params = self.get_request_params(request_params)
         params = params.model_copy(update={"use_history": False})
@@ -510,7 +494,7 @@ class Orchestrator(AugmentedLLM[MessageParamT, MessageT]):
 
         # Create clear plan status indicator for the template
         plan_status = "Plan Status: Not Started"
-        if hasattr(plan_result, "is_complete"):
+        if plan_result:
             plan_status = (
                 "Plan Status: Complete"
                 if plan_result.is_complete
@@ -532,47 +516,9 @@ class Orchestrator(AugmentedLLM[MessageParamT, MessageT]):
         )
 
         # Get raw JSON response from LLM
-        result_str = await self.planner.generate_str(
-            message=prompt,
-            request_params=params,
+        return await self.planner.generate_structured(
+            message=prompt, request_params=params, response_model=NextStep
         )
-
-        try:
-            # Parse JSON directly
-            data = json.loads(result_str)
-
-            # Create task objects manually to preserve exact agent names
-            tasks = []
-            for task_data in data.get("tasks", []):
-                # Preserve the exact agent name as specified in the JSON
-                task = AgentTask(
-                    description=task_data.get("description", ""),
-                    agent=task_data.get("agent", ""),
-                )
-                tasks.append(task)
-
-            # Create step with manually constructed tasks
-            next_step = NextStep(
-                description=data.get("description", ""),
-                tasks=tasks,
-                is_complete=data.get("is_complete", False),
-            )
-
-            return next_step
-
-        except (json.JSONDecodeError, ValidationError, KeyError) as e:
-            # Log detailed error and fall back to the original method
-            self.logger.error(f"Error parsing next step JSON: {str(e)}")
-            self.logger.debug(f"Failed JSON content: {result_str}")
-
-            # Use the normal structured parsing as fallback
-            next_step = await self.planner.generate_structured(
-                message=result_str,
-                response_model=NextStep,
-                request_params=params,
-            )
-
-            return next_step
 
     def _format_server_info(self, server_name: str) -> str:
         """Format server information for display to planners using XML tags"""
