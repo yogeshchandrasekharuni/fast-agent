@@ -1,21 +1,8 @@
 ---USER
-how big is the moon?
----ASSISTANT
-OBJECT: MOON
-SIZE: 3,474.8
-UNITS: KM
-TYPE: SATELLITE
+Please help me improve this CSS File
 ---RESOURCE
-Earth?
+sample.css
 ---ASSISTANT
-OBJECT: EARTH
-SIZE: 12,742
-UNITS: KM
-TYPE: PLANET
+Very good, we should change all of the colours to #000000. do you agree?
 ---USER
-A tiger
----ASSISTANT
-OBJECT: TIGER
-SIZE: 1.2
-UNITS: M
-TYPE: ANIMAL
+Yes, great idea!

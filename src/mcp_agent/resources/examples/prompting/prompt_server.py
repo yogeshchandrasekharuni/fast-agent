@@ -193,14 +193,19 @@ async def prompt_handler({param_str}) -> List[Message]:
                         exposed_resources[resource_id] = resource_file
                         mime_type = guess_mime_type(str(resource_file))
 
-                        @mcp.resource(
+                        # Define a closure to capture the current resource_file
+                        def create_resource_handler(resource_path):
+                            async def get_resource() -> str:
+                                with open(resource_path, "r", encoding="utf-8") as f:
+                                    return f.read()
+                            return get_resource
+                        
+                        # Register with the correct resource ID
+                        mcp.resource(
                             resource_id,
                             description=f"Resource from {file_path.name}",
                             mime_type=mime_type,
-                        )
-                        async def get_resource() -> str:
-                            with open(resource_file, "r", encoding="utf-8") as f:
-                                return f.read()
+                        )(create_resource_handler(resource_file))
 
                         logger.info(
                             f"Registered resource: {resource_id} ({resource_file})"
@@ -299,22 +304,35 @@ async def async_main():
     @mcp.resource("file://{path}")
     async def get_file_resource(path: str) -> str:
         """Read a file from the given path."""
-        file_path = Path(path)
-        if not file_path.exists():
-            raise FileNotFoundError(f"Resource file not found: {file_path}")
-
-        mime_type = guess_mime_type(str(file_path))
-
-        # Check if it's a binary file based on mime type
-        if mime_type.startswith("text/") or mime_type in [
-            "application/json",
-            "application/xml",
-        ]:
-            with open(file_path, "r", encoding="utf-8") as f:
-                return f.read()
-        else:
-            with open(file_path, "rb") as f:
-                return f.read()
+        try:
+            # First check if it's a relative path from the prompt directory
+            for prompt_file in config.prompt_files:
+                potential_path = prompt_file.parent / path
+                if potential_path.exists():
+                    file_path = potential_path
+                    break
+            else:
+                # If not found as relative path, try absolute path
+                file_path = Path(path)
+                if not file_path.exists():
+                    raise FileNotFoundError(f"Resource file not found: {path}")
+            
+            mime_type = guess_mime_type(str(file_path))
+            
+            # Check if it's a binary file based on mime type
+            if mime_type.startswith("text/") or mime_type in [
+                "application/json",
+                "application/xml",
+            ]:
+                with open(file_path, "r", encoding="utf-8") as f:
+                    return f.read()
+            else:
+                with open(file_path, "rb") as f:
+                    return f.read()
+        except Exception as e:
+            # Log the error and re-raise
+            logger.error(f"Error accessing resource at '{path}': {e}")
+            raise
 
     # Register all prompts
     for file_path in config.prompt_files:
