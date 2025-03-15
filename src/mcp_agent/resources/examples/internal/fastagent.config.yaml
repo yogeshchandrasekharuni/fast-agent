@@ -44,9 +44,9 @@ mcp:
       # args: ["c:/Program Files/nodejs/node_modules/@modelcontextprotocol/server-brave-search/dist/index.js"]
       command: "npx"
       args: ["-y", "@modelcontextprotocol/server-brave-search"]
-    sizer:
+    sizing_setup:
       command: "uv"
-      args: ["run", "prompt_sizing.py"]
+      args: ["run", "prompt_sizing1.py"]
     category:
       command: "uv"
       args: ["run", "prompt_category.py"]

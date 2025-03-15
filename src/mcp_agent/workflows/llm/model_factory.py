@@ -61,6 +61,7 @@ class ModelFactory:
     # Mapping of model names to their default providers
     DEFAULT_PROVIDERS = {
         "passthrough": Provider.FAST_AGENT,
+        "playback": Provider.FAST_AGENT,
         "gpt-4o": Provider.OPENAI,
         "gpt-4o-mini": Provider.OPENAI,
         "o1-mini": Provider.OPENAI,
