@@ -7,9 +7,9 @@ Provides clean, testable classes for managing template substitution.
 
 import re
 from pathlib import Path
-from typing import Dict, List, Set, Any, Optional
+from typing import Dict, List, Set, Any, Optional, Literal
 
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 
 
 class PromptMetadata(BaseModel):
@@ -22,27 +22,41 @@ class PromptMetadata(BaseModel):
     file_path: Path
 
 
+# Define valid message roles for better type safety
+MessageRole = Literal["user", "assistant"]
+
 class PromptContent(BaseModel):
     """Content of a prompt, which may include template variables"""
 
     text: str
     role: str = "user"
     resources: List[str] = []
+    
+    @field_validator("role")
+    @classmethod
+    def validate_role(cls, role: str) -> str:
+        """Validate that the role is a known value"""
+        if role not in ("user", "assistant"):
+            raise ValueError(f"Invalid role: {role}. Must be one of: user, assistant")
+        return role
 
     def apply_substitutions(self, context: Dict[str, Any]) -> "PromptContent":
-        """Apply variable substitutions to the text"""
+        """Apply variable substitutions to the text and resources"""
+        # Define placeholder pattern once to avoid repetition
+        def make_placeholder(key: str) -> str:
+            return f"{{{{{key}}}}}"
+            
+        # Apply substitutions to text
         result = self.text
         for key, value in context.items():
-            placeholder = f"{{{{{key}}}}}"
-            result = result.replace(placeholder, str(value))
+            result = result.replace(make_placeholder(key), str(value))
 
-        # Apply substitutions to resource paths as well
+        # Apply substitutions to resource paths
         substituted_resources = []
         for resource in self.resources:
             substituted = resource
             for key, value in context.items():
-                placeholder = f"{{{{{key}}}}}"
-                substituted = substituted.replace(placeholder, str(value))
+                substituted = substituted.replace(make_placeholder(key), str(value))
             substituted_resources.append(substituted)
 
         return PromptContent(
