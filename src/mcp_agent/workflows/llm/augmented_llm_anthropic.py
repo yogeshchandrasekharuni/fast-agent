@@ -335,7 +335,15 @@ class AnthropicAugmentedLLM(AugmentedLLM[MessageParam, Message]):
         Process a query using an LLM and available tools.
         The default implementation uses Claude as the LLM.
         Override this method to use a different LLM.
+        
+        Special commands:
+        - "***SAVE_HISTORY <filename.md>" - Saves the conversation history to the specified file
+          in MCP prompt format with user/assistant delimiters.
         """
+        # Check if this is a special command to save history
+        if isinstance(message, str) and message.startswith("***SAVE_HISTORY "):
+            return await self._save_history_to_file(message)
+            
         responses: List[Message] = await self.generate(
             message=message,
             request_params=request_params,
@@ -359,6 +367,74 @@ class AnthropicAugmentedLLM(AugmentedLLM[MessageParam, Message]):
         # TODO -- make tool detail inclusion behaviour configurable
         # Join all collected text
         return "\n".join(final_text)
+        
+    async def _save_history_to_file(self, command: str) -> str:
+        """
+        Save the conversation history to a file in MCP prompt format.
+        
+        Args:
+            command: The command string, expected format: "***SAVE_HISTORY <filename.md>"
+            
+        Returns:
+            Success or error message
+        """
+        try:
+            # Extract the filename from the command
+            parts = command.split(" ", 1)
+            if len(parts) != 2 or not parts[1].strip():
+                return "Error: Invalid format. Expected '***SAVE_HISTORY <filename.md>'"
+                
+            filename = parts[1].strip()
+            
+            # Get all messages from history
+            messages = self.history.get(include_history=True)
+            
+            # Convert to prompt format with delimiters
+            prompt_content = []
+            
+            for msg in messages:
+                if msg.get("role") == "user":
+                    prompt_content.append("---USER")
+                    # For user messages, content can be a string or a list of blocks
+                    content = msg.get("content", "")
+                    if isinstance(content, str):
+                        prompt_content.append(content)
+                    else:
+                        # Extract text from blocks
+                        for block in content:
+                            if hasattr(block, "text"):
+                                prompt_content.append(block.text)
+                            elif isinstance(block, dict) and "text" in block:
+                                prompt_content.append(block["text"])
+                            else:
+                                prompt_content.append(str(block))
+                                
+                elif msg.get("role") == "assistant":
+                    prompt_content.append("---ASSISTANT")
+                    # For assistant messages, content is typically a list of blocks
+                    content = msg.get("content", [])
+                    if isinstance(content, str):
+                        prompt_content.append(content)
+                    else:
+                        # Extract text from blocks
+                        for block in content:
+                            if hasattr(block, "text"):
+                                prompt_content.append(block.text)
+                            elif isinstance(block, dict) and "text" in block:
+                                prompt_content.append(block["text"])
+                            else:
+                                prompt_content.append(str(block))
+            
+            # Write to file
+            with open(filename, "w", encoding="utf-8") as f:
+                f.write("\n\n".join(prompt_content))
+                
+            self.logger.info(f"Saved conversation history to {filename}")
+            return f"Done. Saved conversation history to {filename}"
+            
+        except Exception as e:
+            self.logger.error(f"Error saving history: {str(e)}")
+            return f"Error saving history: {str(e)}"
 
     async def generate_structured(
         self,
