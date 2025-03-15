@@ -27,6 +27,7 @@ class PromptContent(BaseModel):
 
     text: str
     role: str = "user"
+    resources: List[str] = []
 
     def apply_substitutions(self, context: Dict[str, Any]) -> "PromptContent":
         """Apply variable substitutions to the text"""
@@ -35,7 +36,18 @@ class PromptContent(BaseModel):
             placeholder = f"{{{{{key}}}}}"
             result = result.replace(placeholder, str(value))
 
-        return PromptContent(text=result, role=self.role)
+        # Apply substitutions to resource paths as well
+        substituted_resources = []
+        for resource in self.resources:
+            substituted = resource
+            for key, value in context.items():
+                placeholder = f"{{{{{key}}}}}"
+                substituted = substituted.replace(placeholder, str(value))
+            substituted_resources.append(substituted)
+
+        return PromptContent(
+            text=result, role=self.role, resources=substituted_resources
+        )
 
 
 class PromptTemplate:
@@ -103,8 +115,7 @@ class PromptTemplate:
         Parse the template into sections based on delimiters.
         If no delimiters are found, treat the entire template as a single user message.
 
-        Resources are handled specially - if a resource section references a file,
-        the file's contents are loaded and included in the template.
+        Resources are now collected within their parent sections, keeping the same role.
         """
         lines = self.template_text.split("\n")
 
@@ -118,56 +129,60 @@ class PromptTemplate:
 
         if is_simple_mode:
             # Simple mode: treat the entire content as a single user message
-            return [PromptContent(text=self.template_text, role="user")]
+            return [PromptContent(text=self.template_text, role="user", resources=[])]
 
         # Standard mode with delimiters
         sections = []
         current_role = None
         current_content = ""
+        current_resources = []
 
         i = 0
         while i < len(lines):
             line = lines[i]
+
+            # Check if we hit a delimiter
             if line.strip() in self.delimiter_map:
-                # Save previous section if there was one
-                if current_role is not None and current_content:
-                    sections.append(
-                        PromptContent(text=current_content.strip(), role=current_role)
-                    )
+                role_type = self.delimiter_map[line.strip()]
 
-                # Start new section
-                current_role = self.delimiter_map[line.strip()]
-                current_content = ""
-
-                # Special handling for resource sections
-                if current_role == "resource" and i + 1 < len(lines):
-                    resource_path = lines[i + 1].strip()
-                    # Try to load the resource file
-                    try:
-                        # First look for the file in the same directory as the template
-                        if (
-                            hasattr(self, "template_file_path")
-                            and self.template_file_path
-                        ):
-                            resource_file = (
-                                Path(self.template_file_path).parent / resource_path
+                # If we're moving to a new user/assistant section (not resource)
+                if role_type != "resource":
+                    # Save the previous section if it exists
+                    if current_role is not None and current_content:
+                        sections.append(
+                            PromptContent(
+                                text=current_content.strip(),
+                                role=current_role,
+                                resources=current_resources,
                             )
-                            if resource_file.exists() and resource_file.is_file():
-                                with open(resource_file, "r", encoding="utf-8") as f:
-                                    current_content = f.read()
-                                # Skip the resource path line
-                                i += 1
-                    except Exception:
-                        # If there's an error loading the resource, fall back to just using the path
-                        current_content = resource_path
+                        )
+
+                    # Start a new section
+                    current_role = role_type
+                    current_content = ""
+                    current_resources = []
+
+                # Handle resource delimiters within sections
+                elif role_type == "resource" and i + 1 < len(lines):
+                    resource_path = lines[i + 1].strip()
+                    current_resources.append(resource_path)
+                    # Skip the resource path line
+                    i += 1
+
+            # If we're in a section, add to the current content
             elif current_role is not None:
                 current_content += line + "\n"
+
             i += 1
 
         # Add the last section if there is one
         if current_role is not None and current_content:
             sections.append(
-                PromptContent(text=current_content.strip(), role=current_role)
+                PromptContent(
+                    text=current_content.strip(),
+                    role=current_role,
+                    resources=current_resources,
+                )
             )
 
         return sections
@@ -272,10 +287,13 @@ class PromptTemplateLoader:
                     # Include role in the description but not the filename
                     description = f"[{first_role.upper()}] {preview}"
 
-        # Extract resource paths (after RESOURCE delimiters)
+        # Extract resource paths from all sections that come after RESOURCE delimiters
         resource_paths = []
+        resource_delimiter = next(
+            (k for k, v in self.delimiter_map.items() if v == "resource"), "---RESOURCE"
+        )
         for i, line in enumerate(lines):
-            if line.strip() == "---RESOURCE":
+            if line.strip() == resource_delimiter:
                 if i + 1 < len(lines) and lines[i + 1].strip():
                     resource_paths.append(lines[i + 1].strip())
 

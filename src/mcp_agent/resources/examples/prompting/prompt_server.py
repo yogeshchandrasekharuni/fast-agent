@@ -16,6 +16,7 @@ import httpx
 
 from mcp.server.fastmcp import FastMCP
 from mcp.server.fastmcp.prompts.base import UserMessage, AssistantMessage, Message
+from mcp.types import TextContent, EmbeddedResource, TextResourceContents
 
 from mcp_agent.resources.examples.prompting.prompt_template import (
     PromptTemplateLoader,
@@ -88,12 +89,140 @@ async def fetch_remote_resource(url: str) -> tuple[str, str]:
         return content, mime_type
 
 
-def prompt_content_to_message(content: PromptContent) -> Message:
-    """Convert PromptContent to a Message object"""
-    if content.role == "user":
-        return UserMessage(content.text)
-    else:
-        return AssistantMessage(content.text)
+def load_resource_content(
+    resource_path: str, prompt_files: List[Path]
+) -> tuple[str, str]:
+    """
+    Load a resource's content and determine its mime type
+
+    Args:
+        resource_path: Path to the resource file
+        prompt_files: List of prompt files (to find relative paths)
+
+    Returns:
+        Tuple of (content, mime_type)
+
+    Raises:
+        FileNotFoundError: If the resource cannot be found
+    """
+    # Try to locate the resource file
+    resource_file = None
+    for prompt_file in prompt_files:
+        potential_path = prompt_file.parent / resource_path
+        if potential_path.exists():
+            resource_file = potential_path
+            break
+
+    if resource_file is None or not resource_file.exists():
+        raise FileNotFoundError(f"Resource not found: {resource_path}")
+
+    # Load the content and determine mime type
+    mime_type = guess_mime_type(str(resource_file))
+    with open(resource_file, "r", encoding="utf-8") as f:
+        content = f.read()
+
+    return content, mime_type
+
+
+def create_embedded_resource(
+    resource_path: str, content: str, mime_type: str
+) -> EmbeddedResource:
+    """Create an embedded resource content object"""
+    return EmbeddedResource(
+        type="resource",
+        resource=TextResourceContents(
+            uri=f"resource://{Path(resource_path).name}",
+            text=content,
+            mimeType=mime_type,
+        ),
+    )
+
+
+def create_messages_with_resources(
+    content_sections: List[PromptContent], prompt_files: List[Path]
+) -> List[Message]:
+    """
+    Create a list of messages from content sections, with resources properly handled.
+    
+    This implementation produces one message for each content section's text,
+    followed by separate messages for each resource (with the same role type
+    as the section they belong to).
+
+    Args:
+        content_sections: List of PromptContent objects
+        prompt_files: List of prompt files (to help locate resource files)
+
+    Returns:
+        List of Message objects
+    """
+    messages = []
+
+    for section in content_sections:
+        # Determine the message class based on the section role
+        message_class = UserMessage if section.role == "user" else AssistantMessage
+        
+        # Add the text message
+        text_message = message_class(
+            content=TextContent(type="text", text=section.text)
+        )
+        messages.append(text_message)
+
+        # Add resource messages if any, with the same role type as the section
+        for resource_path in section.resources:
+            try:
+                resource_content, mime_type = load_resource_content(
+                    resource_path, prompt_files
+                )
+                embedded_resource = create_embedded_resource(
+                    resource_path, resource_content, mime_type
+                )
+                # Resources inherit the role of their section
+                resource_message = message_class(content=embedded_resource)
+                messages.append(resource_message)
+            except Exception as e:
+                logger.error(f"Error loading resource {resource_path}: {e}")
+
+    return messages
+
+
+def prompt_content_to_message(content: PromptContent) -> List[Message]:
+    """
+    Convert PromptContent to Message objects.
+
+    This version returns the text content and any resources as separate messages,
+    each with the same role type (user or assistant).
+    
+    Returns:
+        List of Message objects (one for text content, plus one for each resource)
+    """
+    messages = []
+    
+    # Determine message class based on role
+    message_class = UserMessage if content.role == "user" else AssistantMessage
+    
+    # Create and add text message
+    text_content = TextContent(type="text", text=content.text)
+    messages.append(message_class(content=text_content))
+    
+    # Add resource messages if any, with the same role
+    for resource_path in content.resources:
+        try:
+            # Here we'd load the resource, but for simple conversion without loading,
+            # we'll just create a placeholder. For actual use, use create_messages_with_resources
+            resource_content = f"Resource: {resource_path} (not loaded in this method)"
+            embedded_resource = EmbeddedResource(
+                type="resource",
+                resource=TextResourceContents(
+                    uri=f"resource://{Path(resource_path).name}",
+                    text=resource_content,
+                    mimeType="text/plain",
+                ),
+            )
+            messages.append(message_class(content=embedded_resource))
+        except Exception as e:
+            logger.error(f"Error creating resource message for {resource_path}: {e}")
+    
+    return messages
 
 
 def register_prompt(file_path: Path):
@@ -130,55 +259,57 @@ def register_prompt(file_path: Path):
 
         # Handle prompts with template variables
         if template_vars:
-            # Define a dynamic function with the correct signature
-            param_str = ", ".join([f"{var}: str = None" for var in template_vars])
+            # Create a prompt handler factory that captures template, template_vars and other needed objects
+            def create_prompt_handler(template, template_vars, prompt_files):
+                # The docstring for our generated function
+                docstring = (
+                    f"Prompt with template variables: {', '.join(template_vars)}"
+                )
 
-            # Define the function with proper typed parameters
-            exec_globals = {
-                "Path": Path,
-                "List": List,
-                "Message": Message,
-                "template_vars": template_vars,
-                "template": template,
-                "prompt_content_to_message": prompt_content_to_message,
-                "metadata": metadata,
-            }
+                # Define a generic prompt handler that accepts **kwargs
+                async def prompt_handler(**kwargs) -> List[Message]:
+                    # Build context from parameters
+                    context = {}
+                    for var in template_vars:
+                        if var in kwargs and kwargs[var] is not None:
+                            context[var] = kwargs[var]
 
-            exec_code = f"""
-async def prompt_handler({param_str}) -> List[Message]:
-    \"\"\"Prompt with template variables: {", ".join(template_vars)}\"\"\"
-    # Build context from parameters
-    context = {{}}
-    for var in template_vars:
-        value = locals().get(var)
-        if value is not None:
-            context[var] = value
-    
-    # Apply substitutions to the template
-    content_sections = template.apply_substitutions(context)
-    
-    # Convert to MCP Message objects
-    return [prompt_content_to_message(section) for section in content_sections]
-"""
-            # Execute the function definition
-            exec(exec_code, exec_globals)
+                    # Apply substitutions to the template
+                    content_sections = template.apply_substitutions(context)
 
-            # Register the prompt handler
-            mcp.prompt(name=metadata.name, description=metadata.description)(
-                exec_globals["prompt_handler"]
+                    # Convert to MCP Message objects, handling resources properly
+                    return create_messages_with_resources(
+                        content_sections, prompt_files
+                    )
+
+                # Set the docstring
+                prompt_handler.__doc__ = docstring
+                return prompt_handler
+
+            # Create the handler using our factory function
+            handler = create_prompt_handler(
+                template, template_vars, config.prompt_files
             )
+
+            # Register the handler with the correct name and description
+            mcp.prompt(name=metadata.name, description=metadata.description)(handler)
         else:
             # No template variables, register a simple prompt handler
-            @mcp.prompt(name=metadata.name, description=metadata.description)
+            # Create a simple prompt handler for templates without variables
             async def prompt_handler() -> List[Message]:
                 """Get a prompt with no variable substitution"""
                 # Get the content sections
                 content_sections = template.content_sections
 
-                # Convert to MCP Message objects
-                return [
-                    prompt_content_to_message(section) for section in content_sections
-                ]
+                # Convert to MCP Message objects, handling resources properly
+                return create_messages_with_resources(
+                    content_sections, config.prompt_files
+                )
+
+            # Register the prompt handler
+            mcp.prompt(name=metadata.name, description=metadata.description)(
+                prompt_handler
+            )
 
         # Register any referenced resources in the prompt
         for resource_path in metadata.resource_paths:
@@ -198,8 +329,9 @@ async def prompt_handler({param_str}) -> List[Message]:
                             async def get_resource() -> str:
                                 with open(resource_path, "r", encoding="utf-8") as f:
                                     return f.read()
+
                             return get_resource
-                        
+
                         # Register with the correct resource ID
                         mcp.resource(
                             resource_id,
@@ -316,9 +448,9 @@ async def async_main():
                 file_path = Path(path)
                 if not file_path.exists():
                     raise FileNotFoundError(f"Resource file not found: {path}")
-            
+
             mime_type = guess_mime_type(str(file_path))
-            
+
             # Check if it's a binary file based on mime type
             if mime_type.startswith("text/") or mime_type in [
                 "application/json",
@@ -372,6 +504,8 @@ async def async_main():
         for i, section in enumerate(template.content_sections):
             print(f"\n[{i + 1}] Role: {section.role}")
             print(f"Content: {section.text}")
+            if section.resources:
+                print(f"Resources: {', '.join(section.resources)}")
 
         # If there are template variables, test with dummy values
         if metadata.template_variables:
@@ -382,6 +516,10 @@ async def async_main():
             for i, section in enumerate(applied):
                 print(f"\n[{i + 1}] Role: {section.role}")
                 print(f"Content with substitutions: {section.text}")
+                if section.resources:
+                    print(
+                        f"Resources with substitutions: {', '.join(section.resources)}"
+                    )
 
         return 0
 
