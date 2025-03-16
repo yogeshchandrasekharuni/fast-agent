@@ -62,9 +62,15 @@ async def test_playback_llm_apply_prompt_template():
 
     # Create sample prompt messages using Pydantic models
     prompt_messages = [
-        PromptMessage(role="user", content=TextContent(type="text", text="Message 1")),
-        PromptMessage(role="user", content=TextContent(type="text", text="Message 2")),
-        PromptMessage(role="user", content=TextContent(type="text", text="Message 3")),
+        PromptMessage(
+            role="assistant", content=TextContent(type="text", text="Message 1")
+        ),
+        PromptMessage(
+            role="assistant", content=TextContent(type="text", text="Message 2")
+        ),
+        PromptMessage(
+            role="assistant", content=TextContent(type="text", text="Message 3")
+        ),
     ]
 
     # Create a GetPromptResult
@@ -95,9 +101,15 @@ async def test_playback_llm_sequential_messages():
 
     # Create sample prompt messages using Pydantic models
     prompt_messages = [
-        PromptMessage(role="user", content=TextContent(type="text", text="Message 1")),
-        PromptMessage(role="user", content=TextContent(type="text", text="Message 2")),
-        PromptMessage(role="user", content=TextContent(type="text", text="Message 3")),
+        PromptMessage(
+            role="assistant", content=TextContent(type="text", text="Message 1")
+        ),
+        PromptMessage(
+            role="assistant", content=TextContent(type="text", text="Message 2")
+        ),
+        PromptMessage(
+            role="assistant", content=TextContent(type="text", text="Message 3")
+        ),
     ]
 
     # Create a GetPromptResult
@@ -142,20 +154,24 @@ async def test_playback_llm_append_messages():
     # Create first batch of prompt messages
     prompt_messages1 = [
         PromptMessage(
-            role="user", content=TextContent(type="text", text="Batch 1 - Message 1")
+            role="assistant",
+            content=TextContent(type="text", text="Batch 1 - Message 1"),
         ),
         PromptMessage(
-            role="user", content=TextContent(type="text", text="Batch 1 - Message 2")
+            role="assistant",
+            content=TextContent(type="text", text="Batch 1 - Message 2"),
         ),
     ]
 
     # Create second batch of prompt messages
     prompt_messages2 = [
         PromptMessage(
-            role="user", content=TextContent(type="text", text="Batch 2 - Message 1")
+            role="assistant",
+            content=TextContent(type="text", text="Batch 2 - Message 1"),
         ),
         PromptMessage(
-            role="user", content=TextContent(type="text", text="Batch 2 - Message 2")
+            role="assistant",
+            content=TextContent(type="text", text="Batch 2 - Message 2"),
         ),
     ]
 
@@ -200,8 +216,8 @@ async def test_playback_llm_append_messages():
 
 
 @pytest.mark.asyncio
-async def test_playback_llm_skips_assistant_messages():
-    """Test that PlaybackLLM skips assistant messages and only returns user messages"""
+async def test_playback_llm_skips_user_messages():
+    """Test that PlaybackLLM skips user messages and only returns assistant messages"""
     # Create a mock context
     mock_context = MagicMock()
     mock_context.config = MagicMock()
@@ -241,14 +257,14 @@ async def test_playback_llm_skips_assistant_messages():
         # Apply the prompt template
         await llm.apply_prompt_template(prompt_result, "mixed_prompt")
 
-        # Get messages sequentially - should only get user messages
+        # Get messages sequentially - should only get assistant messages
         response1 = await llm.generate_str("Input 1")
-        assert response1 == "User Message 1"
+        assert response1 == "Assistant Reply 1"
 
         response2 = await llm.generate_str("Input 2")
-        assert response2 == "User Message 2"
+        assert response2 == "Assistant Reply 2"
 
-        # Check that we get exhausted message after all user messages have been played
+        # Check that we get exhausted message after all assistant messages have been played
         response3 = await llm.generate_str("Input 3")
         assert response3 == "MESSAGES EXHAUSTED (list size 4)"
 
