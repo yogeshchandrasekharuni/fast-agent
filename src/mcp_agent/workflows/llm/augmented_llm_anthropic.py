@@ -389,45 +389,29 @@ class AnthropicAugmentedLLM(AugmentedLLM[MessageParam, Message]):
             # Get all messages from history
             messages = self.history.get(include_history=True)
             
-            # Convert to prompt format with delimiters
-            prompt_content = []
+            # Import required utilities
+            from mcp_agent.workflows.llm.anthropic_utils import (
+                anthropic_message_param_to_prompt_message_multipart
+            )
+            from mcp_agent.mcp.prompt_message_multipart import (
+                multipart_messages_to_delimited_format
+            )
             
+            # Convert message params to PromptMessageMultipart objects
+            multipart_messages = []
             for msg in messages:
-                if msg.get("role") == "user":
-                    prompt_content.append("---USER")
-                    # For user messages, content can be a string or a list of blocks
-                    content = msg.get("content", "")
-                    if isinstance(content, str):
-                        prompt_content.append(content)
-                    else:
-                        # Extract text from blocks
-                        for block in content:
-                            if hasattr(block, "text"):
-                                prompt_content.append(block.text)
-                            elif isinstance(block, dict) and "text" in block:
-                                prompt_content.append(block["text"])
-                            else:
-                                prompt_content.append(str(block))
-                                
-                elif msg.get("role") == "assistant":
-                    prompt_content.append("---ASSISTANT")
-                    # For assistant messages, content is typically a list of blocks
-                    content = msg.get("content", [])
-                    if isinstance(content, str):
-                        prompt_content.append(content)
-                    else:
-                        # Extract text from blocks
-                        for block in content:
-                            if hasattr(block, "text"):
-                                prompt_content.append(block.text)
-                            elif isinstance(block, dict) and "text" in block:
-                                prompt_content.append(block["text"])
-                            else:
-                                prompt_content.append(str(block))
+                multipart_messages.append(anthropic_message_param_to_prompt_message_multipart(msg))
+                
+            # Convert to delimited format
+            delimited_content = multipart_messages_to_delimited_format(
+                multipart_messages,
+                user_delimiter="---USER",
+                assistant_delimiter="---ASSISTANT"
+            )
             
             # Write to file
             with open(filename, "w", encoding="utf-8") as f:
-                f.write("\n\n".join(prompt_content))
+                f.write("\n\n".join(delimited_content))
                 
             self.logger.info(f"Saved conversation history to {filename}")
             return f"Done. Saved conversation history to {filename}"
