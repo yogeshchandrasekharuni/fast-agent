@@ -12,10 +12,8 @@ from mcp.types import (
     ImageContent,
 )
 
-from mcp_agent.mcp.prompt_message_multipart import (
-    PromptMessageMultipart,
-    multipart_messages_to_delimited_format,
-)
+from mcp_agent.mcp.prompt_message_multipart import PromptMessageMultipart
+from mcp_agent.mcp.prompt_format_utils import multipart_messages_to_delimited_format
 from mcp_agent.workflows.llm.openai_utils import (
     openai_message_to_prompt_message_multipart,
     openai_message_param_to_prompt_message_multipart,

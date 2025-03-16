@@ -393,7 +393,7 @@ class AnthropicAugmentedLLM(AugmentedLLM[MessageParam, Message]):
             from mcp_agent.workflows.llm.anthropic_utils import (
                 anthropic_message_param_to_prompt_message_multipart
             )
-            from mcp_agent.mcp.prompt_message_multipart import (
+            from mcp_agent.mcp.prompt_format_utils import (
                 multipart_messages_to_delimited_format
             )
             
