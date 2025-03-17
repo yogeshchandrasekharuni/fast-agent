@@ -1,7 +1,10 @@
 import json
 import os
-from typing import Iterable, List, Type, TYPE_CHECKING
-from mcp.types import PromptMessage
+from typing import List, Type, TYPE_CHECKING
+
+from mcp_agent.workflows.llm.providers.type_converter_openai import (
+    OpenAITypeConverter,
+)
 
 if TYPE_CHECKING:
     from mcp_agent.mcp.prompt_message_multipart import PromptMessageMultipart
@@ -9,11 +12,7 @@ from openai import OpenAI, AuthenticationError
 
 # from openai.types.beta.chat import
 from openai.types.chat import (
-    ChatCompletionAssistantMessageParam,
     ChatCompletionMessageParam,
-    ChatCompletionContentPartParam,
-    ChatCompletionContentPartTextParam,
-    ChatCompletionContentPartRefusalParam,
     ChatCompletionMessage,
     ChatCompletionSystemMessageParam,
     ChatCompletionToolParam,
@@ -24,18 +23,11 @@ from mcp.types import (
     CallToolRequestParams,
     CallToolRequest,
     CallToolResult,
-    EmbeddedResource,
-    ImageContent,
-    TextContent,
-    TextResourceContents,
 )
 
 from mcp_agent.workflows.llm.augmented_llm import (
     AugmentedLLM,
     ModelT,
-    MCPMessageParam,
-    MCPMessageResult,
-    ProviderToMCPConverter,
     RequestParams,
 )
 from mcp_agent.core.exceptions import ProviderKeyError
@@ -60,7 +52,7 @@ class OpenAIAugmentedLLM(
     def __init__(self, *args, **kwargs):
         # Set type_converter before calling super().__init__
         if "type_converter" not in kwargs:
-            kwargs["type_converter"] = MCPOpenAITypeConverter
+            kwargs["type_converter"] = OpenAITypeConverter
 
         super().__init__(*args, **kwargs)
 
@@ -661,7 +653,10 @@ class OpenAIAugmentedLLM(
             return ChatCompletionToolMessageParam(
                 role="tool",
                 tool_call_id=tool_call_id,
-                content=[mcp_content_to_openai_content(c) for c in result.content],
+                content=[
+                    OpenAITypeConverter.mcp_content_to_openai_content(c)
+                    for c in result.content
+                ],
             )
 
         return None
@@ -692,227 +687,3 @@ class OpenAIAugmentedLLM(
             return content
 
         return str(message)
-
-
-class MCPOpenAITypeConverter(
-    ProviderToMCPConverter[ChatCompletionMessageParam, ChatCompletionMessage]
-):
-    """
-    Convert between OpenAI and MCP types.
-    """
-
-    @classmethod
-    def from_mcp_message_result(cls, result: MCPMessageResult) -> ChatCompletionMessage:
-        # MCPMessageResult -> ChatCompletionMessage
-        if result.role != "assistant":
-            raise ValueError(
-                f"Expected role to be 'assistant' but got '{result.role}' instead."
-            )
-
-        return ChatCompletionMessage(
-            role="assistant",
-            content=result.content.text or str(result.context),
-            # Lossy conversion for the following fields:
-            # result.model
-            # result.stopReason
-        )
-
-    @classmethod
-    def to_mcp_message_result(cls, result: ChatCompletionMessage) -> MCPMessageResult:
-        # ChatCompletionMessage -> MCPMessageResult
-        return MCPMessageResult(
-            role=result.role,
-            content=TextContent(type="text", text=result.content),
-            model=None,
-            stopReason=None,
-            # extras for ChatCompletionMessage fields
-            **result.model_dump(exclude={"role", "content"}),
-        )
-
-    @classmethod
-    def from_mcp_message_param(
-        cls, param: MCPMessageParam
-    ) -> ChatCompletionMessageParam:
-        # MCPMessageParam -> ChatCompletionMessageParam
-        if param.role == "assistant":
-            extras = param.model_dump(exclude={"role", "content"})
-            return ChatCompletionAssistantMessageParam(
-                role="assistant",
-                content=mcp_content_to_openai_content(param.content),
-                **extras,
-            )
-        elif param.role == "user":
-            extras = param.model_dump(exclude={"role", "content"})
-            return ChatCompletionUserMessageParam(
-                role="user",
-                content=mcp_content_to_openai_content(param.content),
-                **extras,
-            )
-        else:
-            raise ValueError(
-                f"Unexpected role: {param.role}, MCP only supports 'assistant' and 'user'"
-            )
-
-    @classmethod
-    def to_mcp_message_param(cls, param: ChatCompletionMessageParam) -> MCPMessageParam:
-        # ChatCompletionMessage -> MCPMessageParam
-
-        contents = openai_content_to_mcp_content(param.content)
-
-        # TODO: saqadri - the mcp_content can have multiple elements
-        # while sampling message content has a single content element
-        # Right now we error out if there are > 1 elements in mcp_content
-        # We need to handle this case properly going forward
-        if len(contents) > 1:
-            raise NotImplementedError(
-                "Multiple content elements in a single message are not supported"
-            )
-        mcp_content: TextContent | ImageContent | EmbeddedResource = contents[0]
-
-        if param.role == "assistant":
-            return MCPMessageParam(
-                role="assistant",
-                content=mcp_content,
-                **typed_dict_extras(param, ["role", "content"]),
-            )
-        elif param.role == "user":
-            return MCPMessageParam(
-                role="user",
-                content=mcp_content,
-                **typed_dict_extras(param, ["role", "content"]),
-            )
-        elif param.role == "tool":
-            raise NotImplementedError(
-                "Tool messages are not supported in SamplingMessage yet"
-            )
-        elif param.role == "system":
-            raise NotImplementedError(
-                "System messages are not supported in SamplingMessage yet"
-            )
-        elif param.role == "developer":
-            raise NotImplementedError(
-                "Developer messages are not supported in SamplingMessage yet"
-            )
-        elif param.role == "function":
-            raise NotImplementedError(
-                "Function messages are not supported in SamplingMessage yet"
-            )
-        else:
-            raise ValueError(
-                f"Unexpected role: {param.role}, MCP only supports 'assistant', 'user', 'tool', 'system', 'developer', and 'function'"
-            )
-
-    @classmethod
-    def from_mcp_prompt_message(
-        cls, message: PromptMessage
-    ) -> ChatCompletionMessageParam:
-        """Convert an MCP PromptMessage to an OpenAI ChatCompletionMessageParam."""
-
-        # Extract content
-        content = None
-        if hasattr(message.content, "text"):
-            content = message.content.text
-        else:
-            content = str(message.content)
-
-        # Extract extras
-        extras = message.model_dump(exclude={"role", "content"})
-
-        if message.role == "user":
-            return ChatCompletionUserMessageParam(
-                role="user", content=content, **extras
-            )
-        elif message.role == "assistant":
-            return ChatCompletionAssistantMessageParam(
-                role="assistant", content=content, **extras
-            )
-        else:
-            # Fall back to user for any unrecognized role, including "system"
-            _logger.warning(
-                f"Unsupported role '{message.role}' in PromptMessage. Falling back to 'user' role."
-            )
-            return ChatCompletionUserMessageParam(
-                role="user", content=f"[{message.role.upper()}] {content}", **extras
-            )
-
-
-def mcp_content_to_openai_content(
-    content: TextContent | ImageContent | EmbeddedResource,
-) -> ChatCompletionContentPartTextParam:
-    if isinstance(content, list):
-        # Handle list of content items
-        return ChatCompletionContentPartTextParam(
-            type="text",
-            text="\n".join(mcp_content_to_openai_content(c) for c in content),
-        )
-
-    if isinstance(content, TextContent):
-        return ChatCompletionContentPartTextParam(type="text", text=content.text)
-    elif isinstance(content, ImageContent):
-        # Best effort to convert an image to text
-        return ChatCompletionContentPartTextParam(
-            type="text", text=f"{content.mimeType}:{content.data}"
-        )
-    elif isinstance(content, EmbeddedResource):
-        if isinstance(content.resource, TextResourceContents):
-            return ChatCompletionContentPartTextParam(
-                type="text", text=content.resource.text
-            )
-        else:  # BlobResourceContents
-            return ChatCompletionContentPartTextParam(
-                type="text", text=f"{content.resource.mimeType}:{content.resource.blob}"
-            )
-    else:
-        # Last effort to convert the content to a string
-        return ChatCompletionContentPartTextParam(type="text", text=str(content))
-
-
-def openai_content_to_mcp_content(
-    content: str
-    | Iterable[ChatCompletionContentPartParam | ChatCompletionContentPartRefusalParam],
-) -> Iterable[TextContent | ImageContent | EmbeddedResource]:
-    mcp_content = []
-
-    if isinstance(content, str):
-        mcp_content = [TextContent(type="text", text=content)]
-    else:
-        # TODO: saqadri - this is a best effort conversion, we should handle all possible content types
-        for c in content:
-            if c.type == "text":  # isinstance(c, ChatCompletionContentPartTextParam):
-                mcp_content.append(
-                    TextContent(
-                        type="text", text=c.text, **typed_dict_extras(c, ["text"])
-                    )
-                )
-            elif (
-                c.type == "image_url"
-            ):  # isinstance(c, ChatCompletionContentPartImageParam):
-                raise NotImplementedError("Image content conversion not implemented")
-                # TODO: saqadri - need to download the image into a base64-encoded string
-                # Download image from c.image_url
-                # return ImageContent(
-                #     type="image",
-                #     data=downloaded_image,
-                #     **c
-                # )
-            elif (
-                c.type == "input_audio"
-            ):  # isinstance(c, ChatCompletionContentPartInputAudioParam):
-                raise NotImplementedError("Audio content conversion not implemented")
-            elif (
-                c.type == "refusal"
-            ):  # isinstance(c, ChatCompletionContentPartRefusalParam):
-                mcp_content.append(
-                    TextContent(
-                        type="text", text=c.refusal, **typed_dict_extras(c, ["refusal"])
-                    )
-                )
-            else:
-                raise ValueError(f"Unexpected content type: {c.type}")
-
-    return mcp_content
-
-
-def typed_dict_extras(d: dict, exclude: List[str]):
-    extras = {k: v for k, v in d.items() if k not in exclude}
-    return extras

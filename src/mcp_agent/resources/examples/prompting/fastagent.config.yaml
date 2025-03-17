@@ -32,5 +32,5 @@ logger:
 mcp:
   servers:
     prompts:
-      command: "uv"
-      args: ["run", "prompt_server.py", "sizing.md", "resource.md"]
+      command: "prompt-server"
+      args: ["sizing.md", "resource.md"]

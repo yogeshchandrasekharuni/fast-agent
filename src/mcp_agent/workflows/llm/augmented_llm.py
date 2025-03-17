@@ -10,9 +10,20 @@ from typing import (
     TYPE_CHECKING,
 )
 
+from mcp import CreateMessageResult, SamplingMessage
+
+from mcp_agent.workflows.llm.type_converter import (
+    ProviderToMCPConverter,
+    MessageParamT,
+    MessageT,
+)
+
 # Forward reference for type annotations
 if TYPE_CHECKING:
     from mcp_agent.mcp.prompt_message_multipart import PromptMessageMultipart
+    from mcp_agent.agents.agent import Agent
+    from mcp_agent.context import Context
+
 
 from pydantic import Field
 
@@ -20,9 +31,7 @@ from mcp.types import (
     CallToolRequest,
     CallToolResult,
     CreateMessageRequestParams,
-    CreateMessageResult,
     ModelPreferences,
-    SamplingMessage,
     PromptMessage,
     TextContent,
     GetPromptResult,
@@ -36,22 +45,10 @@ from mcp_agent.workflows.llm.llm_selector import ModelSelector
 from mcp_agent.ui.console_display import ConsoleDisplay
 from rich.text import Text
 
-if TYPE_CHECKING:
-    from mcp_agent.agents.agent import Agent
-    from mcp_agent.context import Context
-
-MessageParamT = TypeVar("MessageParamT")
-"""A type representing an input message to an LLM."""
-
-MessageT = TypeVar("MessageT")
-"""A type representing an output message from an LLM."""
 
 ModelT = TypeVar("ModelT")
 """A type representing a structured output message from an LLM."""
 
-# TODO: saqadri - SamplingMessage is fairly limiting - consider extending
-MCPMessageParam = SamplingMessage
-MCPMessageResult = CreateMessageResult
 
 # TODO -- move this to a constant
 HUMAN_INPUT_TOOL_NAME = "__human_input__"
@@ -221,26 +218,6 @@ class AugmentedLLMProtocol(Protocol, Generic[MessageParamT, MessageT]):
         """Request a structured LLM generation and return the result as a Pydantic model."""
 
 
-class ProviderToMCPConverter(Protocol, Generic[MessageParamT, MessageT]):
-    """Conversions between LLM provider and MCP types"""
-
-    @classmethod
-    def to_mcp_message_result(cls, result: MessageT) -> MCPMessageResult:
-        """Convert an LLM response to an MCP message result type."""
-
-    @classmethod
-    def from_mcp_message_result(cls, result: MCPMessageResult) -> MessageT:
-        """Convert an MCP message result to an LLM response type."""
-
-    @classmethod
-    def to_mcp_message_param(cls, param: MessageParamT) -> MCPMessageParam:
-        """Convert an LLM input to an MCP message (SamplingMessage) type."""
-
-    @classmethod
-    def from_mcp_message_param(cls, param: MCPMessageParam) -> MessageParamT:
-        """Convert an MCP message (SamplingMessage) to an LLM input type."""
-
-
 class AugmentedLLM(ContextDependent, AugmentedLLMProtocol[MessageParamT, MessageT]):
     """
     The basic building block of agentic systems is an LLM enhanced with augmentations
@@ -383,10 +360,6 @@ class AugmentedLLM(ContextDependent, AugmentedLLMProtocol[MessageParamT, Message
         merged.update(provided_params.model_dump(exclude_unset=True))
         final_params = RequestParams(**merged)
 
-        # self.logger.debug(
-        #     "Final merged params:", extra={"params": final_params.model_dump()}
-        # )
-
         return final_params
 
     def get_request_params(
@@ -413,24 +386,24 @@ class AugmentedLLM(ContextDependent, AugmentedLLMProtocol[MessageParamT, Message
 
         return default_request_params
 
-    def to_mcp_message_result(self, result: MessageT) -> MCPMessageResult:
+    def to_mcp_message_result(self, result: MessageT) -> CreateMessageResult:
         """Convert an LLM response to an MCP message result type."""
-        return self.type_converter.to_mcp_message_result(result)
+        return self.type_converter.to_sampling_result(result)
 
-    def from_mcp_message_result(self, result: MCPMessageResult) -> MessageT:
+    def from_mcp_message_result(self, result: CreateMessageResult) -> MessageT:
         """Convert an MCP message result to an LLM response type."""
-        return self.type_converter.from_mcp_message_result(result)
+        return self.type_converter.from_sampling_result(result)
 
-    def to_mcp_message_param(self, param: MessageParamT) -> MCPMessageParam:
+    def to_mcp_message_param(self, param: MessageParamT) -> SamplingMessage:
         """Convert an LLM input to an MCP message (SamplingMessage) type."""
-        return self.type_converter.to_mcp_message_param(param)
+        return self.type_converter.to_sampling_message(param)
 
-    def from_mcp_message_param(self, param: MCPMessageParam) -> MessageParamT:
+    def from_mcp_message_param(self, param: SamplingMessage) -> MessageParamT:
         """Convert an MCP message (SamplingMessage) to an LLM input type."""
-        return self.type_converter.from_mcp_message_param(param)
+        return self.type_converter.from_sampling_message(param)
 
     def from_mcp_prompt_message(self, message: PromptMessage) -> MessageParamT:
-        return self.type_converter.from_mcp_prompt_message(message)
+        return self.type_converter.from_prompt_message(message)
 
     @classmethod
     def convert_message_to_message_param(
@@ -685,7 +658,7 @@ class AugmentedLLM(ContextDependent, AugmentedLLMProtocol[MessageParamT, Message
             or the last assistant message in the prompt
         """
         from mcp_agent.mcp.prompt_message_multipart import PromptMessageMultipart
-        
+
         # Check if we have any messages
         if not prompt_result.messages:
             return "Prompt contains no messages"
@@ -702,11 +675,13 @@ class AugmentedLLM(ContextDependent, AugmentedLLMProtocol[MessageParamT, Message
         )
 
         # Convert to PromptMessageMultipart objects
-        multipart_messages = PromptMessageMultipart.parse_get_prompt_result(prompt_result)
-        
+        multipart_messages = PromptMessageMultipart.parse_get_prompt_result(
+            prompt_result
+        )
+
         # Delegate to the provider-specific implementation
         return await self._apply_prompt_template_provider_specific(multipart_messages)
-    
+
     async def _apply_prompt_template_provider_specific(
         self, multipart_messages: List["PromptMessageMultipart"]
     ) -> str:
@@ -715,10 +690,10 @@ class AugmentedLLM(ContextDependent, AugmentedLLMProtocol[MessageParamT, Message
         This default implementation handles basic text content for any LLM type.
         Provider-specific subclasses should override this method to handle
         multimodal content appropriately.
-        
+
         Args:
             multipart_messages: List of PromptMessageMultipart objects parsed from the prompt template
-            
+
         Returns:
             String representation of the assistant's response if generated,
             or the last assistant message in the prompt
@@ -736,14 +711,16 @@ class AugmentedLLM(ContextDependent, AugmentedLLMProtocol[MessageParamT, Message
             if len(multipart_messages) > 1:
                 previous_messages = multipart_messages[:-1]
                 converted = []
-                
+
                 # Fallback generic method for all LLM types
                 for msg in previous_messages:
                     # Convert each PromptMessageMultipart to individual PromptMessages
                     prompt_messages = msg.to_prompt_messages()
                     for prompt_msg in prompt_messages:
-                        converted.append(self.type_converter.from_mcp_prompt_message(prompt_msg))
-                
+                        converted.append(
+                            self.type_converter.from_prompt_message(prompt_msg)
+                        )
+
                 self.history.extend(converted, is_prompt=True)
 
             # For generic LLMs, extract text and describe non-text content
@@ -757,12 +734,12 @@ class AugmentedLLM(ContextDependent, AugmentedLLMProtocol[MessageParamT, Message
                     # Add a placeholder for images
                     mime_type = getattr(content, "mimeType", "image/unknown")
                     user_text_parts.append(f"[Image: {mime_type}]")
-                    
+
             user_text = "\n".join(user_text_parts) if user_text_parts else ""
             if not user_text:
                 # Fallback to original method if we couldn't extract text
                 user_text = str(last_message.content)
-                
+
             return await self.generate_str(user_text)
         else:
             # For assistant messages: Add all messages to history and return the last one
@@ -772,20 +749,22 @@ class AugmentedLLM(ContextDependent, AugmentedLLMProtocol[MessageParamT, Message
 
             # Convert and add all messages to history
             converted = []
-            
+
             # Fallback to the original method for all LLM types
             for msg in multipart_messages:
                 # Convert each PromptMessageMultipart to individual PromptMessages
                 prompt_messages = msg.to_prompt_messages()
                 for prompt_msg in prompt_messages:
-                    converted.append(self.type_converter.from_mcp_prompt_message(prompt_msg))
-                    
+                    converted.append(
+                        self.type_converter.from_prompt_message(prompt_msg)
+                    )
+
             self.history.extend(converted, is_prompt=True)
 
             # Return the assistant's message with proper handling of different content types
             assistant_text_parts = []
             has_non_text_content = False
-            
+
             for content in last_message.content:
                 if content.type == "text":
                     assistant_text_parts.append(content.text)
@@ -794,9 +773,13 @@ class AugmentedLLM(ContextDependent, AugmentedLLMProtocol[MessageParamT, Message
                     mime_type = getattr(content.resource, "mimeType", "text/plain")
                     uri = getattr(content.resource, "uri", "")
                     if uri:
-                        assistant_text_parts.append(f"[Resource: {uri}, Type: {mime_type}]\n{content.resource.text}")
+                        assistant_text_parts.append(
+                            f"[Resource: {uri}, Type: {mime_type}]\n{content.resource.text}"
+                        )
                     else:
-                        assistant_text_parts.append(f"[Resource Type: {mime_type}]\n{content.resource.text}")
+                        assistant_text_parts.append(
+                            f"[Resource Type: {mime_type}]\n{content.resource.text}"
+                        )
                 elif content.type == "image":
                     # Note the presence of images
                     mime_type = getattr(content, "mimeType", "image/unknown")
@@ -806,12 +789,16 @@ class AugmentedLLM(ContextDependent, AugmentedLLMProtocol[MessageParamT, Message
                     # Other content types
                     assistant_text_parts.append(f"[Content of type: {content.type}]")
                     has_non_text_content = True
-            
+
             # Join all parts with double newlines for better readability
-            result = "\n\n".join(assistant_text_parts) if assistant_text_parts else str(last_message.content)
-            
+            result = (
+                "\n\n".join(assistant_text_parts)
+                if assistant_text_parts
+                else str(last_message.content)
+            )
+
             # Add a note if non-text content was present
             if has_non_text_content:
                 result += "\n\n[Note: This message contained non-text content that may not be fully represented in text format]"
-                
+
             return result
