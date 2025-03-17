@@ -7,6 +7,7 @@ from typing import List, Optional, Dict, TYPE_CHECKING
 
 from mcp_agent.agents.agent import Agent
 from mcp_agent.app import MCPApp
+from mcp_agent.mcp.prompt_message_multipart import PromptMessageMultipart
 
 # Handle circular imports
 if TYPE_CHECKING:
@@ -44,17 +45,17 @@ class BaseAgentProxy:
     async def prompt(self, default_prompt: str = "") -> str:
         """Allow: agent.researcher.prompt()"""
         from mcp_agent.core.agent_app import AgentApp
-        
+
         # First check if _app is directly an AgentApp
         if isinstance(self._app, AgentApp):
             return await self._app.prompt(self._name, default_prompt)
-            
+
         # If not, check if it's an MCPApp with an _agent_app attribute
         if hasattr(self._app, "_agent_app"):
             agent_app = self._app._agent_app
             if agent_app:
                 return await agent_app.prompt(self._name, default_prompt)
-        
+
         # If we can't find an AgentApp, return an error message
         return "ERROR: Cannot prompt() - AgentApp not found"
 
@@ -62,23 +63,31 @@ class BaseAgentProxy:
         """Generate response for a message - must be implemented by subclasses"""
         raise NotImplementedError("Subclasses must implement generate_str")
 
-    async def load_prompt(self, prompt_name: str = None, arguments: dict[str, str] = None) -> str:
+    async def send_prompt(self, prompt: PromptMessageMultipart) -> str:
+        """Send a message to the agent and return the response"""
+        raise NotImplementedError("Subclasses must implement send(prompt)")
+
+    async def load_prompt(
+        self, prompt_name: str = None, arguments: dict[str, str] = None
+    ) -> str:
         """
         Use a Prompt from an MCP Server - implemented by subclasses.
         Always returns an Assistant message.
-        
+
         Args:
             prompt_name: Name of the prompt to load
             arguments: Optional dictionary of string arguments for prompt templating
         """
         raise NotImplementedError("Subclasses must implement mcp-prompt")
-        
-    async def apply_prompt(self, prompt_name: str = None, arguments: dict[str, str] = None) -> str:
+
+    async def apply_prompt(
+        self, prompt_name: str = None, arguments: dict[str, str] = None
+    ) -> str:
         """
         Apply a Prompt from an MCP Server - implemented by subclasses.
         This is the preferred method for applying prompts.
         Always returns an Assistant message.
-        
+
         Args:
             prompt_name: Name of the prompt to apply
             arguments: Optional dictionary of string arguments for prompt templating
@@ -97,28 +106,36 @@ class LLMAgentProxy(BaseAgentProxy):
         """Forward message and all kwargs to the agent's LLM"""
         return await self._agent._llm.generate_str(message, **kwargs)
 
-    async def load_prompt(self, prompt_name: str = None, arguments: dict[str, str] = None) -> str:
+    async def send_prompt(self, prompt: PromptMessageMultipart) -> str:
+        """Send a message to the agent and return the response"""
+        return await self._agent._llm.generate_prompt(prompt, None)
+
+    async def load_prompt(
+        self, prompt_name: str = None, arguments: dict[str, str] = None
+    ) -> str:
         """
         Load and apply a prompt from an MCP server.
-        
+
         Args:
             prompt_name: Name of the prompt to load
             arguments: Optional dictionary of string arguments for prompt templating
-            
+
         Returns:
             The assistant's response
         """
         return await self._agent.load_prompt(prompt_name, arguments)
-        
-    async def apply_prompt(self, prompt_name: str = None, arguments: dict[str, str] = None) -> str:
+
+    async def apply_prompt(
+        self, prompt_name: str = None, arguments: dict[str, str] = None
+    ) -> str:
         """
         Apply a prompt from an MCP server.
         This is the preferred method for applying prompts.
-        
+
         Args:
             prompt_name: Name of the prompt to apply
             arguments: Optional dictionary of string arguments for prompt templating
-            
+
         Returns:
             The assistant's response
         """

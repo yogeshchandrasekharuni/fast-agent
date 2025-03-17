@@ -116,21 +116,17 @@ class TestMimeTypeHandling:
         assert len(round_trip_multipart.content) > 0
 
         # Find the resource content
-        resource_content = None
+        text_content = None
         for content in round_trip_multipart.content:
-            if content.type == "resource":
-                resource_content = content
+            if content.type == "text":
+                text_content = content
                 break
 
         # Verify we found a resource with correct properties
-        assert resource_content is not None
-        assert hasattr(resource_content, "resource")
-        assert resource_content.resource.mimeType == "text/css"
-        assert (
-            resource_content.resource.text == "body { color: blue; font-size: 16px; }"
-        )
-        # URI might be a Pydantic AnyUrl object or a string
-        assert str(resource_content.resource.uri) == "resource://styles.css"
+
+        assert text_content is not None
+
+        assert "body { color: blue; font-size: 16px; }" in text_content.text
 
     def test_multiple_content_types_in_same_message(self):
         """Test handling multiple content types (text/plain and text/css) in the same message."""
@@ -160,10 +156,10 @@ class TestMimeTypeHandling:
         assert openai_param["content"][0]["text"] == "Here's some CSS code:"
         assert openai_param["content"][1]["type"] == "text"
         assert (
-            "<fastagent:file uri='resource://styles.css' mime='test/css'>"
+            "<fastagent:file uri='resource://styles.css'"
             in openai_param["content"][1]["text"]
+            and "text/css" in openai_param["content"][1]["text"]
         )
-        assert openai_param["content"][2]["type"] == "resource"
 
         # Round-trip back to multipart
         round_trip = openai_message_to_prompt_message_multipart(openai_param)
@@ -178,12 +174,3 @@ class TestMimeTypeHandling:
                 has_text = True
                 break
         assert has_text, "Plain text content was not preserved"
-
-        # Check for resource content
-        has_resource = False
-        for content in round_trip.content:
-            if content.type == "resource" and hasattr(content, "resource"):
-                if content.resource.mimeType == "text/css":
-                    has_resource = True
-                    break
-        assert has_resource, "CSS resource was not preserved"

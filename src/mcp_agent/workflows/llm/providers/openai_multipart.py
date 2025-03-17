@@ -4,7 +4,7 @@ Clean utilities for converting between PromptMessageMultipart and OpenAI message
 Each function handles all content types consistently and is designed for simple testing.
 """
 
-from typing import Dict, Any, Union, List, cast
+from typing import Dict, Any, Union, List
 
 from openai.types.chat import (
     ChatCompletionMessage,

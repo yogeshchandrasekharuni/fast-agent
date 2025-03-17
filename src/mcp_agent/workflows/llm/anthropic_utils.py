@@ -8,7 +8,6 @@ leveraging existing code for resource handling and delimited formats.
 from typing import List
 
 from anthropic.types import (
-    Message,
     MessageParam,
     ContentBlockParam,
     TextBlockParam,

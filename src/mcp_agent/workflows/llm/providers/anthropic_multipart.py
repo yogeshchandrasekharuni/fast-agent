@@ -5,15 +5,13 @@ Each function handles all content types consistently and is designed for simple 
 """
 
 import json
-from typing import List, Dict, Any, Union, cast
+from typing import List, Union, cast
 
 from anthropic.types import (
     Message,
     MessageParam,
     TextBlockParam,
     ImageBlockParam,
-    ToolUseBlockParam,
-    ToolResultBlockParam,
 )
 
 from mcp.types import TextContent, ImageContent, EmbeddedResource, TextResourceContents

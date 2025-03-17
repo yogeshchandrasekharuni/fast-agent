@@ -1,9 +1,5 @@
 # test_anthropic_multipart.py
-import json
-import pytest
-from typing import List, Dict, Any
 
-from anthropic.types import MessageParam
 
 from mcp.types import (
     TextContent,

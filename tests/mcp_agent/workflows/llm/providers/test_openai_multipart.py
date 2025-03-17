@@ -1,11 +1,5 @@
 # test_openai_multipart.py
-import pytest
-from typing import List, Dict, Any
 
-from openai.types.chat import (
-    ChatCompletionUserMessageParam,
-    ChatCompletionAssistantMessageParam,
-)
 
 from mcp.types import (
     TextContent,

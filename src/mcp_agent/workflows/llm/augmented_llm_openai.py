@@ -2,6 +2,7 @@ import json
 import os
 from typing import List, Type, TYPE_CHECKING
 
+from mcp_agent.workflows.llm.providers import openai_multipart
 from mcp_agent.workflows.llm.providers.sampling_converter_openai import (
     OpenAISamplingConverter,
 )
@@ -192,11 +193,11 @@ class OpenAIAugmentedLLM(
         else:
             self.show_user_message(str(message), model, chat_turn)
 
+        # we do NOT send stop sequences as this causes errors with mutlimodal processing
         for i in range(params.max_iterations):
             arguments = {
                 "model": model or "gpt-4o",
                 "messages": messages,
-                "stop": params.stopSequences,
                 "tools": available_tools,
             }
             if self._reasoning:
@@ -600,14 +601,19 @@ class OpenAIAugmentedLLM(
         )
         return responses[0].parsed
 
-        # return response_model.model_validate(
-        #     from_json(responses[0].content, allow_partial=True)
+    async def generate_prompt(
+        self, prompt: "PromptMessageMultipart", request_params: RequestParams | None
+    ) -> str:
+        converted_prompt = openai_multipart.multipart_to_openai(prompt)
+        # print(
+        #     converted_prompt.model_dump(mode="json")
+        #     if hasattr(converted_prompt, "model_dump")
+        #     else json.dumps(converted_prompt)
         # )
-        # part1 = from_json(response, allow_partial=True)
-        # return response_model.model_validate(part1)
-
-        # TODO -- would prefer to use the OpenAI message[0].parsed function here
-        # return response_model.model_validate(from_json(response, allow_partial=True))
+        return await self.generate_str(converted_prompt, request_params)
+        return await self.generate_str(
+            openai_multipart.multipart_to_openai(prompt), request_params
+        )
 
     async def pre_tool_call(self, tool_call_id: str | None, request: CallToolRequest):
         return request

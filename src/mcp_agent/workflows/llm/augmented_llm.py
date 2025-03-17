@@ -11,7 +11,7 @@ from typing import (
 )
 
 from mcp import CreateMessageResult, SamplingMessage
-
+from mcp_agent.mcp.prompt_message_multipart import PromptMessageMultipart
 from mcp_agent.workflows.llm.sampling_format_converter import (
     SamplingFormatConverter,
     MessageParamT,
@@ -216,6 +216,11 @@ class AugmentedLLMProtocol(Protocol, Generic[MessageParamT, MessageT]):
         request_params: RequestParams | None = None,
     ) -> ModelT:
         """Request a structured LLM generation and return the result as a Pydantic model."""
+
+    async def generate_prompt(
+        self, prompt: PromptMessageMultipart, request_params: RequestParams | None
+    ) -> str:
+        """Request an LLM generation and return a string representation of the result"""
 
 
 class AugmentedLLM(ContextDependent, AugmentedLLMProtocol[MessageParamT, MessageT]):

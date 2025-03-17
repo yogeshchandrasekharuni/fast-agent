@@ -1,6 +1,7 @@
 import os
 from typing import List, Type, TYPE_CHECKING
 
+from mcp_agent.workflows.llm.providers import anthropic_multipart
 from mcp_agent.workflows.llm.providers.sampling_converter_anthropic import (
     AnthropicSamplingConverter,
 )
@@ -360,6 +361,13 @@ class AnthropicAugmentedLLM(AugmentedLLM[MessageParam, Message]):
         # TODO -- make tool detail inclusion behaviour configurable
         # Join all collected text
         return "\n".join(final_text)
+
+    async def generate_prompt(
+        self, prompt: "PromptMessageMultipart", request_params: RequestParams | None
+    ) -> str:
+        return await self.generate_str(
+            anthropic_multipart.multipart_to_anthropic(prompt), request_params
+        )
 
     async def _apply_prompt_template_provider_specific(
         self, multipart_messages: List["PromptMessageMultipart"]
