@@ -5,6 +5,7 @@ from mcp_agent.workflows.llm.augmented_llm import MessageParamT, RequestParams
 from mcp_agent.workflows.llm.augmented_llm_passthrough import PassthroughLLM
 
 
+# TODO -- support tool calling
 class PlaybackLLM(PassthroughLLM):
     """
     A specialized LLM implementation that plays back assistant messages when loaded with prompts.

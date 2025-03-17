@@ -89,6 +89,7 @@ def multipart_messages_to_delimited_format(
     return delimited_content
 
 
+# TODO: UNUSED - replace with resource handler code.
 def delimited_format_to_multipart_messages(
     content: str,
     user_delimiter: str = "---USER",
@@ -274,6 +275,7 @@ def save_messages_to_delimited_file(
         f.write("\n".join(delimited_content))
 
 
+# TODO: UNUSED - replace with resource handlers
 def load_messages_from_delimited_file(
     file_path: str,
     user_delimiter: str = "---USER",
@@ -301,28 +303,3 @@ def load_messages_from_delimited_file(
         assistant_delimiter,
         resource_delimiter=resource_delimiter,
     )
-
-
-def guess_mime_type(file_path: str) -> str:
-    """
-    Guess the MIME type of a file based on its extension.
-
-    Args:
-        file_path: Path to the file
-
-    Returns:
-        The MIME type as a string
-    """
-    import mimetypes
-
-    # Initialize the MIME types database
-    mimetypes.init()
-
-    # Guess the type based on the file extension
-    mime_type, _ = mimetypes.guess_type(file_path)
-
-    # Default to text/plain if we couldn't determine the type
-    if mime_type is None:
-        mime_type = "text/plain"
-
-    return mime_type

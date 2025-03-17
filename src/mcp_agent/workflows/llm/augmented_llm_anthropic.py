@@ -1,6 +1,9 @@
 import json
 import os
-from typing import Iterable, List, Type
+from typing import Iterable, List, Type, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from mcp_agent.mcp.prompt_message_multipart import PromptMessageMultipart
 
 from pydantic import BaseModel
 
@@ -335,7 +338,7 @@ class AnthropicAugmentedLLM(AugmentedLLM[MessageParam, Message]):
         Process a query using an LLM and available tools.
         The default implementation uses Claude as the LLM.
         Override this method to use a different LLM.
-        
+
         Special commands:
         - "***SAVE_HISTORY <filename.md>" - Saves the conversation history to the specified file
           in MCP prompt format with user/assistant delimiters.
@@ -343,7 +346,7 @@ class AnthropicAugmentedLLM(AugmentedLLM[MessageParam, Message]):
         # Check if this is a special command to save history
         if isinstance(message, str) and message.startswith("***SAVE_HISTORY "):
             return await self._save_history_to_file(message)
-            
+
         responses: List[Message] = await self.generate(
             message=message,
             request_params=request_params,
@@ -367,14 +370,119 @@ class AnthropicAugmentedLLM(AugmentedLLM[MessageParam, Message]):
         # TODO -- make tool detail inclusion behaviour configurable
         # Join all collected text
         return "\n".join(final_text)
-        
+
+    async def _apply_prompt_template_provider_specific(
+        self, multipart_messages: List["PromptMessageMultipart"]
+    ) -> str:
+        """
+        Anthropic-specific implementation of apply_prompt_template that handles
+        multimodal content natively.
+
+        Args:
+            multipart_messages: List of PromptMessageMultipart objects parsed from the prompt template
+
+        Returns:
+            String representation of the assistant's response if generated,
+            or the last assistant message in the prompt
+        """
+        # Import necessary utils
+        from mcp_agent.workflows.llm.anthropic_utils import (
+            prompt_message_multipart_to_anthropic_message_param,
+        )
+
+        # Check the last message role
+        last_message = multipart_messages[-1]
+
+        if last_message.role == "user":
+            # For user messages: Add all previous messages to history, then generate response to the last one
+            self.logger.debug(
+                "Last message in prompt is from user, generating assistant response"
+            )
+
+            # Add all but the last message to history
+            if len(multipart_messages) > 1:
+                previous_messages = multipart_messages[:-1]
+                converted = []
+
+                # Convert all previous messages to Anthropic format
+                for msg in previous_messages:
+                    converted.append(
+                        prompt_message_multipart_to_anthropic_message_param(msg)
+                    )
+
+                self.history.extend(converted, is_prompt=True)
+
+            # Convert the last message to Anthropic format and generate a response
+            message_param = prompt_message_multipart_to_anthropic_message_param(
+                last_message
+            )
+            return await self.generate_str(message_param)
+        else:
+            # For assistant messages: Add all messages to history and return the last one
+            self.logger.debug(
+                "Last message in prompt is from assistant, returning it directly"
+            )
+
+            # Convert and add all messages to history
+            converted = []
+
+            # Convert all messages to Anthropic format
+            for msg in multipart_messages:
+                converted.append(
+                    prompt_message_multipart_to_anthropic_message_param(msg)
+                )
+
+            self.history.extend(converted, is_prompt=True)
+
+            # Process the last message content for display
+            assistant_text_parts = []
+            has_non_text_content = False
+
+            for content in last_message.content:
+                if content.type == "text":
+                    assistant_text_parts.append(content.text)
+                elif content.type == "resource" and hasattr(content.resource, "text"):
+                    # Add resource text with metadata
+                    mime_type = getattr(content.resource, "mimeType", "text/plain")
+                    uri = getattr(content.resource, "uri", "")
+                    if uri:
+                        assistant_text_parts.append(
+                            f"[Resource: {uri}, Type: {mime_type}]\n{content.resource.text}"
+                        )
+                    else:
+                        assistant_text_parts.append(
+                            f"[Resource Type: {mime_type}]\n{content.resource.text}"
+                        )
+                elif content.type == "image":
+                    # Note the presence of images
+                    mime_type = getattr(content, "mimeType", "image/unknown")
+                    assistant_text_parts.append(f"[Image: {mime_type}]")
+                    has_non_text_content = True
+                else:
+                    # Other content types
+                    assistant_text_parts.append(f"[Content of type: {content.type}]")
+                    has_non_text_content = True
+
+            # Join all parts with double newlines for better readability
+            result = (
+                "\n\n".join(assistant_text_parts)
+                if assistant_text_parts
+                else str(last_message.content)
+            )
+
+            # Add a note if non-text content was present
+            if has_non_text_content:
+                result += "\n\n[Note: This message contained non-text content that may not be fully represented in text format]"
+
+            return result
+
     async def _save_history_to_file(self, command: str) -> str:
         """
         Save the conversation history to a file in MCP prompt format.
-        
+
         Args:
             command: The command string, expected format: "***SAVE_HISTORY <filename.md>"
-            
+
         Returns:
             Success or error message
         """
@@ -383,39 +491,41 @@ class AnthropicAugmentedLLM(AugmentedLLM[MessageParam, Message]):
             parts = command.split(" ", 1)
             if len(parts) != 2 or not parts[1].strip():
                 return "Error: Invalid format. Expected '***SAVE_HISTORY <filename.md>'"
-                
+
             filename = parts[1].strip()
-            
+
             # Get all messages from history
             messages = self.history.get(include_history=True)
-            
+
             # Import required utilities
             from mcp_agent.workflows.llm.anthropic_utils import (
-                anthropic_message_param_to_prompt_message_multipart
+                anthropic_message_param_to_prompt_message_multipart,
             )
-            from mcp_agent.mcp.prompt_format_utils import (
-                multipart_messages_to_delimited_format
+            from mcp_agent.mcp.prompt_serialization import (
+                multipart_messages_to_delimited_format,
             )
-            
+
             # Convert message params to PromptMessageMultipart objects
             multipart_messages = []
             for msg in messages:
-                multipart_messages.append(anthropic_message_param_to_prompt_message_multipart(msg))
-                
+                multipart_messages.append(
+                    anthropic_message_param_to_prompt_message_multipart(msg)
+                )
+
             # Convert to delimited format
             delimited_content = multipart_messages_to_delimited_format(
                 multipart_messages,
                 user_delimiter="---USER",
-                assistant_delimiter="---ASSISTANT"
+                assistant_delimiter="---ASSISTANT",
             )
-            
+
             # Write to file
             with open(filename, "w", encoding="utf-8") as f:
                 f.write("\n\n".join(delimited_content))
-                
+
             self.logger.info(f"Saved conversation history to {filename}")
             return f"Done. Saved conversation history to {filename}"
-            
+
         except Exception as e:
             self.logger.error(f"Error saving history: {str(e)}")
             return f"Error saving history: {str(e)}"

@@ -11,25 +11,21 @@ import base64
 import logging
 import sys
 from pathlib import Path
-from typing import List, Dict, Tuple, Optional, Callable, Awaitable, Literal, Any
+from typing import List, Dict, Optional, Callable, Awaitable, Literal, Any
 
-import httpx
+from mcp_agent.mcp import mime_utils, resource_utils
 
 from mcp.server.fastmcp import FastMCP
 from mcp.server.fastmcp.prompts.base import (
-    UserMessage, 
-    AssistantMessage, 
+    UserMessage,
+    AssistantMessage,
     Message,
 )
 from mcp.types import (
     TextContent,
-    EmbeddedResource,
-    TextResourceContents,
-    BlobResourceContents,
-    ImageContent,
 )
 
-from mcp_agent.resources.examples.prompting.prompt_template import (
+from mcp_agent.mcp.prompts.prompt_template import (
     PromptTemplateLoader,
     PromptMetadata,
     PromptContent,
@@ -63,185 +59,9 @@ config = None
 exposed_resources: Dict[str, Path] = {}
 prompt_registry: Dict[str, PromptMetadata] = {}
 
-
-# MIME type mapping
-MIME_TYPES = {
-    ".txt": "text/plain",
-    ".md": "text/markdown",
-    ".json": "application/json",
-    ".py": "text/x-python",
-    ".js": "text/javascript",
-    ".html": "text/html",
-    ".css": "text/css",
-    ".csv": "text/csv",
-    ".jpg": "image/jpeg",
-    ".jpeg": "image/jpeg",
-    ".png": "image/png",
-    ".gif": "image/gif",
-    ".svg": "image/svg+xml",
-    ".webp": "image/webp",
-    ".bmp": "image/bmp",
-    ".tiff": "image/tiff",
-    ".tif": "image/tiff",
-    ".ico": "image/x-icon",
-    ".pdf": "application/pdf",
-}
-
-
-def guess_mime_type(file_path: str) -> str:
-    """Guess the MIME type based on the file extension"""
-    extension = Path(file_path).suffix.lower()
-    return MIME_TYPES.get(extension, "application/octet-stream")
-
-
-def is_binary_content(mime_type: str) -> bool:
-    """Check if content with the given MIME type should be treated as binary"""
-    return is_image_mime_type(mime_type) or not mime_type.startswith("text/")
-
-
-def is_image_mime_type(mime_type: str) -> bool:
-    """Check if a MIME type represents an image"""
-    return mime_type.startswith("image/") and mime_type != "image/svg+xml"
-
-
-def find_resource_file(resource_path: str, prompt_files: List[Path]) -> Optional[Path]:
-    """Find a resource file relative to one of the prompt files"""
-    for prompt_file in prompt_files:
-        potential_path = prompt_file.parent / resource_path
-        if potential_path.exists():
-            return potential_path
-    return None
-
-
-# Define a type alias for resource content results
-ResourceContent = Tuple[str, str, bool]
-
-HTTP_TIMEOUT = 10.0  # Default timeout if config is not initialized
-
-async def fetch_remote_resource(url: str) -> ResourceContent:
-    """
-    Fetch a remote resource from a URL
-
-    Returns:
-        Tuple of (content, mime_type, is_binary)
-        - content: Text content or base64-encoded binary content
-        - mime_type: The MIME type of the resource
-        - is_binary: Whether the content is binary (and base64-encoded)
-    """
-    # Use default timeout if config is not initialized
-    timeout = HTTP_TIMEOUT
-    if config is not None:
-        timeout = config.http_timeout
-        
-    async with httpx.AsyncClient(timeout=timeout) as client:
-        response = await client.get(url)
-        response.raise_for_status()
-
-        # Get the content type or guess from URL
-        mime_type = response.headers.get("content-type", "").split(";")[0]
-        if not mime_type:
-            mime_type = guess_mime_type(url)
-
-        # Check if this is binary content
-        is_binary = is_binary_content(mime_type)
-
-        if is_binary:
-            # For binary responses, get the binary content and base64 encode it
-            content = base64.b64encode(response.content).decode("utf-8")
-        else:
-            # For text responses, just get the text
-            content = response.text
-
-        return content, mime_type, is_binary
-
-
-def load_resource_content(
-    resource_path: str, prompt_files: List[Path]
-) -> ResourceContent:
-    """
-    Load a resource's content and determine its mime type
-
-    Args:
-        resource_path: Path to the resource file
-        prompt_files: List of prompt files (to find relative paths)
-
-    Returns:
-        Tuple of (content, mime_type, is_binary)
-        - content: String content for text files, base64-encoded string for binary files
-        - mime_type: The MIME type of the resource
-        - is_binary: Whether the content is binary (and base64-encoded)
-
-    Raises:
-        FileNotFoundError: If the resource cannot be found
-    """
-    # Try to locate the resource file
-    resource_file = find_resource_file(resource_path, prompt_files)
-    if resource_file is None:
-        raise FileNotFoundError(f"Resource not found: {resource_path}")
-
-    # Determine mime type
-    mime_type = guess_mime_type(str(resource_file))
-    is_binary = is_binary_content(mime_type)
-
-    if is_binary:
-        # For binary files, read as binary and base64 encode
-        with open(resource_file, "rb") as f:
-            content = base64.b64encode(f.read()).decode("utf-8")
-    else:
-        # For text files, read as text
-        with open(resource_file, "r", encoding="utf-8") as f:
-            content = f.read()
-
-    return content, mime_type, is_binary
-
-
-# Create a safe way to generate resource URIs that Pydantic accepts
-def create_resource_uri(path: str) -> str:
-    """Create a resource URI from a path"""
-    return f"resource://{Path(path).name}"
-
-def create_embedded_resource(
-    resource_path: str, content: str, mime_type: str, is_binary: bool = False
-) -> EmbeddedResource:
-    """Create an embedded resource content object"""
-    # Format a valid resource URI string
-    resource_uri_str = create_resource_uri(resource_path)
-    
-    # Create common resource args dict to reduce duplication
-    resource_args = {
-        "uri": resource_uri_str,  # type: ignore 
-        "mimeType": mime_type,
-    }
-    
-    if is_binary:
-        return EmbeddedResource(
-            type="resource",
-            resource=BlobResourceContents(
-                **resource_args,
-                blob=content,
-            ),
-        )
-    else:
-        return EmbeddedResource(
-            type="resource",
-            resource=TextResourceContents(
-                **resource_args,
-                text=content,
-            ),
-        )
-
-
-def create_image_content(data: str, mime_type: str) -> ImageContent:
-    """Create an image content object from base64-encoded data"""
-    return ImageContent(
-        type="image",
-        data=data,
-        mimeType=mime_type,
-    )
-
-
 # Define message role type
 MessageRole = Literal["user", "assistant"]
+
 
 def create_content_message(text: str, role: MessageRole) -> Message:
     """Create a text content message with the specified role"""
@@ -254,14 +74,16 @@ def create_resource_message(
 ) -> Message:
     """Create a resource message with the specified content and role"""
     message_class = UserMessage if role == "user" else AssistantMessage
-    
-    if is_image_mime_type(mime_type):
+
+    if mime_utils.is_image_mime_type(mime_type):
         # For images, create an ImageContent
-        image_content = create_image_content(data=content, mime_type=mime_type)
+        image_content = resource_utils.create_image_content(
+            data=content, mime_type=mime_type
+        )
         return message_class(content=image_content)
     else:
         # For other resources, create an EmbeddedResource
-        embedded_resource = create_embedded_resource(
+        embedded_resource = resource_utils.create_embedded_resource(
             resource_path, content, mime_type, is_binary
         )
         return message_class(content=embedded_resource)
@@ -272,15 +94,15 @@ def create_messages_with_resources(
 ) -> List[Message]:
     """
     Create a list of messages from content sections, with resources properly handled.
-    
+
     This implementation produces one message for each content section's text,
     followed by separate messages for each resource (with the same role type
     as the section they belong to).
-    
+
     Args:
         content_sections: List of PromptContent objects
         prompt_files: List of prompt files (to help locate resource files)
-        
+
     Returns:
         List of Message objects
     """
@@ -289,7 +111,7 @@ def create_messages_with_resources(
     for section in content_sections:
         # Convert to our literal type for role
         role = cast_message_role(section.role)
-        
+
         # Add the text message
         messages.append(create_content_message(section.text, role))
 
@@ -297,10 +119,10 @@ def create_messages_with_resources(
         for resource_path in section.resources:
             try:
                 # Load resource with information about its type
-                resource_content, mime_type, is_binary = load_resource_content(
-                    resource_path, prompt_files
+                resource_content, mime_type, is_binary = (
+                    resource_utils.load_resource_content(resource_path, prompt_files)
                 )
-                
+
                 # Create and add the resource message
                 resource_message = create_resource_message(
                     resource_path, resource_content, mime_type, is_binary, role
@@ -324,36 +146,39 @@ def cast_message_role(role: str) -> MessageRole:
 # Define a single type for prompt handlers to avoid mypy issues
 PromptHandler = Callable[..., Awaitable[List[Message]]]
 
+
 def create_prompt_handler(
-    template: "PromptTemplate", 
-    template_vars: List[str], 
-    prompt_files: List[Path]
+    template: "PromptTemplate", template_vars: List[str], prompt_files: List[Path]
 ) -> PromptHandler:
     """Create a prompt handler function for the given template"""
     if template_vars:
         # With template variables
         docstring = f"Prompt with template variables: {', '.join(template_vars)}"
-        
+
         async def prompt_handler(**kwargs: Any) -> List[Message]:
             # Build context from parameters
-            context = {var: kwargs.get(var) for var in template_vars if var in kwargs and kwargs[var] is not None}
-            
+            context = {
+                var: kwargs.get(var)
+                for var in template_vars
+                if var in kwargs and kwargs[var] is not None
+            }
+
             # Apply substitutions to the template
             content_sections = template.apply_substitutions(context)
-            
+
             # Convert to MCP Message objects, handling resources properly
             return create_messages_with_resources(content_sections, prompt_files)
     else:
         # No template variables
         docstring = "Get a prompt with no variable substitution"
-        
+
         async def prompt_handler(**kwargs: Any) -> List[Message]:
             # Get the content sections
             content_sections = template.content_sections
-            
+
             # Convert to MCP Message objects, handling resources properly
             return create_messages_with_resources(content_sections, prompt_files)
-    
+
     # Set the docstring
     prompt_handler.__doc__ = docstring
     return prompt_handler
@@ -362,20 +187,22 @@ def create_prompt_handler(
 # Type for resource handler
 ResourceHandler = Callable[[], Awaitable[str]]
 
+
 def create_resource_handler(resource_path: Path, mime_type: str) -> ResourceHandler:
     """Create a resource handler function for the given resource"""
+
     async def get_resource() -> str:
-        is_binary = is_binary_content(mime_type)
-        
+        is_binary = mime_utils.is_binary_content(mime_type)
+
         if is_binary:
             # For binary files, read in binary mode and base64 encode
             with open(resource_path, "rb") as f:
-                return base64.b64encode(f.read()).decode('utf-8')
+                return base64.b64encode(f.read()).decode("utf-8")
         else:
             # For text files, read as utf-8 text
             with open(resource_path, "r", encoding="utf-8") as f:
                 return f.read()
-                
+
     return get_resource
 
 
@@ -384,6 +211,7 @@ DEFAULT_USER_DELIMITER = "---USER"
 DEFAULT_ASSISTANT_DELIMITER = "---ASSISTANT"
 DEFAULT_RESOURCE_DELIMITER = "---RESOURCE"
 
+
 def get_delimiter_config(file_path: Optional[Path] = None) -> Dict[str, Any]:
     """Get delimiter configuration, falling back to defaults if config is None"""
     # Set defaults
@@ -391,24 +219,25 @@ def get_delimiter_config(file_path: Optional[Path] = None) -> Dict[str, Any]:
         "user_delimiter": DEFAULT_USER_DELIMITER,
         "assistant_delimiter": DEFAULT_ASSISTANT_DELIMITER,
         "resource_delimiter": DEFAULT_RESOURCE_DELIMITER,
-        "prompt_files": [file_path] if file_path else []
+        "prompt_files": [file_path] if file_path else [],
     }
-    
+
     # Override with config values if available
     if config is not None:
         config_values["user_delimiter"] = config.user_delimiter
         config_values["assistant_delimiter"] = config.assistant_delimiter
         config_values["resource_delimiter"] = config.resource_delimiter
         config_values["prompt_files"] = config.prompt_files
-        
+
     return config_values
+
 
 def register_prompt(file_path: Path):
     """Register a prompt file"""
     try:
         # Get delimiter configuration
         config_values = get_delimiter_config(file_path)
-            
+
         # Use our prompt template loader to analyze the file
         loader = PromptTemplateLoader(
             {
@@ -437,7 +266,9 @@ def register_prompt(file_path: Path):
 
         # Create and register prompt handler
         template_vars = list(metadata.template_variables)
-        handler = create_prompt_handler(template, template_vars, config_values["prompt_files"])
+        handler = create_prompt_handler(
+            template, template_vars, config_values["prompt_files"]
+        )
         mcp.prompt(name=metadata.name, description=metadata.description)(handler)
 
         # Register any referenced resources in the prompt
@@ -451,17 +282,21 @@ def register_prompt(file_path: Path):
                     # Register the resource if not already registered
                     if resource_id not in exposed_resources:
                         exposed_resources[resource_id] = resource_file
-                        mime_type = guess_mime_type(str(resource_file))
-                        
+                        mime_type = mime_utils.guess_mime_type(str(resource_file))
+
                         # Register with the correct resource ID directly with MCP
-                        resource_handler = create_resource_handler(resource_file, mime_type)
+                        resource_handler = create_resource_handler(
+                            resource_file, mime_type
+                        )
                         mcp.resource(
                             resource_id,
                             description=f"Resource from {file_path.name}",
                             mime_type=mime_type,
                         )(resource_handler)
 
-                        logger.info(f"Registered resource: {resource_id} ({resource_file})")
+                        logger.info(
+                            f"Registered resource: {resource_id} ({resource_file})"
+                        )
     except Exception as e:
         logger.error(f"Error registering prompt {file_path}: {e}", exc_info=True)
 
@@ -518,25 +353,26 @@ def parse_args():
 
 async def register_file_resource_handler():
     """Register the general file resource handler"""
+
     @mcp.resource("file://{path}")
     async def get_file_resource(path: str):
         """Read a file from the given path."""
         try:
             # Find the file, checking relative paths first
-            file_path = find_resource_file(path, config.prompt_files)
+            file_path = resource_utils.find_resource_file(path, config.prompt_files)
             if file_path is None:
                 # If not found as relative path, try absolute path
                 file_path = Path(path)
                 if not file_path.exists():
                     raise FileNotFoundError(f"Resource file not found: {path}")
 
-            mime_type = guess_mime_type(str(file_path))
-            is_binary = is_binary_content(mime_type)
+            mime_type = mime_utils.guess_mime_type(str(file_path))
+            is_binary = mime_utils.is_binary_content(mime_type)
 
             if is_binary:
                 # For binary files, read as binary and base64 encode
                 with open(file_path, "rb") as f:
-                    return base64.b64encode(f.read()).decode('utf-8')
+                    return base64.b64encode(f.read()).decode("utf-8")
             else:
                 # For text files, read as text with UTF-8 encoding
                 with open(file_path, "r", encoding="utf-8") as f:

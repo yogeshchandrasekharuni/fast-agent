@@ -93,6 +93,7 @@ fast-agent = "mcp_agent.cli.__main__:app"
 fast_agent = "mcp_agent.cli.__main__:app"
 fastagent = "mcp_agent.cli.__main__:app"
 silsila = "mcp_agent.cli.__main__:app"
+prompt-server = "mcp_agent.mcp.prompts.prompt_server.__main__:app"
 
 [tool.setuptools.package-data]
 mcp_agent = [

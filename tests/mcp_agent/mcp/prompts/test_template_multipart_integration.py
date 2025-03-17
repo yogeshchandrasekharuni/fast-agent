@@ -9,11 +9,11 @@ from pathlib import Path
 
 from mcp.types import TextContent
 from mcp_agent.mcp.prompt_message_multipart import PromptMessageMultipart
-from mcp_agent.mcp.prompt_format_utils import (
+from mcp_agent.mcp.prompt_serialization import (
     save_messages_to_delimited_file,
     load_messages_from_delimited_file,
 )
-from mcp_agent.resources.examples.prompting.prompt_template import (
+from mcp_agent.mcp.prompts.prompt_template import (
     PromptTemplate,
     PromptTemplateLoader,
 )

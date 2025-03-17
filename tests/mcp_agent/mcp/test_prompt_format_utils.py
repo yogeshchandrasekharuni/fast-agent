@@ -15,12 +15,11 @@ from mcp.types import (
 )
 
 from mcp_agent.mcp.prompt_message_multipart import PromptMessageMultipart
-from mcp_agent.mcp.prompt_format_utils import (
+from mcp_agent.mcp.prompt_serialization import (
     multipart_messages_to_delimited_format,
     delimited_format_to_multipart_messages,
     save_messages_to_delimited_file,
     load_messages_from_delimited_file,
-    guess_mime_type,
 )
 
 
@@ -40,37 +39,42 @@ class TestPromptFormatUtils:
                         resource=TextResourceContents(
                             uri="resource://code.py",
                             mimeType="text/x-python",
-                            text='print("Hello, World!")'
-                        )
-                    )
-                ]
+                            text='print("Hello, World!")',
+                        ),
+                    ),
+                ],
             ),
             PromptMessageMultipart(
                 role="assistant",
                 content=[
-                    TextContent(type="text", text="I've analyzed your code and made improvements:"),
+                    TextContent(
+                        type="text",
+                        text="I've analyzed your code and made improvements:",
+                    ),
                     EmbeddedResource(
                         type="resource",
                         resource=TextResourceContents(
                             uri="resource://improved_code.py",
                             mimeType="text/x-python",
-                            text='def main():\n    print("Hello, World!")\n\nif __name__ == "__main__":\n    main()'
-                        )
-                    )
-                ]
-            )
+                            text='def main():\n    print("Hello, World!")\n\nif __name__ == "__main__":\n    main()',
+                        ),
+                    ),
+                ],
+            ),
         ]
 
         # Convert to delimited format
         delimited = multipart_messages_to_delimited_format(
-            messages, 
+            messages,
             user_delimiter="---USER",
             assistant_delimiter="---ASSISTANT",
-            resource_delimiter="---RESOURCE"
+            resource_delimiter="---RESOURCE",
         )
 
         # Verify structure
-        assert len(delimited) == 8  # 2 role delimiters + 2 content blocks + 4 resource-related entries
+        assert (
+            len(delimited) == 8
+        )  # 2 role delimiters + 2 content blocks + 4 resource-related entries
         assert delimited[0] == "---USER"
         assert "Here's a code sample:" in delimited[1]
         assert 'print("Hello, World!")' in delimited[1]
@@ -96,8 +100,7 @@ improved_styles.css"""
 
         # Convert to multipart messages
         messages = delimited_format_to_multipart_messages(
-            delimited_content,
-            resource_delimiter="---RESOURCE"
+            delimited_content, resource_delimiter="---RESOURCE"
         )
 
         # Verify structure
@@ -114,7 +117,9 @@ improved_styles.css"""
         assert messages[1].content[0].type == "text"
         assert "I've reviewed your CSS" in messages[1].content[0].text
         assert messages[1].content[1].type == "resource"
-        assert str(messages[1].content[1].resource.uri) == "resource://improved_styles.css"
+        assert (
+            str(messages[1].content[1].resource.uri) == "resource://improved_styles.css"
+        )
 
     def test_multiple_resources_in_one_message(self):
         """Test handling multiple resources in a single message."""
@@ -128,18 +133,18 @@ improved_styles.css"""
                     resource=TextResourceContents(
                         uri="resource://data1.csv",
                         mimeType="text/csv",
-                        text="id,name,value\n1,A,10\n2,B,20"
-                    )
+                        text="id,name,value\n1,A,10\n2,B,20",
+                    ),
                 ),
                 EmbeddedResource(
                     type="resource",
                     resource=TextResourceContents(
                         uri="resource://data2.csv",
                         mimeType="text/csv",
-                        text="id,name,value\n3,C,30\n4,D,40"
-                    )
-                )
-            ]
+                        text="id,name,value\n3,C,30\n4,D,40",
+                    ),
+                ),
+            ],
         )
 
         # Convert to delimited format
@@ -172,11 +177,9 @@ improved_styles.css"""
             content=[
                 TextContent(type="text", text="Look at this image:"),
                 ImageContent(
-                    type="image",
-                    data="base64EncodedImageData",
-                    mimeType="image/png"
-                )
-            ]
+                    type="image", data="base64EncodedImageData", mimeType="image/png"
+                ),
+            ],
         )
 
         # Convert to delimited format
@@ -226,10 +229,10 @@ analysis.md""")
                         resource=TextResourceContents(
                             uri="resource://config.json",
                             mimeType="application/json",
-                            text='{"key": "value"}'
-                        )
-                    )
-                ]
+                            text='{"key": "value"}',
+                        ),
+                    ),
+                ],
             )
         ]
 
@@ -245,22 +248,9 @@ analysis.md""")
         assert len(loaded_messages[0].content) == 2  # Text and resource
         assert loaded_messages[0].content[0].type == "text"
         assert loaded_messages[0].content[1].type == "resource"
-        assert str(loaded_messages[0].content[1].resource.uri) == "resource://config.json"
-
-    def test_guess_mime_type(self):
-        """Test guessing MIME types from file extensions."""
-        assert guess_mime_type("file.txt") == "text/plain"
-        assert guess_mime_type("file.py") == "text/x-python"
-        assert guess_mime_type("file.js") in ["application/javascript", "text/javascript"]
-        assert guess_mime_type("file.json") == "application/json"
-        assert guess_mime_type("file.html") == "text/html"
-        assert guess_mime_type("file.css") == "text/css"
-        assert guess_mime_type("file.png") == "image/png"
-        assert guess_mime_type("file.jpg") == "image/jpeg"
-        assert guess_mime_type("file.jpeg") == "image/jpeg"
-        
-        # Unknown extension should default to text/plain
-        assert guess_mime_type("file.unknown") == "text/plain"
+        assert (
+            str(loaded_messages[0].content[1].resource.uri) == "resource://config.json"
+        )
 
     def test_round_trip_with_mime_types(self):
         """Test round-trip conversion preserving MIME type information."""
@@ -275,37 +265,41 @@ analysis.md""")
                         resource=TextResourceContents(
                             uri="resource://script.js",
                             mimeType="application/javascript",
-                            text="function hello() { return 'Hello!'; }"
-                        )
+                            text="function hello() { return 'Hello!'; }",
+                        ),
                     ),
                     EmbeddedResource(
                         type="resource",
                         resource=TextResourceContents(
                             uri="resource://style.css",
                             mimeType="text/css",
-                            text="body { color: blue; }"
-                        )
-                    )
-                ]
+                            text="body { color: blue; }",
+                        ),
+                    ),
+                ],
             )
         ]
-        
+
         # Convert to delimited format
         delimited_content = multipart_messages_to_delimited_format(original_messages)
         delimited_text = "\n".join(delimited_content)
-        
+
         # Convert back to multipart
         result_messages = delimited_format_to_multipart_messages(delimited_text)
-        
+
         # Verify structure
         assert len(result_messages) == 1
         assert result_messages[0].role == "user"
         assert len(result_messages[0].content) == 3  # Text and two resources
-        
+
         # The resource URIs should be preserved
-        resources = [content for content in result_messages[0].content if content.type == "resource"]
+        resources = [
+            content
+            for content in result_messages[0].content
+            if content.type == "resource"
+        ]
         assert len(resources) == 2
-        
+
         # Resource URIs should be preserved
         resource_uris = [str(resource.resource.uri) for resource in resources]
         assert "resource://script.js" in resource_uris

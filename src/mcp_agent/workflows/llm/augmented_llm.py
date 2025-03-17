@@ -10,6 +10,10 @@ from typing import (
     TYPE_CHECKING,
 )
 
+# Forward reference for type annotations
+if TYPE_CHECKING:
+    from mcp_agent.mcp.prompt_message_multipart import PromptMessageMultipart
+
 from pydantic import Field
 
 from mcp.types import (
@@ -680,10 +684,10 @@ class AugmentedLLM(ContextDependent, AugmentedLLMProtocol[MessageParamT, Message
             String representation of the assistant's response if generated,
             or the last assistant message in the prompt
         """
-        prompt_messages: List[PromptMessage] = prompt_result.messages
-
+        from mcp_agent.mcp.prompt_message_multipart import PromptMessageMultipart
+        
         # Check if we have any messages
-        if not prompt_messages:
+        if not prompt_result.messages:
             return "Prompt contains no messages"
 
         # Extract arguments if they were stored in the result
@@ -693,12 +697,34 @@ class AugmentedLLM(ContextDependent, AugmentedLLMProtocol[MessageParamT, Message
         await self.show_prompt_loaded(
             prompt_name=prompt_name,
             description=prompt_result.description,
-            message_count=len(prompt_messages),
+            message_count=len(prompt_result.messages),
             arguments=arguments,
         )
 
+        # Convert to PromptMessageMultipart objects
+        multipart_messages = PromptMessageMultipart.parse_get_prompt_result(prompt_result)
+        
+        # Delegate to the provider-specific implementation
+        return await self._apply_prompt_template_provider_specific(multipart_messages)
+    
+    async def _apply_prompt_template_provider_specific(
+        self, multipart_messages: List["PromptMessageMultipart"]
+    ) -> str:
+        """
+        Provider-specific implementation of apply_prompt_template.
+        This default implementation handles basic text content for any LLM type.
+        Provider-specific subclasses should override this method to handle
+        multimodal content appropriately.
+        
+        Args:
+            multipart_messages: List of PromptMessageMultipart objects parsed from the prompt template
+            
+        Returns:
+            String representation of the assistant's response if generated,
+            or the last assistant message in the prompt
+        """
         # Check the last message role
-        last_message = prompt_messages[-1]
+        last_message = multipart_messages[-1]
 
         if last_message.role == "user":
             # For user messages: Add all previous messages to history, then generate response to the last one
@@ -707,21 +733,36 @@ class AugmentedLLM(ContextDependent, AugmentedLLMProtocol[MessageParamT, Message
             )
 
             # Add all but the last message to history
-            if len(prompt_messages) > 1:
-                previous_messages = prompt_messages[:-1]
+            if len(multipart_messages) > 1:
+                previous_messages = multipart_messages[:-1]
                 converted = []
+                
+                # Fallback generic method for all LLM types
                 for msg in previous_messages:
-                    converted.append(self.type_converter.from_mcp_prompt_message(msg))
+                    # Convert each PromptMessageMultipart to individual PromptMessages
+                    prompt_messages = msg.to_prompt_messages()
+                    for prompt_msg in prompt_messages:
+                        converted.append(self.type_converter.from_mcp_prompt_message(prompt_msg))
+                
                 self.history.extend(converted, is_prompt=True)
 
-            # Extract the user's question and generate a response
-            user_content = last_message.content
-            user_text = (
-                user_content.text
-                if hasattr(user_content, "text")
-                else str(user_content)
-            )
-
+            # For generic LLMs, extract text and describe non-text content
+            user_text_parts = []
+            for content in last_message.content:
+                if content.type == "text":
+                    user_text_parts.append(content.text)
+                elif content.type == "resource" and hasattr(content.resource, "text"):
+                    user_text_parts.append(content.resource.text)
+                elif content.type == "image":
+                    # Add a placeholder for images
+                    mime_type = getattr(content, "mimeType", "image/unknown")
+                    user_text_parts.append(f"[Image: {mime_type}]")
+                    
+            user_text = "\n".join(user_text_parts) if user_text_parts else ""
+            if not user_text:
+                # Fallback to original method if we couldn't extract text
+                user_text = str(last_message.content)
+                
             return await self.generate_str(user_text)
         else:
             # For assistant messages: Add all messages to history and return the last one
@@ -731,10 +772,46 @@ class AugmentedLLM(ContextDependent, AugmentedLLMProtocol[MessageParamT, Message
 
             # Convert and add all messages to history
             converted = []
-            for msg in prompt_messages:
-                converted.append(self.type_converter.from_mcp_prompt_message(msg))
+            
+            # Fallback to the original method for all LLM types
+            for msg in multipart_messages:
+                # Convert each PromptMessageMultipart to individual PromptMessages
+                prompt_messages = msg.to_prompt_messages()
+                for prompt_msg in prompt_messages:
+                    converted.append(self.type_converter.from_mcp_prompt_message(prompt_msg))
+                    
             self.history.extend(converted, is_prompt=True)
 
-            # Return the assistant's message
-            content = last_message.content
-            return content.text if hasattr(content, "text") else str(content)
+            # Return the assistant's message with proper handling of different content types
+            assistant_text_parts = []
+            has_non_text_content = False
+            
+            for content in last_message.content:
+                if content.type == "text":
+                    assistant_text_parts.append(content.text)
+                elif content.type == "resource" and hasattr(content.resource, "text"):
+                    # Add resource text with metadata
+                    mime_type = getattr(content.resource, "mimeType", "text/plain")
+                    uri = getattr(content.resource, "uri", "")
+                    if uri:
+                        assistant_text_parts.append(f"[Resource: {uri}, Type: {mime_type}]\n{content.resource.text}")
+                    else:
+                        assistant_text_parts.append(f"[Resource Type: {mime_type}]\n{content.resource.text}")
+                elif content.type == "image":
+                    # Note the presence of images
+                    mime_type = getattr(content, "mimeType", "image/unknown")
+                    assistant_text_parts.append(f"[Image: {mime_type}]")
+                    has_non_text_content = True
+                else:
+                    # Other content types
+                    assistant_text_parts.append(f"[Content of type: {content.type}]")
+                    has_non_text_content = True
+            
+            # Join all parts with double newlines for better readability
+            result = "\n\n".join(assistant_text_parts) if assistant_text_parts else str(last_message.content)
+            
+            # Add a note if non-text content was present
+            if has_non_text_content:
+                result += "\n\n[Note: This message contained non-text content that may not be fully represented in text format]"
+                
+            return result

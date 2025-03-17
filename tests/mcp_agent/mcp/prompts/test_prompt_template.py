@@ -6,24 +6,22 @@ import os
 import pytest
 import tempfile
 import base64
+import asyncio
 from pathlib import Path
 
-from mcp_agent.resources.examples.prompting.prompt_template import (
+from mcp_agent.mcp.prompts.prompt_template import (
     PromptTemplate,
     PromptContent,
     PromptTemplateLoader,
     PromptMetadata,
 )
 
-# Replace this with your actual TINY_IMAGE_PNG base64 content
 
 # Import the prompt server modules for testing
-from mcp_agent.resources.examples.prompting.prompt_server import (
-    is_image_mime_type,
-    create_image_content,
+from mcp_agent.mcp.prompts.prompt_server import (
     create_messages_with_resources,
-    guess_mime_type,
 )
+from mcp_agent.mcp import mime_utils, resource_utils
 from mcp.types import ImageContent, TextContent
 
 TINY_IMAGE_PNG = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=="
@@ -392,23 +390,25 @@ This appears to be a 1x1 pixel test image.
     def test_is_image_mime_type(self):
         """Test the image MIME type detection function"""
         # Image types should return True
-        assert is_image_mime_type("image/png") is True
-        assert is_image_mime_type("image/jpeg") is True
-        assert is_image_mime_type("image/gif") is True
-        assert is_image_mime_type("image/webp") is True
+        assert mime_utils.is_image_mime_type("image/png") is True
+        assert mime_utils.is_image_mime_type("image/jpeg") is True
+        assert mime_utils.is_image_mime_type("image/gif") is True
+        assert mime_utils.is_image_mime_type("image/webp") is True
 
         # Non-image types should return False
-        assert is_image_mime_type("text/plain") is False
-        assert is_image_mime_type("application/json") is False
-        assert is_image_mime_type("text/html") is False
+        assert mime_utils.is_image_mime_type("text/plain") is False
+        assert mime_utils.is_image_mime_type("application/json") is False
+        assert mime_utils.is_image_mime_type("text/html") is False
 
         # SVG is treated as a special case (it's text-based)
-        assert is_image_mime_type("image/svg+xml") is False
+        assert mime_utils.is_image_mime_type("image/svg+xml") is False
 
     def test_create_image_content(self):
         """Test creating ImageContent objects"""
         # Test with our sample PNG
-        image_content = create_image_content(data=TINY_IMAGE_PNG, mime_type="image/png")
+        image_content = resource_utils.create_image_content(
+            data=TINY_IMAGE_PNG, mime_type="image/png"
+        )
 
         # Verify structure
         assert isinstance(image_content, ImageContent)
@@ -419,18 +419,13 @@ This appears to be a 1x1 pixel test image.
     def test_binary_resource_handling(self, temp_image_file):
         """Test binary resource handling with images"""
         # Test that we can properly detect and load binary resources
-        mime_type = guess_mime_type(str(temp_image_file))
+        mime_type = mime_utils.guess_mime_type(str(temp_image_file))
 
         # This should be detected as an image
-        assert is_image_mime_type(mime_type) is True
-
-        # Create an embedded resource from the image
-        from mcp_agent.resources.examples.prompting.prompt_server import (
-            load_resource_content,
-        )
+        assert mime_utils.is_image_mime_type(mime_type) is True
 
         # Load the binary content
-        content, mime_type, is_binary = load_resource_content(
+        content, mime_type, is_binary = resource_utils.load_resource_content(
             str(temp_image_file), prompt_files=[Path(temp_image_file).parent]
         )
 
@@ -493,48 +488,46 @@ This appears to be a 1x1 pixel test image.
         assert messages[2].role == "assistant"
         assert isinstance(messages[2].content, TextContent)
         assert "Here's my analysis of the image:" in messages[2].content.text
-        
+
     def test_resource_handling_functions(self, temp_image_file):
         """Test the internal resource handling functions used by the MCP server"""
-        import asyncio
-        from mcp_agent.resources.examples.prompting.prompt_server import is_image_mime_type, load_resource_content, guess_mime_type
-        
+
         # Test a small custom resource handler function that mimics the server's implementation
         async def read_resource(resource_path):
-            import base64
-            
-            mime_type = guess_mime_type(str(resource_path))
-            is_binary = is_image_mime_type(mime_type) or not mime_type.startswith("text/")
-            
+            mime_type = mime_utils.guess_mime_type(str(resource_path))
+            is_binary = mime_utils.is_image_mime_type(
+                mime_type
+            ) or not mime_type.startswith("text/")
+
             if is_binary:
                 # For binary files, read as binary and base64 encode
                 with open(resource_path, "rb") as f:
                     binary_data = f.read()
-                    # We need to explicitly base64 encode binary data 
-                    return base64.b64encode(binary_data).decode('utf-8')
+                    # We need to explicitly base64 encode binary data
+                    return base64.b64encode(binary_data).decode("utf-8")
             else:
                 # For text files, read as text with UTF-8 encoding
                 with open(resource_path, "r", encoding="utf-8") as f:
                     return f.read()
-            
+
         # Run our simulated resource handler
         path = str(temp_image_file)
         file_result = asyncio.run(read_resource(path))
-        
+
         # Verify it's a valid base64 string
         try:
             decoded = base64.b64decode(file_result)
             assert len(decoded) > 0
             # Verify the decoded content is a valid PNG file (should start with PNG signature)
-            assert decoded.startswith(b'\x89PNG')
+            assert decoded.startswith(b"\x89PNG")
         except Exception as e:
             pytest.fail(f"Resource handler did not return valid base64: {e}")
-            
+
         # Also verify that our direct load_resource_content function produces valid base64
-        content, mime_type, is_binary = load_resource_content(
+        content, mime_type, is_binary = resource_utils.load_resource_content(
             path, prompt_files=[Path(temp_image_file).parent]
         )
-        
+
         # The function should produce the same base64 content
         assert content == file_result
 
