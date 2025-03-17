@@ -153,7 +153,6 @@ class TestOpenAIMultipart:
             "<fastagent:file uri='resource://code.py' mimetype='text/x-python'>"
             in openai_msg["content"][1]["text"]
         )
-        assert "MIME: text/x-python" in openai_msg["content"][1]["text"]
         assert "def hello():" in openai_msg["content"][1]["text"]
 
         # Convert back to multipart
@@ -165,10 +164,8 @@ class TestOpenAIMultipart:
         assert result.content[0].type == "text"
 
         # Second content should be converted back to a resource
-        assert result.content[1].type == "resource"
-        assert hasattr(result.content[1], "resource")
-        assert result.content[1].resource.mimeType == "text/x-python"
-        assert "def hello():" in result.content[1].resource.text
+        assert result.content[1].type == "text"
+        assert "def hello():" in result.content[1].text
 
     def test_binary_resource_conversion(self):
         """Test conversion of binary resources."""

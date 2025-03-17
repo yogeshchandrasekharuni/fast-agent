@@ -13,6 +13,7 @@ from typing import List
 from mcp.types import TextContent, EmbeddedResource, TextResourceContents
 
 from mcp_agent.mcp.prompt_message_multipart import PromptMessageMultipart
+import base64
 
 
 def multipart_messages_to_delimited_format(
@@ -36,56 +37,51 @@ def multipart_messages_to_delimited_format(
     delimited_content = []
 
     for message in messages:
-        # Add role delimiter
+        # Add role delimiter once per message
         if message.role == "user":
             delimited_content.append(user_delimiter)
-        elif message.role == "assistant":
-            delimited_content.append(assistant_delimiter)
-        elif message.role == "system":
-            # Skip system messages - MCP only supports user and assistant roles
-            continue
         else:
-            # Skip other unsupported roles
-            continue
+            delimited_content.append(assistant_delimiter)
 
-        # Process content parts - separate text and resources
-        text_parts = []
-        resources = []
-
+        # Process content parts in order
         for content in message.content:
             if content.type == "text":
                 # Regular text content
-                text_parts.append(content.text)
-            elif content.type == "resource" and hasattr(content, "resource"):
-                # Get resource URI if available
-                if hasattr(content.resource, "uri"):
-                    uri = content.resource.uri
-                    # Strip the resource:// prefix if present
-                    if str(uri).startswith("resource://"):
-                        uri = str(uri).replace("resource://", "", 1)
-                    resources.append(str(uri))
+                delimited_content.append(content.text)
+            elif content.type == "resource":
+                # Resource handling
+                resource = getattr(content, "resource", None)
+                if resource:
+                    delimited_content.append(resource_delimiter)
 
-                # If the resource has text, add it to the text parts
-                if hasattr(content.resource, "text"):
-                    text_parts.append(content.resource.text)
+                    # Get text content if available
+                    text = getattr(resource, "text", None)
+                    if text:
+                        delimited_content.append(text)
+                    else:
+                        # If there's binary data in blob, use base64 representation
+                        blob = getattr(resource, "blob", None)
+                        if blob:
+                            # Assuming blob is already bytes
+                            if not isinstance(blob, bytes):
+                                blob = str(blob).encode("utf-8")
+                            base64_blob = base64.b64encode(blob).decode("utf-8")
+                            delimited_content.append(base64_blob)
+                        else:
+                            # Fallback to URI if no content is available
+                            uri = getattr(resource, "uri", None)
+                            if uri:
+                                if str(uri).startswith("resource://"):
+                                    uri = str(uri).replace("resource://", "", 1)
+                                delimited_content.append(uri)
             elif content.type == "image":
-                # For images, we'll add a placeholder - in practice, we would need proper
-                # serialization strategy (possibly base64 encoding or file references)
-                text_parts.append("[IMAGE]")
-
-        # Add all text content first
-        if text_parts:
-            message_text = "\n\n".join(text_parts)
-            delimited_content.append(message_text)
-        else:
-            # Ensure we have at least some content after the role delimiter
-            delimited_content.append("")
-
-        # Add resource references after the text content
-        for resource in resources:
-            delimited_content.append(resource_delimiter)
-            delimited_content.append(resource)
-
+                # Handle images with resource delimiter
+                delimited_content.append(resource_delimiter)
+                image_url = getattr(content, "url", None)
+                if image_url:
+                    delimited_content.append(f"image: {image_url}")
+                else:
+                    delimited_content.append("[IMAGE]")
     return delimited_content
 
 

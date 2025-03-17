@@ -77,11 +77,12 @@ class TestPromptFormatUtils:
         )  # 2 role delimiters + 2 content blocks + 4 resource-related entries
         assert delimited[0] == "---USER"
         assert "Here's a code sample:" in delimited[1]
-        assert 'print("Hello, World!")' in delimited[1]
         assert delimited[2] == "---RESOURCE"
-        assert delimited[3] == "code.py"
+        assert 'print("Hello, World!")' in delimited[3]
         assert delimited[4] == "---ASSISTANT"
         assert "I've analyzed your code" in delimited[5]
+        assert delimited[6] == "---RESOURCE"
+        assert "def main():" in delimited[7]
 
     def test_delimited_with_resources_to_multipart(self):
         """Test converting delimited format with resources to multipart messages."""
@@ -155,7 +156,7 @@ improved_styles.css"""
         assert delimited[0] == "---USER"
         assert "I need to analyze these files:" in delimited[1]
         assert delimited[2] == "---RESOURCE"
-        assert delimited[3] == "data1.csv"
+        assert "id,name,value" in delimited[3]
         assert delimited[4] == "---RESOURCE"
 
         # Convert back to multipart
@@ -186,10 +187,11 @@ improved_styles.css"""
         delimited = multipart_messages_to_delimited_format([message])
 
         # In the current implementation, images get a placeholder
-        assert len(delimited) == 2
+        assert len(delimited) == 4
         assert delimited[0] == "---USER"
         assert "Look at this image:" in delimited[1]
-        assert "[IMAGE]" in delimited[1]
+        assert delimited[2] == "---RESOURCE"
+        assert "[IMAGE]" in delimited[3]
 
     @pytest.fixture
     def temp_resource_file(self):
