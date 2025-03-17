@@ -1,5 +1,7 @@
 """
-Tests for converting between OpenAI message types and PromptMessageMultipart.
+Tests for conversions between OpenAI message types and PromptMessageMultipart.
+This file is maintained for backward compatibility but uses the new implementation
+from providers/openai_multipart.py for the actual conversion logic.
 """
 
 from openai.types.chat import (
@@ -13,12 +15,27 @@ from mcp.types import (
 )
 
 from mcp_agent.mcp.prompt_message_multipart import PromptMessageMultipart
-from mcp_agent.mcp.prompt_serialization import multipart_messages_to_delimited_format
-from mcp_agent.workflows.llm.openai_utils import (
-    openai_message_to_prompt_message_multipart,
-    openai_message_param_to_prompt_message_multipart,
-    prompt_message_multipart_to_openai_message_param,
+from mcp_agent.workflows.llm.providers.openai_multipart import (
+    multipart_to_openai,
+    openai_to_multipart,
 )
+
+
+# For backward compatibility, maintain the original function names
+# but implement them using the new functions
+def openai_message_to_prompt_message_multipart(message):
+    """Backward compatibility function that uses openai_to_multipart internally."""
+    return openai_to_multipart(message)
+
+
+def openai_message_param_to_prompt_message_multipart(message_param):
+    """Backward compatibility function that uses openai_to_multipart internally."""
+    return openai_to_multipart(message_param)
+
+
+def prompt_message_multipart_to_openai_message_param(multipart):
+    """Backward compatibility function that uses multipart_to_openai internally."""
+    return multipart_to_openai(multipart)
 
 
 class TestOpenAIMultipartConversion:
@@ -162,45 +179,6 @@ class TestOpenAIMultipartConversion:
         assert (
             message_param["content"][1]["image_url"]["url"]
             == "data:image/png;base64,iVBORw0KGgo="
-        )
-
-    def test_multipart_messages_to_delimited_format(self):
-        """Test converting a list of PromptMessageMultipart objects to delimited format."""
-        # Create multipart messages with different roles
-        # Note: Using user role instead of system since MCP only supports user and assistant
-        messages = [
-            PromptMessageMultipart(
-                role="user",
-                content=[TextContent(type="text", text="You are a helpful assistant.")],
-            ),
-            PromptMessageMultipart(
-                role="user",
-                content=[
-                    TextContent(type="text", text="Hello!"),
-                    TextContent(type="text", text="Can you help me?"),
-                ],
-            ),
-            PromptMessageMultipart(
-                role="assistant",
-                content=[
-                    TextContent(type="text", text="I'd be happy to help."),
-                    TextContent(type="text", text="What can I assist you with today?"),
-                ],
-            ),
-        ]
-
-        # Convert to delimited format
-        delimited = multipart_messages_to_delimited_format(messages)
-
-        # Verify results
-        assert len(delimited) == 6  # 3 delimiters + 3 content blocks
-        assert delimited[0] == "---USER"
-        assert delimited[1] == "You are a helpful assistant."
-        assert delimited[2] == "---USER"
-        assert delimited[3] == "Hello!\n\nCan you help me?"
-        assert delimited[4] == "---ASSISTANT"
-        assert (
-            delimited[5] == "I'd be happy to help.\n\nWhat can I assist you with today?"
         )
 
     def test_round_trip_conversion(self):

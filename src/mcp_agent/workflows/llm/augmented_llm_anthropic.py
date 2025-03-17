@@ -1,8 +1,8 @@
 import os
 from typing import List, Type, TYPE_CHECKING
 
-from mcp_agent.workflows.llm.providers.type_converter_anthropic import (
-    AnthropicTypeConverter,
+from mcp_agent.workflows.llm.providers.sampling_converter_anthropic import (
+    AnthropicSamplingConverter,
 )
 
 if TYPE_CHECKING:
@@ -52,7 +52,7 @@ class AnthropicAugmentedLLM(AugmentedLLM[MessageParam, Message]):
         self.logger = get_logger(__name__)
 
         # Now call super().__init__
-        super().__init__(*args, type_converter=AnthropicTypeConverter, **kwargs)
+        super().__init__(*args, type_converter=AnthropicSamplingConverter, **kwargs)
 
     def _initialize_default_params(self, kwargs: dict) -> RequestParams:
         """Initialize Anthropic-specific default parameters"""

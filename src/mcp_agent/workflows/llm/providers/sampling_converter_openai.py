@@ -18,8 +18,8 @@ from mcp.types import (
     TextResourceContents,
 )
 
-from mcp_agent.workflows.llm.type_converter import (
-    ProviderToMCPConverter,
+from mcp_agent.workflows.llm.sampling_format_converter import (
+    SamplingFormatConverter,
     typed_dict_extras,
 )
 
@@ -28,8 +28,8 @@ from mcp_agent.logging.logger import get_logger
 _logger = get_logger(__name__)
 
 
-class OpenAITypeConverter(
-    ProviderToMCPConverter[ChatCompletionMessageParam, ChatCompletionMessage]
+class OpenAISamplingConverter(
+    SamplingFormatConverter[ChatCompletionMessageParam, ChatCompletionMessage]
 ):
     """
     Convert between OpenAI and MCP types.

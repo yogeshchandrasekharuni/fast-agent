@@ -58,15 +58,16 @@ class TestMimeTypeHandling:
         assert isinstance(openai_plain["content"], str)
         assert openai_plain["content"] == "This is regular plain text"
 
-        # For CSS, we should get a complex object with information about the MIME type
+        # For CSS, we should get a text block with the file enclosed in descriptive tags
         assert isinstance(openai_css["content"], list)
         assert (
-            len(openai_css["content"]) == 2
+            len(openai_css["content"]) == 1
         )  # Text representation and resource representation
         assert openai_css["content"][0]["type"] == "text"
-        assert "MIME: text/css" in openai_css["content"][0]["text"]
-        assert openai_css["content"][1]["type"] == "resource"
-        assert openai_css["content"][1]["resource"]["mimeType"] == "text/css"
+        assert (
+            "<fastagent:file uri='resource://styles.css' mimetype='text/css'>"
+            in openai_css["content"][0]["text"]
+        )
 
         # Convert to Anthropic format
         anthropic_plain = prompt_message_multipart_to_anthropic_message_param(
@@ -154,11 +155,14 @@ class TestMimeTypeHandling:
 
         # Should have a list with 3 items: plain text, CSS text representation, and resource
         assert isinstance(openai_param["content"], list)
-        assert len(openai_param["content"]) == 3
+        assert len(openai_param["content"]) == 2
         assert openai_param["content"][0]["type"] == "text"
         assert openai_param["content"][0]["text"] == "Here's some CSS code:"
         assert openai_param["content"][1]["type"] == "text"
-        assert "MIME: text/css" in openai_param["content"][1]["text"]
+        assert (
+            "<fastagent:file uri='resource://styles.css' mime='test/css'>"
+            in openai_param["content"][1]["text"]
+        )
         assert openai_param["content"][2]["type"] == "resource"
 
         # Round-trip back to multipart

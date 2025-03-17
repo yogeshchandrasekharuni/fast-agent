@@ -10,7 +10,7 @@ MessageT = TypeVar("MessageT")
 """A type representing an output message from an LLM."""
 
 
-class ProviderToMCPConverter(Protocol, Generic[MessageParamT, MessageT]):
+class SamplingFormatConverter(Protocol, Generic[MessageParamT, MessageT]):
     """Conversions between LLM provider and MCP types"""
 
     @classmethod

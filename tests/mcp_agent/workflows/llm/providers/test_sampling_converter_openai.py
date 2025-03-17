@@ -11,7 +11,7 @@ from mcp.types import (
     SamplingMessage,
 )
 
-from mcp_agent.workflows.llm.providers import OpenAITypeConverter
+from mcp_agent.workflows.llm.providers import OpenAISamplingConverter
 
 
 class TestOpenAIMCPTypeConverter:
@@ -26,7 +26,7 @@ class TestOpenAIMCPTypeConverter:
         )
 
         # Convert to OpenAI ChatCompletionMessage
-        openai_message = OpenAITypeConverter.from_sampling_result(mcp_result)
+        openai_message = OpenAISamplingConverter.from_sampling_result(mcp_result)
 
         # Verify the conversion
         assert isinstance(openai_message, ChatCompletionMessage)
@@ -44,7 +44,7 @@ class TestOpenAIMCPTypeConverter:
         )
 
         # Convert to MCP message result
-        mcp_result = OpenAITypeConverter.to_sampling_result(openai_message)
+        mcp_result = OpenAISamplingConverter.to_sampling_result(openai_message)
 
         # Verify the conversion
         assert isinstance(mcp_result, CreateMessageResult)
@@ -61,7 +61,7 @@ class TestOpenAIMCPTypeConverter:
         )
 
         # Convert to OpenAI ChatCompletionMessageParam
-        openai_param = OpenAITypeConverter.from_sampling_message(mcp_param)
+        openai_param = OpenAISamplingConverter.from_sampling_message(mcp_param)
 
         # Verify the conversion
         assert isinstance(
@@ -79,7 +79,7 @@ class TestOpenAIMCPTypeConverter:
         )
 
         # Convert to MCP message param
-        mcp_param = OpenAITypeConverter.to_sampling_message(param)
+        mcp_param = OpenAISamplingConverter.to_sampling_message(param)
 
         # Verify the conversion
         assert isinstance(mcp_param, SamplingMessage)
@@ -96,7 +96,7 @@ class TestOpenAIMCPTypeConverter:
         )
 
         # Convert to OpenAI ChatCompletionMessageParam
-        openai_param = OpenAITypeConverter.from_prompt_message(prompt_message)
+        openai_param = OpenAISamplingConverter.from_prompt_message(prompt_message)
 
         # Verify the conversion
         assert isinstance(
@@ -114,7 +114,7 @@ class TestOpenAIMCPTypeConverter:
         )
 
         # Convert to OpenAI ChatCompletionMessageParam
-        openai_param = OpenAITypeConverter.from_prompt_message(prompt_message)
+        openai_param = OpenAISamplingConverter.from_prompt_message(prompt_message)
 
         # Verify the conversion
         assert isinstance(
@@ -133,5 +133,5 @@ class TestOpenAIMCPTypeConverter:
             tool_calls=None,
         )
 
-        mcp_result = OpenAITypeConverter.to_sampling_result(openai_message)
+        mcp_result = OpenAISamplingConverter.to_sampling_result(openai_message)
         assert mcp_result.content.text == ""

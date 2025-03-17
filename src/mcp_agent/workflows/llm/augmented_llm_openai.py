@@ -2,8 +2,8 @@ import json
 import os
 from typing import List, Type, TYPE_CHECKING
 
-from mcp_agent.workflows.llm.providers.type_converter_openai import (
-    OpenAITypeConverter,
+from mcp_agent.workflows.llm.providers.sampling_converter_openai import (
+    OpenAISamplingConverter,
 )
 
 if TYPE_CHECKING:
@@ -52,7 +52,7 @@ class OpenAIAugmentedLLM(
     def __init__(self, *args, **kwargs):
         # Set type_converter before calling super().__init__
         if "type_converter" not in kwargs:
-            kwargs["type_converter"] = OpenAITypeConverter
+            kwargs["type_converter"] = OpenAISamplingConverter
 
         super().__init__(*args, **kwargs)
 
@@ -654,7 +654,7 @@ class OpenAIAugmentedLLM(
                 role="tool",
                 tool_call_id=tool_call_id,
                 content=[
-                    OpenAITypeConverter.mcp_content_to_openai_content(c)
+                    OpenAISamplingConverter.mcp_content_to_openai_content(c)
                     for c in result.content
                 ],
             )

@@ -2,7 +2,7 @@ import json
 from typing import Iterable, List
 from mcp import CreateMessageResult, SamplingMessage, StopReason
 from pydantic import BaseModel
-from mcp_agent.workflows.llm.type_converter import ProviderToMCPConverter
+from mcp_agent.workflows.llm.sampling_format_converter import SamplingFormatConverter
 
 from mcp.types import (
     PromptMessage,
@@ -29,7 +29,7 @@ from mcp_agent.logging.logger import get_logger
 _logger = get_logger(__name__)
 
 
-class AnthropicTypeConverter(ProviderToMCPConverter[MessageParam, Message]):
+class AnthropicSamplingConverter(SamplingFormatConverter[MessageParam, Message]):
     """
     Convert between Anthropic and MCP types.
     """

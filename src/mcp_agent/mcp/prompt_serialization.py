@@ -248,7 +248,7 @@ def delimited_format_to_multipart_messages(
 
 
 def save_messages_to_delimited_file(
-    messages: List[PromptMessageMultipart],
+    messages: List["PromptMessageMultipart"],
     file_path: str,
     user_delimiter: str = "---USER",
     assistant_delimiter: str = "---ASSISTANT",
@@ -281,7 +281,7 @@ def load_messages_from_delimited_file(
     user_delimiter: str = "---USER",
     assistant_delimiter: str = "---ASSISTANT",
     resource_delimiter: str = "---RESOURCE",
-) -> List[PromptMessageMultipart]:
+) -> List["PromptMessageMultipart"]:
     """
     Load a list of PromptMessageMultipart objects from a delimited format file.
 

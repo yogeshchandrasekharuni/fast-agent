@@ -15,7 +15,7 @@ from mcp.types import (
     SamplingMessage,
 )
 
-from mcp_agent.workflows.llm.providers import AnthropicTypeConverter
+from mcp_agent.workflows.llm.providers import AnthropicSamplingConverter
 
 
 class TestAnthropicMCPTypeConverter:
@@ -30,7 +30,7 @@ class TestAnthropicMCPTypeConverter:
         )
 
         # Convert to Anthropic Message
-        anthropic_message = AnthropicTypeConverter.from_sampling_result(mcp_result)
+        anthropic_message = AnthropicSamplingConverter.from_sampling_result(mcp_result)
 
         # Verify the conversion
         assert isinstance(anthropic_message, Message)
@@ -57,7 +57,9 @@ class TestAnthropicMCPTypeConverter:
         )
 
         # Convert to MCP message result
-        sampling_result = AnthropicTypeConverter.to_sampling_result(anthropic_message)
+        sampling_result = AnthropicSamplingConverter.to_sampling_result(
+            anthropic_message
+        )
 
         # Verify the conversion
         assert isinstance(sampling_result, CreateMessageResult)
@@ -78,7 +80,7 @@ class TestAnthropicMCPTypeConverter:
         )
 
         # Convert to Anthropic MessageParam
-        anthropic_param = AnthropicTypeConverter.from_sampling_message(message)
+        anthropic_param = AnthropicSamplingConverter.from_sampling_message(message)
 
         # Verify the conversion
         assert isinstance(anthropic_param, dict)  # MessageParam is a TypedDict
@@ -97,7 +99,7 @@ class TestAnthropicMCPTypeConverter:
         )
 
         # Convert to MCP message param
-        mcp_param = AnthropicTypeConverter.to_sampling_message(anthropic_param)
+        mcp_param = AnthropicSamplingConverter.to_sampling_message(anthropic_param)
 
         # Verify the conversion
         assert isinstance(mcp_param, SamplingMessage)
@@ -114,7 +116,7 @@ class TestAnthropicMCPTypeConverter:
         )
 
         # Convert to Anthropic MessageParam
-        anthropic_param = AnthropicTypeConverter.from_prompt_message(prompt_message)
+        anthropic_param = AnthropicSamplingConverter.from_prompt_message(prompt_message)
 
         # Verify the conversion
         assert isinstance(anthropic_param, dict)  # MessageParam is a TypedDict
@@ -130,7 +132,7 @@ class TestAnthropicMCPTypeConverter:
         )
 
         # Convert to Anthropic MessageParam
-        anthropic_param = AnthropicTypeConverter.from_prompt_message(prompt_message)
+        anthropic_param = AnthropicSamplingConverter.from_prompt_message(prompt_message)
 
         # Verify the conversion
         assert isinstance(anthropic_param, dict)  # MessageParam is a TypedDict
@@ -141,7 +143,7 @@ class TestAnthropicMCPTypeConverter:
 
     def test_stop_reason_conversions(self):
         """Test various stop reason conversions."""
-        from mcp_agent.workflows.llm.providers.type_converter_anthropic import (
+        from mcp_agent.workflows.llm.providers.sampling_converter_anthropic import (
             mcp_stop_reason_to_anthropic_stop_reason,
             anthropic_stop_reason_to_mcp_stop_reason,
         )

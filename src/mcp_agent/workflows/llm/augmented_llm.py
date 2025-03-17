@@ -12,8 +12,8 @@ from typing import (
 
 from mcp import CreateMessageResult, SamplingMessage
 
-from mcp_agent.workflows.llm.type_converter import (
-    ProviderToMCPConverter,
+from mcp_agent.workflows.llm.sampling_format_converter import (
+    SamplingFormatConverter,
     MessageParamT,
     MessageT,
 )
@@ -238,7 +238,7 @@ class AugmentedLLM(ContextDependent, AugmentedLLMProtocol[MessageParamT, Message
         instruction: str | None = None,
         name: str | None = None,
         request_params: RequestParams | None = None,
-        type_converter: Type[ProviderToMCPConverter[MessageParamT, MessageT]] = None,
+        type_converter: Type[SamplingFormatConverter[MessageParamT, MessageT]] = None,
         context: Optional["Context"] = None,
         **kwargs,
     ):
@@ -315,6 +315,10 @@ class AugmentedLLM(ContextDependent, AugmentedLLMProtocol[MessageParamT, Message
         request_params: RequestParams | None = None,
     ) -> ModelT:
         """Request a structured LLM generation and return the result as a Pydantic model."""
+
+    # aysnc def generate2_str(self, prompt: PromptMessageMultipart, request_params: RequestParams | None = None) -> List[MessageT]:
+    #     """Request an LLM generation, which may run multiple iterations, and return the result"""
+    #     return None
 
     async def select_model(
         self, request_params: RequestParams | None = None
