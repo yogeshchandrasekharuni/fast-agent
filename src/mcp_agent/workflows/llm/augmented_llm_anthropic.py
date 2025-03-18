@@ -1,7 +1,6 @@
 import os
 from typing import List, Type, TYPE_CHECKING
 
-from mcp_agent.workflows.llm.providers import anthropic_multipart
 from mcp_agent.workflows.llm.providers.multipart_converter_anthropic import (
     AnthropicConverter,
 )
@@ -20,7 +19,6 @@ from anthropic.types import (
     TextBlock,
     TextBlockParam,
     ToolParam,
-    ToolResultBlockParam,
     ToolUseBlockParam,
 )
 from mcp.types import (
@@ -269,21 +267,10 @@ class AnthropicAugmentedLLM(AugmentedLLM[MessageParam, Message]):
                         self.show_tool_result(result)
 
                         # Add each result to our collection
-                        tool_results.append(
-                            ToolResultBlockParam(
-                                type="tool_result",
-                                tool_use_id=tool_use_id,
-                                content=result.content,
-                                is_error=result.isError,
-                            )
-                        )
+                        tool_results.append((tool_use_id, result))
 
-                    # Add all tool results in a single message
                     messages.append(
-                        MessageParam(
-                            role="user",
-                            content=tool_results,
-                        )
+                        AnthropicConverter.create_tool_results_message(tool_results)
                     )
 
         # Only save the new conversation messages to history if use_history is true
@@ -386,10 +373,6 @@ class AnthropicAugmentedLLM(AugmentedLLM[MessageParam, Message]):
             String representation of the assistant's response if generated,
             or the last assistant message in the prompt
         """
-        # Import necessary utils
-        from mcp_agent.workflows.llm.anthropic_utils import (
-            prompt_message_multipart_to_anthropic_message_param,
-        )
 
         # Check the last message role
         last_message = multipart_messages[-1]
@@ -407,16 +390,13 @@ class AnthropicAugmentedLLM(AugmentedLLM[MessageParam, Message]):
 
                 # Convert all previous messages to Anthropic format
                 for msg in previous_messages:
-                    converted.append(
-                        prompt_message_multipart_to_anthropic_message_param(msg)
-                    )
+                    converted.append(AnthropicConverter.convert_to_anthropic(msg))
 
                 self.history.extend(converted, is_prompt=True)
 
             # Convert the last message to Anthropic format and generate a response
-            message_param = prompt_message_multipart_to_anthropic_message_param(
-                last_message
-            )
+            message_param = AnthropicConverter.convert_to_anthropic
+            (last_message)
             return await self.generate_str(message_param)
         else:
             # For assistant messages: Add all messages to history and return the last one
@@ -429,9 +409,7 @@ class AnthropicAugmentedLLM(AugmentedLLM[MessageParam, Message]):
 
             # Convert all messages to Anthropic format
             for msg in multipart_messages:
-                converted.append(
-                    prompt_message_multipart_to_anthropic_message_param(msg)
-                )
+                converted.append(AnthropicConverter.convert_to_anthropic(msg))
 
             self.history.extend(converted, is_prompt=True)
 

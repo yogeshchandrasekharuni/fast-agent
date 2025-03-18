@@ -13,8 +13,8 @@ from mcp_agent.workflows.llm.openai_utils import (
     prompt_message_multipart_to_openai_message_param,
     openai_message_to_prompt_message_multipart,
 )
-from mcp_agent.workflows.llm.anthropic_utils import (
-    prompt_message_multipart_to_anthropic_message_param,
+from mcp_agent.workflows.llm.providers.multipart_converter_anthropic import (
+    AnthropicConverter,
 )
 
 
@@ -70,12 +70,8 @@ class TestMimeTypeHandling:
         )
 
         # Convert to Anthropic format
-        anthropic_plain = prompt_message_multipart_to_anthropic_message_param(
-            plain_text_multipart
-        )
-        anthropic_css = prompt_message_multipart_to_anthropic_message_param(
-            css_text_multipart
-        )
+        anthropic_plain = AnthropicConverter.convert_to_anthropic(plain_text_multipart)
+        anthropic_css = AnthropicConverter.convert_to_anthropic(css_text_multipart)
 
         # For plain text, we should get a simple text content
         assert len(anthropic_plain["content"]) == 1
@@ -84,9 +80,8 @@ class TestMimeTypeHandling:
 
         # For CSS, we should get a text with resource information
         assert len(anthropic_css["content"]) == 1
-        assert anthropic_css["content"][0]["type"] == "text"
-        assert "MIME: text/css" in anthropic_css["content"][0]["text"]
-        assert "body { color: red; }" in anthropic_css["content"][0]["text"]
+        assert anthropic_css["content"][0]["type"] == "document"
+        assert "body { color: red; }" in anthropic_css["content"][0]["source"]["data"]
 
     def test_round_trip_css_resource(self):
         """Test round-trip conversion of CSS resource content."""

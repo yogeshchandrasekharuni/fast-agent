@@ -3,6 +3,7 @@ from typing import Any, List, Optional, Type, Union
 from mcp import GetPromptResult
 from mcp.types import PromptMessage
 from pydantic_core import from_json
+from mcp_agent.mcp.prompt_message_multipart import PromptMessageMultipart
 from mcp_agent.workflows.llm.augmented_llm import (
     AugmentedLLM,
     MessageParamT,
@@ -66,6 +67,11 @@ class PassthroughLLM(AugmentedLLM):
             return response_model(**message)
         elif isinstance(message, str):
             return response_model.model_validate(from_json(message, allow_partial=True))
+
+    async def generate_prompt(
+        self, prompt: "PromptMessageMultipart", request_params: RequestParams | None
+    ) -> str:
+        return await self.generate_str(prompt.content[0].text, request_params)
 
     async def apply_prompt_template(
         self, prompt_result: GetPromptResult, prompt_name: str

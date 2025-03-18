@@ -1,24 +1,16 @@
 import unittest
 import base64
-from typing import List, Union
 
 from mcp.types import (
     TextContent,
     ImageContent,
     EmbeddedResource,
-    Role,
     TextResourceContents,
     BlobResourceContents,
+    CallToolResult,
 )
 from mcp_agent.mcp.prompt_message_multipart import PromptMessageMultipart
 
-from anthropic.types import (
-    MessageParam,
-    ContentBlockParam,
-    TextBlockParam,
-    ImageBlockParam,
-    DocumentBlockParam,
-)
 
 from mcp_agent.workflows.llm.providers.multipart_converter_anthropic import (
     AnthropicConverter,
@@ -26,8 +18,8 @@ from mcp_agent.workflows.llm.providers.multipart_converter_anthropic import (
 )
 
 
-class TestAnthropicConverter(unittest.TestCase):
-    """Test cases for conversion from MCP message types to Anthropic API."""
+class TestAnthropicUserConverter(unittest.TestCase):
+    """Test cases for conversion from user role MCP message types to Anthropic API."""
 
     def setUp(self):
         """Set up test data."""
@@ -379,6 +371,187 @@ class TestAnthropicConverter(unittest.TestCase):
         self.assertEqual(anthropic_msg["content"][0]["source"]["data"], code_text)
 
 
+class TestAnthropicToolConverter(unittest.TestCase):
+    """Test cases for conversion of tool results to Anthropic API format."""
+
+    def setUp(self):
+        """Set up test data."""
+        self.sample_text = "This is a tool result"
+        self.sample_image_base64 = base64.b64encode(b"fake_image_data").decode("utf-8")
+        self.tool_use_id = "toolu_01D7FLrfh4GYq7yT1ULFeyMV"
+
+    def test_text_tool_result_conversion(self):
+        """Test conversion of text tool result to Anthropic format."""
+        # Create a tool result with text content
+        text_content = TextContent(type="text", text=self.sample_text)
+        tool_result = CallToolResult(content=[text_content], isError=False)
+
+        # Convert to Anthropic format
+        anthropic_block = AnthropicConverter.convert_tool_result_to_anthropic(
+            tool_result, self.tool_use_id
+        )
+
+        # Assertions
+        self.assertEqual(anthropic_block["type"], "tool_result")
+        self.assertEqual(anthropic_block["tool_use_id"], self.tool_use_id)
+        self.assertEqual(anthropic_block["is_error"], False)
+        self.assertEqual(len(anthropic_block["content"]), 1)
+        self.assertEqual(anthropic_block["content"][0]["type"], "text")
+        self.assertEqual(anthropic_block["content"][0]["text"], self.sample_text)
+
+    def test_image_tool_result_conversion(self):
+        """Test conversion of image tool result to Anthropic format."""
+        # Create a tool result with image content
+        image_content = ImageContent(
+            type="image", data=self.sample_image_base64, mimeType="image/jpeg"
+        )
+        tool_result = CallToolResult(content=[image_content], isError=False)
+
+        # Convert to Anthropic format
+        anthropic_block = AnthropicConverter.convert_tool_result_to_anthropic(
+            tool_result, self.tool_use_id
+        )
+
+        # Assertions
+        self.assertEqual(anthropic_block["type"], "tool_result")
+        self.assertEqual(anthropic_block["tool_use_id"], self.tool_use_id)
+        self.assertEqual(anthropic_block["is_error"], False)
+        self.assertEqual(len(anthropic_block["content"]), 1)
+        self.assertEqual(anthropic_block["content"][0]["type"], "image")
+        self.assertEqual(anthropic_block["content"][0]["source"]["type"], "base64")
+        self.assertEqual(
+            anthropic_block["content"][0]["source"]["media_type"], "image/jpeg"
+        )
+        self.assertEqual(
+            anthropic_block["content"][0]["source"]["data"], self.sample_image_base64
+        )
+
+    def test_mixed_tool_result_conversion(self):
+        """Test conversion of mixed content tool result to Anthropic format."""
+        # Create a tool result with text and image content
+        text_content = TextContent(type="text", text=self.sample_text)
+        image_content = ImageContent(
+            type="image", data=self.sample_image_base64, mimeType="image/jpeg"
+        )
+        tool_result = CallToolResult(
+            content=[text_content, image_content], isError=False
+        )
+
+        # Convert to Anthropic format
+        anthropic_block = AnthropicConverter.convert_tool_result_to_anthropic(
+            tool_result, self.tool_use_id
+        )
+
+        # Assertions
+        self.assertEqual(anthropic_block["type"], "tool_result")
+        self.assertEqual(anthropic_block["tool_use_id"], self.tool_use_id)
+        self.assertEqual(len(anthropic_block["content"]), 2)
+        self.assertEqual(anthropic_block["content"][0]["type"], "text")
+        self.assertEqual(anthropic_block["content"][0]["text"], self.sample_text)
+        self.assertEqual(anthropic_block["content"][1]["type"], "image")
+
+    def test_error_tool_result_conversion(self):
+        """Test conversion of error tool result to Anthropic format."""
+        # Create a tool result with error flag set
+        text_content = TextContent(type="text", text="Error: Something went wrong")
+        tool_result = CallToolResult(content=[text_content], isError=True)
+
+        # Convert to Anthropic format
+        anthropic_block = AnthropicConverter.convert_tool_result_to_anthropic(
+            tool_result, self.tool_use_id
+        )
+
+        # Assertions
+        self.assertEqual(anthropic_block["type"], "tool_result")
+        self.assertEqual(anthropic_block["tool_use_id"], self.tool_use_id)
+        self.assertEqual(anthropic_block["is_error"], True)
+        self.assertEqual(len(anthropic_block["content"]), 1)
+        self.assertEqual(anthropic_block["content"][0]["type"], "text")
+        self.assertEqual(
+            anthropic_block["content"][0]["text"], "Error: Something went wrong"
+        )
+
+    def test_unsupported_image_format_in_tool_result(self):
+        """Test handling of unsupported image format in tool result."""
+        # Create a tool result with unsupported image format
+        image_content = ImageContent(
+            type="image",
+            data=self.sample_image_base64,
+            mimeType="image/bmp",  # Unsupported
+        )
+        tool_result = CallToolResult(content=[image_content], isError=False)
+
+        # Convert to Anthropic format
+        anthropic_block = AnthropicConverter.convert_tool_result_to_anthropic(
+            tool_result, self.tool_use_id
+        )
+
+        # Unsupported image should be converted to text
+        self.assertEqual(anthropic_block["type"], "tool_result")
+        self.assertEqual(len(anthropic_block["content"]), 1)
+        self.assertEqual(anthropic_block["content"][0]["type"], "text")
+        self.assertTrue(
+            "[Image with unsupported format: image/bmp]"
+            in anthropic_block["content"][0]["text"]
+        )
+
+    def test_empty_tool_result_conversion(self):
+        """Test conversion of empty tool result to Anthropic format."""
+        # Create a tool result with no content
+        tool_result = CallToolResult(content=[], isError=False)
+
+        # Convert to Anthropic format
+        anthropic_block = AnthropicConverter.convert_tool_result_to_anthropic(
+            tool_result, self.tool_use_id
+        )
+
+        # Should have a placeholder text block
+        self.assertEqual(anthropic_block["type"], "tool_result")
+        self.assertEqual(len(anthropic_block["content"]), 1)
+        self.assertEqual(anthropic_block["content"][0]["type"], "text")
+        self.assertEqual(
+            anthropic_block["content"][0]["text"], "[No content in tool result]"
+        )
+
+    def test_create_tool_results_message(self):
+        """Test creation of user message with multiple tool results."""
+        # Create two tool results
+        text_content = TextContent(type="text", text=self.sample_text)
+        image_content = ImageContent(
+            type="image", data=self.sample_image_base64, mimeType="image/jpeg"
+        )
+
+        tool_result1 = CallToolResult(content=[text_content], isError=False)
+
+        tool_result2 = CallToolResult(content=[image_content], isError=False)
+
+        tool_use_id1 = "tool_id_1"
+        tool_use_id2 = "tool_id_2"
+
+        # Create tool results list
+        tool_results = [(tool_use_id1, tool_result1), (tool_use_id2, tool_result2)]
+
+        # Convert to Anthropic message
+        anthropic_msg = AnthropicConverter.create_tool_results_message(tool_results)
+
+        # Assertions
+        self.assertEqual(anthropic_msg["role"], "user")
+        self.assertEqual(len(anthropic_msg["content"]), 2)
+
+        # Check first tool result
+        self.assertEqual(anthropic_msg["content"][0]["type"], "tool_result")
+        self.assertEqual(anthropic_msg["content"][0]["tool_use_id"], tool_use_id1)
+        self.assertEqual(anthropic_msg["content"][0]["content"][0]["type"], "text")
+        self.assertEqual(
+            anthropic_msg["content"][0]["content"][0]["text"], self.sample_text
+        )
+
+        # Check second tool result
+        self.assertEqual(anthropic_msg["content"][1]["type"], "tool_result")
+        self.assertEqual(anthropic_msg["content"][1]["tool_use_id"], tool_use_id2)
+        self.assertEqual(anthropic_msg["content"][1]["content"][0]["type"], "image")
+
+
 def create_text_resource(
     text: str, filename_or_uri: str, mime_type: str = None
 ) -> TextResourceContents:
@@ -397,6 +570,109 @@ def create_text_resource(
     uri = normalize_uri(filename_or_uri)
 
     return TextResourceContents(uri=uri, mimeType=mime_type, text=text)
+
+
+class TestAnthropicAssistantConverter(unittest.TestCase):
+    """Test cases for conversion from assistant role MCP message types to Anthropic API."""
+
+    def setUp(self):
+        """Set up test data."""
+        self.sample_text = "This is a response from the assistant"
+
+    def test_assistant_text_content_conversion(self):
+        """Test conversion of assistant TextContent to Anthropic text block."""
+        # Create a text content message from assistant
+        text_content = TextContent(type="text", text=self.sample_text)
+        multipart = PromptMessageMultipart(role="assistant", content=[text_content])
+
+        # Convert to Anthropic format
+        anthropic_msg = AnthropicConverter.convert_to_anthropic(multipart)
+
+        # Assertions
+        self.assertEqual(anthropic_msg["role"], "assistant")
+        self.assertEqual(len(anthropic_msg["content"]), 1)
+        self.assertEqual(anthropic_msg["content"][0]["type"], "text")
+        self.assertEqual(anthropic_msg["content"][0]["text"], self.sample_text)
+
+    def test_assistant_multiple_text_blocks(self):
+        """Test conversion of assistant messages with multiple text blocks."""
+        # Create multiple text content blocks
+        text_content1 = TextContent(type="text", text="First part of response")
+        text_content2 = TextContent(type="text", text="Second part of response")
+
+        multipart = PromptMessageMultipart(
+            role="assistant", content=[text_content1, text_content2]
+        )
+
+        # Convert to Anthropic format
+        anthropic_msg = AnthropicConverter.convert_to_anthropic(multipart)
+
+        # Assertions
+        self.assertEqual(anthropic_msg["role"], "assistant")
+        self.assertEqual(len(anthropic_msg["content"]), 2)
+        self.assertEqual(anthropic_msg["content"][0]["type"], "text")
+        self.assertEqual(anthropic_msg["content"][0]["text"], "First part of response")
+        self.assertEqual(anthropic_msg["content"][1]["type"], "text")
+        self.assertEqual(anthropic_msg["content"][1]["text"], "Second part of response")
+
+    def test_assistant_non_text_content_stripped(self):
+        """Test that non-text content is stripped from assistant messages."""
+        # Create a mixed content message with text and image
+        text_content = TextContent(type="text", text=self.sample_text)
+        image_content = ImageContent(
+            type="image",
+            data=base64.b64encode(b"fake_image_data").decode("utf-8"),
+            mimeType="image/jpeg",
+        )
+
+        multipart = PromptMessageMultipart(
+            role="assistant", content=[text_content, image_content]
+        )
+
+        # Convert to Anthropic format
+        anthropic_msg = AnthropicConverter.convert_to_anthropic(multipart)
+
+        # Only text should remain, image should be filtered out
+        self.assertEqual(anthropic_msg["role"], "assistant")
+        self.assertEqual(len(anthropic_msg["content"]), 1)
+        self.assertEqual(anthropic_msg["content"][0]["type"], "text")
+        self.assertEqual(anthropic_msg["content"][0]["text"], self.sample_text)
+
+    def test_assistant_embedded_resource_stripped(self):
+        """Test that embedded resources are stripped from assistant messages."""
+        # Create a message with text and embedded resource
+        text_content = TextContent(type="text", text=self.sample_text)
+
+        resource_content = TextResourceContents(
+            uri="test://example.com/document.txt",
+            mimeType="text/plain",
+            text="Some document content",
+        )
+        embedded_resource = EmbeddedResource(type="resource", resource=resource_content)
+
+        multipart = PromptMessageMultipart(
+            role="assistant", content=[text_content, embedded_resource]
+        )
+
+        # Convert to Anthropic format
+        anthropic_msg = AnthropicConverter.convert_to_anthropic(multipart)
+
+        # Only text should remain, resource should be filtered out
+        self.assertEqual(anthropic_msg["role"], "assistant")
+        self.assertEqual(len(anthropic_msg["content"]), 1)
+        self.assertEqual(anthropic_msg["content"][0]["type"], "text")
+        self.assertEqual(anthropic_msg["content"][0]["text"], self.sample_text)
+
+    def test_assistant_empty_content(self):
+        """Test conversion with empty content from assistant."""
+        multipart = PromptMessageMultipart(role="assistant", content=[])
+
+        # Convert to Anthropic format
+        anthropic_msg = AnthropicConverter.convert_to_anthropic(multipart)
+
+        # Should have empty content list
+        self.assertEqual(anthropic_msg["role"], "assistant")
+        self.assertEqual(len(anthropic_msg["content"]), 0)
 
 
 class TestUriNormalization(unittest.TestCase):

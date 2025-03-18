@@ -75,10 +75,16 @@ include = [
 [tool.pytest.ini_options]
 asyncio_mode = "strict"
 asyncio_default_fixture_loop_scope = "function"
+markers = [
+    "integration: marks tests as integration tests",
+    "simulated_endpoints: marks tests that use simulated external endpoints"
+]
+# Other pytest options can go here too
+testpaths = ["test", "integration_tests"]
 
 [dependency-groups]
 dev = [
-    "anthropic>=0.42.0",
+    "anthropic>=0.49.0",
     "pre-commit>=4.0.1",
     "pydantic>=2.10.4",
     "pyyaml>=6.0.2",

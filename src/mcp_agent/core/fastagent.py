@@ -70,7 +70,12 @@ class FastAgent(ContextDependent):
     Provides a simplified way to create and manage agents using decorators.
     """
 
-    def __init__(self, name: str, config_path: Optional[str] = None):
+    def __init__(
+        self,
+        name: str,
+        config_path: Optional[str] = None,
+        ignore_unknown_args: bool = False,
+    ):
         """
         Initialize the decorator interface.
 
@@ -101,7 +106,12 @@ class FastAgent(ContextDependent):
             action="store_true",
             help="Disable progress display, tool and message logging for cleaner output",
         )
-        self.args = parser.parse_args()
+
+        if ignore_unknown_args:
+            known_args, _ = parser.parse_known_args()
+            self.args = known_args
+        else:
+            self.args = parser.parse_args()
 
         # Quiet mode will be handled in _load_config()
 
@@ -372,7 +382,7 @@ class FastAgent(ContextDependent):
 
                 # Create wrapper with all agents
                 wrapper = AgentApp(agent_app, active_agents)
-                
+
                 # Store reference to AgentApp in MCPApp for proxies to access
                 agent_app._agent_app = wrapper
 

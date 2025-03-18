@@ -5,13 +5,8 @@ Provides conversion between Anthropic message formats and PromptMessageMultipart
 leveraging existing code for resource handling and delimited formats.
 """
 
-from typing import List
-
 from anthropic.types import (
     MessageParam,
-    ContentBlockParam,
-    TextBlockParam,
-    ImageBlockParam,
 )
 
 from mcp.types import (
@@ -24,6 +19,7 @@ from mcp.types import (
 from mcp_agent.mcp.prompt_message_multipart import PromptMessageMultipart
 
 
+# TODO -- only used for saving, but this will be driven directly from PromptMessages
 def anthropic_message_param_to_prompt_message_multipart(
     message_param: MessageParam,
 ) -> PromptMessageMultipart:
@@ -103,107 +99,3 @@ def anthropic_message_param_to_prompt_message_multipart(
                     )
 
     return PromptMessageMultipart(role=role, content=mcp_contents)
-
-
-def prompt_message_multipart_to_anthropic_message_param(
-    multipart: PromptMessageMultipart,
-) -> MessageParam:
-    """
-    Convert a PromptMessageMultipart to an Anthropic MessageParam.
-
-    Args:
-        multipart: The PromptMessageMultipart to convert
-
-    Returns:
-        An Anthropic MessageParam representation
-    """
-    # Convert MCP content to Anthropic content blocks
-    content_blocks: List[ContentBlockParam] = []
-
-    for content in multipart.content:
-        if content.type == "text":
-            # TextContent -> TextBlockParam
-            content_blocks.append(TextBlockParam(type="text", text=content.text))
-
-        elif content.type == "image":
-            # ImageContent -> ImageBlockParam
-            content_blocks.append(
-                ImageBlockParam(
-                    type="image",
-                    source={
-                        "type": "base64",
-                        "media_type": content.mimeType,
-                        "data": content.data,
-                    },
-                )
-            )
-
-        elif content.type == "resource":
-            # Handle embedded resources
-            if hasattr(content, "resource"):
-                # Text resources
-                if hasattr(content.resource, "text"):
-                    mime_type = (
-                        content.resource.mimeType
-                        if hasattr(content.resource, "mimeType")
-                        else "text/plain"
-                    )
-                    uri = (
-                        content.resource.uri
-                        if hasattr(content.resource, "uri")
-                        else "resource://unknown"
-                    )
-
-                    if mime_type == "text/plain":
-                        # Plain text resource becomes regular text content
-                        content_blocks.append(
-                            TextBlockParam(type="text", text=content.resource.text)
-                        )
-                    else:
-                        # Non-plain text resource - add special format for round-trip conversion
-                        content_blocks.append(
-                            TextBlockParam(
-                                type="text",
-                                text=f"[Resource: {uri}, MIME: {mime_type}]\n{content.resource.text}",
-                            )
-                        )
-
-                # Binary resources that are images
-                elif (
-                    hasattr(content.resource, "blob")
-                    and hasattr(content.resource, "mimeType")
-                    and content.resource.mimeType.startswith("image/")
-                    and content.resource.mimeType != "image/svg+xml"
-                ):
-                    # Convert image resources to image blocks
-                    content_blocks.append(
-                        ImageBlockParam(
-                            type="image",
-                            source={
-                                "type": "base64",
-                                "media_type": content.resource.mimeType,
-                                "data": content.resource.blob,
-                            },
-                        )
-                    )
-                # Other binary resources
-                elif hasattr(content.resource, "blob"):
-                    # Non-image binary resource - add a text note
-                    mime_type = (
-                        content.resource.mimeType
-                        if hasattr(content.resource, "mimeType")
-                        else "application/octet-stream"
-                    )
-                    uri = (
-                        content.resource.uri
-                        if hasattr(content.resource, "uri")
-                        else "resource://unknown"
-                    )
-                    content_blocks.append(
-                        TextBlockParam(
-                            type="text",
-                            text=f"[Binary Resource: {uri}, MIME: {mime_type}]",
-                        )
-                    )
-
-    return {"role": multipart.role, "content": content_blocks}
