@@ -1,10 +1,12 @@
-from typing import Union
+from typing import List, Union
 
 from mcp.types import (
     TextContent,
     ImageContent,
     EmbeddedResource,
     CallToolResult,
+    TextResourceContents,
+    BlobResourceContents,
 )
 from mcp_agent.mcp.prompt_message_multipart import PromptMessageMultipart
 from mcp_agent.mcp.mime_utils import (
@@ -36,23 +38,23 @@ class AnthropicConverter:
     """Converts MCP message types to Anthropic API format."""
 
     @staticmethod
-    def convert_to_anthropic(multipart_msg: PromptMessageMultipart) -> MessageParam:
+    def _convert_content_items(
+        content_items: List[Union[TextContent, ImageContent, EmbeddedResource]],
+    ) -> List[Union[TextBlockParam, ImageBlockParam, DocumentBlockParam]]:
         """
-        Convert a PromptMessageMultipart message to Anthropic API format.
+        Helper method to convert a list of content items to Anthropic format.
 
         Args:
-            multipart_msg: The PromptMessageMultipart message to convert
+            content_items: List of MCP content items
+            log_prefix: Prefix for logging to provide context
 
         Returns:
-            An Anthropic API MessageParam object
+            List of Anthropic content blocks
         """
-        # Extract role
-        role = multipart_msg.role
 
-        # Convert content blocks
-        anthropic_blocks = []
+        anthropic_blocks: List[MessageParam] = []
 
-        for content_item in multipart_msg.content:
+        for content_item in content_items:
             try:
                 if isinstance(content_item, TextContent):
                     anthropic_block = AnthropicConverter._convert_text_content(
@@ -129,6 +131,27 @@ class AnthropicConverter:
                 anthropic_block = TextBlockParam(type="text", text=fallback_text)
                 anthropic_blocks.append(anthropic_block)
 
+        return anthropic_blocks
+
+    @staticmethod
+    def convert_to_anthropic(multipart_msg: PromptMessageMultipart) -> MessageParam:
+        """
+        Convert a PromptMessageMultipart message to Anthropic API format.
+
+        Args:
+            multipart_msg: The PromptMessageMultipart message to convert
+
+        Returns:
+            An Anthropic API MessageParam object
+        """
+        # Extract role
+        role: str = multipart_msg.role
+
+        # Convert content blocks
+        anthropic_blocks: List[MessageParam] = (
+            AnthropicConverter._convert_content_items(multipart_msg.content)
+        )
+
         # Filter blocks based on role (assistant can only have text blocks)
         if role == "assistant":
             text_blocks = []
@@ -165,7 +188,9 @@ class AnthropicConverter:
         resource: EmbeddedResource,
     ) -> Union[ImageBlockParam, DocumentBlockParam, TextBlockParam]:
         """Convert EmbeddedResource to appropriate Anthropic block type."""
-        resource_content = resource.resource
+        resource_content: Union[TextResourceContents | BlobResourceContents] = (
+            resource.resource
+        )
         uri = resource_content.uri
 
         # Use mime_utils to guess MIME type if not provided
@@ -175,7 +200,7 @@ class AnthropicConverter:
         else:
             mime_type = resource_content.mimeType or "application/octet-stream"
 
-        is_url = str(uri).startswith(("http://", "https://"))
+        is_url: bool = str(uri).startswith(("http://", "https://"))
 
         # Extract title from URI
         title = extract_title_from_uri(uri) if uri else None
@@ -260,88 +285,9 @@ class AnthropicConverter:
             An Anthropic ToolResultBlockParam ready to be included in a user message
         """
         # Extract content from tool result
-        anthropic_content = []
-
-        for content_item in tool_result.content:
-            try:
-                if isinstance(content_item, TextContent):
-                    anthropic_block = AnthropicConverter._convert_text_content(
-                        content_item
-                    )
-                    anthropic_content.append(anthropic_block)
-                elif isinstance(content_item, ImageContent):
-                    # Check if image MIME type is supported
-                    if content_item.mimeType not in SUPPORTED_IMAGE_MIME_TYPES:
-                        _logger.warning(
-                            f"Unsupported image MIME type in tool result: {content_item.mimeType}. "
-                            f"Anthropic only supports: {', '.join(SUPPORTED_IMAGE_MIME_TYPES)}"
-                        )
-                        # Create a text block instead of skipping
-                        fallback_text = (
-                            f"[Image with unsupported format: {content_item.mimeType}]"
-                        )
-                        anthropic_block = TextBlockParam(
-                            type="text", text=fallback_text
-                        )
-                        anthropic_content.append(anthropic_block)
-                        continue
-                    anthropic_block = AnthropicConverter._convert_image_content(
-                        content_item
-                    )
-                    anthropic_content.append(anthropic_block)
-                elif isinstance(content_item, EmbeddedResource):
-                    try:
-                        anthropic_block = AnthropicConverter._convert_embedded_resource(
-                            content_item
-                        )
-                        anthropic_content.append(anthropic_block)
-                    except ValueError as e:
-                        _logger.warning(
-                            f"Cannot convert embedded resource in tool result: {e}"
-                        )
-                        # Create a text block with information about the skipped resource
-                        resource_content = content_item.resource
-                        mime_type = resource_content.mimeType or "unknown type"
-                        uri = (
-                            str(resource_content.uri)
-                            if resource_content.uri
-                            else "unknown URI"
-                        )
-
-                        # Determine content size/type for the message
-                        content_desc = ""
-                        if hasattr(resource_content, "text") and resource_content.text:
-                            content_size = len(resource_content.text)
-                            content_desc = f", {content_size} characters"
-                        elif (
-                            hasattr(resource_content, "blob") and resource_content.blob
-                        ):
-                            content_size = (
-                                len(resource_content.blob) * 3 // 4
-                            )  # Approximate original size from base64
-                            content_desc = f", approximately {content_size} bytes"
-
-                        fallback_text = f"[Resource with unsupported format: {mime_type}{content_desc}. URI: {uri}]"
-                        anthropic_block = TextBlockParam(
-                            type="text", text=fallback_text
-                        )
-                        anthropic_content.append(anthropic_block)
-                else:
-                    _logger.warning(
-                        f"Unsupported content type in tool result: {type(content_item)}"
-                    )
-                    # Create a text block with information about the skipped content
-                    fallback_text = (
-                        f"[Unsupported content type: {type(content_item).__name__}]"
-                    )
-                    anthropic_block = TextBlockParam(type="text", text=fallback_text)
-                    anthropic_content.append(anthropic_block)
-            except Exception as e:
-                _logger.warning(f"Error converting tool result content item: {e}")
-                # Create a text block with information about the conversion error
-                fallback_text = f"[Content conversion error: {str(e)}]"
-                anthropic_block = TextBlockParam(type="text", text=fallback_text)
-                anthropic_content.append(anthropic_block)
+        anthropic_content = AnthropicConverter._convert_content_items(
+            tool_result.content
+        )
 
         # If we ended up with no valid content blocks, create a placeholder
         if not anthropic_content:
