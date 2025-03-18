@@ -175,37 +175,6 @@ def _anthropic_message_to_multipart(
                 else getattr(block, "text", "")
             )
 
-            # Check for special resource marker format
-            if (
-                isinstance(text, str)
-                and (
-                    text.startswith("[Resource:")
-                    or text.startswith("[Binary Resource:")
-                )
-                and "\n" in text
-            ):
-                header, content_text = text.split("\n", 1)
-
-                if "MIME:" in header:
-                    # Extract resource metadata
-                    mime_match = header.split("MIME:", 1)[1].split("]")[0].strip()
-                    if (
-                        mime_match != "text/plain"
-                        and "Resource:" in header
-                        and "Binary Resource:" not in header
-                    ):
-                        # It's a text resource with non-plain MIME type
-                        uri = header.split("Resource:", 1)[1].split(",")[0].strip()
-                        multipart_content.append(
-                            EmbeddedResource(
-                                type="resource",
-                                resource=TextResourceContents(
-                                    uri=uri, mimeType=mime_match, text=content_text
-                                ),
-                            )
-                        )
-                        continue
-
             # Plain text content
             multipart_content.append(TextContent(type="text", text=text))
 

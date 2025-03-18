@@ -30,7 +30,7 @@ TINY_IMAGE_PNG = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8
 class TestPromptContent:
     """Tests for the PromptContent class"""
 
-    def test_apply_substitutions(self):
+    def test_apply_substitutions_content(self):
         """Test substituting variables in content"""
         content = PromptContent(
             text="Hello {{name}}! Your age is {{age}}.", role="user"

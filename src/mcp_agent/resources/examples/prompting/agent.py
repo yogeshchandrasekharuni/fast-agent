@@ -12,13 +12,13 @@ fast = FastAgent("FastAgent Example")
 @fast.agent(
     "agent",
     instruction="You are a helpful AI Agent",
-    servers=["prompts"],
+    servers=["prompts","hfspace"],
     #    instruction="You are a helpful AI Agent", servers=["prompts","basic_memory"], model="haiku"
 )
 async def main():
     # use the --model command line switch or agent arguments to change model
     async with fast.run() as agent:
-        # await agent()
+        await agent()
         foo: PromptMessageMultipart = PromptMessageMultipart(
             role="user",
             content=[
