@@ -65,10 +65,18 @@ class AnthropicConverter:
                     # Check if image MIME type is supported
                     if content_item.mimeType not in SUPPORTED_IMAGE_MIME_TYPES:
                         _logger.warning(
-                            f"Skipping image with unsupported MIME type: {content_item.mimeType}. "
+                            f"Unsupported image MIME type: {content_item.mimeType}. "
                             f"Anthropic only supports: {', '.join(SUPPORTED_IMAGE_MIME_TYPES)}"
                         )
-                        continue  # Skip this content item
+                        # Create a text block instead of skipping
+                        fallback_text = (
+                            f"[Image with unsupported format: {content_item.mimeType}]"
+                        )
+                        anthropic_block = TextBlockParam(
+                            type="text", text=fallback_text
+                        )
+                        anthropic_blocks.append(anthropic_block)
+                        continue
                     anthropic_block = AnthropicConverter._convert_image_content(
                         content_item
                     )
@@ -80,16 +88,48 @@ class AnthropicConverter:
                         )
                         anthropic_blocks.append(anthropic_block)
                     except ValueError as e:
-                        _logger.warning(f"Skipping embedded resource: {e}")
-                        continue  # Skip this content item
+                        _logger.warning(f"Cannot convert embedded resource: {e}")
+                        # Create a text block with information about the skipped resource
+                        resource_content = content_item.resource
+                        mime_type = resource_content.mimeType or "unknown type"
+                        uri = (
+                            str(resource_content.uri)
+                            if resource_content.uri
+                            else "unknown URI"
+                        )
+
+                        # Determine content size/type for the message
+                        content_desc = ""
+                        if hasattr(resource_content, "text") and resource_content.text:
+                            content_size = len(resource_content.text)
+                            content_desc = f", {content_size} characters"
+                        elif (
+                            hasattr(resource_content, "blob") and resource_content.blob
+                        ):
+                            content_size = (
+                                len(resource_content.blob) * 3 // 4
+                            )  # Approximate original size from base64
+                            content_desc = f", approximately {content_size} bytes"
+
+                        fallback_text = f"[Resource with unsupported format: {mime_type}{content_desc}. URI: {uri}]"
+                        anthropic_block = TextBlockParam(
+                            type="text", text=fallback_text
+                        )
+                        anthropic_blocks.append(anthropic_block)
                 else:
-                    _logger.warning(
-                        f"Skipping unsupported content type: {type(content_item)}"
+                    _logger.warning(f"Unsupported content type: {type(content_item)}")
+                    # Create a text block with information about the skipped content
+                    fallback_text = (
+                        f"[Unsupported content type: {type(content_item).__name__}]"
                     )
-                    continue  # Skip this content item
+                    anthropic_block = TextBlockParam(type="text", text=fallback_text)
+                    anthropic_blocks.append(anthropic_block)
             except Exception as e:
                 _logger.warning(f"Error converting content item: {e}")
-                continue  # Skip this content item
+                # Create a text block with information about the conversion error
+                fallback_text = f"[Content conversion error: {str(e)}]"
+                anthropic_block = TextBlockParam(type="text", text=fallback_text)
+                anthropic_blocks.append(anthropic_block)
 
         # Filter blocks based on role (assistant can only have text blocks)
         if role == "assistant":
@@ -142,6 +182,13 @@ class AnthropicConverter:
         # Extract title from URI
         title = extract_title_from_uri(uri) if uri else None
 
+        # Special case for SVG - it's actually text/XML, so extract as text
+        if mime_type == "image/svg+xml":
+            if hasattr(resource_content, "text"):
+                # For SVG from text resource
+                svg_content = resource_content.text
+                return TextBlockParam(type="text", text=f"```xml\n{svg_content}\n```")
+
         # Handle image resources
         if is_image_mime_type(mime_type) and mime_type != "image/svg+xml":
             # Check if image MIME type is supported
@@ -151,6 +198,7 @@ class AnthropicConverter:
                     f"Anthropic only supports: {', '.join(SUPPORTED_IMAGE_MIME_TYPES)}"
                 )
 
+            # Handle supported image types
             if is_url:
                 return ImageBlockParam(
                     type="image", source=URLImageSourceParam(type="url", url=str(uri))

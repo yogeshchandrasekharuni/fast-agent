@@ -206,13 +206,41 @@ class TestAnthropicConverter(unittest.TestCase):
             role="user", content=[text_content, image_content]
         )
 
-        # Convert to Anthropic format - should skip the unsupported image
+        # Convert to Anthropic format - should convert unsupported image to text fallback
         anthropic_msg = AnthropicConverter.convert_to_anthropic(multipart)
 
-        # Should have only kept the text content
-        self.assertEqual(len(anthropic_msg["content"]), 1)
+        # Should have kept the text content and added a fallback text for the image
+        self.assertEqual(len(anthropic_msg["content"]), 2)
         self.assertEqual(anthropic_msg["content"][0]["type"], "text")
         self.assertEqual(anthropic_msg["content"][0]["text"], "This is some text")
+        self.assertEqual(anthropic_msg["content"][1]["type"], "text")
+        self.assertTrue(
+            "[Image with unsupported format: image/bmp]"
+            in anthropic_msg["content"][1]["text"]
+        )
+
+    def test_svg_resource_conversion(self):
+        """Test handling of SVG resources - should convert to code block."""
+        # Create an embedded SVG resource
+        svg_content = (
+            '<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100"></svg>'
+        )
+        svg_resource = TextResourceContents(
+            uri="test://example.com/image.svg",
+            mimeType="image/svg+xml",
+            text=svg_content,
+        )
+        embedded_resource = EmbeddedResource(type="resource", resource=svg_resource)
+        multipart = PromptMessageMultipart(role="user", content=[embedded_resource])
+
+        # Convert to Anthropic format - should extract SVG as text
+        anthropic_msg = AnthropicConverter.convert_to_anthropic(multipart)
+
+        # Should be converted to a text block with the SVG code
+        self.assertEqual(len(anthropic_msg["content"]), 1)
+        self.assertEqual(anthropic_msg["content"][0]["type"], "text")
+        self.assertIn("```xml", anthropic_msg["content"][0]["text"])
+        self.assertIn(svg_content, anthropic_msg["content"][0]["text"])
 
     def test_empty_content_list(self):
         """Test conversion with empty content list."""
@@ -269,12 +297,43 @@ class TestAnthropicConverter(unittest.TestCase):
         # Convert to Anthropic format
         anthropic_msg = AnthropicConverter.convert_to_anthropic(multipart)
 
-        # Should have only kept the text and supported image
-        self.assertEqual(len(anthropic_msg["content"]), 2)
+        # Should have kept the text, created fallback for unsupported, and kept supported image
+        self.assertEqual(len(anthropic_msg["content"]), 3)
         self.assertEqual(anthropic_msg["content"][0]["type"], "text")
-        self.assertEqual(anthropic_msg["content"][1]["type"], "image")
+        self.assertEqual(anthropic_msg["content"][0]["text"], self.sample_text)
         self.assertEqual(
-            anthropic_msg["content"][1]["source"]["media_type"], "image/jpeg"
+            anthropic_msg["content"][1]["type"], "text"
+        )  # Fallback text for unsupported
+        self.assertEqual(
+            anthropic_msg["content"][2]["type"], "image"
+        )  # Supported image kept
+        self.assertEqual(
+            anthropic_msg["content"][2]["source"]["media_type"], "image/jpeg"
+        )
+
+    def test_conversion_error_handling(self):
+        """Test handling of conversion errors."""
+
+        # Create a problematic embedded resource (missing required attribute)
+        # We'll mock this with a custom class since actual errors depend on implementation
+        class ProblemResource(TextResourceContents):
+            def __init__(self):
+                super().__init__(uri="test://problem", mimeType="text/plain", text="")
+                # Force an attribute error during conversion
+                delattr(self, "uri")
+
+        problem_resource = ProblemResource()
+        embedded_resource = EmbeddedResource(type="resource", resource=problem_resource)
+        multipart = PromptMessageMultipart(role="user", content=[embedded_resource])
+
+        # Convert to Anthropic format - should create error fallback
+        anthropic_msg = AnthropicConverter.convert_to_anthropic(multipart)
+
+        # Should have a fallback text block for the error
+        self.assertEqual(len(anthropic_msg["content"]), 1)
+        self.assertEqual(anthropic_msg["content"][0]["type"], "text")
+        self.assertTrue(
+            "Content conversion error" in anthropic_msg["content"][0]["text"]
         )
 
     def test_code_file_as_text_document_with_filename(self):
