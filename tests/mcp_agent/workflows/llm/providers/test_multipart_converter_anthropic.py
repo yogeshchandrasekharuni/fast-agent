@@ -490,8 +490,7 @@ class TestAnthropicToolConverter(unittest.TestCase):
         self.assertEqual(anthropic_block["content"][1]["type"], "image")
 
     def test_mixed_tool_markdown_result_conversion(self):
-        """Test conversion of mixed content tool result to Anthropic format."""
-        # Create a tool result with text and image content
+        """Test conversion a text resource (tool) Anthropic format."""
         markdown_content = EmbeddedResource(
             type="resource",
             resource=TextResourceContents(
@@ -511,10 +510,7 @@ class TestAnthropicToolConverter(unittest.TestCase):
         self.assertEqual(anthropic_block["tool_use_id"], self.tool_use_id)
         self.assertEqual(len(anthropic_block["content"]), 1)
         self.assertEqual(anthropic_block["content"][0]["type"], "text")
-        self.assertEqual(
-            anthropic_block["content"][0]["source"]["data"], "markdown text"
-        )
-        self.assertEqual(anthropic_block["content"][0]["source"]["type"], "text/plain")
+        self.assertEqual(anthropic_block["content"][0]["text"], "markdown text")
 
     def test_error_tool_result_conversion(self):
         """Test conversion of error tool result to Anthropic format."""

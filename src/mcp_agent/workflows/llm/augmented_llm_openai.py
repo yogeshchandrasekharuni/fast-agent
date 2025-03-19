@@ -19,7 +19,6 @@ from openai.types.chat import (
     ChatCompletionMessage,
     ChatCompletionSystemMessageParam,
     ChatCompletionToolParam,
-    ChatCompletionToolMessageParam,
     ChatCompletionUserMessageParam,
 )
 from mcp.types import (
@@ -612,38 +611,6 @@ class OpenAIAugmentedLLM(
         self, tool_call_id: str | None, request: CallToolRequest, result: CallToolResult
     ):
         return result
-
-    async def execute_tool_call(
-        self,
-        tool_call: ChatCompletionToolParam,
-    ) -> ChatCompletionToolMessageParam | None:
-        """
-        Execute a single tool call and return the result message.
-        Returns None if there's no content to add to messages.
-        """
-        tool_name = tool_call.function.name
-        tool_args_str = tool_call.function.arguments
-        tool_call_id = tool_call.id
-        tool_args = {}
-
-        try:
-            if tool_args_str:
-                tool_args = json.loads(tool_args_str)
-        except json.JSONDecodeError as e:
-            return ChatCompletionToolMessageParam(
-                role="tool",
-                tool_call_id=tool_call_id,
-                content=f"Invalid JSON provided in tool call arguments for '{tool_name}'. Failed to load JSON: {str(e)}",
-            )
-
-        tool_call_request = CallToolRequest(
-            method="tools/call",
-            params=CallToolRequestParams(name=tool_name, arguments=tool_args),
-        )
-
-        return await self.call_tool(
-            request=tool_call_request, tool_call_id=tool_call_id
-        )
 
     def message_param_str(self, message: ChatCompletionMessageParam) -> str:
         """Convert an input message to a string representation."""

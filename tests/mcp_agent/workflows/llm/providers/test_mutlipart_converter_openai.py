@@ -340,7 +340,7 @@ class TestOpenAIToolConverter(unittest.TestCase):
         tool_messages = OpenAIConverter.convert_function_results_to_openai(results)
 
         # Assertions
-        self.assertEqual(len(tool_messages), 2)
+        self.assertEqual(len(tool_messages), 3)
 
         # Check first tool message (text only)
         self.assertEqual(tool_messages[0]["role"], "tool")
@@ -348,13 +348,11 @@ class TestOpenAIToolConverter(unittest.TestCase):
         self.assertEqual(tool_messages[0]["content"], "Text-only result")
 
         # Check second tool message (with image)
-        self.assertEqual(tool_messages[1]["role"], "user")
+        self.assertEqual(tool_messages[1]["role"], "tool")
         self.assertEqual(tool_messages[1]["tool_call_id"], tool_call_id2)
-        self.assertIsInstance(tool_messages[1]["content"], list)
-        self.assertEqual(len(tool_messages[1]["content"]), 2)
-        self.assertEqual(tool_messages[1]["content"][0]["type"], "text")
-        self.assertEqual(tool_messages[1]["content"][0]["text"], "Here's the image:")
-        self.assertEqual(tool_messages[1]["content"][1]["type"], "image_url")
+        self.assertEqual(tool_messages[1]["content"], "Here's the image:")
+        self.assertEqual(tool_messages[2]["role"], "user")
+        self.assertEqual(tool_messages[2]["content"][0]["type"], "image_url")
 
     def test_tool_result_with_mixed_content(self):
         """Test conversion of tool result with mixed content types."""
@@ -389,31 +387,18 @@ class TestOpenAIToolConverter(unittest.TestCase):
             tool_result=tool_result, tool_call_id=tool_call_id
         )
 
-        # Assertions
-        self.assertEqual(tool_message["role"], "tool")
-        self.assertEqual(tool_message["tool_call_id"], tool_call_id)
+        self.assertEqual(len(tool_message), 2)
+        self.assertEqual(tool_message[0]["role"], "tool")
+        self.assertEqual(tool_message[0]["tool_call_id"], tool_call_id)
+        self.assertEqual(tool_message[0]["content"], "Here's the analysis:")
 
-        # The content should now be a list of content blocks
-        self.assertIsInstance(tool_message["content"], list)
-        self.assertEqual(len(tool_message["content"]), 3)
+        self.assertEqual(tool_message[1][0]["role"], "user")
+        self.assertEqual(tool_message[1][0]["content"][0]["type"], "image_url")
 
-        # First block should be text
-        self.assertEqual(tool_message["content"][0]["type"], "text")
-        self.assertEqual(tool_message["content"][0]["text"], "Here's the analysis:")
-
-        # Second block should be image
-        self.assertEqual(tool_message["content"][1]["type"], "image_url")
+        self.assertEqual(tool_message[1][0]["content"][1]["type"], "file")
         self.assertEqual(
-            tool_message["content"][1]["image_url"]["url"],
-            f"data:image/jpeg;base64,{image_base64}",
+            tool_message[1][0]["content"][1]["file"]["file_data"], pdf_base64
         )
-
-        # Third block should be PDF file
-        self.assertEqual(tool_message["content"][2]["type"], "file")
-        self.assertEqual(
-            tool_message["content"][2]["file"]["file_name"], "document.pdf"
-        )
-        self.assertEqual(tool_message["content"][2]["file"]["file_data"], pdf_base64)
 
 
 class TestTextConcatenation(unittest.TestCase):
