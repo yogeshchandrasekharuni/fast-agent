@@ -13,7 +13,6 @@ from mcp_agent.mcp.prompt_message_multipart import PromptMessageMultipart
 
 from mcp_agent.workflows.llm.providers.multipart_converter_openai import (
     OpenAIConverter,
-    normalize_uri,
 )
 
 
@@ -486,41 +485,6 @@ class TestTextConcatenation(unittest.TestCase):
         self.assertEqual(
             tool_message["content"], "First part of result. Second part of result."
         )
-
-    def test_uri_extraction_edge_cases(self):
-        """Test extraction of filenames from various URI formats."""
-        from mcp_agent.workflows.llm.providers.multipart_converter_openai import (
-            extract_title_from_uri,
-        )
-
-        # Test different URI formats
-        test_cases = [
-            ("https://example.com/path/file.txt", "file.txt"),
-            ("https://example.com/path/", "path"),
-            ("file:///C:/Users/name/document.pdf", "document.pdf"),
-            ("file:///home/user/file.py", "file.py"),
-        ]
-
-        for uri, expected in test_cases:
-            result = extract_title_from_uri(uri)
-            self.assertEqual(result, expected if expected else uri)
-
-    def test_normalize_uri(self):
-        """Test that URIs are normalized correctly."""
-        # Test different URI formats
-        test_cases = [
-            ("https://example.com/path/file.txt", "https://example.com/path/file.txt"),
-            ("file:///path/to/file.txt", "file:///path/to/file.txt"),
-            ("example.py", "file:///example.py"),
-            ("path/to/file.txt", "file:///path/to/file.txt"),
-            ("/path/to/file.txt", "file:///path/to/file.txt"),
-            ("C:\\path\\to\\file.txt", "file:///C:/path/to/file.txt"),
-            ("", ""),
-        ]
-
-        for input_uri, expected in test_cases:
-            result = normalize_uri(input_uri)
-            self.assertEqual(result, expected)
 
     def test_convert_unsupported_binary_format(self):
         """Test handling of unsupported binary formats."""

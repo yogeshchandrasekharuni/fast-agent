@@ -146,3 +146,61 @@ def create_image_content(data: str, mime_type: str) -> ImageContent:
         data=data,
         mimeType=mime_type,
     )
+
+
+def normalize_uri(uri_or_filename: str) -> str:
+    """
+    Normalize a URI or filename to ensure it's a valid URI.
+    Converts simple filenames to file:// URIs if needed.
+
+    Args:
+        uri_or_filename: A URI string or simple filename
+
+    Returns:
+        A properly formatted URI string
+    """
+    if not uri_or_filename:
+        return ""
+
+    # Check if it's already a valid URI with a scheme
+    if "://" in uri_or_filename:
+        return uri_or_filename
+
+    # Handle Windows-style paths with backslashes
+    normalized_path = uri_or_filename.replace("\\", "/")
+
+    # If it's a simple filename or relative path, convert to file:// URI
+    # Make sure it has three slashes for an absolute path
+    if normalized_path.startswith("/"):
+        return f"file://{normalized_path}"
+    else:
+        return f"file:///{normalized_path}"
+
+
+def extract_title_from_uri(uri: str) -> str:
+    """Extract a readable title from a URI."""
+    # Simple attempt to get filename from path
+    uri_str = str(uri)
+    try:
+        from urllib.parse import urlparse
+
+        parsed = urlparse(uri_str)
+
+        # For HTTP(S) URLs
+        if parsed.scheme in ("http", "https"):
+            # Get the last part of the path
+            path_parts = parsed.path.split("/")
+            filename = next((p for p in reversed(path_parts) if p), "")
+            return filename if filename else uri_str
+
+        # For file URLs or other schemes
+        elif parsed.path:
+            import os.path
+
+            return os.path.basename(parsed.path)
+
+    except Exception:
+        pass
+
+    # Fallback to the full URI if parsing fails
+    return uri_str

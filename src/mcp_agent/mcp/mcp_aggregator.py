@@ -469,6 +469,16 @@ class MCPAggregator(ContextDependent):
             logger.error(f"Error: Tool '{name}' not found")
             return CallToolResult(isError=True, message=f"Tool '{name}' not found")
 
+        logger.info(
+            "Requesting tool call",
+            data={
+                "progress_action": ProgressAction.CALLING_TOOL,
+                "tool_name": local_tool_name,
+                "server_name": server_name,
+                "agent_name": self.agent_name,
+            },
+        )
+
         return await self._execute_on_server(
             server_name=server_name,
             operation_type="tool",
