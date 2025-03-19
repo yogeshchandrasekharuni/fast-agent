@@ -34,7 +34,7 @@ mcp:
   servers:
     prompts:
       command: "prompt-server"
-      args: ["sizing.md", "resource.md","resource-exe.md"]
+      args: ["sizing.md", "resource.md","resource-exe.md","pdf_prompt.md"]
     hfspace:
       command: "npx"
       args: ["@llmindset/mcp-hfspace"]

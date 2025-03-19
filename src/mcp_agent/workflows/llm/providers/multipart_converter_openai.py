@@ -217,8 +217,8 @@ class OpenAIConverter:
                 return {
                     "type": "file",
                     "file": {
-                        "file_name": title or "document.pdf",
-                        "file_data": resource_content.blob,
+                        "filename": title or "document.pdf",
+                        "file_data": f"data:application/pdf;base64,{resource_content.blob}",
                     },
                 }
 

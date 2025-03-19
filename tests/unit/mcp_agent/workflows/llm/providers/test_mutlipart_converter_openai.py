@@ -102,8 +102,11 @@ class TestOpenAIUserConverter(unittest.TestCase):
         self.assertEqual(openai_msg["role"], "user")
         self.assertEqual(len(openai_msg["content"]), 1)
         self.assertEqual(openai_msg["content"][0]["type"], "file")
-        self.assertEqual(openai_msg["content"][0]["file"]["file_name"], "document.pdf")
-        self.assertEqual(openai_msg["content"][0]["file"]["file_data"], pdf_base64)
+        self.assertEqual(openai_msg["content"][0]["file"]["filename"], "document.pdf")
+        self.assertEqual(
+            openai_msg["content"][0]["file"]["file_data"],
+            f"data:application/pdf;base64,{pdf_base64}",
+        )
 
     def test_embedded_resource_image_url_conversion(self):
         """Test conversion of image URL in EmbeddedResource to OpenAI image block."""
@@ -396,7 +399,8 @@ class TestOpenAIToolConverter(unittest.TestCase):
 
         self.assertEqual(tool_message[1][0]["content"][1]["type"], "file")
         self.assertEqual(
-            tool_message[1][0]["content"][1]["file"]["file_data"], pdf_base64
+            tool_message[1][0]["content"][1]["file"]["file_data"],
+            f"data:application/pdf;base64,{pdf_base64}",
         )
 
 
