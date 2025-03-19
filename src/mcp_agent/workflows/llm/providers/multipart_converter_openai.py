@@ -336,10 +336,11 @@ class OpenAIConverter:
         tool_result: CallToolResult,
         tool_call_id: str,
         concatenate_text_blocks: bool = False,
-    ) -> OpenAIMessage:
+    ) -> Union[OpenAIMessage, Tuple[OpenAIMessage, List[OpenAIMessage]]]:
         """
         Convert a CallToolResult to an OpenAI tool message.
-        Non text elements are returned as User messages (tool results can only be text)
+        If the result contains non-text elements, those are converted to separate messages
+        since OpenAI tool messages can only contain text.
 
         Args:
             tool_result: The tool result from a tool call
@@ -347,41 +348,104 @@ class OpenAIConverter:
             concatenate_text_blocks: If True, adjacent text blocks will be combined
 
         Returns:
-            An OpenAI API message for the tool response
+            Either a single OpenAI message for the tool response (if text only),
+            or a tuple containing the tool message and a list of additional messages for non-text content
         """
-        # Create a temporary PromptMessageMultipart to reuse the conversion logic
-        temp_multipart = PromptMessageMultipart(
-            role="user", content=tool_result.content
-        )
+        # Handle empty content case
+        if not tool_result.content:
+            return {
+                "role": "tool",
+                "tool_call_id": tool_call_id,
+                "content": "[No content in tool result]",
+            }
 
-        # Convert using the same logic as user messages
-        converted = OpenAIConverter.convert_to_openai(
-            temp_multipart, concatenate_text_blocks=concatenate_text_blocks
-        )
+        # First, separate text and non-text content
+        text_content = []
+        non_text_content = []
 
-        # If the conversion resulted in a string content (e.g., for empty content)
-        if isinstance(converted["content"], str):
-            content = converted["content"]
-        else:
-            # For compatibility with OpenAI's tool message format, we may need to
-            # convert the array of content blocks to a single string for simple cases
-            # Check if all blocks are text
-            all_text = all(
-                block.get("type") == "text" for block in converted["content"]
+        for item in tool_result.content:
+            if isinstance(item, TextContent):
+                text_content.append(item)
+            else:
+                non_text_content.append(item)
+
+        # If we only have text content, process as before
+        if not non_text_content:
+            # Create a temporary PromptMessageMultipart to reuse the conversion logic
+            temp_multipart = PromptMessageMultipart(role="user", content=text_content)
+
+            # Convert using the same logic as user messages
+            converted = OpenAIConverter.convert_to_openai(
+                temp_multipart, concatenate_text_blocks=concatenate_text_blocks
             )
 
-            if all_text and len(converted["content"]) > 0:
-                # Combine all text blocks
-                content = " ".join(
-                    block.get("text", "") for block in converted["content"]
-                )
-            else:
-                # For mixed content, we have to use the content blocks
-                # OpenAI tool messages can have content blocks just like user messages
+            # For tool messages, we need to extract and combine all text content
+            if isinstance(converted["content"], str):
                 content = converted["content"]
+            else:
+                # For compatibility with OpenAI's tool message format, combine all text blocks
+                all_text = all(
+                    block.get("type") == "text" for block in converted["content"]
+                )
 
-        # Create a tool message with the converted content
-        return {"role": "tool", "tool_call_id": tool_call_id, "content": content}
+                if all_text and len(converted["content"]) > 0:
+                    # Combine all text blocks
+                    content = " ".join(
+                        block.get("text", "") for block in converted["content"]
+                    )
+                else:
+                    # Fallback for unexpected cases
+                    content = "[Complex content converted to text]"
+
+            # Create a tool message with the converted content
+            return {"role": "tool", "tool_call_id": tool_call_id, "content": content}
+
+        # If we have mixed content or only non-text content
+
+        # Process text content for the tool message
+        tool_message_content = ""
+        if text_content:
+            temp_multipart = PromptMessageMultipart(role="user", content=text_content)
+            converted = OpenAIConverter.convert_to_openai(
+                temp_multipart, concatenate_text_blocks=True
+            )
+
+            if isinstance(converted["content"], str):
+                tool_message_content = converted["content"]
+            else:
+                # Combine all text blocks
+                all_text = [
+                    block.get("text", "")
+                    for block in converted["content"]
+                    if block.get("type") == "text"
+                ]
+                tool_message_content = " ".join(all_text)
+
+        if not tool_message_content:
+            tool_message_content = "[Tool returned non-text content]"
+
+        # Create the tool message with just the text
+        tool_message = {
+            "role": "tool",
+            "tool_call_id": tool_call_id,
+            "content": tool_message_content,
+        }
+
+        # Process non-text content as a separate user message
+        if non_text_content:
+            # Create a multipart message with the non-text content
+            non_text_multipart = PromptMessageMultipart(
+                role="user", content=non_text_content
+            )
+
+            # Convert to OpenAI format
+            user_message = OpenAIConverter.convert_to_openai(non_text_multipart)
+            # Add tool_call_id to associate with the tool call
+            user_message["tool_call_id"] = tool_call_id
+
+            return (tool_message, [user_message])
+
+        return tool_message
 
     @staticmethod
     def convert_function_results_to_openai(
@@ -389,7 +453,9 @@ class OpenAIConverter:
         concatenate_text_blocks: bool = False,
     ) -> List[OpenAIMessage]:
         """
-        Convert a list of function call results to OpenAI tool messages.
+        Convert a list of function call results to OpenAI messages.
+        Handles cases where tool results contain non-text content by creating
+        additional user messages as needed.
 
         Args:
             results: List of (tool_call_id, result) tuples
@@ -401,11 +467,19 @@ class OpenAIConverter:
         messages = []
 
         for tool_call_id, result in results:
-            tool_message = OpenAIConverter.convert_tool_result_to_openai(
+            converted = OpenAIConverter.convert_tool_result_to_openai(
                 tool_result=result,
                 tool_call_id=tool_call_id,
                 concatenate_text_blocks=concatenate_text_blocks,
             )
-            messages.append(tool_message)
+
+            # Handle the case where we have mixed content and get back a tuple
+            if isinstance(converted, tuple):
+                tool_message, additional_messages = converted
+                messages.append(tool_message)
+                messages.extend(additional_messages)
+            else:
+                # Single message case (text-only)
+                messages.append(converted)
 
         return messages

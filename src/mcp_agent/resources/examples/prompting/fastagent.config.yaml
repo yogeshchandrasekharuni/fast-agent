@@ -17,7 +17,7 @@ logger:
   # level: "debug" | "info" | "warning" | "error"
   # type: "none" | "console" | "file" | "http"
   # path: "/path/to/logfile.jsonl"
-  type: console
+  type: file
   level: error
   # Switch the progress display on or off
   progress_display: true
@@ -38,4 +38,7 @@ mcp:
     hfspace:
       command: "npx"
       args: ["@llmindset/mcp-hfspace"]
+    image:
+      command: "uv"
+      args: ["run", "image_server.py"]
 
