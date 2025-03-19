@@ -398,7 +398,8 @@ class TestAnthropicUserConverter(unittest.TestCase):
         # Check that the content describes it as unsupported format
         fallback_text = anthropic_msg["content"][0]["text"]
         self.assertIn(
-            "Resource with unsupported format: application/octet-stream", fallback_text
+            "Unable to convert resource with MIME type: application/octet-stream",
+            fallback_text,
         )
 
         # Check that it mentions the approximate size

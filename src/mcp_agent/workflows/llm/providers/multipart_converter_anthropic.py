@@ -8,6 +8,7 @@ from mcp.types import (
     TextResourceContents,
     BlobResourceContents,
 )
+from pydantic import AnyUrl
 from mcp_agent.mcp.prompt_message_multipart import PromptMessageMultipart
 from mcp_agent.mcp.mime_utils import (
     guess_mime_type,
@@ -186,6 +187,21 @@ class AnthropicConverter:
         )
 
     @staticmethod
+    def _determine_mime_type(
+        resource: TextResourceContents | BlobResourceContents,
+    ) -> str:
+        if resource.mimeType:
+            return resource.mimeType
+
+        if resource.uri:
+            return guess_mime_type(uri.serialize_url)
+
+        if resource.blob:
+            return "application/octet-stream"
+        else:
+            return "text/plain"
+
+    @staticmethod
     def _convert_embedded_resource(
         resource: EmbeddedResource,
         documentMode: bool = True,
@@ -195,16 +211,10 @@ class AnthropicConverter:
         resource_content: TextResourceContents | BlobResourceContents = (
             resource.resource
         )
-        uri = resource_content.uri
-        # Use mime_utils to guess MIME type if not provided
-        if resource_content.mimeType is None and uri:
-            mime_type = guess_mime_type(str(uri))
-            _logger.info(f"MIME type not provided, guessed {mime_type} for {uri}")
-        else:
-            mime_type = resource_content.mimeType or "application/octet-stream"
 
-        is_url: bool = str(uri).startswith(("http://", "https://"))
-
+        uri: AnyUrl = resource_content.uri
+        is_url: bool = uri.scheme in ("http", "https")
+        mime_type = AnthropicConverter._determine_mime_type(resource_content)
         # Extract title from URI
         title = extract_title_from_uri(uri) if uri else None
 
@@ -216,12 +226,12 @@ class AnthropicConverter:
                 return TextBlockParam(type="text", text=f"```xml\n{svg_content}\n```")
 
         # Handle image resources
-        if is_image_mime_type(mime_type) and mime_type != "image/svg+xml":
+        if is_image_mime_type(mime_type):
             # Check if image MIME type is supported
             if mime_type not in SUPPORTED_IMAGE_MIME_TYPES:
-                raise ValueError(
-                    f"Unsupported image MIME type: {mime_type}. "
-                    f"Anthropic only supports: {', '.join(SUPPORTED_IMAGE_MIME_TYPES)}"
+                return TextBlockParam(
+                    type="text",
+                    text="fast-agent: An unsupported image format was found {mime_type}.",
                 )
 
             # Handle supported image types
@@ -275,7 +285,9 @@ class AnthropicConverter:
         if hasattr(resource_content, "text"):
             return TextBlockParam(type="text", text=resource_content.text)
 
-        raise ValueError(f"Unable to convert resource with MIME type: {mime_type}")
+        return TextBlockParam(
+            type="text", text=f"Unable to convert resource with MIME type: {mime_type}"
+        )
 
     @staticmethod
     def convert_tool_result_to_anthropic(
