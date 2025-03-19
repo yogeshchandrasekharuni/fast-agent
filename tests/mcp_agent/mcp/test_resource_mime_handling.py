@@ -16,6 +16,7 @@ from mcp_agent.workflows.llm.openai_utils import (
 from mcp_agent.workflows.llm.providers.multipart_converter_anthropic import (
     AnthropicConverter,
 )
+from mcp_agent.workflows.llm.providers.multipart_converter_openai import OpenAIConverter
 
 
 class TestMimeTypeHandling:
@@ -47,12 +48,8 @@ class TestMimeTypeHandling:
         )
 
         # Convert to OpenAI format
-        openai_plain = prompt_message_multipart_to_openai_message_param(
-            plain_text_multipart
-        )
-        openai_css = prompt_message_multipart_to_openai_message_param(
-            css_text_multipart
-        )
+        openai_plain = OpenAIConverter.convert_to_openai(plain_text_multipart)
+        openai_css = OpenAIConverter.convert_to_openai(css_text_multipart)
 
         # For plain text, we should get a simple string content
         assert isinstance(openai_plain["content"], str)

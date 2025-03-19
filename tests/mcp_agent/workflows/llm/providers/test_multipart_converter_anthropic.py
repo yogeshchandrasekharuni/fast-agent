@@ -370,6 +370,41 @@ class TestAnthropicUserConverter(unittest.TestCase):
         self.assertEqual(anthropic_msg["content"][0]["title"], "example.py")
         self.assertEqual(anthropic_msg["content"][0]["source"]["data"], code_text)
 
+    def test_unsupported_binary_resource_conversion(self):
+        """Test handling of unsupported binary resource types."""
+        # Create an embedded resource with binary data
+        binary_data = base64.b64encode(b"This is binary data").decode(
+            "utf-8"
+        )  # 20 bytes of data
+        binary_resource = BlobResourceContents(
+            uri="test://example.com/data.bin",
+            mimeType="application/octet-stream",
+            blob=binary_data,
+        )
+        embedded_resource = EmbeddedResource(type="resource", resource=binary_resource)
+        multipart = PromptMessageMultipart(role="user", content=[embedded_resource])
+
+        # Convert to Anthropic format - should create text fallback
+        anthropic_msg = AnthropicConverter.convert_to_anthropic(multipart)
+
+        # Should have a fallback text block
+        self.assertEqual(len(anthropic_msg["content"]), 1)
+        self.assertEqual(anthropic_msg["content"][0]["type"], "text")
+
+        # Check that the content describes it as unsupported format
+        fallback_text = anthropic_msg["content"][0]["text"]
+        self.assertIn(
+            "Resource with unsupported format: application/octet-stream", fallback_text
+        )
+
+        # Check that it mentions the approximate size
+        self.assertIn(
+            "approximately 21 bytes", fallback_text
+        )  # ~20 base64 bytes = ~15 actual bytes
+
+        # Check that it includes the URI
+        self.assertIn("test://example.com/data.bin", fallback_text)
+
 
 class TestAnthropicToolConverter(unittest.TestCase):
     """Test cases for conversion of tool results to Anthropic API format."""

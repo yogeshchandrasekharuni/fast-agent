@@ -11,7 +11,7 @@ i agree
 ---USER
 ok, here's an image
 ---RESOURCE
-image.png
+2025-03-17_FLUX_1-schnell-infer_Image_2748e.webp
 ---USER
 what's in the image?
 

@@ -188,11 +188,10 @@ class AnthropicConverter:
         resource: EmbeddedResource,
     ) -> Union[ImageBlockParam, DocumentBlockParam, TextBlockParam]:
         """Convert EmbeddedResource to appropriate Anthropic block type."""
-        resource_content: Union[TextResourceContents | BlobResourceContents] = (
+        resource_content: TextResourceContents | BlobResourceContents = (
             resource.resource
         )
         uri = resource_content.uri
-
         # Use mime_utils to guess MIME type if not provided
         if resource_content.mimeType is None and uri:
             mime_type = guess_mime_type(str(uri))

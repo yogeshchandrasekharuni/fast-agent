@@ -6,11 +6,8 @@ import mimetypes
 mimetypes.init()
 
 # Extend with additional types that might be missing
-mimetypes.add_type("application/javascript", ".js")
-mimetypes.add_type("text/css", ".css")
-mimetypes.add_type("application/wasm", ".wasm")
-mimetypes.add_type("text/markdown", ".md")
 mimetypes.add_type("text/x-python", ".py")
+mimetypes.add_type("image/webp", ".webp")
 
 # Known text-based MIME types not starting with "text/"
 TEXT_MIME_TYPES = {

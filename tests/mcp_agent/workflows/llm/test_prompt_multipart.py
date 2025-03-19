@@ -3,7 +3,7 @@ Tests for using PromptMessageMultipart in augmented LLMs.
 """
 
 import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
 from mcp.types import PromptMessage, TextContent, GetPromptResult
 from mcp_agent.workflows.llm.augmented_llm import AugmentedLLM
@@ -202,60 +202,3 @@ async def test_apply_prompt_template_with_images():
     # Verify the result contains a description of the image
     assert "[Image: image/jpeg]" in result
     assert "message contained non-text content" in result
-
-
-@pytest.mark.asyncio
-async def test_apply_prompt_template_with_openai():
-    """Test applying a prompt template using OpenAI-specific conversion."""
-
-    # Create a mock AugmentedLLM instance for OpenAI
-    llm = MagicMock(spec=AugmentedLLM)
-    llm.logger = MagicMock()
-    llm.history = MagicMock()
-    llm.type_converter = MagicMock()
-    llm.show_prompt_loaded = AsyncMock()
-    llm.generate_str = AsyncMock(return_value="Generated response")
-    llm.provider = "OpenAI"  # Set provider to OpenAI
-    llm.instruction = None
-    llm.default_request_params = None
-
-    # Make the methods accessible for testing
-    llm.apply_prompt_template = AugmentedLLM.apply_prompt_template.__get__(
-        llm, AugmentedLLM
-    )
-
-    # Import the OpenAI-specific implementation
-    from mcp_agent.workflows.llm.augmented_llm_openai import OpenAIAugmentedLLM
-
-    llm._apply_prompt_template_provider_specific = (
-        OpenAIAugmentedLLM._apply_prompt_template_provider_specific.__get__(
-            llm, OpenAIAugmentedLLM
-        )
-    )
-
-    # Create a GetPromptResult with multiple messages to ensure we hit the conversion path
-    prompt_result = GetPromptResult(
-        messages=[
-            PromptMessage(
-                role="assistant", content=TextContent(type="text", text="I'm GPT-4")
-            ),
-            PromptMessage(
-                role="user",
-                content=TextContent(type="text", text="Tell me about GPT-4"),
-            ),
-        ],
-        description="Test prompt for OpenAI",
-    )
-
-    # Mock the openai conversion function to verify it's called
-    with patch(
-        "mcp_agent.workflows.llm.openai_utils.prompt_message_multipart_to_openai_message_param"
-    ) as mock_convert:
-        # Set up the mock to return a properly formatted message
-        mock_convert.return_value = {"role": "user", "content": "Tell me about GPT-4"}
-
-        # Call apply_prompt_template
-        await llm.apply_prompt_template(prompt_result, "test_prompt")
-
-        # Verify that our openai conversion utility was called
-        assert mock_convert.called

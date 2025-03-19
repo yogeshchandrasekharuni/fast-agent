@@ -2,7 +2,9 @@ import json
 import os
 from typing import List, Type, TYPE_CHECKING
 
-from mcp_agent.workflows.llm.providers import openai_multipart
+from pydantic_core import from_json
+
+from mcp_agent.workflows.llm.providers.multipart_converter_openai import OpenAIConverter
 from mcp_agent.workflows.llm.providers.sampling_converter_openai import (
     OpenAISamplingConverter,
 )
@@ -280,30 +282,34 @@ class OpenAIAugmentedLLM(
                         message.tool_calls[0].function.name,
                     )
 
-                # Execute all tool calls in parallel.
-                tool_tasks = []
+                tool_results = []
                 for tool_call in message.tool_calls:
                     self.show_tool_call(
                         available_tools,
                         tool_call.function.name,
                         tool_call.function.arguments,
                     )
-                    tool_tasks.append(self.execute_tool_call(tool_call))
-                # Wait for all tool calls to complete.
-                tool_results = await self.executor.execute(*tool_tasks)
+                    tool_call_request = CallToolRequest(
+                        method="tools/call",
+                        params=CallToolRequestParams(
+                            name=tool_call.function.name,
+                            arguments=from_json(
+                                tool_call.function.arguments, allow_partial=True
+                            ),
+                        ),
+                    )
+                    result = await self.call_tool(tool_call_request, tool_call.id)
+                    self.show_oai_tool_result(str(result))
+
+                    tool_results.append((tool_call.id, result))
+
+                messages.extend(
+                    OpenAIConverter.convert_function_results_to_openai(tool_results)
+                )
+
                 self.logger.debug(
                     f"Iteration {i}: Tool call results: {str(tool_results) if tool_results else 'None'}"
                 )
-                # Add non-None results to messages.
-                for result in tool_results:
-                    if isinstance(result, BaseException):
-                        self.logger.error(
-                            f"Warning: Unexpected error during tool execution: {result}. Continuing..."
-                        )
-                        continue
-                    if result is not None:
-                        self.show_oai_tool_result(str(result["content"]))
-                        messages.append(result)
             elif choice.finish_reason == "length":
                 # We have reached the max tokens limit
                 self.logger.debug(
@@ -404,10 +410,6 @@ class OpenAIAugmentedLLM(
             String representation of the assistant's response if generated,
             or the last assistant message in the prompt
         """
-        # Import necessary utils
-        from mcp_agent.workflows.llm.openai_utils import (
-            prompt_message_multipart_to_openai_message_param,
-        )
         from openai.types.chat import ChatCompletionSystemMessageParam
 
         # Check the last message role
@@ -426,9 +428,7 @@ class OpenAIAugmentedLLM(
 
                 # Convert all previous messages to OpenAI format
                 for msg in previous_messages:
-                    converted.append(
-                        prompt_message_multipart_to_openai_message_param(msg)
-                    )
+                    converted.append(OpenAIConverter.convert_to_openai(msg))
 
                 # Add system prompt at the beginning if it exists
                 if self.instruction or (
@@ -451,9 +451,7 @@ class OpenAIAugmentedLLM(
                 self.history.extend(converted, is_prompt=True)
 
             # Convert the last message to OpenAI format and generate a response
-            message_param = prompt_message_multipart_to_openai_message_param(
-                last_message
-            )
+            message_param = OpenAIConverter.convert_to_openai(last_message)
             return await self.generate_str(message_param)
         else:
             # For assistant messages: Add all messages to history and return the last one
@@ -466,7 +464,7 @@ class OpenAIAugmentedLLM(
 
             # Convert all messages to OpenAI format
             for msg in multipart_messages:
-                converted.append(prompt_message_multipart_to_openai_message_param(msg))
+                converted.append(OpenAIConverter.convert_to_openai(msg))
 
             # Add system prompt at the beginning if it exists
             if self.instruction or (
@@ -604,16 +602,8 @@ class OpenAIAugmentedLLM(
     async def generate_prompt(
         self, prompt: "PromptMessageMultipart", request_params: RequestParams | None
     ) -> str:
-        converted_prompt = openai_multipart.multipart_to_openai(prompt)
-        # print(
-        #     converted_prompt.model_dump(mode="json")
-        #     if hasattr(converted_prompt, "model_dump")
-        #     else json.dumps(converted_prompt)
-        # )
+        converted_prompt = OpenAIConverter.convert_to_openai(prompt)
         return await self.generate_str(converted_prompt, request_params)
-        return await self.generate_str(
-            openai_multipart.multipart_to_openai(prompt), request_params
-        )
 
     async def pre_tool_call(self, tool_call_id: str | None, request: CallToolRequest):
         return request
@@ -651,21 +641,9 @@ class OpenAIAugmentedLLM(
             params=CallToolRequestParams(name=tool_name, arguments=tool_args),
         )
 
-        result = await self.call_tool(
+        return await self.call_tool(
             request=tool_call_request, tool_call_id=tool_call_id
         )
-
-        if result.content:
-            return ChatCompletionToolMessageParam(
-                role="tool",
-                tool_call_id=tool_call_id,
-                content=[
-                    OpenAISamplingConverter.mcp_content_to_openai_content(c)
-                    for c in result.content
-                ],
-            )
-
-        return None
 
     def message_param_str(self, message: ChatCompletionMessageParam) -> str:
         """Convert an input message to a string representation."""

@@ -12,7 +12,8 @@ fast = FastAgent("FastAgent Example")
 @fast.agent(
     "agent",
     instruction="You are a helpful AI Agent",
-    servers=["prompts","hfspace"],
+    servers=["prompts", "hfspace"],
+    model="haiku",
     #    instruction="You are a helpful AI Agent", servers=["prompts","basic_memory"], model="haiku"
 )
 async def main():

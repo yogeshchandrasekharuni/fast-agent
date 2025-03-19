@@ -13,9 +13,9 @@ from openai.types.chat import (
 )
 
 from mcp_agent.mcp.prompt_message_multipart import PromptMessageMultipart
+from mcp_agent.workflows.llm.providers.multipart_converter_openai import OpenAIConverter
 from mcp_agent.workflows.llm.providers.openai_multipart import (
     openai_to_multipart,
-    multipart_to_openai,
 )
 
 
@@ -62,4 +62,4 @@ def prompt_message_multipart_to_openai_message_param(
     Returns:
         An OpenAI ChatCompletionMessageParam representation
     """
-    return multipart_to_openai(multipart)
+    return OpenAIConverter.convert_to_openai(multipart)

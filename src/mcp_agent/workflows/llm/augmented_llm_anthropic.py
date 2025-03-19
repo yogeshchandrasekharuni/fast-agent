@@ -395,8 +395,7 @@ class AnthropicAugmentedLLM(AugmentedLLM[MessageParam, Message]):
                 self.history.extend(converted, is_prompt=True)
 
             # Convert the last message to Anthropic format and generate a response
-            message_param = AnthropicConverter.convert_to_anthropic
-            (last_message)
+            message_param = AnthropicConverter.convert_to_anthropic(last_message)
             return await self.generate_str(message_param)
         else:
             # For assistant messages: Add all messages to history and return the last one

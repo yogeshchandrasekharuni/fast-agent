@@ -383,7 +383,7 @@ class MCPAggregator(ContextDependent):
         async def try_execute(client: ClientSession):
             try:
                 method = getattr(client, method_name)
-                return await method(**method_args) if method_args else await method()
+                return await method(**method_args)
             except Exception as e:
                 error_msg = f"Failed to {method_name} '{operation_name}' on server '{server_name}': {e}"
                 logger.error(error_msg)
