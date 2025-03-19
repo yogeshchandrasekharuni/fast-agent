@@ -4,6 +4,7 @@ Simple MCP server that responds to tool calls with text and image content.
 """
 
 import logging
+import sys
 from pathlib import Path
 
 from mcp.server.fastmcp import FastMCP, Context, Image
@@ -15,6 +16,9 @@ logger = logging.getLogger(__name__)
 
 # Create the FastMCP server
 app = FastMCP(name="ImageToolServer", debug=True)
+
+# Global variable to store the image path
+image_path = "image.png"
 
 
 @app.tool(name="get_image", description="Returns an image with a descriptive text")
@@ -31,11 +35,10 @@ async def get_image(
         A list containing a text message and the requested image
     """
     try:
-        # Read the image file and convert to base64
-        # Create the response with text and image
+        # Use the global image path
         return [
             TextContent(type="text", text="Here's your image:"),
-            Image(path="image.jpg").to_image_content(),
+            Image(path=image_path).to_image_content(),
         ]
     except Exception as e:
         logger.exception(f"Error processing image: {e}")
@@ -43,13 +46,18 @@ async def get_image(
 
 
 if __name__ == "__main__":
-    # Check if the default image exists
-    if not Path("image.jpg").exists():
+    # Get image path from command line argument or use default
+    if len(sys.argv) > 1:
+        image_path = sys.argv[1]
+        logger.info(f"Using image file: {image_path}")
+    else:
+        logger.info(f"No image path provided, using default: {image_path}")
+
+    # Check if the specified image exists
+    if not Path(image_path).exists():
+        logger.warning(f"Image file '{image_path}' not found in the current directory")
         logger.warning(
-            "Default image file 'image.jpg' not found in the current directory"
-        )
-        logger.warning(
-            "Please add an image file named 'image.jpg' to the current directory"
+            "Please add an image file or specify a valid path as the first argument"
         )
 
     # Run the server using stdio transport
