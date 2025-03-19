@@ -2,7 +2,9 @@
 
 A utility for converting MCP PromptMessageMultipart messages to Anthropic API format.
 
-## Overview
+## Notes
+
+- The Anthropic API only supports Images and Text in Tool Result blocks (not documents). Other parts are converted to User Messages (similar to OAI)
 
 This converter transforms MCP (Model Context Protocol) user messages to Anthropic's Claude API format. It handles various content types including text, images, and documents while respecting the constraints of Anthropic's API.
 

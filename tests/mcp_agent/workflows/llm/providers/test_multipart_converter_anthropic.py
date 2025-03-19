@@ -9,6 +9,7 @@ from mcp.types import (
     BlobResourceContents,
     CallToolResult,
 )
+from pydantic import AnyUrl
 from mcp_agent.mcp.prompt_message_multipart import PromptMessageMultipart
 
 
@@ -347,6 +348,9 @@ class TestAnthropicUserConverter(unittest.TestCase):
         # Check that title is set correctly
         self.assertEqual(anthropic_msg["content"][0]["title"], "example.py")
         self.assertEqual(anthropic_msg["content"][0]["source"]["data"], code_text)
+        self.assertEqual(
+            anthropic_msg["content"][0]["source"]["media_type"], "text/plain"
+        )
 
     def test_code_file_as_text_document_with_uri(self):
         """Test handling of code files using a proper URI."""
@@ -484,6 +488,33 @@ class TestAnthropicToolConverter(unittest.TestCase):
         self.assertEqual(anthropic_block["content"][0]["type"], "text")
         self.assertEqual(anthropic_block["content"][0]["text"], self.sample_text)
         self.assertEqual(anthropic_block["content"][1]["type"], "image")
+
+    def test_mixed_tool_markdown_result_conversion(self):
+        """Test conversion of mixed content tool result to Anthropic format."""
+        # Create a tool result with text and image content
+        markdown_content = EmbeddedResource(
+            type="resource",
+            resource=TextResourceContents(
+                uri=AnyUrl("resource://test/content"),
+                mimeType="text/markdown",
+                text="markdown text",
+            ),
+        )
+
+        # Convert to Anthropic format
+        anthropic_block = AnthropicConverter.convert_tool_result_to_anthropic(
+            CallToolResult(content=[markdown_content]), self.tool_use_id
+        )
+
+        # Assertions
+        self.assertEqual(anthropic_block["type"], "tool_result")
+        self.assertEqual(anthropic_block["tool_use_id"], self.tool_use_id)
+        self.assertEqual(len(anthropic_block["content"]), 1)
+        self.assertEqual(anthropic_block["content"][0]["type"], "text")
+        self.assertEqual(
+            anthropic_block["content"][0]["source"]["data"], "markdown text"
+        )
+        self.assertEqual(anthropic_block["content"][0]["source"]["type"], "text/plain")
 
     def test_error_tool_result_conversion(self):
         """Test conversion of error tool result to Anthropic format."""

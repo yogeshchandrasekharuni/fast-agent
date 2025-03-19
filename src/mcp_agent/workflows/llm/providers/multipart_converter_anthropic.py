@@ -40,6 +40,7 @@ class AnthropicConverter:
     @staticmethod
     def _convert_content_items(
         content_items: List[Union[TextContent, ImageContent, EmbeddedResource]],
+        documentMode: bool = True,
     ) -> List[Union[TextBlockParam, ImageBlockParam, DocumentBlockParam]]:
         """
         Helper method to convert a list of content items to Anthropic format.
@@ -84,7 +85,7 @@ class AnthropicConverter:
                 elif isinstance(content_item, EmbeddedResource):
                     try:
                         anthropic_block = AnthropicConverter._convert_embedded_resource(
-                            content_item
+                            content_item, documentMode
                         )
                         anthropic_blocks.append(anthropic_block)
                     except ValueError as e:
@@ -186,8 +187,10 @@ class AnthropicConverter:
     @staticmethod
     def _convert_embedded_resource(
         resource: EmbeddedResource,
+        documentMode: bool = True,
     ) -> Union[ImageBlockParam, DocumentBlockParam, TextBlockParam]:
-        """Convert EmbeddedResource to appropriate Anthropic block type."""
+        """Convert EmbeddedResource to appropriate Anthropic block type.
+        Document controls whether text content is returned as Text or Document blocks"""
         resource_content: TextResourceContents | BlobResourceContents = (
             resource.resource
         )
@@ -254,15 +257,19 @@ class AnthropicConverter:
 
         # Handle text resources (default for all other text mime types)
         elif is_text_mime_type(mime_type):
-            if hasattr(resource_content, "text"):
-                return DocumentBlockParam(
-                    type="document",
-                    title=title,
-                    source=PlainTextSourceParam(
-                        type="text", media_type="text/plain", data=resource_content.text
-                    ),
-                )
-
+            if documentMode:
+                if hasattr(resource_content, "text"):
+                    return DocumentBlockParam(
+                        type="document",
+                        title=title,
+                        source=PlainTextSourceParam(
+                            type="text",
+                            media_type="text/plain",
+                            data=resource_content.text,
+                        ),
+                    )
+                else:
+                    return TextBlockParam(type="text", text=resource_content.text)
         # Default fallback - convert to text if possible
         if hasattr(resource_content, "text"):
             return TextBlockParam(type="text", text=resource_content.text)
@@ -285,7 +292,7 @@ class AnthropicConverter:
         """
         # Extract content from tool result
         anthropic_content = AnthropicConverter._convert_content_items(
-            tool_result.content
+            tool_result.content, documentMode=False
         )
 
         # If we ended up with no valid content blocks, create a placeholder
