@@ -1,46 +1,47 @@
-default_model: sonnet
+# FastAgent Configuration File
 
-# on windows, adjust the mount point to be the full path e.g. x:/temp/data-analysis/mount-point:/mnt/data/
+# Default Model Configuration:
+#
+# Takes format:
+#   <provider>.<model_string>.<reasoning_effort?> (e.g. anthropic.claude-3-5-sonnet-20241022 or openai.o3-mini.low)
+# Accepts aliases for Anthropic Models: haiku, haiku3, sonnet, sonnet35, opus, opus3
+# and OpenAI Models: gpt-4o-mini, gpt-4o, o1, o1-mini, o3-mini
+#
+# If not specified, defaults to "haiku".
+# Can be overriden with a command line switch --model=<model>, or within the Agent constructor.
 
+default_model: haiku
+
+# Logging and Console Configuration:
+logger:
+  # level: "debug" | "info" | "warning" | "error"
+  # type: "none" | "console" | "file" | "http"
+  # path: "/path/to/logfile.jsonl"
+
+  # Switch the progress display on or off
+  progress_display: true
+
+  # Show chat User/Assistant messages on the console
+  show_chat: true
+  # Show tool calls on the console
+  show_tools: true
+  # Truncate long tool responses on the console
+  truncate_tools: true
+
+# MCP Servers
 mcp:
   servers:
-    interpreter:
-      command: "docker"
+    prompts:
+      command: "uv"
       args:
         [
           "run",
-          "-i",
-          "--rm",
-          "--pull=always",
-          "-v",
-          "./mount-point:/mnt/data/",
-          "ghcr.io/evalstate/mcp-py-repl:latest",
+          "prompt-server",
+          "sizing.md",
+          "resource.md",
+          "resource-exe.md",
+          "persist.md",
         ]
-      roots:
-        - uri: "file://./mount-point/"
-          name: "test_data"
-          server_uri_alias: "file:///mnt/data/"
-    filesystem:
-      # On windows update the command and arguments to use `node` and the absolute path to the server.
-      # Use `npm i -g @modelcontextprotocol/server-filesystem` to install the server globally.
-      # Use `npm -g root` to find the global node_modules path.`
-      # command: "node"
-      # args: ["c:/Program Files/nodejs/node_modules/@modelcontextprotocol/server-filesystem/dist/index.js","."]
+    hfspace:
       command: "npx"
-      args:
-        [
-          "-y",
-          "@modelcontextprotocol/server-filesystem",
-          "src/mcp_agent/resources/examples/data-analysis/mount-point/",
-        ]
-    fetch:
-      command: "uvx"
-      args: ["mcp-server-fetch"]
-    brave:
-      # On windows replace the command and args line to use `node` and the absolute path to the server.
-      # Use `npm i -g @modelcontextprotocol/server-brave-search` to install the server globally.
-      # Use `npm -g root` to find the global node_modules path.`
-      # command: "node"
-      # args: ["c:/Program Files/nodejs/node_modules/@modelcontextprotocol/server-brave-search/dist/index.js"]
-      command: "npx"
-      args: ["-y", "@modelcontextprotocol/server-brave-search"]
+      args: ["@llmindset/mcp-hfspace"]

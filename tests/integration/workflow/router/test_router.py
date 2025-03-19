@@ -8,22 +8,6 @@ from mcp.types import TextContent
 @pytest.fixture
 def test_image_path():
     """Fixture that provides the path to a test image."""
-    # # Get the directory of the test file
-    # test_dir = pathlib.Path(__file__).parent.absolute()
-
-    # # Navigate to test resources directory (you'll need to create this)
-    # resources_dir = test_dir.parent.parent / "test_resources"
-
-    # # Make sure the directory exists
-    # os.makedirs(resources_dir, exist_ok=True)
-
-    # # Return path to test image
-    # image_path = resources_dir / "test_image.png"
-
-    # # Verify the image exists
-    # assert image_path.exists(), f"Test image not found at {image_path}"
-
-    # return str(image_path)
 
 
 @pytest.mark.integration
@@ -34,7 +18,7 @@ async def test_agent_with_image_response(test_image_path):
     # Create the application
     fast = FastAgent(
         "FastAgent Example Test",
-        config_path="integration_tests/workflow/router/fastagent.config.yaml",
+        config_path="tests/integration/workflow/router/fastagent.config.yaml",
         ignore_unknown_args=True,
     )
 
