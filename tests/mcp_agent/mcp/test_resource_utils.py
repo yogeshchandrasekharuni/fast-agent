@@ -1,5 +1,7 @@
 import unittest
 
+from pydantic import AnyUrl
+
 from mcp_agent.mcp.resource_utils import normalize_uri
 
 
@@ -79,5 +81,5 @@ class TestUriNormalization(unittest.TestCase):
         ]
 
         for uri, expected in test_cases:
-            result = extract_title_from_uri(uri)
+            result = extract_title_from_uri(AnyUrl(uri))
             self.assertEqual(result, expected if expected else uri)

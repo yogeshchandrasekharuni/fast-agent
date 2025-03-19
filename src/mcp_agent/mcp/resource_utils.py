@@ -7,6 +7,7 @@ from mcp.types import (
     BlobResourceContents,
     ImageContent,
 )
+from pydantic import AnyUrl
 import mcp_agent.mcp.mime_utils as mime_utils
 
 HTTP_TIMEOUT = 10  # Default timeout for HTTP requests
@@ -177,27 +178,23 @@ def normalize_uri(uri_or_filename: str) -> str:
         return f"file:///{normalized_path}"
 
 
-def extract_title_from_uri(uri: str) -> str:
+def extract_title_from_uri(uri: AnyUrl) -> str:
     """Extract a readable title from a URI."""
     # Simple attempt to get filename from path
-    uri_str = str(uri)
+    uri_str = uri._url
     try:
-        from urllib.parse import urlparse
-
-        parsed = urlparse(uri_str)
-
         # For HTTP(S) URLs
-        if parsed.scheme in ("http", "https"):
+        if uri.scheme in ("http", "https"):
             # Get the last part of the path
-            path_parts = parsed.path.split("/")
+            path_parts = uri.path.split("/")
             filename = next((p for p in reversed(path_parts) if p), "")
             return filename if filename else uri_str
 
         # For file URLs or other schemes
-        elif parsed.path:
+        elif uri.path:
             import os.path
 
-            return os.path.basename(parsed.path)
+            return os.path.basename(uri.path)
 
     except Exception:
         pass

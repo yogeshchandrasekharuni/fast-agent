@@ -207,9 +207,9 @@ class TestAnthropicUserConverter(unittest.TestCase):
         self.assertEqual(anthropic_msg["content"][0]["type"], "text")
         self.assertEqual(anthropic_msg["content"][0]["text"], "This is some text")
         self.assertEqual(anthropic_msg["content"][1]["type"], "text")
-        self.assertTrue(
-            "[Image with unsupported format: image/bmp]"
-            in anthropic_msg["content"][1]["text"]
+        self.assertIn(
+            "Image with unsupported format 'image/bmp'",
+            anthropic_msg["content"][1]["text"],
         )
 
     def test_svg_resource_conversion(self):
@@ -304,31 +304,6 @@ class TestAnthropicUserConverter(unittest.TestCase):
             anthropic_msg["content"][2]["source"]["media_type"], "image/jpeg"
         )
 
-    def test_conversion_error_handling(self):
-        """Test handling of conversion errors."""
-
-        # Create a problematic embedded resource (missing required attribute)
-        # We'll mock this with a custom class since actual errors depend on implementation
-        class ProblemResource(TextResourceContents):
-            def __init__(self):
-                super().__init__(uri="test://problem", mimeType="text/plain", text="")
-                # Force an attribute error during conversion
-                delattr(self, "uri")
-
-        problem_resource = ProblemResource()
-        embedded_resource = EmbeddedResource(type="resource", resource=problem_resource)
-        multipart = PromptMessageMultipart(role="user", content=[embedded_resource])
-
-        # Convert to Anthropic format - should create error fallback
-        anthropic_msg = AnthropicConverter.convert_to_anthropic(multipart)
-
-        # Should have a fallback text block for the error
-        self.assertEqual(len(anthropic_msg["content"]), 1)
-        self.assertEqual(anthropic_msg["content"][0]["type"], "text")
-        self.assertTrue(
-            "Content conversion error" in anthropic_msg["content"][0]["text"]
-        )
-
     def test_code_file_as_text_document_with_filename(self):
         """Test handling of code files using a simple filename."""
         code_text = "def hello_world():\n    print('Hello, world!')"
@@ -398,17 +373,9 @@ class TestAnthropicUserConverter(unittest.TestCase):
         # Check that the content describes it as unsupported format
         fallback_text = anthropic_msg["content"][0]["text"]
         self.assertIn(
-            "Unable to convert resource with MIME type: application/octet-stream",
+            "Emedded Resource test://example.com/data.bin with unsupported format application/octet-stream (28 characters)",
             fallback_text,
         )
-
-        # Check that it mentions the approximate size
-        self.assertIn(
-            "approximately 21 bytes", fallback_text
-        )  # ~20 base64 bytes = ~15 actual bytes
-
-        # Check that it includes the URI
-        self.assertIn("test://example.com/data.bin", fallback_text)
 
 
 class TestAnthropicToolConverter(unittest.TestCase):
@@ -553,9 +520,9 @@ class TestAnthropicToolConverter(unittest.TestCase):
         self.assertEqual(anthropic_block["type"], "tool_result")
         self.assertEqual(len(anthropic_block["content"]), 1)
         self.assertEqual(anthropic_block["content"][0]["type"], "text")
-        self.assertTrue(
-            "[Image with unsupported format: image/bmp]"
-            in anthropic_block["content"][0]["text"]
+        self.assertIn(
+            "Image with unsupported format 'image/bmp'",
+            anthropic_block["content"][0]["text"],
         )
 
     def test_empty_tool_result_conversion(self):
