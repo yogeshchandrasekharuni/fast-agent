@@ -277,7 +277,7 @@ def register_prompt(file_path: Path):
                 # It's a local resource
                 resource_file = file_path.parent / resource_path
                 if resource_file.exists():
-                    resource_id = f"resource://{resource_file.name}"
+                    resource_id = f"resource://fast-agent/{resource_file.name}"
 
                     # Register the resource if not already registered
                     if resource_id not in exposed_resources:

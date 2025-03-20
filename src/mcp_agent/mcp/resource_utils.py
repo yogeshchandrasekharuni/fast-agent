@@ -106,7 +106,7 @@ def load_resource_content(
 # Create a safe way to generate resource URIs that Pydantic accepts
 def create_resource_uri(path: str) -> str:
     """Create a resource URI from a path"""
-    return f"resource://{Path(path).name}"
+    return f"resource://fast-agent/{Path(path).name}"
 
 
 def create_embedded_resource(

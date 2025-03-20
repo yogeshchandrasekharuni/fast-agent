@@ -409,122 +409,36 @@ class OpenAIAugmentedLLM(
             String representation of the assistant's response if generated,
             or the last assistant message in the prompt
         """
-        from openai.types.chat import ChatCompletionSystemMessageParam
 
+        # TODO -- this is very similar to Anthropic (just the converter class changes).
+        # TODO -- potential refactor to base class, standardize Converter interface
         # Check the last message role
         last_message = multipart_messages[-1]
 
+        # Add all previous messages to history (or all messages if last is from assistant)
+        messages_to_add = (
+            multipart_messages[:-1]
+            if last_message.role == "user"
+            else multipart_messages
+        )
+        converted = []
+        for msg in messages_to_add:
+            converted.append(OpenAIConverter.convert_to_openai(msg))
+        self.history.extend(converted, is_prompt=True)
+
         if last_message.role == "user":
-            # For user messages: Add all previous messages to history, then generate response to the last one
+            # For user messages: Generate response to the last one
             self.logger.debug(
                 "Last message in prompt is from user, generating assistant response"
             )
-
-            # Add all but the last message to history
-            if len(multipart_messages) > 1:
-                previous_messages = multipart_messages[:-1]
-                converted = []
-
-                # Convert all previous messages to OpenAI format
-                for msg in previous_messages:
-                    converted.append(OpenAIConverter.convert_to_openai(msg))
-
-                # Add system prompt at the beginning if it exists
-                if self.instruction or (
-                    self.default_request_params
-                    and self.default_request_params.systemPrompt
-                ):
-                    system_prompt = (
-                        self.instruction or self.default_request_params.systemPrompt
-                    )
-                    if system_prompt and system_prompt not in [
-                        m.get("content") for m in converted if m.get("role") == "system"
-                    ]:
-                        converted.insert(
-                            0,
-                            ChatCompletionSystemMessageParam(
-                                role="system", content=system_prompt
-                            ),
-                        )
-
-                self.history.extend(converted, is_prompt=True)
-
-            # Convert the last message to OpenAI format and generate a response
             message_param = OpenAIConverter.convert_to_openai(last_message)
             return await self.generate_str(message_param)
         else:
-            # For assistant messages: Add all messages to history and return the last one
+            # For assistant messages: Return the last message content as text
             self.logger.debug(
                 "Last message in prompt is from assistant, returning it directly"
             )
-
-            # Convert and add all messages to history
-            converted = []
-
-            # Convert all messages to OpenAI format
-            for msg in multipart_messages:
-                converted.append(OpenAIConverter.convert_to_openai(msg))
-
-            # Add system prompt at the beginning if it exists
-            if self.instruction or (
-                self.default_request_params and self.default_request_params.systemPrompt
-            ):
-                system_prompt = (
-                    self.instruction or self.default_request_params.systemPrompt
-                )
-                if system_prompt and system_prompt not in [
-                    m.get("content") for m in converted if m.get("role") == "system"
-                ]:
-                    converted.insert(
-                        0,
-                        ChatCompletionSystemMessageParam(
-                            role="system", content=system_prompt
-                        ),
-                    )
-
-            self.history.extend(converted, is_prompt=True)
-
-            # Process the last message content for display
-            assistant_text_parts = []
-            has_non_text_content = False
-
-            for content in last_message.content:
-                if content.type == "text":
-                    assistant_text_parts.append(content.text)
-                elif content.type == "resource" and hasattr(content.resource, "text"):
-                    # Add resource text with metadata
-                    mime_type = getattr(content.resource, "mimeType", "text/plain")
-                    uri = getattr(content.resource, "uri", "")
-                    if uri:
-                        assistant_text_parts.append(
-                            f"[Resource: {uri}, Type: {mime_type}]\n{content.resource.text}"
-                        )
-                    else:
-                        assistant_text_parts.append(
-                            f"[Resource Type: {mime_type}]\n{content.resource.text}"
-                        )
-                elif content.type == "image":
-                    # Note the presence of images
-                    mime_type = getattr(content, "mimeType", "image/unknown")
-                    assistant_text_parts.append(f"[Image: {mime_type}]")
-                    has_non_text_content = True
-                else:
-                    # Other content types
-                    assistant_text_parts.append(f"[Content of type: {content.type}]")
-                    has_non_text_content = True
-
-            # Join all parts with double newlines for better readability
-            result = (
-                "\n\n".join(assistant_text_parts)
-                if assistant_text_parts
-                else str(last_message.content)
-            )
-
-            # Add a note if non-text content was present
-            if has_non_text_content:
-                result += "\n\n[Note: This message contained non-text content that may not be fully represented in text format]"
-
-            return result
+            return str(last_message)
 
     async def _save_history_to_file(self, command: str) -> str:
         """

@@ -194,7 +194,7 @@ class PromptTemplate:
                     EmbeddedResource(
                         type="resource",
                         resource=TextResourceContents(
-                            uri=f"resource://{resource_path}",
+                            uri=f"resource://fast-agent/{resource_path}",
                             mimeType="text/plain",
                             text=f"Content of {resource_path}",
                         ),
