@@ -86,21 +86,17 @@ async def test_agent_with_mcp_image(model_name):
     )
     async def agent_function():
         async with fast.run() as agent:
-            # Create the multipart prompt with the correct image path
-            # prompt = PromptMessageMultipart(
-            #     role="user",
-            #     content=[
-            #         TextContent(
-            #             type="text",
-            #             text="Use the image fetch tool and what is the user name contained in this image?",
-            #         ),
-            #         Image(path="tests/e2e/multimodal/image.png").to_image_content(),
-            #     ],
-            # )
-
             # Send the prompt and get the response
             response = await agent.agent.send_prompt(
-                "Use the image fetch tool and tell me what user name contained in this image?"
+                PromptMessageMultipart(
+                    role="user",
+                    content=[
+                        TextContent(
+                            type="text",
+                            text="Use the image fetch tool to get the sample image  and tell me what user name contained in this image?",
+                        )
+                    ],
+                )
             )
             assert "evalstate" in response
             # Return the response for assertions

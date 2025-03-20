@@ -21,19 +21,12 @@ app = FastMCP(name="ImageToolServer", debug=True)
 image_path = "image.png"
 
 
-@app.tool(name="get_image", description="Returns an image with a descriptive text")
+@app.tool(
+    name="get_image", description="Returns the sample image with some descriptive text"
+)
 async def get_image(
     image_name: str = "default", ctx: Context = None
 ) -> list[TextContent | ImageContent]:
-    """
-    Returns an image file along with a descriptive text.
-
-    Args:
-        image_name: Name of the image to return (default just returns image.jpg)
-
-    Returns:
-        A list containing a text message and the requested image
-    """
     try:
         # Use the global image path
         return [

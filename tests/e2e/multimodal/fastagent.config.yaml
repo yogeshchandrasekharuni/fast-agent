@@ -37,6 +37,6 @@ mcp:
       args:
         [
           "run",
-          "tests/e2e/mutlimodal/image_server.py",
+          "tests/e2e/multimodal/image_server.py",
           "tests/e2e/multimodal/image.png",
         ]
