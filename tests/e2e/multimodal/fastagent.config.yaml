@@ -29,9 +29,9 @@ logger:
   truncate_tools: true
 mcp:
   servers:
-    #     prompts:
-    #       command: "prompt-server"
-    #       args: ["sizing.md", "resource.md"]
+    # prompt_server:
+    #   command: "prompt-server"
+    #   args: ["sizing.md", "resource.md"]
     image_server:
       command: "uv"
       args:
