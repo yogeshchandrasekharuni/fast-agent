@@ -93,7 +93,7 @@ async def test_agent_with_mcp_image(model_name):
                     content=[
                         TextContent(
                             type="text",
-                            text="Use the image fetch tool to get the sample image  and tell me what user name contained in this image?",
+                            text="Use the image fetch tool to get the sample image and tell me what user name contained in this image?",
                         )
                     ],
                 )
