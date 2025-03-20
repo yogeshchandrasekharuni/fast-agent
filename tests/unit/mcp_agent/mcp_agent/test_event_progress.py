@@ -47,6 +47,7 @@ def test_event_conversion():
     log_file = fixture_dir / "mcp-basic-agent-2025-02-17.jsonl"
     expected_output_file = fixture_dir / "expected_output.txt"
 
+    # TODO -- update these tests to capture events.
     if not log_file.exists():
         raise FileNotFoundError(f"Test log file not found: {log_file}")
 
