@@ -3,10 +3,11 @@ Proxy classes for agent interactions.
 These proxies provide a consistent interface for interacting with different types of agents.
 """
 
-from typing import List, Optional, Dict, TYPE_CHECKING
+from typing import List, Optional, Dict, Union, TYPE_CHECKING
 
 from mcp_agent.agents.agent import Agent
 from mcp_agent.app import MCPApp
+from mcp_agent.core.prompt import Prompt
 from mcp_agent.mcp.prompt_message_multipart import PromptMessageMultipart
 
 # Handle circular imports
@@ -35,11 +36,25 @@ class BaseAgentProxy:
             return await self.prompt()
         return await self.send(message)
 
-    async def send(self, message: Optional[str] = None) -> str:
-        """Allow: agent.researcher.send('message')"""
+    async def send(self, message: Optional[Union[str, PromptMessageMultipart]] = None) -> str:
+        """
+        Allow: agent.researcher.send('message') or agent.researcher.send(Prompt.user('message'))
+        
+        Args:
+            message: Either a string message or a PromptMessageMultipart object
+            
+        Returns:
+            The agent's response as a string
+        """
         if message is None:
             # For consistency with agent(), use prompt() to open the interactive interface
             return await self.prompt()
+        
+        # If a PromptMessageMultipart is passed, use send_prompt
+        if isinstance(message, PromptMessageMultipart):
+            return await self.send_prompt(message)
+            
+        # For string messages, use generate_str (traditional behavior)
         return await self.generate_str(message)
 
     async def prompt(self, default_prompt: str = "") -> str:

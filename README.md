@@ -16,6 +16,10 @@ The simple declarative syntax lets you concentrate on composing your Prompts and
 
 Evaluate how different models handle Agent and MCP Server calling tasks, then build multi-model workflows using the best provider for each task.
 
+`fast-agent` is now multi-modal, supporting Images and PDFs for both Anthropic and OpenAI endpoints (for supported models), via Prompts and MCP Tool Call results.
+
+> [!TIP] > `fast-agent` is now MCP Native! Coming Soon - Full Documentation Site.
+
 ### Agent Application Development
 
 Prompts and configurations that define your Agent Applications are stored in simple files, with minimal boilerplate, enabling simple management and version control.
@@ -345,6 +349,19 @@ agent["greeter"].send("Good Evening!")          # Dictionary access is supported
 )
 ```
 
+### Multimodal
+
+Add Resources to prompts using either the inbuilt `prompt-server` or MCP Types directly.
+
+#### MCP Tool Result Conversion
+
+LLM APIs have restrictions on the content types that can be returned as Tool Calls/Function results via their Chat Completions API's:
+
+- OpenAI supports Text
+- Anthropic supports Text and Image
+
+For MCP Tool Results, `ImageResources` and `EmbeddedResources` are converted to User Messages and added to the conversation.
+
 ### Prompts
 
 MCP Prompts are supported with `apply_prompt(name,arguments)`, which always returns an Assistant Message. If the last message from the MCP Server is a 'User' message, it is sent to the LLM for processing. Prompts applied to the Agent's Context are retained - meaning that with `use_history=False`, Agents can act as finely tuned responders.
@@ -384,6 +401,7 @@ Prompts can also be applied interactively through the interactive interface by u
 - Numerous defect fixes
 
 ### Features to add (Commmitted)
+
 - Run Agent as MCP Server, with interop
 - Multi-part content types supporing Vision, PDF and multi-part Text.
 - Improved test automation (supported by prompt_server.py and augmented_llm_playback.py)

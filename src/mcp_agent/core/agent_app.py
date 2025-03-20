@@ -2,9 +2,10 @@
 Main application wrapper for interacting with agents.
 """
 
-from typing import Optional, Dict, TYPE_CHECKING
+from typing import Optional, Dict, Union, TYPE_CHECKING
 
 from mcp_agent.app import MCPApp
+from mcp_agent.mcp.prompt_message_multipart import PromptMessageMultipart
 from mcp_agent.progress_display import progress_display
 from mcp_agent.workflows.orchestrator.orchestrator import Orchestrator
 from mcp_agent.workflows.parallel.parallel_llm import ParallelLLM
@@ -37,16 +38,46 @@ class AgentApp:
         # Optional: set default agent for direct calls
         self._default = next(iter(agents)) if agents else None
 
-    async def send(self, agent_name: str, message: Optional[str]) -> str:
-        """Core message sending"""
+    async def send(self, agent_name: str, message: Optional[Union[str, PromptMessageMultipart]]) -> str:
+        """
+        Core message sending
+        
+        Args:
+            agent_name: The name of the agent to send the message to
+            message: Either a string message or a PromptMessageMultipart object
+            
+        Returns:
+            The agent's response as a string
+        """
         if agent_name not in self._agents:
             raise ValueError(f"No agent named '{agent_name}'")
 
-        if not message or "" == message:
+        if not message or (isinstance(message, str) and message == ""):
             return await self.prompt(agent_name)
 
         proxy = self._agents[agent_name]
-        return await proxy.generate_str(message)
+        return await proxy.send(message)
+        
+    async def send_prompt(self, prompt: PromptMessageMultipart, agent_name: Optional[str] = None) -> str:
+        """
+        Send a PromptMessageMultipart to an agent
+        
+        Args:
+            prompt: The PromptMessageMultipart to send
+            agent_name: The name of the agent to send to (uses default if None)
+            
+        Returns:
+            The agent's response as a string
+        """
+        target = agent_name or self._default
+        if not target:
+            raise ValueError("No default agent available")
+            
+        if target not in self._agents:
+            raise ValueError(f"No agent named '{target}'")
+            
+        proxy = self._agents[target]
+        return await proxy.send_prompt(prompt)
 
     async def prompt(self, agent_name: Optional[str] = None, default: str = "") -> str:
         """
@@ -532,9 +563,18 @@ class AgentApp:
         return self._agents[name]
 
     async def __call__(
-        self, message: Optional[str] = "", agent_name: Optional[str] = None
+        self, message: Optional[Union[str, PromptMessageMultipart]] = "", agent_name: Optional[str] = None
     ) -> str:
-        """Support: agent('message')"""
+        """
+        Support: agent('message') or agent(Prompt.user('message'))
+        
+        Args:
+            message: Either a string message or a PromptMessageMultipart object
+            agent_name: The name of the agent to use (uses default if None)
+            
+        Returns:
+            The agent's response as a string
+        """
         target = agent_name or self._default
         if not target:
             raise ValueError("No default agent available")

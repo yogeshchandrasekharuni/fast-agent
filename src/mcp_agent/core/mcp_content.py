@@ -22,6 +22,7 @@ from mcp_agent.mcp.mime_utils import (
     guess_mime_type,
     is_text_mime_type,
     is_binary_content,
+    is_image_mime_type,
 )
 
 
@@ -147,6 +148,7 @@ def MCPFile(
     }
 
 
+
 def MCPPrompt(
     *content_items, role: Literal["user", "assistant"] = "user"
 ) -> List[dict]:
@@ -154,10 +156,11 @@ def MCPPrompt(
     Create one or more prompt messages with various content types.
 
     This function intelligently creates different content types:
-    - Strings become TextContent
-    - Path objects or strings ending with image extensions become ImageContent
-    - Other path objects become EmbeddedResource
-    - Dicts are passed through unchanged
+    - Strings become TextContent 
+    - File paths with image mime types become ImageContent
+    - File paths with text mime types or other mime types become EmbeddedResource
+    - Dicts with role and content are passed through unchanged
+    - Raw bytes become ImageContent
 
     Args:
         *content_items: Content items of various types
@@ -172,21 +175,20 @@ def MCPPrompt(
         if isinstance(item, dict) and "role" in item and "content" in item:
             # Already a fully formed message
             result.append(item)
-        elif isinstance(item, str):
-            # Simple text content
+        elif isinstance(item, str) and not Path(item).exists():
+            # Simple text content (that's not a file path)
             result.append(MCPText(item, role=role))
-        elif isinstance(item, Path) or (
-            isinstance(item, str)
-            and any(
-                item.lower().endswith(ext)
-                for ext in [".png", ".jpg", ".jpeg", ".gif", ".webp"]
-            )
-        ):
-            # Image paths
-            result.append(MCPImage(path=item, role=role))
         elif isinstance(item, Path) or isinstance(item, str):
-            # Other file paths
-            result.append(MCPFile(path=item, role=role))
+            # File path - determine the content type based on mime type
+            path_str = str(item)
+            mime_type = guess_mime_type(path_str)
+            
+            if is_image_mime_type(mime_type):
+                # Image files (except SVG which is handled as text)
+                result.append(MCPImage(path=item, role=role))
+            else:
+                # All other file types (text documents, PDFs, SVGs, etc.)
+                result.append(MCPFile(path=item, role=role))
         elif isinstance(item, bytes):
             # Raw binary data, assume image
             result.append(MCPImage(data=item, role=role))
