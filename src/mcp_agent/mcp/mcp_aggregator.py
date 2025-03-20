@@ -370,15 +370,6 @@ class MCPAggregator(ContextDependent):
         Returns:
             Result from the operation or an error result
         """
-        logger.info(
-            f"Requesting {operation_type}",
-            data={
-                "progress_action": ProgressAction.STARTING,
-                f"{operation_type}_name": operation_name,
-                "server_name": server_name,
-                "agent_name": self.agent_name,
-            },
-        )
 
         async def try_execute(client: ClientSession):
             try:
