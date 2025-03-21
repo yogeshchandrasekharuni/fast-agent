@@ -38,14 +38,16 @@ class AgentApp:
         # Optional: set default agent for direct calls
         self._default = next(iter(agents)) if agents else None
 
-    async def send(self, agent_name: str, message: Optional[Union[str, PromptMessageMultipart]]) -> str:
+    async def send(
+        self, agent_name: str, message: Optional[Union[str, PromptMessageMultipart]]
+    ) -> str:
         """
         Core message sending
-        
+
         Args:
             agent_name: The name of the agent to send the message to
             message: Either a string message or a PromptMessageMultipart object
-            
+
         Returns:
             The agent's response as a string
         """
@@ -57,27 +59,81 @@ class AgentApp:
 
         proxy = self._agents[agent_name]
         return await proxy.send(message)
-        
-    async def send_prompt(self, prompt: PromptMessageMultipart, agent_name: Optional[str] = None) -> str:
+
+    async def send_prompt(
+        self, prompt: PromptMessageMultipart, agent_name: Optional[str] = None
+    ) -> str:
         """
         Send a PromptMessageMultipart to an agent
-        
+
         Args:
             prompt: The PromptMessageMultipart to send
             agent_name: The name of the agent to send to (uses default if None)
-            
+
         Returns:
             The agent's response as a string
         """
         target = agent_name or self._default
         if not target:
             raise ValueError("No default agent available")
-            
+
         if target not in self._agents:
             raise ValueError(f"No agent named '{target}'")
-            
+
         proxy = self._agents[target]
         return await proxy.send_prompt(prompt)
+
+    async def send(
+        self,
+        message: Union[str, PromptMessageMultipart],
+        agent_name: Optional[str] = None,
+    ) -> str:
+        """
+        Send a message to the default agent or specified agent
+
+        Args:
+            message: Either a string message or a PromptMessageMultipart object
+            agent_name: The name of the agent to send to (uses default if None)
+
+        Returns:
+            The agent's response as a string
+        """
+        target = agent_name or self._default
+        if not target:
+            raise ValueError("No default agent available")
+
+        if target not in self._agents:
+            raise ValueError(f"No agent named '{target}'")
+
+        proxy = self._agents[target]
+        return await proxy.send(message)
+
+    async def apply_prompt(
+        self,
+        prompt_name: str,
+        arguments: Optional[dict[str, str]] = None,
+        agent_name: Optional[str] = None,
+    ) -> str:
+        """
+        Apply an MCP Server Prompt by name and return the assistant's response
+
+        Args:
+            prompt_name: The name of the prompt to apply
+            arguments: Optional dictionary of string arguments to pass to the prompt template
+            agent_name: The name of the agent to use (uses default if None)
+
+        Returns:
+            The assistant's response as a string
+        """
+        target = agent_name or self._default
+        if not target:
+            raise ValueError("No default agent available")
+
+        if target not in self._agents:
+            raise ValueError(f"No agent named '{target}'")
+
+        proxy = self._agents[target]
+        return await proxy.apply_prompt(prompt_name, arguments)
 
     async def prompt(self, agent_name: Optional[str] = None, default: str = "") -> str:
         """
@@ -563,15 +619,17 @@ class AgentApp:
         return self._agents[name]
 
     async def __call__(
-        self, message: Optional[Union[str, PromptMessageMultipart]] = "", agent_name: Optional[str] = None
+        self,
+        message: Optional[Union[str, PromptMessageMultipart]] = "",
+        agent_name: Optional[str] = None,
     ) -> str:
         """
         Support: agent('message') or agent(Prompt.user('message'))
-        
+
         Args:
             message: Either a string message or a PromptMessageMultipart object
             agent_name: The name of the agent to use (uses default if None)
-            
+
         Returns:
             The agent's response as a string
         """

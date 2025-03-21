@@ -29,6 +29,6 @@ logger:
   truncate_tools: true
 mcp:
   servers:
-    image_server:
-      command: "uv"
-      args: ["run", "image_server.py", "image.png"]
+    prompt_server:
+      command: "prompt-server"
+      args: ["simple.txt", "multiturn.md", "with_attachment.md"]

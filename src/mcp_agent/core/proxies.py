@@ -36,24 +36,26 @@ class BaseAgentProxy:
             return await self.prompt()
         return await self.send(message)
 
-    async def send(self, message: Optional[Union[str, PromptMessageMultipart]] = None) -> str:
+    async def send(
+        self, message: Optional[Union[str, PromptMessageMultipart]] = None
+    ) -> str:
         """
         Allow: agent.researcher.send('message') or agent.researcher.send(Prompt.user('message'))
-        
+
         Args:
             message: Either a string message or a PromptMessageMultipart object
-            
+
         Returns:
             The agent's response as a string
         """
         if message is None:
             # For consistency with agent(), use prompt() to open the interactive interface
             return await self.prompt()
-        
+
         # If a PromptMessageMultipart is passed, use send_prompt
         if isinstance(message, PromptMessageMultipart):
             return await self.send_prompt(message)
-            
+
         # For string messages, use generate_str (traditional behavior)
         return await self.generate_str(message)
 
@@ -81,19 +83,6 @@ class BaseAgentProxy:
     async def send_prompt(self, prompt: PromptMessageMultipart) -> str:
         """Send a message to the agent and return the response"""
         raise NotImplementedError("Subclasses must implement send(prompt)")
-
-    async def load_prompt(
-        self, prompt_name: str = None, arguments: dict[str, str] = None
-    ) -> str:
-        """
-        Use a Prompt from an MCP Server - implemented by subclasses.
-        Always returns an Assistant message.
-
-        Args:
-            prompt_name: Name of the prompt to load
-            arguments: Optional dictionary of string arguments for prompt templating
-        """
-        raise NotImplementedError("Subclasses must implement mcp-prompt")
 
     async def apply_prompt(
         self, prompt_name: str = None, arguments: dict[str, str] = None
@@ -124,21 +113,6 @@ class LLMAgentProxy(BaseAgentProxy):
     async def send_prompt(self, prompt: PromptMessageMultipart) -> str:
         """Send a message to the agent and return the response"""
         return await self._agent._llm.generate_prompt(prompt, None)
-
-    async def load_prompt(
-        self, prompt_name: str = None, arguments: dict[str, str] = None
-    ) -> str:
-        """
-        Load and apply a prompt from an MCP server.
-
-        Args:
-            prompt_name: Name of the prompt to load
-            arguments: Optional dictionary of string arguments for prompt templating
-
-        Returns:
-            The assistant's response
-        """
-        return await self._agent.load_prompt(prompt_name, arguments)
 
     async def apply_prompt(
         self, prompt_name: str = None, arguments: dict[str, str] = None

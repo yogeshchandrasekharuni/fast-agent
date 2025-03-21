@@ -12,24 +12,26 @@ fast = FastAgent("FastAgent Example")
 @fast.agent(
     "agent",
     instruction="You are a helpful AI Agent",
-    servers=["prompts"] #, "image", "hfspace"],
+    servers=["prompts", "fetch"],  # , "imgetage", "hfspace"],
     #    model="gpt-4o",
     #    instruction="You are a helpful AI Agent", servers=["prompts","basic_memory"], model="haiku"
 )
 async def main():
     # use the --model command line switch or agent arguments to change model
     async with fast.run() as agent:
-             await agent()
-        #foo: PromptMessageMultipart = PromptMessageMultipart(
-        #    role="user",
-        #    content=[
-        #        TextContent(type="text", text="summarize this document"),
-        #        create_embedded_resource("sample.pdf"),
-                # Image(path="image.png").to_image_content(),
-                # TextContent(type="text", text="and what is in that image?"),
-#            ],
-#        )
- #       await agent.agent.send_prompt(foo)
+        await agent()
+    foo: PromptMessageMultipart = PromptMessageMultipart(
+        role="user",
+        content=[
+            TextContent(type="text", text="summarize this document"),
+            create_embedded_resource("sample.pdf"),
+            Image(path="image.png").to_image_content(),
+            TextContent(type="text", text="and what is in that image?"),
+        ],
+    )
+
+
+#       await agent.agent.send_prompt(foo)
 #
 
 import base64

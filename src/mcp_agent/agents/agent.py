@@ -320,18 +320,20 @@ class Agent(MCPAggregator):
                 ],
             )
 
-    async def apply_prompt(self, prompt_name: str, arguments: dict[str, str] = None) -> str:
+    async def apply_prompt(
+        self, prompt_name: str, arguments: dict[str, str] = None
+    ) -> str:
         """
         Apply an MCP Server Prompt by name and return the assistant's response.
         Will search all available servers for the prompt if not namespaced.
-        
+
         If the last message in the prompt is from a user, this will automatically
         generate an assistant response to ensure we always end with an assistant message.
 
         Args:
             prompt_name: The name of the prompt to apply
             arguments: Optional dictionary of string arguments to pass to the prompt template
-            
+
         Returns:
             The assistant's response or error message
         """
@@ -357,11 +359,3 @@ class Agent(MCPAggregator):
         # The LLM will automatically generate a response if needed
         result = await self._llm.apply_prompt_template(prompt_result, display_name)
         return result
-
-    # For backward compatibility
-    async def load_prompt(self, prompt_name: str, arguments: dict[str, str] = None) -> str:
-        """
-        Legacy method - use apply_prompt instead.
-        This is maintained for backward compatibility.
-        """
-        return await self.apply_prompt(prompt_name, arguments)

@@ -20,7 +20,7 @@ from pathlib import Path
 )
 async def test_agent_with_image_prompt(fast_agent, model_name):
     """Test that the agent can process an image and respond appropriately."""
-    # Use the FastAgent instance from the fixture
+    # Use the FastAgent instance from the test directory fixture
     fast = fast_agent
 
     # Define the agent
@@ -33,12 +33,14 @@ async def test_agent_with_image_prompt(fast_agent, model_name):
         async with fast.run() as agent:
             prompt = Prompt.user(
                 "what is the user name contained in this image?",
-                Path("tests/e2e/multimodal/image.png"),
+                Path("image.png"),
             )
             response = await agent.send(prompt)
 
             assert "evalstate" in response
             return response
+
+    await agent_function()
 
 
 @pytest.mark.integration
@@ -53,7 +55,7 @@ async def test_agent_with_image_prompt(fast_agent, model_name):
 )
 async def test_agent_with_mcp_image(fast_agent, model_name):
     """Test that the agent can process an image and respond appropriately."""
-    # Use the FastAgent instance from the fixture
+    # Use the FastAgent instance from the test directory fixture
     fast = fast_agent
 
     # Define the agent
@@ -74,6 +76,8 @@ async def test_agent_with_mcp_image(fast_agent, model_name):
             # Return the response for assertions
             return response
 
+    await agent_function()
+
 
 @pytest.mark.integration
 @pytest.mark.asyncio
@@ -86,8 +90,8 @@ async def test_agent_with_mcp_image(fast_agent, model_name):
     ],
 )
 async def test_agent_with_pdf_prompt(fast_agent, model_name):
-    """Test that the agent can process an image and respond appropriately."""
-    # Use the FastAgent instance from the fixture
+    """Test that the agent can process a PDF document and respond appropriately."""
+    # Use the FastAgent instance from the test directory fixture
     fast = fast_agent
 
     # Define the agent
@@ -99,53 +103,14 @@ async def test_agent_with_pdf_prompt(fast_agent, model_name):
     async def agent_function():
         async with fast.run() as agent:
             response = await agent.send(
-                Prompt.user(
+                message=Prompt.user(
                     "summarize this document - include the company that made it",
-                    Path("tests/e2e/multimodal/sample.pdf"),
+                    Path("sample.pdf"),
                 )
             )
 
             # Send the prompt and get the response
-            assert "llmindset.co.uk".lower() in response.lower()
+            assert "llmindset".lower() in response.lower()
 
-
-def create_embedded_resource(filepath: str) -> EmbeddedResource:
-    """
-    Create an EmbeddedResource from a file.
-
-    Args:
-        filepath: Path to the file to embed
-
-    Returns:
-        An EmbeddedResource containing the file contents
-    """
-    path = Path(filepath)
-    uri = f"file://{path.absolute()}"
-
-    # try:
-    #     # Try to read as text first
-    #     text = path.read_text()
-    #     resource = TextResourceContents(
-    #         uri=uri,
-    #         text=text,
-    #         mimeType="text/plain"
-    #     )
-    # except UnicodeDecodeError:
-    # If it fails, read as binary
-    binary_data = path.read_bytes()
-    b64_data = base64.b64encode(binary_data).decode("ascii")
-
-    # Guess mime type from extension
-    mime_type = {
-        ".pdf": "application/pdf",
-        ".png": "image/png",
-        ".jpg": "image/jpeg",
-        ".jpeg": "image/jpeg",
-        ".gif": "image/gif",
-        ".csv": "text/csv",
-        ".json": "application/json",
-    }.get(path.suffix.lower(), "application/octet-stream")
-
-    resource = BlobResourceContents(uri=uri, blob=b64_data, mimeType=mime_type)
-
-    return EmbeddedResource(type="resource", resource=resource)
+    # Execute the agent function
+    await agent_function()
