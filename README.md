@@ -16,9 +16,10 @@ The simple declarative syntax lets you concentrate on composing your Prompts and
 
 Evaluate how different models handle Agent and MCP Server calling tasks, then build multi-model workflows using the best provider for each task.
 
-`fast-agent` is now multi-modal, supporting Images and PDFs for both Anthropic and OpenAI endpoints (for supported models), via Prompts and MCP Tool Call results.
+`fast-agent` is now multi-modal, supporting Images and PDFs for both Anthropic and OpenAI endpoints (for supported models), via Prompts, Resources and MCP Tool Call results.
 
-> [!TIP] > `fast-agent` is now MCP Native! Coming Soon - Full Documentation Site.
+> [!TIP]
+> `fast-agent` is now MCP Native! Coming Soon - Full Documentation Site.
 
 ### Agent Application Development
 
