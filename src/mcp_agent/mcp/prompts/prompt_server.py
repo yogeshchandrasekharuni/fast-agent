@@ -12,6 +12,8 @@ import logging
 import sys
 from pathlib import Path
 from typing import List, Dict, Optional, Callable, Awaitable, Literal, Any
+from mcp.server.fastmcp.resources import FileResource
+from pydantic import AnyUrl
 
 from mcp_agent.mcp import mime_utils, resource_utils
 
@@ -185,19 +187,19 @@ def create_prompt_handler(
 
 
 # Type for resource handler
-ResourceHandler = Callable[[], Awaitable[str]]
+ResourceHandler = Callable[[], Awaitable[str | bytes]]
 
 
 def create_resource_handler(resource_path: Path, mime_type: str) -> ResourceHandler:
     """Create a resource handler function for the given resource"""
 
-    async def get_resource() -> str:
+    async def get_resource() -> str | bytes:
         is_binary = mime_utils.is_binary_content(mime_type)
 
         if is_binary:
             # For binary files, read in binary mode and base64 encode
             with open(resource_path, "rb") as f:
-                return base64.b64encode(f.read()).decode("utf-8")
+                return f.read()
         else:
             # For text files, read as utf-8 text
             with open(resource_path, "r", encoding="utf-8") as f:
@@ -284,15 +286,14 @@ def register_prompt(file_path: Path):
                         exposed_resources[resource_id] = resource_file
                         mime_type = mime_utils.guess_mime_type(str(resource_file))
 
-                        # Register with the correct resource ID directly with MCP
-                        resource_handler = create_resource_handler(
-                            resource_file, mime_type
+                        mcp.add_resource(
+                            FileResource(
+                                uri=AnyUrl(resource_id),
+                                path=resource_file,
+                                mime_type=mime_type,
+                                is_binary=mime_utils.is_binary_content(mime_type),
+                            )
                         )
-                        mcp.resource(
-                            resource_id,
-                            description=f"Resource from {file_path.name}",
-                            mime_type=mime_type,
-                        )(resource_handler)
 
                         logger.info(
                             f"Registered resource: {resource_id} ({resource_file})"

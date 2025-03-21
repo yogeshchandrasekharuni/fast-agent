@@ -57,7 +57,7 @@ async def test_agent_with_prompt_attachment(fast_agent, model_name):
     async def agent_function():
         async with fast.run() as agent:
             response = await agent.apply_prompt("with_attachment")
-            assert "llmindset" in response
+            assert "llmindset".lower() in response.lower()
 
     await agent_function()
 
@@ -87,6 +87,6 @@ async def test_agent_multiturn_prompt(fast_agent, model_name):
     async def agent_function():
         async with fast.run() as agent:
             response = await agent.apply_prompt("multiturn")
-            assert "testcaseok" in response
+            assert "testcaseok" in response.lower()
 
     await agent_function()

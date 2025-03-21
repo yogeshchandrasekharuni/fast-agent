@@ -25,44 +25,6 @@ def find_resource_file(resource_path: str, prompt_files: List[Path]) -> Optional
     return None
 
 
-# TODO -- decide how to deal with this. Both Anthropic and OpenAI allow sending URLs in
-# input message
-# TODO -- used?
-# async def fetch_remote_resource(
-#     url: str, timeout: int = HTTP_TIMEOUT
-# ) -> ResourceContent:
-#     """
-#     Fetch a remote resource from a URL
-
-#     Returns:
-#         Tuple of (content, mime_type, is_binary)
-#         - content: Text content or base64-encoded binary content
-#         - mime_type: The MIME type of the resource
-#         - is_binary: Whether the content is binary (and base64-encoded)
-#     """
-
-#     async with httpx.AsyncClient(timeout=timeout) as client:
-#         response = await client.get(url)
-#         response.raise_for_status()
-
-#         # Get the content type or guess from URL
-#         mime_type = response.headers.get("content-type", "").split(";")[0]
-#         if not mime_type:
-#             mime_type = mime_utils.guess_mime_type(url)
-
-#         # Check if this is binary content
-#         is_binary = mime_utils.is_binary_content(mime_type)
-
-#         if is_binary:
-#             # For binary responses, get the binary content and base64 encode it
-#             content = base64.b64encode(response.content).decode("utf-8")
-#         else:
-#             # For text responses, just get the text
-#             content = response.text
-
-#         return content, mime_type, is_binary
-
-
 def load_resource_content(
     resource_path: str, prompt_files: List[Path]
 ) -> ResourceContent:
@@ -109,6 +71,36 @@ def create_resource_uri(path: str) -> str:
     return f"resource://fast-agent/{Path(path).name}"
 
 
+# Add this to your resource_utils.py module
+
+
+def create_resource_reference(uri: str, mime_type: str) -> "EmbeddedResource":
+    """
+    Create a reference to a resource without embedding its content directly.
+
+    This creates an EmbeddedResource that references another resource URI.
+    When the client receives this, it will make a separate request to fetch
+    the resource content using the provided URI.
+
+    Args:
+        uri: URI for the resource
+        mime_type: MIME type of the resource
+
+    Returns:
+        An EmbeddedResource object
+    """
+    from mcp.types import EmbeddedResource, TextResourceContents, BlobResourceContents
+
+    # Create a resource reference
+    resource_contents = TextResourceContents(
+        uri=uri,
+        mimeType=mime_type,
+        text="",  # Empty text as we're just referencing
+    )
+
+    return EmbeddedResource(type="resource", resource=resource_contents)
+
+
 def create_embedded_resource(
     resource_path: str, content: str, mime_type: str, is_binary: bool = False
 ) -> EmbeddedResource:
@@ -146,6 +138,34 @@ def create_image_content(data: str, mime_type: str) -> ImageContent:
         type="image",
         data=data,
         mimeType=mime_type,
+    )
+
+
+def create_blob_resource(
+    resource_path: str, content: str, mime_type: str
+) -> EmbeddedResource:
+    """Create an embedded resource for binary data"""
+    return EmbeddedResource(
+        type="resource",
+        resource=BlobResourceContents(
+            uri=resource_path,
+            mimeType=mime_type,
+            blob=content,  # Content should already be base64 encoded
+        ),
+    )
+
+
+def create_text_resource(
+    resource_path: str, content: str, mime_type: str
+) -> EmbeddedResource:
+    """Create an embedded resource for text data"""
+    return EmbeddedResource(
+        type="resource",
+        resource=TextResourceContents(
+            uri=resource_path,
+            mimeType=mime_type,
+            text=content,
+        ),
     )
 
 

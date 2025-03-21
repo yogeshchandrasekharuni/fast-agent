@@ -31,4 +31,10 @@ mcp:
   servers:
     prompt_server:
       command: "prompt-server"
-      args: ["simple.txt", "multiturn.md", "with_attachment.md"]
+      args:
+        [
+          "simple.txt",
+          "multiturn.md",
+          "with_attachment.md",
+          "with_attachment_css.md",
+        ]
