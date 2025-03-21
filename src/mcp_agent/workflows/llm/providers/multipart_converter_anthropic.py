@@ -1,4 +1,4 @@
-from typing import List, Union, Literal, Optional, Sequence
+from typing import List, Union, Sequence
 
 from mcp.types import (
     TextContent,
@@ -166,11 +166,11 @@ class AnthropicConverter:
         documentMode: bool = True,
     ) -> ContentBlockParam:
         """Convert EmbeddedResource to appropriate Anthropic block type.
-        
+
         Args:
             resource: The embedded resource to convert
             documentMode: Whether to convert text resources to Document blocks (True) or Text blocks (False)
-        
+
         Returns:
             An appropriate ContentBlockParam for the resource
         """
@@ -244,7 +244,7 @@ class AnthropicConverter:
             # Return as text block when documentMode is False
             if hasattr(resource_content, "text"):
                 return TextBlockParam(type="text", text=resource_content.text)
-                
+
         # Default fallback - convert to text if possible
         if hasattr(resource_content, "text"):
             return TextBlockParam(type="text", text=resource_content.text)
@@ -267,7 +267,7 @@ class AnthropicConverter:
         """
         # For tool results, we always use documentMode=False to get text blocks instead of document blocks
         anthropic_content = []
-        
+
         for item in tool_result.content:
             if isinstance(item, EmbeddedResource):
                 # For embedded resources, always use text mode in tool results
@@ -281,7 +281,7 @@ class AnthropicConverter:
                     [item], documentMode=False
                 )
                 anthropic_content.extend(blocks)
-                
+
         # If we ended up with no valid content blocks, create a placeholder
         if not anthropic_content:
             anthropic_content = [
@@ -310,12 +310,12 @@ class AnthropicConverter:
             A MessageParam with role='user' containing all tool results
         """
         content_blocks = []
-        
+
         for tool_use_id, result in tool_results:
             # Split into text/image content vs other content
             tool_content = []
             separate_blocks = []
-            
+
             for item in result.content:
                 # Text and images go in tool results, other resources (PDFs) go as separate blocks
                 if isinstance(item, (TextContent, ImageContent)):
@@ -326,18 +326,22 @@ class AnthropicConverter:
                         tool_content.append(item)
                     else:
                         # For binary resources like PDFs, convert and add as separate block
-                        block = AnthropicConverter._convert_embedded_resource(item, documentMode=True)
+                        block = AnthropicConverter._convert_embedded_resource(
+                            item, documentMode=True
+                        )
                         separate_blocks.append(block)
                 else:
                     tool_content.append(item)
-            
+
             # Always create a tool result block, even if empty
             # If tool_content is empty, we'll get a placeholder text block added in convert_tool_result_to_anthropic
             tool_result = CallToolResult(content=tool_content, isError=result.isError)
             content_blocks.append(
-                AnthropicConverter.convert_tool_result_to_anthropic(tool_result, tool_use_id)
+                AnthropicConverter.convert_tool_result_to_anthropic(
+                    tool_result, tool_use_id
+                )
             )
-                
+
             # Add separate blocks directly to the message
             content_blocks.extend(separate_blocks)
 
