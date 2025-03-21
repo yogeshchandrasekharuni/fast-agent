@@ -1,0 +1,9 @@
+mcp:
+  servers:
+    roots_test:
+      command: "uv"
+      args: ["run", "root_test_server.py"]
+      roots:
+        - uri: "file:///."
+          name: "test_data"
+          server_uri_alias: "file:///mnt/data/"

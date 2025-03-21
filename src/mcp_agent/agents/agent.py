@@ -9,7 +9,10 @@ from mcp.types import (
     ListToolsResult,
     TextContent,
     Tool,
+    EmbeddedResource,
+    ReadResourceResult,
 )
+from mcp_agent.mcp.prompt_message_multipart import PromptMessageMultipart
 
 from mcp_agent.core.exceptions import PromptExitError
 from mcp_agent.mcp.mcp_aggregator import MCPAggregator
@@ -320,6 +323,11 @@ class Agent(MCPAggregator):
                 ],
             )
 
+    async def read_resource(
+        self, server_name: str, resource_name: str
+    ) -> ReadResourceResult:
+        return None
+
     async def apply_prompt(
         self, prompt_name: str, arguments: dict[str, str] = None
     ) -> str:
@@ -359,3 +367,107 @@ class Agent(MCPAggregator):
         # The LLM will automatically generate a response if needed
         result = await self._llm.apply_prompt_template(prompt_result, display_name)
         return result
+
+    async def get_resource(self, server_name: str, resource_name: str):
+        """
+        Get a resource directly from an MCP server by name.
+
+        Args:
+            server_name: Name of the MCP server to retrieve the resource from
+            resource_name: Name of the resource to retrieve
+
+        Returns:
+            The resource object from the MCP server
+
+        Raises:
+            ValueError: If the server doesn't exist or the resource couldn't be found
+        """
+        if not self.initialized:
+            await self.initialize()
+
+        # Get the specified server connection
+        server = self.get_server(server_name)
+        if not server:
+            raise ValueError(f"Server '{server_name}' not found or not connected")
+
+        # Request the resource directly from the server
+        try:
+            resource_result = await server.get_resource(resource_name)
+            return resource_result
+        except Exception as e:
+            self.logger.error(
+                f"Error retrieving resource '{resource_name}' from server '{server_name}': {str(e)}"
+            )
+            raise ValueError(
+                f"Failed to retrieve resource '{resource_name}' from server '{server_name}': {str(e)}"
+            )
+
+    async def get_embedded_resources(
+        self, server_name: str, resource_name: str
+    ) -> List[EmbeddedResource]:
+        """
+        Get a resource from an MCP server and return it as a list of embedded resources ready for use in prompts.
+
+        Args:
+            server_name: Name of the MCP server to retrieve the resource from
+            resource_name: Name or URI of the resource to retrieve
+
+        Returns:
+            List of EmbeddedResource objects ready to use in a PromptMessageMultipart
+
+        Raises:
+            ValueError: If the server doesn't exist or the resource couldn't be found
+        """
+        # Get the raw resource result
+        result: ReadResourceResult = await super().get_resource(
+            server_name, resource_name
+        )
+
+        # Convert each resource content to an EmbeddedResource
+        embedded_resources: List[EmbeddedResource] = []
+        for resource_content in result.contents:
+            embedded_resource = EmbeddedResource(
+                type="resource", resource=resource_content, annotations=None
+            )
+            embedded_resources.append(embedded_resource)
+
+        return embedded_resources
+
+    async def with_resource(
+        self,
+        prompt_content: Union[str, PromptMessageMultipart],
+        server_name: str,
+        resource_name: str,
+    ) -> str:
+        """
+        Create a prompt with the given content and resource, then send it to the agent.
+
+        Args:
+            prompt_content: Either a string message or an existing PromptMessageMultipart
+            server_name: Name of the MCP server to retrieve the resource from
+            resource_name: Name or URI of the resource to retrieve
+
+        Returns:
+            The agent's response as a string
+        """
+        # Get the embedded resources
+        embedded_resources: List[EmbeddedResource] = await self.get_embedded_resources(
+            server_name, resource_name
+        )
+
+        # Create or update the prompt message
+        prompt: PromptMessageMultipart
+        if isinstance(prompt_content, str):
+            # Create a new prompt with the text and resources
+            content = [TextContent(type="text", text=prompt_content)]
+            content.extend(embedded_resources)
+            prompt = PromptMessageMultipart(role="user", content=content)
+        elif isinstance(prompt_content, PromptMessageMultipart):
+            # Add resources to the existing prompt
+            prompt = prompt_content
+            prompt.content.extend(embedded_resources)
+        else:
+            raise TypeError("prompt_content must be a string or PromptMessageMultipart")
+
+        # Send the prompt to the agent and return the response
+        return await self._llm.generate_prompt(prompt, None)

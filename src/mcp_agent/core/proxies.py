@@ -8,6 +8,7 @@ from typing import List, Optional, Dict, Union, TYPE_CHECKING
 from mcp_agent.agents.agent import Agent
 from mcp_agent.app import MCPApp
 from mcp_agent.mcp.prompt_message_multipart import PromptMessageMultipart
+from mcp.types import EmbeddedResource
 
 # Handle circular imports
 if TYPE_CHECKING:
@@ -128,6 +129,43 @@ class LLMAgentProxy(BaseAgentProxy):
             The assistant's response
         """
         return await self._agent.apply_prompt(prompt_name, arguments)
+
+    # Add the new methods
+    async def get_embedded_resources(
+        self, server_name: str, resource_name: str
+    ) -> List[EmbeddedResource]:
+        """
+        Get a resource from an MCP server and return it as a list of embedded resources ready for use in prompts.
+
+        Args:
+            server_name: Name of the MCP server to retrieve the resource from
+            resource_name: Name or URI of the resource to retrieve
+
+        Returns:
+            List of EmbeddedResource objects ready to use in a PromptMessageMultipart
+        """
+        return await self._agent.get_embedded_resources(server_name, resource_name)
+
+    async def with_resource(
+        self,
+        prompt_content: Union[str, PromptMessageMultipart],
+        server_name: str,
+        resource_name: str,
+    ) -> str:
+        """
+        Create a prompt with the given content and resource, then send it to the agent.
+
+        Args:
+            prompt_content: Either a string message or an existing PromptMessageMultipart
+            server_name: Name of the MCP server to retrieve the resource from
+            resource_name: Name or URI of the resource to retrieve
+
+        Returns:
+            The agent's response as a string
+        """
+        return await self._agent.with_resource(
+            prompt_content, server_name, resource_name
+        )
 
 
 class WorkflowProxy(BaseAgentProxy):

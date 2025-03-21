@@ -8,8 +8,8 @@ from typing import (
     Callable,
     TypeVar,
 )
-from mcp import GetPromptResult
-from pydantic import BaseModel, ConfigDict
+from mcp import GetPromptResult, ReadResourceResult
+from pydantic import AnyUrl, BaseModel, ConfigDict
 from mcp.client.session import ClientSession
 from mcp.server.lowlevel.server import Server
 from mcp.server.stdio import stdio_server
@@ -820,6 +820,53 @@ class MCPAggregator(ContextDependent):
 
         logger.debug(f"Available prompts across servers: {results}")
         return results
+
+    async def get_resource(
+        self, server_name: str, resource_uri: str
+    ) -> ReadResourceResult:
+        """
+        Get a resource directly from an MCP server by URI.
+
+        Args:
+            server_name: Name of the MCP server to retrieve the resource from
+            resource_uri: URI of the resource to retrieve
+
+        Returns:
+            ReadResourceResult object containing the resource content
+
+        Raises:
+            ValueError: If the server doesn't exist or the resource couldn't be found
+        """
+        if not self.initialized:
+            await self.load_servers()
+
+        if server_name not in self.server_names:
+            raise ValueError(f"Server '{server_name}' not found")
+
+        logger.info(
+            "Requesting resource",
+            data={
+                "progress_action": ProgressAction.CALLING_TOOL,
+                "resource_uri": resource_uri,
+                "server_name": server_name,
+                "agent_name": self.agent_name,
+            },
+        )
+
+        try:
+            uri = AnyUrl(resource_uri)
+        except Exception as e:
+            raise ValueError(f"Invalid resource URI: {resource_uri}. Error: {e}")
+
+        # Use the _execute_on_server method to call read_resource on the server
+        return await self._execute_on_server(
+            server_name=server_name,
+            operation_type="resource",
+            operation_name=resource_uri,
+            method_name="read_resource",
+            method_args={"uri": uri},
+            error_factory=lambda msg: ValueError(f"Failed to retrieve resource: {msg}"),
+        )
 
 
 class MCPCompoundServer(Server):
