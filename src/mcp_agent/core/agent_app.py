@@ -63,7 +63,7 @@ class AgentApp:
 
     async def send(
         self,
-        message: Union[str, PromptMessageMultipart],
+        message: Union[str, PromptMessageMultipart] = None,
         agent_name: Optional[str] = None,
     ) -> str:
         """
@@ -571,7 +571,7 @@ class AgentApp:
                 if user_input == "":
                     continue
 
-            result = await self.send(agent, user_input)
+            result = await self.send(user_input, agent)
 
             # Check if current agent is a chain that should continue with final agent
             if agent_types.get(agent) == "Chain":
@@ -598,7 +598,7 @@ class AgentApp:
 
     async def __call__(
         self,
-        message: Optional[Union[str, PromptMessageMultipart]] = "",
+        message: Optional[Union[str, PromptMessageMultipart]] = None,
         agent_name: Optional[str] = None,
     ) -> str:
         """
@@ -614,4 +614,4 @@ class AgentApp:
         target = agent_name or self._default
         if not target:
             raise ValueError("No default agent available")
-        return await self.send(target, message)
+        return await self.send(message, target)

@@ -349,9 +349,9 @@ agent["greeter"].send("Good Evening!")          # Dictionary access is supported
 )
 ```
 
-### Multimodal
+### Multimodal Support
 
-Add Resources to prompts using either the inbuilt `prompt-server` or MCP Types directly.
+Add Resources to prompts using either the inbuilt `prompt-server` or MCP Types directly. Convenience class are made available to do so simply, for example:
 
 #### MCP Tool Result Conversion
 
