@@ -3,12 +3,13 @@
 Simple MCP server that responds to tool calls with text and image content.
 """
 
+import base64
 import logging
 import sys
 from pathlib import Path
 
 from mcp.server.fastmcp import FastMCP, Context, Image
-from mcp.types import TextContent, ImageContent
+from mcp.types import TextContent, ImageContent, EmbeddedResource, BlobResourceContents
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -37,6 +38,38 @@ async def get_image(
         logger.exception(f"Error processing image: {e}")
         return [TextContent(type="text", text=f"Error processing image: {str(e)}")]
 
+@app.tool(
+    name="get_pdf", description="Returns 'sample.pdf' - use when the User requests a sample PDF file"
+)
+async def get_pdf() -> list[TextContent | EmbeddedResource]:
+    try:
+        pdf_path = "sample.pdf"
+        # Check if file exists
+        if not Path(pdf_path).exists():
+            return [TextContent(type="text", text=f"Error: PDF file '{pdf_path}' not found")]
+            
+        # Read the PDF file as binary data
+        with open(pdf_path, "rb") as f:
+            pdf_data = f.read()
+        
+        # Encode to base64
+        b64_data = base64.b64encode(pdf_data).decode("ascii")
+        
+        # Create embedded resource
+        return [
+            TextContent(type="text", text="Here is the PDF"),
+            EmbeddedResource(
+                type="resource",
+                resource=BlobResourceContents(
+                    uri=f"file://{Path(pdf_path).absolute()}",
+                    blob=b64_data,
+                    mimeType="application/pdf"
+                )
+            )
+        ]
+    except Exception as e:
+        logger.exception(f"Error processing PDF: {e}")
+        return [TextContent(type="text", text=f"Error processing PDF: {str(e)}")]
 
 if __name__ == "__main__":
     # Get image path from command line argument or use default

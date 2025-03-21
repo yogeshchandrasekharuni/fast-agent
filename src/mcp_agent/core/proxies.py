@@ -7,7 +7,6 @@ from typing import List, Optional, Dict, Union, TYPE_CHECKING
 
 from mcp_agent.agents.agent import Agent
 from mcp_agent.app import MCPApp
-from mcp_agent.core.prompt import Prompt
 from mcp_agent.mcp.prompt_message_multipart import PromptMessageMultipart
 
 # Handle circular imports

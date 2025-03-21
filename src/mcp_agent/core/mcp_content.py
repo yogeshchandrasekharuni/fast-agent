@@ -15,12 +15,10 @@ from mcp.types import (
     EmbeddedResource,
     TextResourceContents,
     BlobResourceContents,
-    Role,
 )
 
 from mcp_agent.mcp.mime_utils import (
     guess_mime_type,
-    is_text_mime_type,
     is_binary_content,
     is_image_mime_type,
 )

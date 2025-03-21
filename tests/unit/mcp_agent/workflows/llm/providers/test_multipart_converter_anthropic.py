@@ -15,8 +15,19 @@ from mcp_agent.mcp.prompt_message_multipart import PromptMessageMultipart
 
 from mcp_agent.workflows.llm.providers.multipart_converter_anthropic import (
     AnthropicConverter,
-    normalize_uri,
 )
+from mcp_agent.mcp.resource_utils import normalize_uri
+
+PDF_BASE64 = base64.b64encode(b"fake_pdf_data").decode("utf-8")
+
+
+def create_pdf_resource(pdf_base64) -> EmbeddedResource:
+    pdf_resource: BlobResourceContents = BlobResourceContents(
+        uri="test://example.com/document.pdf",
+        mimeType="application/pdf",
+        blob=pdf_base64,
+    )
+    return EmbeddedResource(type="resource", resource=pdf_resource)
 
 
 class TestAnthropicUserConverter(unittest.TestCase):
@@ -95,14 +106,8 @@ class TestAnthropicUserConverter(unittest.TestCase):
     def test_embedded_resource_pdf_conversion(self):
         """Test conversion of PDF EmbeddedResource to Anthropic document block."""
         # Create a PDF resource
-        pdf_base64 = base64.b64encode(b"fake_pdf_data").decode("utf-8")
-        pdf_resource = BlobResourceContents(
-            uri="test://example.com/document.pdf",
-            mimeType="application/pdf",
-            blob=pdf_base64,
-        )
-        embedded_resource = EmbeddedResource(type="resource", resource=pdf_resource)
-        multipart = PromptMessageMultipart(role="user", content=[embedded_resource])
+        pdf_resource = create_pdf_resource(PDF_BASE64)
+        multipart = PromptMessageMultipart(role="user", content=[pdf_resource])
 
         # Convert to Anthropic format
         anthropic_msg = AnthropicConverter.convert_to_anthropic(multipart)
@@ -115,7 +120,7 @@ class TestAnthropicUserConverter(unittest.TestCase):
         self.assertEqual(
             anthropic_msg["content"][0]["source"]["media_type"], "application/pdf"
         )
-        self.assertEqual(anthropic_msg["content"][0]["source"]["data"], pdf_base64)
+        self.assertEqual(anthropic_msg["content"][0]["source"]["data"], PDF_BASE64)
 
     def test_embedded_resource_image_url_conversion(self):
         """Test conversion of image URL in EmbeddedResource to Anthropic image block."""
@@ -456,6 +461,34 @@ class TestAnthropicToolConverter(unittest.TestCase):
         self.assertEqual(anthropic_block["content"][0]["type"], "text")
         self.assertEqual(anthropic_block["content"][0]["text"], self.sample_text)
         self.assertEqual(anthropic_block["content"][1]["type"], "image")
+
+    def test_pdf_result_conversion(self):
+        """Test conversion of mixed content tool result to Anthropic format."""
+        # Create a tool result with text and image content
+        text_content = TextContent(type="text", text=self.sample_text)
+        pdf_content = create_pdf_resource(PDF_BASE64)
+        tool_result = CallToolResult(content=[text_content, pdf_content], isError=False)
+
+        # Convert to Anthropic format
+        anthropic_msg = AnthropicConverter.create_tool_results_message(
+            [(self.tool_use_id, tool_result)]
+        )
+
+        # Assertions
+        self.assertEqual(anthropic_msg["role"], "user")
+        # self.assertEqual(len(anthropic_msg["content"]), 2)
+
+        # # Check first tool result
+        # self.assertEqual(anthropic_msg["content"][0]["type"], "tool_result")
+        # self.assertEqual(anthropic_msg["content"][0]["tool_use_id"], tool_use_id1)
+        # self.assertEqual(anthropic_msg["content"][0]["content"][0]["type"], "text")
+        # self.assertEqual(
+        #     anthropic_msg["content"][0]["content"][0]["text"], self.sample_text
+        # )
+
+        # # Check second tool result
+        # self.assertEqual(anthropic_msg["content"][1]["type"], "document")
+        # self.assertEqual(anthropic_msg["content"][1]["content"][0]["type"], "document")
 
     def test_mixed_tool_markdown_result_conversion(self):
         """Test conversion a text resource (tool) Anthropic format."""

@@ -38,28 +38,6 @@ class AgentApp:
         # Optional: set default agent for direct calls
         self._default = next(iter(agents)) if agents else None
 
-    async def send(
-        self, agent_name: str, message: Optional[Union[str, PromptMessageMultipart]]
-    ) -> str:
-        """
-        Core message sending
-
-        Args:
-            agent_name: The name of the agent to send the message to
-            message: Either a string message or a PromptMessageMultipart object
-
-        Returns:
-            The agent's response as a string
-        """
-        if agent_name not in self._agents:
-            raise ValueError(f"No agent named '{agent_name}'")
-
-        if not message or (isinstance(message, str) and message == ""):
-            return await self.prompt(agent_name)
-
-        proxy = self._agents[agent_name]
-        return await proxy.send(message)
-
     async def send_prompt(
         self, prompt: PromptMessageMultipart, agent_name: Optional[str] = None
     ) -> str:

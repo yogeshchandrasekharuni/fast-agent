@@ -2,8 +2,7 @@
 Prompt class for easily creating and working with MCP prompt content.
 """
 
-from typing import List, Union, Any, Literal, Optional
-from pathlib import Path
+from typing import List, Literal
 
 from mcp.types import PromptMessage
 from mcp_agent.mcp.prompt_message_multipart import PromptMessageMultipart

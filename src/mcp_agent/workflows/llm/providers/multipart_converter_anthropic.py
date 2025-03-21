@@ -29,7 +29,7 @@ from anthropic.types import (
     ToolResultBlockParam,
 )
 from mcp_agent.logging.logger import get_logger
-from mcp_agent.mcp.resource_utils import extract_title_from_uri, normalize_uri
+from mcp_agent.mcp.resource_utils import extract_title_from_uri
 
 _logger = get_logger("mutlipart_converter_anthropic")
 # List of image MIME types supported by Anthropic API
