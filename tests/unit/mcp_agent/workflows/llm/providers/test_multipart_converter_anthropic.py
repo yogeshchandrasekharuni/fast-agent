@@ -378,7 +378,7 @@ class TestAnthropicUserConverter(unittest.TestCase):
         # Check that the content describes it as unsupported format
         fallback_text = anthropic_msg["content"][0]["text"]
         self.assertIn(
-            "Emedded Resource test://example.com/data.bin with unsupported format application/octet-stream (28 characters)",
+            "Embedded Resource test://example.com/data.bin with unsupported format application/octet-stream (28 characters)",
             fallback_text,
         )
 
@@ -464,7 +464,7 @@ class TestAnthropicToolConverter(unittest.TestCase):
 
     def test_pdf_result_conversion(self):
         """Test conversion of mixed content tool result to Anthropic format."""
-        # Create a tool result with text and image content
+        # Create a tool result with text and PDF content
         text_content = TextContent(type="text", text=self.sample_text)
         pdf_content = create_pdf_resource(PDF_BASE64)
         tool_result = CallToolResult(content=[text_content, pdf_content], isError=False)
@@ -476,19 +476,26 @@ class TestAnthropicToolConverter(unittest.TestCase):
 
         # Assertions
         self.assertEqual(anthropic_msg["role"], "user")
-        # self.assertEqual(len(anthropic_msg["content"]), 2)
+        self.assertEqual(len(anthropic_msg["content"]), 2)
 
-        # # Check first tool result
-        # self.assertEqual(anthropic_msg["content"][0]["type"], "tool_result")
-        # self.assertEqual(anthropic_msg["content"][0]["tool_use_id"], tool_use_id1)
-        # self.assertEqual(anthropic_msg["content"][0]["content"][0]["type"], "text")
-        # self.assertEqual(
-        #     anthropic_msg["content"][0]["content"][0]["text"], self.sample_text
-        # )
+        # First block should be a tool result with just the text content
+        self.assertEqual(anthropic_msg["content"][0]["type"], "tool_result")
+        self.assertEqual(anthropic_msg["content"][0]["tool_use_id"], self.tool_use_id)
+        self.assertEqual(len(anthropic_msg["content"][0]["content"]), 1)
+        self.assertEqual(anthropic_msg["content"][0]["content"][0]["type"], "text")
+        self.assertEqual(
+            anthropic_msg["content"][0]["content"][0]["text"], self.sample_text
+        )
 
-        # # Check second tool result
-        # self.assertEqual(anthropic_msg["content"][1]["type"], "document")
-        # self.assertEqual(anthropic_msg["content"][1]["content"][0]["type"], "document")
+        # Second block should be the document block with the PDF
+        self.assertEqual(anthropic_msg["content"][1]["type"], "document")
+        self.assertEqual(anthropic_msg["content"][1]["source"]["type"], "base64")
+        self.assertEqual(
+            anthropic_msg["content"][1]["source"]["media_type"], "application/pdf"
+        )
+        self.assertEqual(
+            anthropic_msg["content"][1]["source"]["data"], PDF_BASE64
+        )
 
     def test_mixed_tool_markdown_result_conversion(self):
         """Test conversion a text resource (tool) Anthropic format."""
@@ -512,6 +519,36 @@ class TestAnthropicToolConverter(unittest.TestCase):
         self.assertEqual(len(anthropic_block["content"]), 1)
         self.assertEqual(anthropic_block["content"][0]["type"], "text")
         self.assertEqual(anthropic_block["content"][0]["text"], "markdown text")
+    
+    def test_binary_only_tool_result_conversion(self):
+        """Test that a tool result with only binary content still returns a tool result block."""
+        # Create a PDF embedded resource with no text content
+        pdf_content = create_pdf_resource(PDF_BASE64)
+        tool_result = CallToolResult(content=[pdf_content], isError=False)
+        
+        # First test the individual tool result conversion
+        anthropic_block = AnthropicConverter.convert_tool_result_to_anthropic(
+            tool_result, self.tool_use_id
+        )
+        
+        # It should still have a tool_result type even if content might be empty
+        self.assertEqual(anthropic_block["type"], "tool_result")
+        self.assertEqual(anthropic_block["tool_use_id"], self.tool_use_id)
+        
+        # Now test the message creation with this result
+        anthropic_msg = AnthropicConverter.create_tool_results_message(
+            [(self.tool_use_id, tool_result)]
+        )
+        
+        # Should have two blocks: one tool result (even if empty) and one document
+        self.assertEqual(anthropic_msg["role"], "user")
+        self.assertEqual(len(anthropic_msg["content"]), 2)
+        
+        # First block should be the tool result
+        self.assertEqual(anthropic_msg["content"][0]["type"], "tool_result")
+        
+        # Second block should be the document
+        self.assertEqual(anthropic_msg["content"][1]["type"], "document")
 
     def test_error_tool_result_conversion(self):
         """Test conversion of error tool result to Anthropic format."""

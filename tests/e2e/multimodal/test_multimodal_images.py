@@ -99,9 +99,9 @@ async def test_agent_with_mcp_pdf(fast_agent, model_name):
             # Send the prompt and get the response
 
             response = await agent.send(
-                "Can you summarise the sample PDF, make sure it includes the company name in the summary"
+                "Can you summarise the sample PDF, make sure it includes the product name in the summary"
             )
-            assert "llmindset" in response
+            assert "fast-agent" in response
             # Return the response for assertions
             return response
 
