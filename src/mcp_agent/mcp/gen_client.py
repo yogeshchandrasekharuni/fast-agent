@@ -6,7 +6,7 @@ from anyio.streams.memory import MemoryObjectReceiveStream, MemoryObjectSendStre
 from mcp import ClientSession
 
 from mcp_agent.logging.logger import get_logger
-from mcp_agent.mcp_server_registry import ServerRegistry
+from mcp_agent.mcp.interfaces import ServerRegistryProtocol
 from mcp_agent.mcp.mcp_agent_client_session import MCPAgentClientSession
 
 logger = get_logger(__name__)
@@ -15,7 +15,7 @@ logger = get_logger(__name__)
 @asynccontextmanager
 async def gen_client(
     server_name: str,
-    server_registry: ServerRegistry,
+    server_registry: ServerRegistryProtocol,
     client_session_factory: Callable[
         [MemoryObjectReceiveStream, MemoryObjectSendStream, timedelta | None],
         ClientSession,
@@ -41,7 +41,7 @@ async def gen_client(
 
 async def connect(
     server_name: str,
-    server_registry: ServerRegistry,
+    server_registry: ServerRegistryProtocol,
     client_session_factory: Callable[
         [MemoryObjectReceiveStream, MemoryObjectSendStream, timedelta | None],
         ClientSession,
@@ -67,7 +67,7 @@ async def connect(
 
 async def disconnect(
     server_name: str | None,
-    server_registry: ServerRegistry,
+    server_registry: ServerRegistryProtocol,
 ) -> None:
     """
     Disconnect from the specified server. If server_name is None, disconnect from all servers.

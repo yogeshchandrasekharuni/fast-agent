@@ -18,15 +18,13 @@ from mcp.types import (
     ErrorData,
     ListRootsResult,
     Root,
-    CreateMessageRequestParams,
-    CreateMessageResult,
-    TextContent,
 )
 from pydantic import AnyUrl
 
 from mcp_agent.config import MCPServerSettings
 from mcp_agent.context_dependent import ContextDependent
 from mcp_agent.logging.logger import get_logger
+from mcp_agent.mcp.sampling import sample
 
 logger = get_logger(__name__)
 
@@ -52,38 +50,6 @@ async def list_roots(ctx: ClientSession) -> ListRootsResult:
             for root in ctx.session.server_config.roots
         ]
     return ListRootsResult(roots=roots or [])
-
-
-# class SamplingFnT(Protocol):
-#     async def __call__(
-#         self,
-#         context: RequestContext["ClientSession", Any],
-#         params: types.CreateMessageRequestParams,
-#     ) -> types.CreateMessageResult | types.ErrorData: ...
-
-
-async def sample(
-    ctx: ClientSession, params: CreateMessageRequestParams
-) -> CreateMessageResult:
-    model = None
-    if (
-        hasattr(ctx, "session")
-        and hasattr(ctx.session, "server_config")
-        and ctx.session.server_config
-        and hasattr(ctx.session.server_config, "sampling")
-        and ctx.session.server_config.sampling.model
-    ):
-        model = ctx.session.server_config.sampling.model
-
-    if model is None:
-        raise ValueError("No model configured")
-
-    return CreateMessageResult(
-        role="assistant",
-        content=TextContent(type="text", text="Sampling Result"),
-        model=model,
-        stopReason="endTurn",
-    )
 
 
 class MCPAgentClientSession(ClientSession, ContextDependent):
