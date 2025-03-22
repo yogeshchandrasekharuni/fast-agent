@@ -62,7 +62,7 @@ class MCPAggregator(ContextDependent):
     initialized: bool = False
     """Whether the aggregator has been initialized with tools and resources from all servers."""
 
-    connection_persistence: bool = False
+    connection_persistence: bool = True
     """Whether to maintain a persistent connection to the server."""
 
     server_names: List[str]
@@ -210,6 +210,7 @@ class MCPAggregator(ContextDependent):
                         "agent_name": self.agent_name,
                     },
                 )
+
                 await self._persistent_connection_manager.get_server(
                     server_name, client_session_factory=MCPAgentClientSession
                 )

@@ -174,13 +174,11 @@ async def create_agents_by_type(
                 agent_name = agent_data["config"].name
                 agent = Agent(config=config, context=app_instance.context)
 
-                # Set up LLM with proper configuration
-                async with agent:
-                    llm_factory = model_factory_func(
-                        model=config.model,
-                        request_params=config.default_request_params,
-                    )
-                    agent._llm = await agent.attach_llm(llm_factory)
+                llm_factory = model_factory_func(
+                    model=config.model,
+                    request_params=config.default_request_params,
+                )
+                agent._llm = await agent.attach_llm(llm_factory)
 
                 # Store the agent
                 instance = agent
@@ -229,8 +227,7 @@ async def create_agents_by_type(
                     request_params=config.default_request_params,
                 )
 
-                async with planner_agent:
-                    planner = await planner_agent.attach_llm(planner_factory)
+                planner = await planner_agent.attach_llm(planner_factory)
 
                 # Create the orchestrator with pre-configured planner
                 instance = Orchestrator(

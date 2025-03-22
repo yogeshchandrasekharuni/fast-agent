@@ -1,5 +1,5 @@
 from typing import Any, List, Optional, Type, Union
-
+import json
 from mcp import GetPromptResult
 from mcp.types import PromptMessage
 from pydantic_core import from_json
@@ -45,10 +45,62 @@ class PassthroughLLM(AugmentedLLM):
         request_params: Optional[RequestParams] = None,
     ) -> str:
         """Return the input message as a string."""
+        # Check if this is a special command to call a tool
+        if isinstance(message, str) and message.startswith("***CALL_TOOL "):
+            return await self._call_tool_and_return_result(message)
+
         self.show_user_message(message, model="fastagent-passthrough", chat_turn=0)
         await self.show_assistant_message(message, title="ASSISTANT/PASSTHROUGH")
 
         return str(message)
+
+    async def _call_tool_and_return_result(self, command: str) -> str:
+        """
+        Call a tool based on the command and return its result as a string.
+
+        Args:
+            command: The command string, expected format: "***CALL_TOOL <server>-<tool_name> [arguments_json]"
+
+        Returns:
+            Tool result as a string
+        """
+        try:
+            # Parse the tool name and optional arguments
+            parts = command.split(" ", 2)
+            if len(parts) < 2:
+                return "Error: Invalid format. Expected '***CALL_TOOL <tool_name> [arguments_json]'"
+
+            tool_name = parts[1].strip()
+            arguments = None
+
+            # Parse optional JSON arguments if provided
+            if len(parts) > 2:
+                try:
+                    arguments = json.loads(parts[2])
+                except json.JSONDecodeError:
+                    return f"Error: Invalid JSON arguments: {parts[2]}"
+
+            # Call the tool and get the result
+            self.logger.info(f"Calling tool {tool_name} with arguments {arguments}")
+            result = await self.aggregator.call_tool(tool_name, arguments)
+
+            # Format the result as a string
+            if result.isError:
+                return f"Error calling tool '{tool_name}': {result.message}"
+
+            # Extract text content from result
+            result_text = []
+            for content_item in result.content:
+                if hasattr(content_item, "text"):
+                    result_text.append(content_item.text)
+                else:
+                    result_text.append(str(content_item))
+
+            return "\n".join(result_text)
+
+        except Exception as e:
+            self.logger.error(f"Error calling tool: {str(e)}")
+            return f"Error calling tool: {str(e)}"
 
     async def generate_structured(
         self,
@@ -71,7 +123,10 @@ class PassthroughLLM(AugmentedLLM):
     async def generate_prompt(
         self, prompt: "PromptMessageMultipart", request_params: RequestParams | None
     ) -> str:
-        return await self.generate_str(prompt.content[0].text, request_params)
+        message = prompt.content[0].text if prompt.content else ""
+        if isinstance(message, str) and message.startswith("***CALL_TOOL "):
+            return await self._call_tool_and_return_result(message)
+        return await self.generate_str(message, request_params)
 
     async def apply_prompt_template(
         self, prompt_result: GetPromptResult, prompt_name: str
