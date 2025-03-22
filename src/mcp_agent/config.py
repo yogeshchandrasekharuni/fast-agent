@@ -21,6 +21,8 @@ class MCPServerAuthSettings(BaseModel):
 class MCPSamplingSettings(BaseModel):
     model: str = "haiku"
 
+    model_config = ConfigDict(extra="allow", arbitrary_types_allowed=True)
+
 
 class MCPRootSettings(BaseModel):
     """Represents a root directory configuration for an MCP server."""
@@ -85,8 +87,8 @@ class MCPServerSettings(BaseModel):
     env: Dict[str, str] | None = None
     """Environment variables to pass to the server process."""
 
-    """Sampling settings for this Client/Server pair"""
     sampling: MCPSamplingSettings | None = None
+    """Sampling settings for this Client/Server pair"""
 
 
 class MCPSettings(BaseModel):

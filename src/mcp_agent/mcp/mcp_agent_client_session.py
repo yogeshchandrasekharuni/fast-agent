@@ -18,6 +18,9 @@ from mcp.types import (
     ErrorData,
     ListRootsResult,
     Root,
+    CreateMessageRequestParams,
+    CreateMessageResult,
+    TextContent,
 )
 from pydantic import AnyUrl
 
@@ -51,6 +54,38 @@ async def list_roots(ctx: ClientSession) -> ListRootsResult:
     return ListRootsResult(roots=roots or [])
 
 
+# class SamplingFnT(Protocol):
+#     async def __call__(
+#         self,
+#         context: RequestContext["ClientSession", Any],
+#         params: types.CreateMessageRequestParams,
+#     ) -> types.CreateMessageResult | types.ErrorData: ...
+
+
+async def sample(
+    ctx: ClientSession, params: CreateMessageRequestParams
+) -> CreateMessageResult:
+    model = None
+    if (
+        hasattr(ctx, "session")
+        and hasattr(ctx.session, "server_config")
+        and ctx.session.server_config
+        and hasattr(ctx.session.server_config, "sampling")
+        and ctx.session.server_config.sampling.model
+    ):
+        model = ctx.session.server_config.sampling.model
+
+    if model is None:
+        raise ValueError("No model configured")
+
+    return CreateMessageResult(
+        role="assistant",
+        content=TextContent(type="text", text="Sampling Result"),
+        model=model,
+        stopReason="endTurn",
+    )
+
+
 class MCPAgentClientSession(ClientSession, ContextDependent):
     """
     MCP Agent framework acts as a client to the servers providing tools/resources/prompts for the agent workloads.
@@ -63,7 +98,9 @@ class MCPAgentClientSession(ClientSession, ContextDependent):
     """
 
     def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs, list_roots_callback=list_roots)
+        super().__init__(
+            *args, **kwargs, list_roots_callback=list_roots, sampling_callback=sample
+        )
         self.server_config: Optional[MCPServerSettings] = None
 
     async def send_request(
