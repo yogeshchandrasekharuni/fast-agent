@@ -210,6 +210,7 @@ class MCPAggregator(ContextDependent):
                         "agent_name": self.agent_name,
                     },
                 )
+
                 await self._persistent_connection_manager.get_server(
                     server_name, client_session_factory=MCPAgentClientSession
                 )

@@ -172,16 +172,17 @@ async def create_agents_by_type(
             if agent_type == AgentType.BASIC:
                 # Get the agent name for special handling
                 agent_name = agent_data["config"].name
-                agent = Agent(config=config, context=app_instance.context)
+                agent = Agent(
+                    config=config,
+                    context=app_instance.context,
+                )
+                await agent.initialize()
 
-                # Set up LLM with proper configuration
-                async with agent:
-                    llm_factory = model_factory_func(
-                        model=config.model,
-                        request_params=config.default_request_params,
-                    )
-                    agent._llm = await agent.attach_llm(llm_factory)
-
+                llm_factory = model_factory_func(
+                    model=config.model,
+                    request_params=config.default_request_params,
+                )
+                agent._llm = await agent.attach_llm(llm_factory)
                 # Store the agent
                 instance = agent
 
@@ -222,16 +223,16 @@ async def create_agents_by_type(
                     default_request_params=base_params,
                 )
                 planner_agent = Agent(
-                    config=planner_config, context=app_instance.context
+                    config=planner_config,
+                    context=app_instance.context,
                 )
                 planner_factory = model_factory_func(
                     model=config.model,
                     request_params=config.default_request_params,
                 )
 
-                async with planner_agent:
-                    planner = await planner_agent.attach_llm(planner_factory)
-
+                planner = await planner_agent.attach_llm(planner_factory)
+                await planner.initialize()
                 # Create the orchestrator with pre-configured planner
                 instance = Orchestrator(
                     name=config.name,

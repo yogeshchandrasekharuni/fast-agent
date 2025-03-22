@@ -16,7 +16,6 @@ from contextlib import asynccontextmanager
 from functools import partial
 
 from mcp_agent.app import MCPApp
-from mcp_agent.context_dependent import ContextDependent
 from mcp_agent.config import Settings
 
 from mcp_agent.core.agent_app import AgentApp
@@ -64,7 +63,7 @@ from mcp_agent.mcp_server import AgentMCPServer
 T = TypeVar("T")  # For the wrapper classes
 
 
-class FastAgent(ContextDependent):
+class FastAgent:
     """
     A decorator-based interface for MCP Agent applications.
     Provides a simplified way to create and manage agents using decorators.
@@ -320,6 +319,7 @@ class FastAgent(ContextDependent):
         """
         active_agents = {}
         had_error = False
+        await self.app.initialize()
 
         # Handle quiet mode by disabling logger settings after initialization
         quiet_mode = hasattr(self, "args") and self.args.quiet

@@ -9,10 +9,12 @@ from anyio.streams.text import TextReceiveStream
 from mcp.client.stdio import StdioServerParameters, get_default_environment
 import mcp.types as types
 from mcp_agent.logging.logger import get_logger
+from anyio.streams.memory import MemoryObjectReceiveStream, MemoryObjectSendStream
 
 logger = get_logger(__name__)
 
 
+# TODO this will be removed when client library 1.4.2 is released
 @asynccontextmanager
 async def stdio_client_with_rich_stderr(server: StdioServerParameters):
     """
@@ -22,10 +24,16 @@ async def stdio_client_with_rich_stderr(server: StdioServerParameters):
     Args:
         server: The server parameters for the stdio connection
     """
+    read_stream: MemoryObjectReceiveStream[types.JSONRPCMessage | Exception]
+    read_stream_writer: MemoryObjectSendStream[types.JSONRPCMessage | Exception]
+
+    write_stream: MemoryObjectSendStream[types.JSONRPCMessage]
+    write_stream_reader: MemoryObjectReceiveStream[types.JSONRPCMessage]
+
     read_stream_writer, read_stream = anyio.create_memory_object_stream(0)
     write_stream, write_stream_reader = anyio.create_memory_object_stream(0)
-
     # Open process with stderr piped for capture
+
     process = await anyio.open_process(
         [server.command, *server.args],
         env=server.env if server.env is not None else get_default_environment(),
@@ -67,19 +75,19 @@ async def stdio_client_with_rich_stderr(server: StdioServerParameters):
         except anyio.ClosedResourceError:
             await anyio.lowlevel.checkpoint()
 
-    async def stderr_reader():
-        assert process.stderr, "Opened process is missing stderr"
-        try:
-            async for chunk in TextReceiveStream(
-                process.stderr,
-                encoding=server.encoding,
-                errors=server.encoding_error_handler,
-            ):
-                if chunk.strip():
-                    # Let the logging system handle the formatting consistently
-                    logger.event("info", "mcpserver.stderr", chunk.rstrip(), None, {})
-        except anyio.ClosedResourceError:
-            await anyio.lowlevel.checkpoint()
+    # async def stderr_reader():
+    #     assert process.stderr, "Opened process is missing stderr"
+    #     try:
+    #         async for chunk in TextReceiveStream(
+    #             process.stderr,
+    #             encoding=server.encoding,
+    #             errors=server.encoding_error_handler,
+    #         ):
+    #             if chunk.strip():
+    #                 # Let the logging system handle the formatting consistently
+    #                 logger.event("info", "mcpserver.stderr", chunk.rstrip(), None, {})
+    #     except anyio.ClosedResourceError:
+    #         await anyio.lowlevel.checkpoint()
 
     async def stdin_writer():
         assert process.stdin, "Opened process is missing stdin"
@@ -87,6 +95,7 @@ async def stdio_client_with_rich_stderr(server: StdioServerParameters):
             async with write_stream_reader:
                 async for message in write_stream_reader:
                     json = message.model_dump_json(by_alias=True, exclude_none=True)
+                    print(f"**********{id(process.stdin)}")
                     await process.stdin.send(
                         (json + "\n").encode(
                             encoding=server.encoding,
@@ -100,5 +109,4 @@ async def stdio_client_with_rich_stderr(server: StdioServerParameters):
     async with anyio.create_task_group() as tg, process:
         tg.start_soon(stdout_reader)
         tg.start_soon(stdin_writer)
-        tg.start_soon(stderr_reader)
         yield read_stream, write_stream

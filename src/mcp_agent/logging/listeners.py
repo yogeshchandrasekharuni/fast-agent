@@ -177,10 +177,7 @@ class BatchingListener(FilteredListener):
 
         if self._flush_task and not self._flush_task.done():
             self._flush_task.cancel()
-            try:
-                await self._flush_task
-            except asyncio.CancelledError:
-                pass
+            await self._flush_task
             self._flush_task = None
         await self.flush()
 
@@ -193,8 +190,8 @@ class BatchingListener(FilteredListener):
                     )
                 except asyncio.TimeoutError:
                     await self.flush()
-        except asyncio.CancelledError:
-            pass
+        # except asyncio.CancelledError:
+        #     break
         finally:
             await self.flush()  # Final flush
 

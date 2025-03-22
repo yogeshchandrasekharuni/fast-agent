@@ -24,7 +24,6 @@ from mcp_agent.executor.executor import Executor
 from mcp_agent.executor.decorator_registry import (
     DecoratorRegistry,
     register_asyncio_decorators,
-    register_temporal_decorators,
 )
 from mcp_agent.executor.task_registry import ActivityRegistry
 from mcp_agent.executor.executor import AsyncioExecutor
@@ -194,7 +193,6 @@ async def initialize_context(
 
     context.decorator_registry = DecoratorRegistry()
     register_asyncio_decorators(context.decorator_registry)
-    register_temporal_decorators(context.decorator_registry)
 
     # Store the tracer in context if needed
     context.tracer = trace.get_tracer(config.otel.service_name)

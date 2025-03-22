@@ -3,9 +3,9 @@ from mcp.server.fastmcp import FastMCP, Context
 mcp = FastMCP("MCP Root Tester", log_level="DEBUG")
 
 
-@mcp.tool()
-async def show_roots(ctx: Context) -> str:
-    return await ctx.session.list_roots()
+@mcp.resource(uri="resource://fast-agent/size/{thing}")
+async def get_size(thing: str) -> str:
+    return thing
 
 
 if __name__ == "__main__":
