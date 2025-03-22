@@ -44,7 +44,7 @@
       "description": "Logger settings for the MCP Agent application.",
       "properties": {
         "type": {
-          "default": "console",
+          "default": "file",
           "enum": [
             "none",
             "console",
@@ -55,7 +55,7 @@
           "type": "string"
         },
         "level": {
-          "default": "info",
+          "default": "warning",
           "enum": [
             "debug",
             "info",
@@ -73,7 +73,7 @@
           "description": "Enable or disable the progress display"
         },
         "path": {
-          "default": "mcp-agent.jsonl",
+          "default": "fastagent.jsonl",
           "title": "Path",
           "type": "string",
           "description": "Path to log file, if logger 'type' is 'file'."
@@ -193,6 +193,17 @@
         "uri"
       ],
       "title": "MCPRootSettings",
+      "type": "object"
+    },
+    "MCPSamplingSettings": {
+      "properties": {
+        "model": {
+          "default": "haiku",
+          "title": "Model",
+          "type": "string"
+        }
+      },
+      "title": "MCPSamplingSettings",
       "type": "object"
     },
     "MCPServerAuthSettings": {
@@ -352,6 +363,17 @@
           "default": null,
           "title": "Env",
           "description": "Environment variables to pass to the server process."
+        },
+        "sampling": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/MCPSamplingSettings"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
         }
       },
       "title": "MCPServerSettings",
@@ -654,10 +676,10 @@
         }
       ],
       "default": {
-        "type": "console",
-        "level": "info",
+        "type": "file",
+        "level": "warning",
         "progress_display": true,
-        "path": "mcp-agent.jsonl",
+        "path": "fastagent.jsonl",
         "batch_size": 100,
         "flush_interval": 2.0,
         "max_queue_size": 2048,

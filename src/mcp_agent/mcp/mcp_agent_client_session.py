@@ -40,7 +40,12 @@ async def list_roots(ctx: ClientSession) -> ListRootsResult:
         and ctx.session.server_config.roots
     ):
         roots = [
-            Root(uri=AnyUrl(root.uri), name=root.name)
+            Root(
+                uri=AnyUrl(
+                    root.server_uri_alias or root.uri,
+                ),
+                name=root.name,
+            )
             for root in ctx.session.server_config.roots
         ]
     return ListRootsResult(roots=roots or [])

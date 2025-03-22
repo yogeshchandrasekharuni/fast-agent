@@ -18,7 +18,7 @@ logger:
 
 mcp:
   servers:
-    roots_test:
+    sampling_test:
       command: "uv"
       args: ["run", "sampling_test_server.py"]
       sampling:

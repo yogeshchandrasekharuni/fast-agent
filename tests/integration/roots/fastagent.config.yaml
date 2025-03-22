@@ -22,6 +22,9 @@ mcp:
       command: "uv"
       args: ["run", "root_test_server.py"]
       roots:
+        # a root with an alias
         - uri: "file://foo/bar"
           name: "test_data"
           server_uri_alias: "file:///mnt/data/"
+        - uri: "file://no/alias"
+          name: "no_alias"

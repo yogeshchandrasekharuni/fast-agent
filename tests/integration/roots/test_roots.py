@@ -13,7 +13,8 @@ async def test_roots_returned(fast_agent):
     async def agent_function():
         async with fast.run() as agent:
             result = await agent("***CALL_TOOL roots_test-show_roots {}")
-            assert "file://foo/bar" in result
+            assert "file:///mnt/data/" in result  # alias
             assert "test_data" in result
+            assert "file://no/alias" in result  # no alias.
 
     await agent_function()
