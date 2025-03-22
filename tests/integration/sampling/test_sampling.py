@@ -3,7 +3,7 @@ import pytest
 
 @pytest.mark.integration
 @pytest.mark.asyncio
-async def test_roots_returned(fast_agent):
+async def test_sampling_feature(fast_agent):
     """Test that the agent can process a simple prompt using directory-specific config."""
     # Use the FastAgent instance from the test directory fixture
     fast = fast_agent
