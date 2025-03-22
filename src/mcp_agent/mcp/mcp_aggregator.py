@@ -62,7 +62,7 @@ class MCPAggregator(ContextDependent):
     initialized: bool = False
     """Whether the aggregator has been initialized with tools and resources from all servers."""
 
-    connection_persistence: bool = True
+    connection_persistence: bool = False
     """Whether to maintain a persistent connection to the server."""
 
     server_names: List[str]

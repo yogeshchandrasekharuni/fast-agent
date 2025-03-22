@@ -163,7 +163,6 @@ async def _server_lifecycle_task(server_conn: ServerConnection) -> None:
         async with transport_context as (read_stream, write_stream):
             #      try:
             server_conn.create_session(read_stream, write_stream)
-            #       except FileNotFoundError as e:
 
             async with server_conn.session:
                 await server_conn.initialize_session()

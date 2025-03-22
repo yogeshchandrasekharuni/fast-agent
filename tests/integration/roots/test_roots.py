@@ -12,6 +12,8 @@ async def test_roots_returned(fast_agent):
     @fast.agent(name="foo", instruction="bar", servers=["roots_test"])
     async def agent_function():
         async with fast.run() as agent:
-            assert "tsafdfest" in await agent("***CALL_TOOL roots_test-show_roots {}")
+            result = await agent("***CALL_TOOL roots_test-show_roots {}")
+            assert "file://foo/bar" in result
+            assert "test_data" in result
 
     await agent_function()

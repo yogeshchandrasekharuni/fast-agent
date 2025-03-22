@@ -15,9 +15,9 @@ from anyio.streams.memory import MemoryObjectReceiveStream, MemoryObjectSendStre
 from mcp import ClientSession
 from mcp.client.stdio import (
     StdioServerParameters,
-    stdio_client,
     get_default_environment,
 )
+from mcp_agent.mcp.stdio import stdio_client_with_rich_stderr
 from mcp.client.sse import sse_client
 
 from mcp_agent.config import (
@@ -134,7 +134,10 @@ class ServerRegistry:
                 env={**get_default_environment(), **(config.env or {})},
             )
 
-            async with stdio_client(server_params) as (read_stream, write_stream):
+            async with stdio_client_with_rich_stderr(server_params) as (
+                read_stream,
+                write_stream,
+            ):
                 session = client_session_factory(
                     read_stream,
                     write_stream,

@@ -194,7 +194,6 @@ async def initialize_context(
 
     context.decorator_registry = DecoratorRegistry()
     register_asyncio_decorators(context.decorator_registry)
-    register_temporal_decorators(context.decorator_registry)
 
     # Store the tracer in context if needed
     context.tracer = trace.get_tracer(config.otel.service_name)
