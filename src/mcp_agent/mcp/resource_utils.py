@@ -89,7 +89,7 @@ def create_resource_reference(uri: str, mime_type: str) -> "EmbeddedResource":
     Returns:
         An EmbeddedResource object
     """
-    from mcp.types import EmbeddedResource, TextResourceContents, BlobResourceContents
+    from mcp.types import EmbeddedResource, TextResourceContents
 
     # Create a resource reference
     resource_contents = TextResourceContents(

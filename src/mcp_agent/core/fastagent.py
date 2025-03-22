@@ -16,7 +16,6 @@ from contextlib import asynccontextmanager
 from functools import partial
 
 from mcp_agent.app import MCPApp
-from mcp_agent.context_dependent import ContextDependent
 from mcp_agent.config import Settings
 
 from mcp_agent.core.agent_app import AgentApp

@@ -4,8 +4,7 @@ mcp = FastMCP("MCP Root Tester", log_level="DEBUG")
 
 
 @mcp.resource(uri="resource://fast-agent/size/{thing}")
-async def get_size(thing: str, ctx: Context) -> str:
-    # Now you can use ctx here
+async def get_size(thing: str) -> str:
     return thing
 
 
