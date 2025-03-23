@@ -1,6 +1,9 @@
 """
 Proxy classes for agent interactions.
 These proxies provide a consistent interface for interacting with different types of agents.
+
+FOR COMPATIBILITY WITH LEGACY MCP-AGENT CODE
+
 """
 
 from typing import List, Optional, Dict, Union, TYPE_CHECKING

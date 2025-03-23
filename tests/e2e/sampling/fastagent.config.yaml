@@ -18,8 +18,12 @@ logger:
 
 mcp:
   servers:
-    sampling_test:
+    sampling_resource:
       command: "uv"
       args: ["run", "sampling_resource_server.py"]
       sampling:
         model: "haiku"
+      # command: "bash"
+      # args: ["-c", "uv run sampling_resource_server.py | tee sampling_output.log"]
+      # sampling:
+      #   model: "haiku"

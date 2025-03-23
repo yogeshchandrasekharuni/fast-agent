@@ -52,6 +52,13 @@ class PassthroughLLM(AugmentedLLM):
         self.show_user_message(message, model="fastagent-passthrough", chat_turn=0)
         await self.show_assistant_message(message, title="ASSISTANT/PASSTHROUGH")
 
+        # Handle PromptMessage by concatenating all parts
+        if isinstance(message, PromptMessage):
+            parts_text = []
+            for part in message.content:
+                parts_text.append(str(part))
+            return "\n".join(parts_text)
+
         return str(message)
 
     async def _call_tool_and_return_result(self, command: str) -> str:
@@ -65,50 +72,73 @@ class PassthroughLLM(AugmentedLLM):
             Tool result as a string
         """
         try:
-            # Parse the tool name and optional arguments
-            parts = command.split(" ", 2)
-            if len(parts) < 2:
-                return "Error: Invalid format. Expected '***CALL_TOOL <tool_name> [arguments_json]'"
-
-            tool_name = parts[1].strip()
-            arguments = None
-
-            # Parse optional JSON arguments if provided
-            if len(parts) > 2:
-                try:
-                    arguments = json.loads(parts[2])
-                except json.JSONDecodeError:
-                    return f"Error: Invalid JSON arguments: {parts[2]}"
-
-            # Call the tool and get the result
-            self.logger.info(f"Calling tool {tool_name} with arguments {arguments}")
+            tool_name, arguments = self._parse_tool_command(command)
             result = await self.aggregator.call_tool(tool_name, arguments)
-
-            # Format the result as a string
-            if result.isError:
-                # Extract error message from content items if available
-                error_text = []
-                for content_item in result.content:
-                    if hasattr(content_item, "text"):
-                        error_text.append(content_item.text)
-                    else:
-                        error_text.append(str(content_item))
-                error_message = "\n".join(error_text) if error_text else "Unknown error"
-                return f"Error calling tool '{tool_name}': {error_message}"
-
-            # Extract text content from result
-            result_text = []
-            for content_item in result.content:
-                if hasattr(content_item, "text"):
-                    result_text.append(content_item.text)
-                else:
-                    result_text.append(str(content_item))
-
-            return "\n".join(result_text)
-
+            return self._format_tool_result(tool_name, result)
         except Exception as e:
             self.logger.error(f"Error calling tool: {str(e)}")
             return f"Error calling tool: {str(e)}"
+
+    def _parse_tool_command(self, command: str) -> tuple[str, Optional[dict]]:
+        """
+        Parse a tool command string into tool name and arguments.
+
+        Args:
+            command: The command string in format "***CALL_TOOL <tool_name> [arguments_json]"
+
+        Returns:
+            Tuple of (tool_name, arguments_dict)
+
+        Raises:
+            ValueError: If command format is invalid
+        """
+        parts = command.split(" ", 2)
+        if len(parts) < 2:
+            raise ValueError(
+                "Invalid format. Expected '***CALL_TOOL <tool_name> [arguments_json]'"
+            )
+
+        tool_name = parts[1].strip()
+        arguments = None
+
+        if len(parts) > 2:
+            try:
+                arguments = json.loads(parts[2])
+            except json.JSONDecodeError:
+                raise ValueError(f"Invalid JSON arguments: {parts[2]}")
+
+        self.logger.info(f"Calling tool {tool_name} with arguments {arguments}")
+        return tool_name, arguments
+
+    def _format_tool_result(self, tool_name: str, result) -> str:
+        """
+        Format tool execution result as a string.
+
+        Args:
+            tool_name: The name of the tool that was called
+            result: The result returned from the tool
+
+        Returns:
+            Formatted result as a string
+        """
+        if result.isError:
+            error_text = []
+            for content_item in result.content:
+                if hasattr(content_item, "text"):
+                    error_text.append(content_item.text)
+                else:
+                    error_text.append(str(content_item))
+            error_message = "\n".join(error_text) if error_text else "Unknown error"
+            return f"Error calling tool '{tool_name}': {error_message}"
+
+        result_text = []
+        for content_item in result.content:
+            if hasattr(content_item, "text"):
+                result_text.append(content_item.text)
+            else:
+                result_text.append(str(content_item))
+
+        return "\n".join(result_text)
 
     async def generate_structured(
         self,
@@ -131,10 +161,25 @@ class PassthroughLLM(AugmentedLLM):
     async def generate_prompt(
         self, prompt: "PromptMessageMultipart", request_params: RequestParams | None
     ) -> str:
-        message = prompt.content[0].text if prompt.content else ""
-        if isinstance(message, str) and message.startswith("***CALL_TOOL "):
-            return await self._call_tool_and_return_result(message)
-        return await self.generate_str(message, request_params)
+        # Check if this prompt contains a tool call command
+        if (
+            prompt.content
+            and prompt.content[0].text
+            and prompt.content[0].text.startswith("***CALL_TOOL ")
+        ):
+            return await self._call_tool_and_return_result(prompt.content[0].text)
+
+        # Process all parts of the PromptMessageMultipart
+        parts_text = []
+        for part in prompt.content:
+            parts_text.append(str(part))
+
+        # If no parts found, return empty string
+        if not parts_text:
+            return ""
+
+        # Join all parts and process with generate_str
+        return await self.generate_str("\n".join(parts_text), request_params)
 
     async def apply_prompt_template(
         self, prompt_result: GetPromptResult, prompt_name: str

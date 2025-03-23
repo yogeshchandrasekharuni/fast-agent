@@ -112,6 +112,35 @@ class AgentApp:
 
         proxy = self._agents[target]
         return await proxy.apply_prompt(prompt_name, arguments)
+        
+    async def with_resource(
+        self,
+        prompt_content: Union[str, PromptMessageMultipart],
+        server_name: str,
+        resource_name: str,
+        agent_name: Optional[str] = None,
+    ) -> str:
+        """
+        Create a prompt with the given content and resource, then send it to the agent.
+
+        Args:
+            prompt_content: Either a string message or an existing PromptMessageMultipart
+            server_name: Name of the MCP server to retrieve the resource from
+            resource_name: Name or URI of the resource to retrieve
+            agent_name: The name of the agent to use (uses default if None)
+
+        Returns:
+            The agent's response as a string
+        """
+        target = agent_name or self._default
+        if not target:
+            raise ValueError("No default agent available")
+
+        if target not in self._agents:
+            raise ValueError(f"No agent named '{target}'")
+
+        proxy = self._agents[target]
+        return await proxy.with_resource(prompt_content, server_name, resource_name)
 
     async def prompt(self, agent_name: Optional[str] = None, default: str = "") -> str:
         """

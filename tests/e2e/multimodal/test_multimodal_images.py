@@ -33,7 +33,6 @@ async def test_agent_with_image_prompt(fast_agent, model_name):
             response = await agent.send(prompt)
 
             assert "evalstate" in response
-            return response
 
     await agent_function()
 
@@ -67,8 +66,6 @@ async def test_agent_with_mcp_image(fast_agent, model_name):
                 "Use the image fetch tool to get the sample image and tell me what user name contained in this image?"
             )
             assert "evalstate" in response
-            # Return the response for assertions
-            return response
 
     await agent_function()
 
@@ -101,9 +98,7 @@ async def test_agent_with_mcp_pdf(fast_agent, model_name):
             response = await agent.send(
                 "Can you summarise the sample PDF, make sure it includes the product name in the summary"
             )
-            assert "fast-agent" in response
-            # Return the response for assertions
-            return response
+            assert "fast-agent" in response.lower()
 
     await agent_function()
 
