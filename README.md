@@ -1,4 +1,4 @@
-## fast-agent by llmindset.co.uk
+# fast-agent by llmindset.co.uk
 
 <p align="center">
 <a href="https://pypi.org/project/fast-agent-mcp/"><img src="https://img.shields.io/pypi/v/fast-agent-mcp?color=%2334D058&label=pypi" /></a>
@@ -14,12 +14,10 @@
 
 The simple declarative syntax lets you concentrate on composing your Prompts and MCP Servers to [build effective agents](https://www.anthropic.com/research/building-effective-agents).
 
-Evaluate how different models handle Agent and MCP Server calling tasks, then build multi-model workflows using the best provider for each task.
-
-`fast-agent` is now multi-modal, supporting Images and PDFs for both Anthropic and OpenAI endpoints via Prompts, Resources and MCP Tool Call results. The inclusion of passthrough and playback LLMs enable rapid development and test of Python glue-code for your applications.
+`fast-agent` is multi-modal, supporting Images and PDFs for both Anthropic and OpenAI endpoints via Prompts, Resources and MCP Tool Call results. The inclusion of passthrough and playback LLMs enable rapid development and test of Python glue-code for your applications. 
 
 > [!TIP]
-> `fast-agent` is now MCP Native! Coming Soon - Full Documentation Site.
+> `fast-agent` is now MCP Native! Coming Soon - Full Documentation Site and Further MCP Examples.
 
 ### Agent Application Development
 
