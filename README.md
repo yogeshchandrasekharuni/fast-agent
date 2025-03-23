@@ -7,7 +7,7 @@
 <a href="https://github.com/evalstate/fast-agent-mcp/blob/main/LICENSE"><img src="https://img.shields.io/pypi/l/fast-agent-mcp" /></a>
 </p>
 
-# fast-agent by llmindset.co.uk
+# fast-agent by llmindset.co.uk 
 
 ## Overview
 
