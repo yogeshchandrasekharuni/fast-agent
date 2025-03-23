@@ -1,3 +1,0 @@
-{"level":"WARNING","timestamp":"2025-03-23T12:23:21.781463","namespace":"multipart_converter_anthropic","message":"Removing non-text block from assistant message: image"}
-{"level":"WARNING","timestamp":"2025-03-23T12:23:21.797344","namespace":"multipart_converter_anthropic","message":"Removing non-text block from assistant message: document"}
-{"level":"WARNING","timestamp":"2025-03-23T12:23:21.799384","namespace":"multipart_converter_anthropic","message":"Removing non-text block from assistant message: image"}

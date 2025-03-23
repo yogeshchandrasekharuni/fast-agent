@@ -16,8 +16,7 @@ The simple declarative syntax lets you concentrate on composing your Prompts and
 
 `fast-agent` is multi-modal, supporting Images and PDFs for both Anthropic and OpenAI endpoints via Prompts, Resources and MCP Tool Call results. The inclusion of passthrough and playback LLMs enable rapid development and test of Python glue-code for your applications.
 
-> [!TIP]
-> `fast-agent` is now MCP Native! Coming Soon - Full Documentation Site and Further MCP Examples.
+> [!TIP] > `fast-agent` is now MCP Native! Coming Soon - Full Documentation Site and Further MCP Examples.
 
 ### Agent Application Development
 
@@ -401,3 +400,7 @@ mcp:
 ## Project Notes
 
 `fast-agent` builds on the [`mcp-agent`](https://github.com/lastmile-ai/mcp-agent) project by Sarmad Qadri.
+
+### Contributing
+
+Contributions and PRs are welcome - feel free to raise issues to discuss. Full guidelines for contributing and roadmap coming very soon. Get in touch!
