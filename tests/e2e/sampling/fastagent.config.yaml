@@ -20,6 +20,6 @@ mcp:
   servers:
     sampling_test:
       command: "uv"
-      args: ["run", "sampling_test_server.py"]
+      args: ["run", "sampling_resource_server.py"]
       sampling:
-        model: "passthrough"
+        model: "haiku"
