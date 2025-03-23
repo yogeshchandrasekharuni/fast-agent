@@ -35,7 +35,6 @@ def create_sampling_llm(
     from mcp_agent.workflows.llm.model_factory import ModelFactory
     from mcp_agent.agents.agent import Agent, AgentConfig
 
-    # Get application context from global state if available
     app_context = None
     try:
         from mcp_agent.context import get_current_context
@@ -46,17 +45,13 @@ def create_sampling_llm(
 
     # Create a minimal agent configuration
     agent_config = AgentConfig(
-        name="sampling_agent",
-        instruction="You are a sampling agent.",
-        servers=[],  # No servers needed
+        name="sampling_agent", instruction="You are a helpful AI Agent.", servers=[]
     )
 
-    # Create agent with our application context (not the MCP context)
     agent = Agent(
         config=agent_config,
         context=app_context,
-        server_names=[],  # Make sure no server connections are attempted
-        connection_persistence=False,  # Avoid server connection management
+        connection_persistence=False,
     )
 
     # Create the LLM using the factory

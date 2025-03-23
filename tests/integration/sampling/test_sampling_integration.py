@@ -44,3 +44,21 @@ async def test_sampling_passback(fast_agent):
             assert "llmindset" in result
 
     await agent_function()
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_sampling_multi_message_passback(fast_agent):
+    """Test that the passthrough LLM is hooked up"""
+    # Use the FastAgent instance from the test directory fixture
+    fast = fast_agent
+
+    # Define the agent
+    @fast.agent(servers=["sampling_test"])
+    async def agent_function():
+        async with fast.run() as agent:
+            result = await agent("***CALL_TOOL sample_many")
+            assert "message 1" in result
+            assert "message 2" in result
+
+    await agent_function()
