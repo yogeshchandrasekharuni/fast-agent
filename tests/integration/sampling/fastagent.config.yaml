@@ -2,8 +2,8 @@ default_model: passthrough
 
 # Logging and Console Configuration:
 logger:
-  level: "debug"
-  type: "console"
+  level: "error"
+  type: "file"
   # path: "/path/to/logfile.jsonl"
 
   # Switch the progress display on or off

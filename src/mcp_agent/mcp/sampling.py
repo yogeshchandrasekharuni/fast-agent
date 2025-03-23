@@ -14,7 +14,6 @@ from mcp_agent.logging.logger import get_logger
 from mcp_agent.mcp.interfaces import AugmentedLLMProtocol
 from mcp_agent.mcp.prompt_message_multipart import PromptMessageMultipart
 
-# Protocol is sufficient to describe the interface - no need for TYPE_CHECKING imports
 
 logger = get_logger(__name__)
 
@@ -36,8 +35,6 @@ def create_sampling_llm(
     from mcp_agent.workflows.llm.model_factory import ModelFactory
     from mcp_agent.agents.agent import Agent, AgentConfig
 
-    # Get application context from global state if available
-    # We don't try to extract it from mcp_ctx as they're different contexts
     app_context = None
     try:
         from mcp_agent.context import get_current_context
@@ -48,18 +45,13 @@ def create_sampling_llm(
 
     # Create a minimal agent configuration
     agent_config = AgentConfig(
-        name="sampling_agent",
-        instruction="You are a sampling agent.",
-        servers=[],  # No servers needed
+        name="sampling_agent", instruction="You are a helpful AI Agent.", servers=[]
     )
 
-    # Create agent with our application context (not the MCP context)
-    # Set connection_persistence=False to avoid server connections
     agent = Agent(
         config=agent_config,
         context=app_context,
-        server_names=[],  # Make sure no server connections are attempted
-        connection_persistence=False,  # Avoid server connection management
+        connection_persistence=False,
     )
 
     # Create the LLM using the factory
