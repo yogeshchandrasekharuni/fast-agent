@@ -181,21 +181,40 @@ class PassthroughLLM(AugmentedLLM):
         # Join all parts and process with generate_str
         return await self.generate_str("\n".join(parts_text), request_params)
 
+    async def apply_prompt(
+        self, multipart_messages: List["PromptMessageMultipart"], request_params: Optional[RequestParams] = None
+    ) -> str:
+        """
+        Apply a list of PromptMessageMultipart messages directly to the LLM.
+        In PassthroughLLM, this returns a concatenated string of all message content.
+        
+        Args:
+            multipart_messages: List of PromptMessageMultipart objects
+            request_params: Optional parameters to configure the LLM request
+            
+        Returns:
+            String representation of all message content concatenated together
+        """
+        # Generate and concatenate result from all messages
+        result = ""
+        for prompt in multipart_messages:
+            result += await self.generate_prompt(prompt, request_params) + "\n"
+            
+        return result
+    
     async def apply_prompt_template(
         self, prompt_result: GetPromptResult, prompt_name: str
     ) -> str:
         """
         Apply a prompt template by adding it to the conversation history.
-        If the last message in the prompt is from a user, automatically
-        generate an assistant response.
+        For PassthroughLLM, this returns all content concatenated together.
 
         Args:
             prompt_result: The GetPromptResult containing prompt messages
             prompt_name: The name of the prompt being applied
 
         Returns:
-            String representation of the assistant's response if generated,
-            or the last assistant message in the prompt
+            String representation of all message content concatenated together
         """
         prompt_messages: List[PromptMessage] = prompt_result.messages
 
@@ -210,3 +229,9 @@ class PassthroughLLM(AugmentedLLM):
             arguments=arguments,
         )
         self._messages = prompt_messages
+        
+        # Convert prompt messages to multipart format
+        multipart_messages = PromptMessageMultipart.from_prompt_messages(prompt_messages)
+        
+        # Use apply_prompt to handle the multipart messages
+        return await self.apply_prompt(multipart_messages)
