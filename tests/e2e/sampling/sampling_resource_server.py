@@ -7,8 +7,6 @@ app = FastMCP(name="FastStoryAgent")
 
 @app.resource("resource://fast-agent/short-story/{topic}")
 async def generate_short_story(topic: str):
-    """Generate a short story using the sampling capability."""
-    # Create a prompt for the LLM
     prompt = f"Please write a short story on the topic of {topic}."
 
     # Make a sampling request to the client

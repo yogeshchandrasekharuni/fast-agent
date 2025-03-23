@@ -14,7 +14,7 @@ from anyio.streams.memory import MemoryObjectReceiveStream, MemoryObjectSendStre
 logger = get_logger(__name__)
 
 
-# TODO this will be removed when client library 1.4.2 is released
+# TODO this will be removed when client library with https://github.com/modelcontextprotocol/python-sdk/pull/343 is released
 @asynccontextmanager
 async def stdio_client_with_rich_stderr(server: StdioServerParameters):
     """
@@ -95,7 +95,6 @@ async def stdio_client_with_rich_stderr(server: StdioServerParameters):
             async with write_stream_reader:
                 async for message in write_stream_reader:
                     json = message.model_dump_json(by_alias=True, exclude_none=True)
-                    print(f"**********{id(process.stdin)}")
                     await process.stdin.send(
                         (json + "\n").encode(
                             encoding=server.encoding,
