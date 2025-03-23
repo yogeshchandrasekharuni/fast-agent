@@ -1,5 +1,4 @@
 import asyncio
-import sys
 from mcp_agent.core.fastagent import FastAgent
 
 # Create the application with specified model

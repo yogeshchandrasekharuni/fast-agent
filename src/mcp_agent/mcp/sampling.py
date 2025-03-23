@@ -9,10 +9,9 @@ from mcp.types import (
     CreateMessageResult,
     TextContent,
 )
-from typing import Optional
 
 from mcp_agent.logging.logger import get_logger
-from mcp_agent.mcp.interfaces import ModelFactoryClassProtocol, AugmentedLLMProtocol
+from mcp_agent.mcp.interfaces import AugmentedLLMProtocol
 from mcp_agent.mcp.prompt_message_multipart import PromptMessageMultipart
 
 # Protocol is sufficient to describe the interface - no need for TYPE_CHECKING imports
