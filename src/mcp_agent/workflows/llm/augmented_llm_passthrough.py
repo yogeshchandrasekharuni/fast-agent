@@ -77,9 +77,6 @@ class PassthroughLLM(AugmentedLLM):
             if len(parts) > 2:
                 try:
                     arguments = json.loads(parts[2])
-                    # If empty dict, convert to None to avoid issues with empty parameters
-                    if arguments == {}:
-                        arguments = None
                 except json.JSONDecodeError:
                     return f"Error: Invalid JSON arguments: {parts[2]}"
 
@@ -103,24 +100,7 @@ class PassthroughLLM(AugmentedLLM):
             result_text = []
             for content_item in result.content:
                 if hasattr(content_item, "text"):
-                    # Check if text is a JSON string containing another CallToolResult
-                    text = content_item.text
-                    try:
-                        # See if it's a JSON string that contains a nested CallToolResult
-                        json_obj = json.loads(text)
-                        if isinstance(json_obj, dict) and "content" in json_obj:
-                            # It's a nested result, extract the inner content
-                            for inner_content in json_obj["content"]:
-                                if isinstance(inner_content, dict) and "text" in inner_content:
-                                    result_text.append(inner_content["text"])
-                                else:
-                                    result_text.append(str(inner_content))
-                        else:
-                            # Regular text
-                            result_text.append(text)
-                    except (json.JSONDecodeError, TypeError):
-                        # Not a JSON string, just use the text
-                        result_text.append(text)
+                    result_text.append(content_item.text)
                 else:
                     result_text.append(str(content_item))
 

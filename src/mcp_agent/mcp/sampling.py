@@ -9,61 +9,95 @@ from mcp.types import (
     CreateMessageResult,
     TextContent,
 )
+from typing import Optional
 
 from mcp_agent.logging.logger import get_logger
-from mcp_agent.mcp.interfaces import ModelFactoryClassProtocol
+from mcp_agent.mcp.interfaces import ModelFactoryClassProtocol, AugmentedLLMProtocol
+from mcp_agent.mcp.prompt_message_multipart import PromptMessageMultipart
 
 # Protocol is sufficient to describe the interface - no need for TYPE_CHECKING imports
 
 logger = get_logger(__name__)
 
 
+def create_sampling_llm(
+    mcp_ctx: ClientSession, model_string: str
+) -> AugmentedLLMProtocol:
+    """
+    Create an LLM instance for sampling without tools support.
+    This utility function creates a minimal LLM instance based on the model string.
+
+    Args:
+        mcp_ctx: The MCP ClientSession
+        model_string: The model to use (e.g. "passthrough", "claude-3-5-sonnet-latest")
+
+    Returns:
+        An initialized LLM instance ready to use
+    """
+    from mcp_agent.workflows.llm.model_factory import ModelFactory
+    from mcp_agent.agents.agent import Agent, AgentConfig
+
+    # Get application context from global state if available
+    # We don't try to extract it from mcp_ctx as they're different contexts
+    app_context = None
+    try:
+        from mcp_agent.context import get_current_context
+
+        app_context = get_current_context()
+    except Exception:
+        logger.warning("App context not available for sampling call")
+
+    # Create a minimal agent configuration
+    agent_config = AgentConfig(
+        name="sampling_agent",
+        instruction="You are a sampling agent.",
+        servers=[],  # No servers needed
+    )
+
+    # Create agent with our application context (not the MCP context)
+    # Set connection_persistence=False to avoid server connections
+    agent = Agent(
+        config=agent_config,
+        context=app_context,
+        server_names=[],  # Make sure no server connections are attempted
+        connection_persistence=False,  # Avoid server connection management
+    )
+
+    # Create the LLM using the factory
+    factory = ModelFactory.create_factory(model_string)
+    llm = factory(agent=agent)
+
+    # Attach the LLM to the agent
+    agent._llm = llm
+
+    return llm
+
+
 async def sample(
-    ctx: ClientSession, params: CreateMessageRequestParams
+    mcp_ctx: ClientSession, params: CreateMessageRequestParams
 ) -> CreateMessageResult:
     """
     Handle sampling requests from the MCP protocol.
     This function extracts the model from the server config and
-    returns a simple response without creating a full model instance.
+    returns a simple response using the specified model.
     """
+    model = None
     try:
-        model = None
+        # Extract model from server config
         if (
-            hasattr(ctx, "session")
-            and hasattr(ctx.session, "server_config")
-            and ctx.session.server_config
-            and hasattr(ctx.session.server_config, "sampling")
-            and ctx.session.server_config.sampling.model
+            hasattr(mcp_ctx, "session")
+            and hasattr(mcp_ctx.session, "server_config")
+            and mcp_ctx.session.server_config
+            and hasattr(mcp_ctx.session.server_config, "sampling")
+            and mcp_ctx.session.server_config.sampling.model
         ):
-            model = ctx.session.server_config.sampling.model
+            model = mcp_ctx.session.server_config.sampling.model
 
         if model is None:
             raise ValueError("No model configured")
 
-        from mcp_agent.workflows.llm.model_factory import ModelFactory
-        from mcp_agent.agents.agent import Agent, AgentConfig
-        from mcp_agent.mcp.prompt_message_multipart import PromptMessageMultipart
-
-        # Verify ModelFactory matches our protocol
-        model_factory: ModelFactoryClassProtocol = ModelFactory
-
-        factory = model_factory.create_factory("passthrough")
-
-        agent_config = AgentConfig(
-            name="sampling_agent",
-            instruction="You are a sampling agent.",
-            servers=[],  # No servers needed for this simple use case
-        )
-
-        # Create the agent using the config
-        agent = Agent(
-            config=agent_config,
-            context=ctx.context if hasattr(ctx, "context") else None,
-        )
-
-        # Initialize the LLM using our factory and attach it to the agent
-        llm = factory(agent=agent)
-        agent._llm = llm  # Attach the LLM directly
+        # Create an LLM instance using our utility function
+        llm = create_sampling_llm(mcp_ctx, model)
 
         # Get user message from the request params
         user_message = params.messages[0].content.text
