@@ -10,14 +10,13 @@
 
 ## Overview
 
-**`fast-agent`** enables you to create and interact with sophisticated Agents and Workflows in minutes. It is the first framework with complete, end-to-end tested MCP Feature support including Sampling. Both Anthropic (Haiku, Sonnet, Opus) and OpenAI models (gpt-4o family, o1/o3 family) are supported. 
+**`fast-agent`** enables you to create and interact with sophisticated Agents and Workflows in minutes. It is the first framework with complete, end-to-end tested MCP Feature support including Sampling. Both Anthropic (Haiku, Sonnet, Opus) and OpenAI models (gpt-4o family, o1/o3 family) are supported.
 
 The simple declarative syntax lets you concentrate on composing your Prompts and MCP Servers to [build effective agents](https://www.anthropic.com/research/building-effective-agents).
 
-`fast-agent` is multi-modal, supporting Images and PDFs for both Anthropic and OpenAI endpoints via Prompts, Resources and MCP Tool Call results. The inclusion of passthrough and playback LLMs enable rapid development and test of Python glue-code for your applications. 
+`fast-agent` is multi-modal, supporting Images and PDFs for both Anthropic and OpenAI endpoints via Prompts, Resources and MCP Tool Call results. The inclusion of passthrough and playback LLMs enable rapid development and test of Python glue-code for your applications.
 
-> [!TIP]
-> `fast-agent` is now MCP Native! Coming Soon - Full Documentation Site and Further MCP Examples.
+> [!TIP] > `fast-agent` is now MCP Native! Coming Soon - Full Documentation Site and Further MCP Examples.
 
 ### Agent Application Development
 
@@ -352,6 +351,14 @@ agent["greeter"].send("Good Evening!")          # Dictionary access is supported
 
 Add Resources to prompts using either the inbuilt `prompt-server` or MCP Types directly. Convenience class are made available to do so simply, for example:
 
+```python
+  summary: str =  await agent.with_resource(
+      "Summarise this PDF please",
+      "mcp_server",
+      "resource://fast-agent/sample.pdf",
+  )
+```
+
 #### MCP Tool Result Conversion
 
 LLM APIs have restrictions on the content types that can be returned as Tool Calls/Function results via their Chat Completions API's:
@@ -367,6 +374,20 @@ MCP Prompts are supported with `apply_prompt(name,arguments)`, which always retu
 
 Prompts can also be applied interactively through the interactive interface by using the `/prompt` command.
 
+### Sampling
+
+Sampling LLMs are configured per Client/Server pair. Specify the model name in fastagent.config.yaml as follows:
+
+```yaml
+mcp:
+  servers:
+    sampling_resource:
+      command: "uv"
+      args: ["run", "sampling_resource_server.py"]
+      sampling:
+        model: "haiku"
+```
+
 ### Secrets File
 
 > [!TIP]
@@ -375,8 +396,3 @@ Prompts can also be applied interactively through the interactive interface by u
 ## Project Notes
 
 `fast-agent` builds on the [`mcp-agent`](https://github.com/lastmile-ai/mcp-agent) project by Sarmad Qadri.
-
-
-- Run Agent as MCP Server, with interop
-- Multi-part content types supporing Vision, PDF and multi-part Text.
-- Improved test automation (supported by prompt_server.py and augmented_llm_playback.py)

@@ -25,7 +25,7 @@ async def test_using_resource_blob(fast_agent, model_name):
     )
     async def agent_function():
         async with fast.run() as agent:
-            assert "fast-agent" in await agent.agent.with_resource(
+            assert "fast-agent" in await agent.with_resource(
                 "Summarise this PDF please, be sure to include the product name",
                 "prompt_server",
                 "resource://fast-agent/sample.pdf",
