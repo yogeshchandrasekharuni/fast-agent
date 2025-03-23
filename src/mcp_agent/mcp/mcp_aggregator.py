@@ -16,6 +16,7 @@ from mcp.server.stdio import stdio_server
 from mcp.types import (
     CallToolResult,
     ListToolsResult,
+    TextContent,
     Tool,
     Prompt,
 )
@@ -459,7 +460,10 @@ class MCPAggregator(ContextDependent):
 
         if server_name is None or local_tool_name is None:
             logger.error(f"Error: Tool '{name}' not found")
-            return CallToolResult(isError=True, message=f"Tool '{name}' not found")
+            return CallToolResult(
+                isError=True, 
+                content=[TextContent(type="text", text=f"Tool '{name}' not found")]
+            )
 
         logger.info(
             "Requesting tool call",
@@ -477,7 +481,10 @@ class MCPAggregator(ContextDependent):
             operation_name=local_tool_name,
             method_name="call_tool",
             method_args={"name": local_tool_name, "arguments": arguments},
-            error_factory=lambda msg: CallToolResult(isError=True, message=msg),
+            error_factory=lambda msg: CallToolResult(
+                isError=True, 
+                content=[TextContent(type="text", text=msg)]
+            ),
         )
 
     async def get_prompt(
@@ -898,7 +905,10 @@ class MCPCompoundServer(Server):
             result = await self.aggregator.call_tool(name=name, arguments=arguments)
             return result.content
         except Exception as e:
-            return CallToolResult(isError=True, message=f"Error calling tool: {e}")
+            return CallToolResult(
+                isError=True, 
+                content=[TextContent(type="text", text=f"Error calling tool: {e}")]
+            )
 
     async def _get_prompt(
         self, name: str = None, arguments: dict[str, str] = None

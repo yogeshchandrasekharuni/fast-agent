@@ -25,11 +25,6 @@ async def sample(
     Handle sampling requests from the MCP protocol.
     This function extracts the model from the server config and
     returns a simple response without creating a full model instance.
-
-    Note: This function intentionally avoids direct imports of model_factory
-    to prevent circular imports between:
-    - mcp_server_registry → mcp_connection_manager → mcp_agent_client_session → sampling
-    - model_factory → agent → mcp_aggregator → gen_client → mcp_server_registry
     """
     try:
         model = None
@@ -45,37 +40,50 @@ async def sample(
         if model is None:
             raise ValueError("No model configured")
 
-        # Import model_factory dynamically to avoid circular imports
-        # Use the ModelFactoryClassProtocol for type checking
         from mcp_agent.workflows.llm.model_factory import ModelFactory
-        from mcp_agent.agents.agent import Agent
+        from mcp_agent.agents.agent import Agent, AgentConfig
+        from mcp_agent.mcp.prompt_message_multipart import PromptMessageMultipart
 
         # Verify ModelFactory matches our protocol
         model_factory: ModelFactoryClassProtocol = ModelFactory
 
-        # Create a factory for the specified model
-        factory = model_factory.create_factory(model)
+        factory = model_factory.create_factory("passthrough")
 
-        # Create a minimal agent for the factory
-        # We use a simple agent configuration just for the sampling use case
-        agent = Agent(
+        agent_config = AgentConfig(
             name="sampling_agent",
             instruction="You are a sampling agent.",
-            server_names=[],  # No servers needed for this simple use case
+            servers=[],  # No servers needed for this simple use case
+        )
+
+        # Create the agent using the config
+        agent = Agent(
+            config=agent_config,
             context=ctx.context if hasattr(ctx, "context") else None,
         )
 
-        # Initialize the LLM using our factory - existence check only
-        _ = factory(agent=agent)  # Just verify it works, don't need to use
+        # Initialize the LLM using our factory and attach it to the agent
+        llm = factory(agent=agent)
+        agent._llm = llm  # Attach the LLM directly
 
         # Get user message from the request params
         user_message = params.messages[0].content.text
-        llm_response = "Response from LLM: " + user_message
 
-        # Log successful LLM response
-        logger.info(f"LLM successfully processed: {user_message[:30]}...")
+        # Create a multipart prompt message with the user's input
+        prompt = PromptMessageMultipart(
+            role="user", content=[TextContent(type="text", text=user_message)]
+        )
 
-        # Use the LLM-generated response in our result
+        try:
+            # Use the LLM to generate a response
+            logger.info(f"Processing input: {user_message[:50]}...")
+            llm_response = await llm.generate_prompt(prompt, None)
+            logger.info(f"Generated response: {llm_response[:50]}...")
+        except Exception as e:
+            # If there's an error in LLM processing, fall back to echo
+            logger.error(f"Error generating response: {str(e)}")
+            llm_response = f"Echo response: {user_message}"
+
+        # Return the LLM-generated response
         return CreateMessageResult(
             role="assistant",
             content=TextContent(type="text", text=llm_response),

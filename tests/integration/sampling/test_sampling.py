@@ -46,3 +46,26 @@ async def test_sampling_config(fast_agent):
             "passthrough"
             == fast.context.config.mcp.servers["sampling_test"].sampling.model
         )
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_sampling_with_value(fast_agent):
+    """Test that the agent can process a tool call with a specific value."""
+    # Use the FastAgent instance from the test directory fixture
+    fast = fast_agent
+
+    # Define the agent
+    @fast.agent(name="foo", instruction="bar", servers=["sampling_test"])
+    async def agent_function():
+        try:
+            async with fast.run() as agent:
+                # Use full server-tool name format with explicit value
+                result = await agent(
+                    '***CALL_TOOL sampling_test-sample {"to_sample": "test_value"}'
+                )
+                assert "test_value" in result
+        except Exception as e:
+            pytest.fail(f"Test failed with error: {str(e)}")
+
+    await agent_function()
