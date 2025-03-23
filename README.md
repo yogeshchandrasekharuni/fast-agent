@@ -1,4 +1,4 @@
-## fast-agent
+## fast-agent by llmindset.co.uk
 
 <p align="center">
 <a href="https://pypi.org/project/fast-agent-mcp/"><img src="https://img.shields.io/pypi/v/fast-agent-mcp?color=%2334D058&label=pypi" /></a>
@@ -10,13 +10,13 @@
 
 ## Overview
 
-**`fast-agent`** enables you to create and interact with sophisticated Agents and Workflows in minutes.
+**`fast-agent`** enables you to create and interact with sophisticated Agents and Workflows in minutes. It is the first framework with complete, end-to-end tested MCP Feature support including Sampling. Both Anthropic (Haiku, Sonnet, Opus) and OpenAI models (gpt-4o family, o1/o3 family) are supported. 
 
 The simple declarative syntax lets you concentrate on composing your Prompts and MCP Servers to [build effective agents](https://www.anthropic.com/research/building-effective-agents).
 
 Evaluate how different models handle Agent and MCP Server calling tasks, then build multi-model workflows using the best provider for each task.
 
-`fast-agent` is now multi-modal, supporting Images and PDFs for both Anthropic and OpenAI endpoints (for supported models), via Prompts, Resources and MCP Tool Call results.
+`fast-agent` is now multi-modal, supporting Images and PDFs for both Anthropic and OpenAI endpoints via Prompts, Resources and MCP Tool Call results. The inclusion of passthrough and playback LLMs enable rapid development and test of Python glue-code for your applications.
 
 > [!TIP]
 > `fast-agent` is now MCP Native! Coming Soon - Full Documentation Site.
@@ -378,30 +378,6 @@ Prompts can also be applied interactively through the interactive interface by u
 
 `fast-agent` builds on the [`mcp-agent`](https://github.com/lastmile-ai/mcp-agent) project by Sarmad Qadri.
 
-### llmindset.co.uk fork:
-
-- Addition of MCP Prompts including Prompt Server and agent save/replay ability.
-- Overhaul of Eval/Opt for Conversation Management
-- Removed instructor/double-llm calling - native structured outputs for OAI.
-- Improved handling of Parallel/Fan-In and respose option
-- XML based generated prompts
-- "FastAgent" style prototyping, with per-agent models
-- API keys through Environment Variables
-- Warm-up / Post-Workflow Agent Interactions
-- Quick Setup
-- Interactive Prompt Mode
-- Simple Model Selection with aliases
-- User/Assistant and Tool Call message display
-- MCP Sever Environment Variable support
-- MCP Roots support
-- Comprehensive Progress display
-- JSONL file logging with secret revokation
-- OpenAI o1/o3-mini support with reasoning level
-- Enhanced Human Input Messaging and Handling
-- Declarative workflows
-- Numerous defect fixes
-
-### Features to add (Commmitted)
 
 - Run Agent as MCP Server, with interop
 - Multi-part content types supporing Vision, PDF and multi-part Text.
