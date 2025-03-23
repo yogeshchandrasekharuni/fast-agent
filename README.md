@@ -27,7 +27,7 @@ Chat with individual Agents and Components before, during and after workflow exe
 
 Simple model selection makes testing Model <-> MCP Server interaction painless. You can read more about the motivation behind this project [here](https://llmindset.co.uk/resources/fast-agent/)
 
-![fast-agent](https://github.com/user-attachments/assets/3e692103-bf97-489a-b519-2d0fee036369)
+![2025-03-23-fast-agent](https://github.com/user-attachments/assets/8f6dbb69-43e3-4633-8e12-5572e9614728)
 
 ## Get started:
 
@@ -393,6 +393,10 @@ mcp:
 
 > [!TIP]
 > fast-agent will look recursively for a fastagent.secrets.yaml file, so you only need to manage this at the root folder of your agent definitions.
+
+### Interactive Shell
+
+![fast-agent](https://github.com/user-attachments/assets/3e692103-bf97-489a-b519-2d0fee036369)
 
 ## Project Notes
 
