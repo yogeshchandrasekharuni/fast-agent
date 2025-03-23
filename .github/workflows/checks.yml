@@ -1,4 +1,4 @@
-name: Linting, formatting and other checks on codebase
+name: Tests
 
 on:
   workflow_call:
