@@ -1,20 +1,19 @@
 """
 Module for handling MCP Sampling functionality without causing circular imports.
-This module is carefully designed to avoid circular imports in the agent system.
+This simplified implementation directly converts between MCP types and PromptMessageMultipart.
 """
 
 from mcp import ClientSession
 from mcp.types import (
     CreateMessageRequestParams,
     CreateMessageResult,
-    TextContent,
 )
 
 from mcp_agent.logging.logger import get_logger
 from mcp_agent.mcp.interfaces import AugmentedLLMProtocol
-from mcp_agent.mcp.prompt_message_multipart import PromptMessageMultipart
 
-# Protocol is sufficient to describe the interface - no need for TYPE_CHECKING imports
+# Import the converter since we've fixed the circular import
+from mcp_agent.workflows.llm.sampling_converter import SamplingConverter
 
 logger = get_logger(__name__)
 
@@ -37,7 +36,6 @@ def create_sampling_llm(
     from mcp_agent.agents.agent import Agent, AgentConfig
 
     # Get application context from global state if available
-    # We don't try to extract it from mcp_ctx as they're different contexts
     app_context = None
     try:
         from mcp_agent.context import get_current_context
@@ -54,7 +52,6 @@ def create_sampling_llm(
     )
 
     # Create agent with our application context (not the MCP context)
-    # Set connection_persistence=False to avoid server connections
     agent = Agent(
         config=agent_config,
         context=app_context,
@@ -76,9 +73,20 @@ async def sample(
     mcp_ctx: ClientSession, params: CreateMessageRequestParams
 ) -> CreateMessageResult:
     """
-    Handle sampling requests from the MCP protocol.
-    This function extracts the model from the server config and
-    returns a simple response using the specified model.
+    Handle sampling requests from the MCP protocol using SamplingConverter.
+
+    This function:
+    1. Extracts the model from the request
+    2. Uses SamplingConverter to convert types
+    3. Calls the LLM's generate_prompt method
+    4. Returns the result as a CreateMessageResult
+
+    Args:
+        mcp_ctx: The MCP ClientSession
+        params: The sampling request parameters
+
+    Returns:
+        A CreateMessageResult containing the LLM's response
     """
     model = None
     try:
@@ -95,39 +103,29 @@ async def sample(
         if model is None:
             raise ValueError("No model configured")
 
-        # Create an LLM instance using our utility function
+        # Create an LLM instance
         llm = create_sampling_llm(mcp_ctx, model)
 
-        # Get user message from the request params
-        user_message = params.messages[0].content.text
+        # Extract all messages from the request params
+        if not params.messages:
+            raise ValueError("No messages provided")
 
-        # Create a multipart prompt message with the user's input
-        prompt = PromptMessageMultipart(
-            role="user", content=[TextContent(type="text", text=user_message)]
-        )
+        # Convert all SamplingMessages to PromptMessageMultipart objects
+        conversation = SamplingConverter.convert_messages(params.messages)
 
-        try:
-            # Use the LLM to generate a response
-            logger.info(f"Processing input: {user_message[:50]}...")
-            llm_response = await llm.generate_prompt(prompt, None)
-            logger.info(f"Generated response: {llm_response[:50]}...")
-        except Exception as e:
-            # If there's an error in LLM processing, fall back to echo
-            logger.error(f"Error generating response: {str(e)}")
-            llm_response = f"Echo response: {user_message}"
+        # Extract request parameters using our converter
+        request_params = SamplingConverter.extract_request_params(params)
 
-        # Return the LLM-generated response
-        return CreateMessageResult(
-            role="assistant",
-            content=TextContent(type="text", text=llm_response),
-            model=model,
-            stopReason="endTurn",
+        # Use the new public apply_prompt method which is cleaner than calling the protected method
+        llm_response = await llm.apply_prompt(conversation, request_params)
+        logger.info(f"Complete sampling request : {llm_response[:50]}...")
+
+        # Create result using our converter
+        return SamplingConverter.create_message_result(
+            response=llm_response, model=model
         )
     except Exception as e:
         logger.error(f"Error in sampling: {str(e)}")
-        return CreateMessageResult(
-            role="assistant",
-            content=TextContent(type="text", text=f"Error in sampling: {str(e)}"),
-            model=model or "unknown",
-            stopReason="error",
+        return SamplingConverter.error_result(
+            error_message=f"Error in sampling: {str(e)}", model=model
         )

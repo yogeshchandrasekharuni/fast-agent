@@ -4,11 +4,23 @@ This module defines protocols (interfaces) that can be used to break circular de
 """
 
 from contextlib import asynccontextmanager
-from typing import Any, AsyncGenerator, Callable, Generic, List, Optional, Protocol, Type, TypeVar
+from typing import (
+    Any,
+    AsyncGenerator,
+    Callable,
+    Generic,
+    List,
+    Optional,
+    Protocol,
+    Type,
+    TypeVar,
+)
 
 from mcp import ClientSession
 from mcp.types import CreateMessageRequestParams
 from pydantic import Field
+
+from mcp_agent.mcp.prompt_message_multipart import PromptMessageMultipart
 
 
 class ServerRegistryProtocol(Protocol):
@@ -128,13 +140,33 @@ class AugmentedLLMProtocol(Protocol, Generic[MessageParamT, MessageT]):
     ) -> ModelT:
         """Request a structured LLM generation and return the result as a Pydantic model."""
 
+    async def generate_prompt(
+        self, prompt: PromptMessageMultipart, request_params: RequestParams | None
+    ) -> str:
+        """Request an LLM generation and return a string representation of the result"""
+
+    async def apply_prompt(
+        self, multipart_messages: List["PromptMessageMultipart"], request_params: RequestParams | None = None
+    ) -> str:
+        """
+        Apply a list of PromptMessageMultipart messages directly to the LLM.
+        This is a cleaner interface to _apply_prompt_template_provider_specific.
+        
+        Args:
+            multipart_messages: List of PromptMessageMultipart objects
+            request_params: Optional parameters to configure the LLM request
+            
+        Returns:
+            String representation of the assistant's response
+        """
+
 
 class ModelFactoryClassProtocol(Protocol):
     """
     Protocol defining the minimal interface of the ModelFactory class needed by sampling.
     This allows sampling.py to depend on this protocol rather than the concrete ModelFactory class.
     """
-    
+
     @classmethod
     def create_factory(
         cls, model_string: str, request_params: Optional[RequestParams] = None

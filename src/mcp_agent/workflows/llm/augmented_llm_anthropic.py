@@ -360,7 +360,7 @@ class AnthropicAugmentedLLM(AugmentedLLM[MessageParam, Message]):
         )
 
     async def _apply_prompt_template_provider_specific(
-        self, multipart_messages: List["PromptMessageMultipart"]
+        self, multipart_messages: List["PromptMessageMultipart"], request_params: RequestParams | None = None
     ) -> str:
         """
         Anthropic-specific implementation of apply_prompt_template that handles
@@ -393,7 +393,7 @@ class AnthropicAugmentedLLM(AugmentedLLM[MessageParam, Message]):
                 "Last message in prompt is from user, generating assistant response"
             )
             message_param = AnthropicConverter.convert_to_anthropic(last_message)
-            return await self.generate_str(message_param)
+            return await self.generate_str(message_param, request_params)
         else:
             # For assistant messages: Return the last message content as text
             self.logger.debug(

@@ -395,7 +395,7 @@ class OpenAIAugmentedLLM(
         return "\n".join(final_text)
 
     async def _apply_prompt_template_provider_specific(
-        self, multipart_messages: List["PromptMessageMultipart"]
+        self, multipart_messages: List["PromptMessageMultipart"], request_params: RequestParams | None = None
     ) -> str:
         """
         OpenAI-specific implementation of apply_prompt_template that handles
@@ -431,7 +431,7 @@ class OpenAIAugmentedLLM(
                 "Last message in prompt is from user, generating assistant response"
             )
             message_param = OpenAIConverter.convert_to_openai(last_message)
-            return await self.generate_str(message_param)
+            return await self.generate_str(message_param, request_params)
         else:
             # For assistant messages: Return the last message content as text
             self.logger.debug(
