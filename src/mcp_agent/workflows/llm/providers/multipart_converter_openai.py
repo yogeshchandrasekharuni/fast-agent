@@ -5,6 +5,7 @@ from mcp.types import (
     ImageContent,
     EmbeddedResource,
     CallToolResult,
+    PromptMessage,
 )
 from mcp_agent.mcp.prompt_message_multipart import PromptMessageMultipart
 from mcp_agent.mcp.mime_utils import (
@@ -144,6 +145,46 @@ class OpenAIConverter:
             content_blocks = combined_blocks
 
         return {"role": role, "content": content_blocks}
+            
+    @staticmethod
+    def convert_prompt_message_to_openai(
+        message: PromptMessage, concatenate_text_blocks: bool = False
+    ) -> OpenAIMessage:
+        """
+        Convert a standard PromptMessage to OpenAI API format.
+        
+        Args:
+            message: The PromptMessage to convert
+            concatenate_text_blocks: Not used for single messages, 
+                                    included for API compatibility
+            
+        Returns:
+            An OpenAI API message object
+        """
+        role = message.role
+        
+        # For assistant messages, OpenAI only supports string content
+        if role == "assistant":
+            if isinstance(message.content, TextContent):
+                return {"role": role, "content": message.content.text}
+            else:
+                # Non-text content types are not supported for assistant
+                return {"role": role, "content": ""}
+        
+        # For user messages, convert based on content type
+        if isinstance(message.content, TextContent):
+            return {"role": role, "content": [OpenAIConverter._convert_text_content(message.content)]}
+        elif isinstance(message.content, ImageContent):
+            return {"role": role, "content": [OpenAIConverter._convert_image_content(message.content)]}
+        elif isinstance(message.content, EmbeddedResource):
+            content_block = OpenAIConverter._convert_embedded_resource(message.content)
+            if content_block:
+                return {"role": role, "content": [content_block]}
+            else:
+                return {"role": role, "content": [{"type": "text", "text": "[Unsupported resource]"}]}
+        else:
+            # Handle unexpected content type
+            return {"role": role, "content": [{"type": "text", "text": f"[Unsupported content type: {type(message.content).__name__}]"}]}
 
     @staticmethod
     def _convert_text_content(content: TextContent) -> OpenAIContentBlock:

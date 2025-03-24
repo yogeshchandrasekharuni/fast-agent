@@ -10,7 +10,6 @@ from typing import (
     TYPE_CHECKING,
 )
 
-from mcp import CreateMessageResult, SamplingMessage
 from mcp_agent.mcp.prompt_message_multipart import PromptMessageMultipart
 from mcp_agent.workflows.llm.sampling_format_converter import (
     SamplingFormatConverter,
@@ -40,12 +39,15 @@ from mcp.types import (
 from mcp_agent.context_dependent import ContextDependent
 from mcp_agent.core.exceptions import PromptExitError
 from mcp_agent.event_progress import ProgressAction
+
 try:
     from mcp_agent.mcp.mcp_aggregator import MCPAggregator
 except ImportError:
     # For testing purposes
     class MCPAggregator:
         pass
+
+
 from mcp_agent.workflows.llm.llm_selector import ModelSelector
 from mcp_agent.ui.console_display import ConsoleDisplay
 from rich.text import Text
@@ -400,25 +402,6 @@ class AugmentedLLM(ContextDependent, AugmentedLLMProtocol[MessageParamT, Message
 
         return default_request_params
 
-    def to_mcp_message_result(self, result: MessageT) -> CreateMessageResult:
-        """Convert an LLM response to an MCP message result type."""
-        return self.type_converter.to_sampling_result(result)
-
-    def from_mcp_message_result(self, result: CreateMessageResult) -> MessageT:
-        """Convert an MCP message result to an LLM response type."""
-        return self.type_converter.from_sampling_result(result)
-
-    def to_mcp_message_param(self, param: MessageParamT) -> SamplingMessage:
-        """Convert an LLM input to an MCP message (SamplingMessage) type."""
-        return self.type_converter.to_sampling_message(param)
-
-    def from_mcp_message_param(self, param: SamplingMessage) -> MessageParamT:
-        """Convert an MCP message (SamplingMessage) to an LLM input type."""
-        return self.type_converter.from_sampling_message(param)
-
-    def from_mcp_prompt_message(self, message: PromptMessage) -> MessageParamT:
-        return self.type_converter.from_prompt_message(message)
-
     @classmethod
     def convert_message_to_message_param(
         cls, message: MessageT, **kwargs
@@ -694,27 +677,35 @@ class AugmentedLLM(ContextDependent, AugmentedLLMProtocol[MessageParamT, Message
         )
 
         # Delegate to the provider-specific implementation
-        return await self._apply_prompt_template_provider_specific(multipart_messages, None)
-        
+        return await self._apply_prompt_template_provider_specific(
+            multipart_messages, None
+        )
+
     async def apply_prompt(
-        self, multipart_messages: List["PromptMessageMultipart"], request_params: RequestParams | None = None
+        self,
+        multipart_messages: List["PromptMessageMultipart"],
+        request_params: RequestParams | None = None,
     ) -> str:
         """
         Apply a list of PromptMessageMultipart messages directly to the LLM.
         This is a cleaner interface to _apply_prompt_template_provider_specific.
-        
+
         Args:
             multipart_messages: List of PromptMessageMultipart objects
             request_params: Optional parameters to configure the LLM request
-            
+
         Returns:
             String representation of the assistant's response
         """
         # Delegate to the provider-specific implementation
-        return await self._apply_prompt_template_provider_specific(multipart_messages, request_params)
+        return await self._apply_prompt_template_provider_specific(
+            multipart_messages, request_params
+        )
 
     async def _apply_prompt_template_provider_specific(
-        self, multipart_messages: List["PromptMessageMultipart"], request_params: RequestParams | None = None
+        self,
+        multipart_messages: List["PromptMessageMultipart"],
+        request_params: RequestParams | None = None,
     ) -> str:
         """
         Provider-specific implementation of apply_prompt_template.

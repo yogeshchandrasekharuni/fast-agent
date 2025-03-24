@@ -1,6 +1,5 @@
 from typing import Generic, List, Protocol, TypeVar
 
-from mcp import CreateMessageResult, SamplingMessage
 
 # Define type variables here instead of importing from augmented_llm
 MessageParamT = TypeVar("MessageParamT")
@@ -12,22 +11,6 @@ MessageT = TypeVar("MessageT")
 
 class SamplingFormatConverter(Protocol, Generic[MessageParamT, MessageT]):
     """Conversions between LLM provider and MCP types"""
-
-    @classmethod
-    def to_sampling_result(cls, result: MessageT) -> CreateMessageResult:
-        """Convert an LLM response to an MCP message result type."""
-
-    @classmethod
-    def from_sampling_result(cls, result: CreateMessageResult) -> MessageT:
-        """Convert an MCP message result to an LLM response type."""
-
-    @classmethod
-    def to_sampling_message(cls, param: MessageParamT) -> SamplingMessage:
-        """Convert an LLM input to an MCP message (SamplingMessage) type."""
-
-    @classmethod
-    def from_sampling_message(cls, param: SamplingMessage) -> MessageParamT:
-        """Convert an MCP message (SamplingMessage) to an LLM input type."""
 
     @classmethod
     def from_prompt_message(cls, message) -> MessageParamT:

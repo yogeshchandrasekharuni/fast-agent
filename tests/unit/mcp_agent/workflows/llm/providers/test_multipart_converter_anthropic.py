@@ -8,6 +8,7 @@ from mcp.types import (
     TextResourceContents,
     BlobResourceContents,
     CallToolResult,
+    PromptMessage,
 )
 from pydantic import AnyUrl
 from mcp_agent.mcp.prompt_message_multipart import PromptMessageMultipart
@@ -693,6 +694,61 @@ class TestAnthropicAssistantConverter(unittest.TestCase):
         self.assertEqual(len(anthropic_msg["content"]), 1)
         self.assertEqual(anthropic_msg["content"][0]["type"], "text")
         self.assertEqual(anthropic_msg["content"][0]["text"], self.sample_text)
+        
+    def test_convert_prompt_message_to_anthropic(self):
+        """Test conversion of a standard PromptMessage to Anthropic format."""
+        # Create a PromptMessage with TextContent
+        text_content = TextContent(type="text", text=self.sample_text)
+        prompt_message = PromptMessage(role="assistant", content=text_content)
+        
+        # Convert to Anthropic format
+        anthropic_msg = AnthropicConverter.convert_prompt_message_to_anthropic(prompt_message)
+        
+        # Assertions
+        self.assertEqual(anthropic_msg["role"], "assistant")
+        self.assertEqual(len(anthropic_msg["content"]), 1)
+        self.assertEqual(anthropic_msg["content"][0]["type"], "text")
+        self.assertEqual(anthropic_msg["content"][0]["text"], self.sample_text)
+        
+    def test_convert_prompt_message_image_to_anthropic(self):
+        """Test conversion of a PromptMessage with image content to Anthropic format."""
+        # Create a PromptMessage with ImageContent
+        image_base64 = base64.b64encode(b"fake_image_data").decode("utf-8")
+        image_content = ImageContent(type="image", data=image_base64, mimeType="image/jpeg")
+        prompt_message = PromptMessage(role="user", content=image_content)
+        
+        # Convert to Anthropic format
+        anthropic_msg = AnthropicConverter.convert_prompt_message_to_anthropic(prompt_message)
+        
+        # Assertions
+        self.assertEqual(anthropic_msg["role"], "user")
+        self.assertEqual(len(anthropic_msg["content"]), 1)
+        self.assertEqual(anthropic_msg["content"][0]["type"], "image")
+        self.assertEqual(anthropic_msg["content"][0]["source"]["type"], "base64")
+        self.assertEqual(anthropic_msg["content"][0]["source"]["media_type"], "image/jpeg")
+        self.assertEqual(anthropic_msg["content"][0]["source"]["data"], image_base64)
+        
+    def test_convert_prompt_message_embedded_resource_to_anthropic(self):
+        """Test conversion of a PromptMessage with embedded resource to Anthropic format."""
+        # Create a PromptMessage with embedded text resource
+        text_resource = TextResourceContents(
+            uri="test://example.com/document.txt",
+            mimeType="text/plain",
+            text="This is a text resource"
+        )
+        embedded_resource = EmbeddedResource(type="resource", resource=text_resource)
+        prompt_message = PromptMessage(role="user", content=embedded_resource)
+        
+        # Convert to Anthropic format
+        anthropic_msg = AnthropicConverter.convert_prompt_message_to_anthropic(prompt_message)
+        
+        # Assertions
+        self.assertEqual(anthropic_msg["role"], "user")
+        self.assertEqual(len(anthropic_msg["content"]), 1)
+        self.assertEqual(anthropic_msg["content"][0]["type"], "document")
+        self.assertEqual(anthropic_msg["content"][0]["source"]["type"], "text")
+        self.assertEqual(anthropic_msg["content"][0]["title"], "document.txt")
+        self.assertEqual(anthropic_msg["content"][0]["source"]["data"], "This is a text resource")
 
     def test_assistant_multiple_text_blocks(self):
         """Test conversion of assistant messages with multiple text blocks."""

@@ -8,6 +8,7 @@ from mcp.types import (
     TextResourceContents,
     BlobResourceContents,
     CallToolResult,
+    PromptMessage,
 )
 from mcp_agent.mcp.prompt_message_multipart import PromptMessageMultipart
 
@@ -239,6 +240,74 @@ class TestOpenAIAssistantConverter(unittest.TestCase):
         # Assertions - assistant should have string content in OpenAI
         self.assertEqual(openai_msg["role"], "assistant")
         self.assertEqual(openai_msg["content"], self.sample_text)
+        
+    def test_convert_prompt_message_to_openai_assistant(self):
+        """Test conversion of a standard PromptMessage with assistant role to OpenAI format."""
+        # Create a PromptMessage with TextContent
+        text_content = TextContent(type="text", text=self.sample_text)
+        prompt_message = PromptMessage(role="assistant", content=text_content)
+        
+        # Convert to OpenAI format
+        openai_msg = OpenAIConverter.convert_prompt_message_to_openai(prompt_message)
+        
+        # Assertions - assistant should have string content in OpenAI
+        self.assertEqual(openai_msg["role"], "assistant")
+        self.assertEqual(openai_msg["content"], self.sample_text)
+    
+    def test_convert_prompt_message_to_openai_user_text(self):
+        """Test conversion of a standard PromptMessage with user role and text content."""
+        # Create a PromptMessage with TextContent
+        text_content = TextContent(type="text", text="User message")
+        prompt_message = PromptMessage(role="user", content=text_content)
+        
+        # Convert to OpenAI format
+        openai_msg = OpenAIConverter.convert_prompt_message_to_openai(prompt_message)
+        
+        # Assertions - user should have array content in OpenAI
+        self.assertEqual(openai_msg["role"], "user")
+        self.assertIsInstance(openai_msg["content"], list)
+        self.assertEqual(len(openai_msg["content"]), 1)
+        self.assertEqual(openai_msg["content"][0]["type"], "text")
+        self.assertEqual(openai_msg["content"][0]["text"], "User message")
+    
+    def test_convert_prompt_message_to_openai_user_image(self):
+        """Test conversion of a PromptMessage with image content to OpenAI format."""
+        # Create a PromptMessage with ImageContent
+        image_base64 = base64.b64encode(b"fake_image_data").decode("utf-8")
+        image_content = ImageContent(type="image", data=image_base64, mimeType="image/jpeg")
+        prompt_message = PromptMessage(role="user", content=image_content)
+        
+        # Convert to OpenAI format
+        openai_msg = OpenAIConverter.convert_prompt_message_to_openai(prompt_message)
+        
+        # Assertions
+        self.assertEqual(openai_msg["role"], "user")
+        self.assertIsInstance(openai_msg["content"], list)
+        self.assertEqual(len(openai_msg["content"]), 1)
+        self.assertEqual(openai_msg["content"][0]["type"], "image_url")
+        self.assertEqual(openai_msg["content"][0]["image_url"]["url"], f"data:image/jpeg;base64,{image_base64}")
+    
+    def test_convert_prompt_message_embedded_resource_to_openai(self):
+        """Test conversion of a PromptMessage with embedded resource to OpenAI format."""
+        # Create a PromptMessage with embedded text resource
+        text_resource = TextResourceContents(
+            uri="test://example.com/document.txt",
+            mimeType="text/plain",
+            text="This is a text resource"
+        )
+        embedded_resource = EmbeddedResource(type="resource", resource=text_resource)
+        prompt_message = PromptMessage(role="user", content=embedded_resource)
+        
+        # Convert to OpenAI format
+        openai_msg = OpenAIConverter.convert_prompt_message_to_openai(prompt_message)
+        
+        # Assertions
+        self.assertEqual(openai_msg["role"], "user")
+        self.assertIsInstance(openai_msg["content"], list)
+        self.assertEqual(len(openai_msg["content"]), 1)
+        self.assertEqual(openai_msg["content"][0]["type"], "text")
+        self.assertIn("<fastagent:file", openai_msg["content"][0]["text"])
+        self.assertIn("This is a text resource", openai_msg["content"][0]["text"])
 
     def test_assistant_multiple_text_blocks(self):
         """Test that multiple text blocks in assistant messages are concatenated."""
