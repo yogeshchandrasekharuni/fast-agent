@@ -326,7 +326,7 @@ wheels = [
 
 [[package]]
 name = "fast-agent-mcp"
-version = "0.1.11"
+version = "0.1.12"
 source = { editable = "." }
 dependencies = [
     { name = "aiohttp" },
