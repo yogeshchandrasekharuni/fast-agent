@@ -1,4 +1,4 @@
-from typing import List, Union, Optional, Tuple, cast, Dict, Any
+from typing import List, Union, Optional, Tuple, Dict, Any
 
 from mcp.types import (
     TextContent,
@@ -6,8 +6,6 @@ from mcp.types import (
     EmbeddedResource,
     CallToolResult,
     PromptMessage,
-    TextResourceContents,
-    BlobResourceContents,
 )
 from mcp_agent.mcp.prompt_message_multipart import PromptMessageMultipart
 from mcp_agent.mcp.mime_utils import (
@@ -17,10 +15,6 @@ from mcp_agent.mcp.mime_utils import (
 )
 from mcp_agent.mcp.resource_utils import extract_title_from_uri
 
-from openai.types.chat import (
-    ChatCompletionMessageParam, 
-    ChatCompletionToolMessageParam,
-)
 
 from mcp_agent.logging.logger import get_logger
 

@@ -1,4 +1,4 @@
-from typing import Dict, Any, cast
+from typing import Dict, Any
 
 from openai.types.chat import (
     ChatCompletionMessage,
