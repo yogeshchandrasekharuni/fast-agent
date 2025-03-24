@@ -68,7 +68,6 @@ class EvaluatorOptimizerLLM(AugmentedLLM[MessageParamT, MessageT]):
     def _initialize_default_params(self, kwargs: dict) -> RequestParams:
         """Initialize default parameters using the workflow's settings."""
         return RequestParams(
-            modelPreferences=self.model_preferences,
             systemPrompt=self.instruction,
             parallel_tool_calls=True,
             max_iterations=10,

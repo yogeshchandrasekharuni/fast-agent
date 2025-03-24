@@ -30,14 +30,13 @@ from mcp.types import (
     CallToolRequest,
     CallToolResult,
     CreateMessageRequestParams,
-    ModelPreferences,
     PromptMessage,
     TextContent,
     GetPromptResult,
 )
 
 from mcp_agent.context_dependent import ContextDependent
-from mcp_agent.core.exceptions import PromptExitError
+from mcp_agent.core.exceptions import ModelConfigError, PromptExitError
 from mcp_agent.event_progress import ProgressAction
 
 try:
@@ -48,7 +47,6 @@ except ImportError:
         pass
 
 
-from mcp_agent.workflows.llm.llm_selector import ModelSelector
 from mcp_agent.ui.console_display import ConsoleDisplay
 from rich.text import Text
 
@@ -276,30 +274,15 @@ class AugmentedLLM(ContextDependent, AugmentedLLMProtocol[MessageParamT, Message
         # Initialize the display component
         self.display = ConsoleDisplay(config=self.context.config)
 
-        # Set initial model preferences
-        self.model_preferences = ModelPreferences(
-            costPriority=0.3,
-            speedPriority=0.4,
-            intelligencePriority=0.3,
-        )
-
         # Initialize default parameters
         self.default_request_params = self._initialize_default_params(kwargs)
-
-        # Update model preferences from default params
-        if self.default_request_params and self.default_request_params.modelPreferences:
-            self.model_preferences = self.default_request_params.modelPreferences
 
         # Merge with provided params if any
         if self._init_request_params:
             self.default_request_params = self._merge_request_params(
                 self.default_request_params, self._init_request_params
             )
-            # Update model preferences again if they changed in the merge
-            if self.default_request_params.modelPreferences:
-                self.model_preferences = self.default_request_params.modelPreferences
 
-        self.model_selector = self.context.model_selector
         self.type_converter = type_converter
         self.verb = kwargs.get("verb")
 
@@ -328,39 +311,21 @@ class AugmentedLLM(ContextDependent, AugmentedLLMProtocol[MessageParamT, Message
     ) -> ModelT:
         """Request a structured LLM generation and return the result as a Pydantic model."""
 
-    # aysnc def generate2_str(self, prompt: PromptMessageMultipart, request_params: RequestParams | None = None) -> List[MessageT]:
-    #     """Request an LLM generation, which may run multiple iterations, and return the result"""
-    #     return None
-
     async def select_model(
         self, request_params: RequestParams | None = None
     ) -> str | None:
         """
-        Select an LLM based on the request parameters.
-        If a model is specified in the request, it will override the model selection criteria.
+        Return the configured model (legacy support)
         """
-        model_preferences = self.model_preferences
-        if request_params is not None:
-            model_preferences = request_params.modelPreferences or model_preferences
-            model = request_params.model
-            if model:
-                return model
+        if request_params.model:
+            return request_params.model
 
-        ## TODO -- can't have been tested, returns invalid model strings (e.g. claude-35-sonnet)
-        if not self.model_selector:
-            self.model_selector = ModelSelector()
-
-        model_info = self.model_selector.select_best_model(
-            model_preferences=model_preferences, provider=self.provider
-        )
-
-        return model_info.name
+        raise ModelConfigError("Internal Error: Model is not configured correctly")
 
     def _initialize_default_params(self, kwargs: dict) -> RequestParams:
         """Initialize default parameters for the LLM.
         Should be overridden by provider implementations to set provider-specific defaults."""
         return RequestParams(
-            modelPreferences=self.model_preferences,
             systemPrompt=self.instruction,
             parallel_tool_calls=True,
             max_iterations=10,

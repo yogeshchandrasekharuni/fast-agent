@@ -18,11 +18,17 @@ logger:
 
 mcp:
   servers:
-    sampling_resource:
+    sampling_resource_anthropic:
       command: "uv"
       args: ["run", "sampling_resource_server.py"]
       sampling:
         model: "haiku"
+    sampling_resource_openai:
+      command: "uv"
+      args: ["run", "sampling_resource_server.py"]
+      sampling:
+        model: "gpt-4o-mini"
+
       # command: "bash"
       # args: ["-c", "uv run sampling_resource_server.py | tee sampling_output.log"]
       # sampling:

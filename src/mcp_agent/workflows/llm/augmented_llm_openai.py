@@ -92,7 +92,6 @@ class OpenAIAugmentedLLM(
 
         return RequestParams(
             model=chosen_model,
-            modelPreferences=self.model_preferences,
             systemPrompt=self.instruction,
             parallel_tool_calls=True,
             max_iterations=10,
@@ -395,7 +394,9 @@ class OpenAIAugmentedLLM(
         return "\n".join(final_text)
 
     async def _apply_prompt_template_provider_specific(
-        self, multipart_messages: List["PromptMessageMultipart"], request_params: RequestParams | None = None
+        self,
+        multipart_messages: List["PromptMessageMultipart"],
+        request_params: RequestParams | None = None,
     ) -> str:
         """
         OpenAI-specific implementation of apply_prompt_template that handles

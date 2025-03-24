@@ -13,7 +13,6 @@ async def test_playback_llm_init():
     mock_context = MagicMock()
     mock_context.config = MagicMock()
     mock_context.executor = MagicMock()
-    mock_context.model_selector = MagicMock()
 
     # Create a PlaybackLLM instance
     llm = PlaybackLLM(name="TestPlayback", context=mock_context)
@@ -31,7 +30,6 @@ async def test_playback_llm_messages_exhausted():
     mock_context = MagicMock()
     mock_context.config = MagicMock()
     mock_context.executor = MagicMock()
-    mock_context.model_selector = MagicMock()
 
     # Create a PlaybackLLM instance
     llm = PlaybackLLM(name="TestPlayback", context=mock_context)
@@ -55,7 +53,6 @@ async def test_playback_llm_apply_prompt_template():
     mock_context = MagicMock()
     mock_context.config = MagicMock()
     mock_context.executor = MagicMock()
-    mock_context.model_selector = MagicMock()
 
     # Create a PlaybackLLM instance
     llm = PlaybackLLM(name="TestPlayback", context=mock_context)
@@ -94,7 +91,6 @@ async def test_playback_llm_sequential_messages():
     mock_context = MagicMock()
     mock_context.config = MagicMock()
     mock_context.executor = MagicMock()
-    mock_context.model_selector = MagicMock()
 
     # Create a PlaybackLLM instance
     llm = PlaybackLLM(name="TestPlayback", context=mock_context)
@@ -146,7 +142,6 @@ async def test_playback_llm_append_messages():
     mock_context = MagicMock()
     mock_context.config = MagicMock()
     mock_context.executor = MagicMock()
-    mock_context.model_selector = MagicMock()
 
     # Create a PlaybackLLM instance
     llm = PlaybackLLM(name="TestPlayback", context=mock_context)
@@ -222,7 +217,6 @@ async def test_playback_llm_skips_user_messages():
     mock_context = MagicMock()
     mock_context.config = MagicMock()
     mock_context.executor = MagicMock()
-    mock_context.model_selector = MagicMock()
 
     # Create a PlaybackLLM instance
     llm = PlaybackLLM(name="TestPlayback", context=mock_context)

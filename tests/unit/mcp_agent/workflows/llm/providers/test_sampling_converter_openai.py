@@ -27,7 +27,7 @@ class TestOpenAIMCPTypeConverter:
             openai_param, dict
         )  # ChatCompletionMessageParam is a TypedDict
         assert openai_param["role"] == "user"
-        assert openai_param["content"] == "Please explain this concept."
+        assert "Please explain this concept." in openai_param["content"][0]["text"]
 
     def test_from_mcp_prompt_message_assistant(self):
         """Test converting an assistant PromptMessage to OpenAI ChatCompletionMessageParam."""
