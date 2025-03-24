@@ -1,6 +1,7 @@
+from typing import Dict, Any, cast
+
 from openai.types.chat import (
     ChatCompletionMessage,
-    ChatCompletionMessageParam,
 )
 
 from mcp.types import (
@@ -17,18 +18,12 @@ _logger = get_logger(__name__)
 
 
 class OpenAISamplingConverter(
-    SamplingFormatConverter[ChatCompletionMessageParam, ChatCompletionMessage]
+    SamplingFormatConverter[Dict[str, Any], ChatCompletionMessage]
 ):
     @classmethod
-    def from_prompt_message(cls, message: PromptMessage) -> ChatCompletionMessageParam:
-        """Convert an MCP PromptMessage to an OpenAI ChatCompletionMessageParam."""
-        content_text = (
-            message.content.text
-            if hasattr(message.content, "text")
-            else str(message.content)
-        )
-
-        return {
-            "role": message.role,
-            "content": content_text,
-        }
+    def from_prompt_message(cls, message: PromptMessage) -> Dict[str, Any]:
+        """Convert an MCP PromptMessage to an OpenAI message dict."""
+        from mcp_agent.workflows.llm.providers.multipart_converter_openai import OpenAIConverter
+        
+        # Use the full-featured OpenAI converter for consistent handling
+        return OpenAIConverter.convert_prompt_message_to_openai(message)
