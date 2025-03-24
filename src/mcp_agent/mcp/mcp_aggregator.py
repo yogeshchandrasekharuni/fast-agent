@@ -461,8 +461,8 @@ class MCPAggregator(ContextDependent):
         if server_name is None or local_tool_name is None:
             logger.error(f"Error: Tool '{name}' not found")
             return CallToolResult(
-                isError=True, 
-                content=[TextContent(type="text", text=f"Tool '{name}' not found")]
+                isError=True,
+                content=[TextContent(type="text", text=f"Tool '{name}' not found")],
             )
 
         logger.info(
@@ -482,8 +482,7 @@ class MCPAggregator(ContextDependent):
             method_name="call_tool",
             method_args={"name": local_tool_name, "arguments": arguments},
             error_factory=lambda msg: CallToolResult(
-                isError=True, 
-                content=[TextContent(type="text", text=msg)]
+                isError=True, content=[TextContent(type="text", text=msg)]
             ),
         )
 
@@ -906,8 +905,8 @@ class MCPCompoundServer(Server):
             return result.content
         except Exception as e:
             return CallToolResult(
-                isError=True, 
-                content=[TextContent(type="text", text=f"Error calling tool: {e}")]
+                isError=True,
+                content=[TextContent(type="text", text=f"Error calling tool: {e}")],
             )
 
     async def _get_prompt(

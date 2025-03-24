@@ -1,6 +1,5 @@
 import asyncio
 import uuid
-from dataclasses import dataclass
 from typing import Callable, Dict, List, Optional, TypeVar, Union, TYPE_CHECKING
 
 from mcp.server.fastmcp.tools import Tool as FastTool
@@ -16,7 +15,7 @@ from mcp_agent.mcp.prompt_message_multipart import PromptMessageMultipart
 
 from mcp_agent.core.exceptions import PromptExitError
 from mcp_agent.mcp.mcp_aggregator import MCPAggregator
-from mcp_agent.workflows.llm.augmented_llm import RequestParams
+from mcp_agent.core.agent_types import AgentConfig
 from mcp_agent.human_input.types import (
     HumanInputCallback,
     HumanInputRequest,
@@ -36,28 +35,6 @@ logger = get_logger(__name__)
 LLM = TypeVar("LLM", bound=AugmentedLLM)
 
 HUMAN_INPUT_TOOL_NAME = "__human_input__"
-
-
-@dataclass
-class AgentConfig:
-    """Configuration for an Agent instance"""
-
-    name: str
-    instruction: Union[str, Callable[[Dict], str]]
-    servers: List[str]
-    model: Optional[str] = None
-    use_history: bool = True
-    default_request_params: Optional[RequestParams] = None
-    human_input: bool = False
-
-    def __post_init__(self):
-        """Ensure default_request_params exists with proper history setting"""
-
-        if self.default_request_params is None:
-            self.default_request_params = RequestParams(use_history=self.use_history)
-        else:
-            # Override the request params history setting if explicitly configured
-            self.default_request_params.use_history = self.use_history
 
 
 class Agent(MCPAggregator):

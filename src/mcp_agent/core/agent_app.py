@@ -112,7 +112,7 @@ class AgentApp:
 
         proxy = self._agents[target]
         return await proxy.apply_prompt(prompt_name, arguments)
-        
+
     async def with_resource(
         self,
         prompt_content: Union[str, PromptMessageMultipart],

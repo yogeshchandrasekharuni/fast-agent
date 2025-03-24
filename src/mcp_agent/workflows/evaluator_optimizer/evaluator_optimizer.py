@@ -10,7 +10,8 @@ from mcp_agent.workflows.llm.augmented_llm import (
     ModelT,
     RequestParams,
 )
-from mcp_agent.agents.agent import Agent, AgentConfig
+from mcp_agent.agents.agent import Agent
+from mcp_agent.core.agent_types import AgentConfig
 from mcp_agent.logging.logger import get_logger
 from mcp_agent.workflows.llm.augmented_llm_passthrough import PassthroughLLM
 

@@ -146,7 +146,6 @@ def MCPFile(
     }
 
 
-
 def MCPPrompt(
     *content_items, role: Literal["user", "assistant"] = "user"
 ) -> List[dict]:
@@ -154,7 +153,7 @@ def MCPPrompt(
     Create one or more prompt messages with various content types.
 
     This function intelligently creates different content types:
-    - Strings become TextContent 
+    - Strings become TextContent
     - File paths with image mime types become ImageContent
     - File paths with text mime types or other mime types become EmbeddedResource
     - Dicts with role and content are passed through unchanged
@@ -180,7 +179,7 @@ def MCPPrompt(
             # File path - determine the content type based on mime type
             path_str = str(item)
             mime_type = guess_mime_type(path_str)
-            
+
             if is_image_mime_type(mime_type):
                 # Image files (except SVG which is handled as text)
                 result.append(MCPImage(path=item, role=role))

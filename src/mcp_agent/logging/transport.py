@@ -290,7 +290,7 @@ class AsyncEventBus:
             # Update transport if provided
             cls._instance.transport = transport
         return cls._instance
-        
+
     @classmethod
     def reset(cls) -> None:
         """
@@ -302,7 +302,7 @@ class AsyncEventBus:
             # Signal shutdown
             cls._instance._running = False
             cls._instance._stop_event.set()
-            
+
             # Clear the singleton instance
             cls._instance = None
 

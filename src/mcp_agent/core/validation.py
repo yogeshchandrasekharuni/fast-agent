@@ -5,14 +5,18 @@ Validation utilities for FastAgent configuration and dependencies.
 from typing import Dict, List, Any
 from mcp_agent.core.agent_types import AgentType
 from mcp_agent.workflows.llm.augmented_llm import AugmentedLLM
-from mcp_agent.core.exceptions import ServerConfigError, AgentConfigError, CircularDependencyError
+from mcp_agent.core.exceptions import (
+    ServerConfigError,
+    AgentConfigError,
+    CircularDependencyError,
+)
 
 
 def validate_server_references(context, agents: Dict[str, Dict[str, Any]]) -> None:
     """
     Validate that all server references in agent configurations exist in config.
     Raises ServerConfigError if any referenced servers are not defined.
-    
+
     Args:
         context: Application context
         agents: Dictionary of agent configurations
@@ -39,7 +43,7 @@ def validate_workflow_references(agents: Dict[str, Dict[str, Any]]) -> None:
     Validate that all workflow references point to valid agents/workflows.
     Also validates that referenced agents have required configuration.
     Raises AgentConfigError if any validation fails.
-    
+
     Args:
         agents: Dictionary of agent configurations
     """
@@ -133,11 +137,11 @@ def validate_workflow_references(agents: Dict[str, Dict[str, Any]]) -> None:
 
 
 def get_dependencies(
-    name: str, 
+    name: str,
     agents: Dict[str, Dict[str, Any]],
-    visited: set, 
-    path: set, 
-    agent_type: AgentType = None
+    visited: set,
+    path: set,
+    agent_type: AgentType = None,
 ) -> List[str]:
     """
     Get dependencies for an agent in topological order.
@@ -184,9 +188,7 @@ def get_dependencies(
         # Get dependencies from sequence agents
         sequence = config.get("sequence", config.get("agents", []))
         for agent_name in sequence:
-            deps.extend(
-                get_dependencies(agent_name, agents, visited, path, agent_type)
-            )
+            deps.extend(get_dependencies(agent_name, agents, visited, path, agent_type))
 
     # Add this agent after its dependencies
     deps.append(name)
@@ -197,10 +199,7 @@ def get_dependencies(
 
 
 def get_parallel_dependencies(
-    name: str, 
-    agents: Dict[str, Dict[str, Any]],
-    visited: set, 
-    path: set
+    name: str, agents: Dict[str, Dict[str, Any]], visited: set, path: set
 ) -> List[str]:
     """
     Get dependencies for a parallel agent in topological order.

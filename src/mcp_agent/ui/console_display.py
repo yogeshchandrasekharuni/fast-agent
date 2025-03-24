@@ -250,14 +250,14 @@ class ConsoleDisplay:
 
         if agent_name:
             content.append(f" for {agent_name}", style="cyan italic")
-            
+
         # Add template arguments if provided
         if arguments:
             content.append("\n\nArguments:", style="cyan")
             for key, value in arguments.items():
                 content.append(f"\n  {key}: ", style="cyan bold")
                 content.append(value, style="white")
-                
+
         if description:
             content.append("\n\n", style="default")
             content.append(description, style="dim white")

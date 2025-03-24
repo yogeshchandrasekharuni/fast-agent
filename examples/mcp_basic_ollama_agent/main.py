@@ -27,7 +27,7 @@ async def example_usage():
             and return the URI and CONTENTS of the closest match.""",
             servers=["fetch", "filesystem"],
             # Specify default request params for the agent
-            default_request_params=RequestParams(model="llama3.2:3b")
+            default_request_params=RequestParams(model="llama3.2:3b"),
         )
 
         finder_agent = Agent(config=finder_config)

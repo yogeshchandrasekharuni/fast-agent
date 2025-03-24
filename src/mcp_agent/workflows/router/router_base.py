@@ -265,16 +265,16 @@ class Router(ABC, ContextDependent):
         # Check if we have any content (description or tools)
         has_description = bool(category.description)
         has_tools = bool(category.tools)
-        
+
         # If no content at all, use self-closing tag
         if not has_description and not has_tools:
             return f'<fastagent:server-category name="{category.name}" />'
-            
+
         # Otherwise, build the content
         description_section = ""
         if has_description:
             description_section = f"\n<fastagent:description>{category.description}</fastagent:description>"
-            
+
         # Add tools section if we have tool information
         if has_tools:
             tools = self._format_tools(category.tools)
@@ -293,11 +293,11 @@ class Router(ABC, ContextDependent):
         # Check if we have any content (description or servers)
         has_description = bool(category.description)
         has_servers = bool(category.servers)
-        
+
         # If no content at all, use self-closing tag
         if not has_description and not has_servers:
             return f'<fastagent:agent-category name="{category.name}" />'
-            
+
         # Build description section if needed
         description_section = ""
         if has_description:
@@ -314,13 +314,13 @@ class Router(ABC, ContextDependent):
             # Check if this server has any content
             has_server_description = bool(server.description)
             has_server_tools = bool(server.tools)
-            
+
             # Use self-closing tag if server has no content
             if not has_server_description and not has_server_tools:
                 server_section = f'<fastagent:server name="{server.name}" />'
                 server_sections.append(server_section)
                 continue
-                
+
             # Build server description if needed
             server_desc_section = ""
             if has_server_description:
@@ -342,7 +342,7 @@ class Router(ABC, ContextDependent):
                 # Just description, no tools
                 server_section = f"""<fastagent:server name="{server.name}">{server_desc_section}
 </fastagent:server>"""
-            
+
             server_sections.append(server_section)
 
         servers = "\n".join(server_sections)
@@ -357,11 +357,11 @@ class Router(ABC, ContextDependent):
         """Format a function category into a readable string."""
         # Check if we have a description
         has_description = bool(category.description)
-        
+
         # If no description, use self-closing tag
         if not has_description:
             return f'<fastagent:function-category name="{category.name}" />'
-            
+
         # Include description
         return f"""<fastagent:function-category name="{category.name}">
 <fastagent:description>{category.description}</fastagent:description>

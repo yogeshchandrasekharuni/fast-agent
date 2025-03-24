@@ -24,12 +24,10 @@ if TYPE_CHECKING:
     from mcp_agent.context import Context
 
 
-from pydantic import Field
 
 from mcp.types import (
     CallToolRequest,
     CallToolResult,
-    CreateMessageRequestParams,
     PromptMessage,
     TextContent,
     GetPromptResult,
@@ -37,6 +35,7 @@ from mcp.types import (
 
 from mcp_agent.context_dependent import ContextDependent
 from mcp_agent.core.exceptions import ModelConfigError, PromptExitError
+from mcp_agent.core.request_params import RequestParams
 from mcp_agent.event_progress import ProgressAction
 
 try:
@@ -158,43 +157,6 @@ class SimpleMemory(Memory, Generic[MessageParamT]):
         self.history = []
         if clear_prompts:
             self.prompt_messages = []
-
-
-class RequestParams(CreateMessageRequestParams):
-    """
-    Parameters to configure the AugmentedLLM 'generate' requests.
-    """
-
-    messages: None = Field(exclude=True, default=None)
-    """
-    Ignored. 'messages' are removed from CreateMessageRequestParams 
-    to avoid confusion with the 'message' parameter on 'generate' method.
-    """
-
-    maxTokens: int = 2048
-    """The maximum number of tokens to sample, as requested by the server."""
-
-    model: str | None = None
-    """
-    The model to use for the LLM generation.
-    If specified, this overrides the 'modelPreferences' selection criteria.
-    """
-
-    use_history: bool = True
-    """
-    Include the message history in the generate request.
-    """
-
-    max_iterations: int = 10
-    """
-    The maximum number of iterations to run the LLM for.
-    """
-
-    parallel_tool_calls: bool = True
-    """
-    Whether to allow multiple tool calls per iteration.
-    Also known as multi-step tool use.
-    """
 
 
 class AugmentedLLMProtocol(Protocol, Generic[MessageParamT, MessageT]):

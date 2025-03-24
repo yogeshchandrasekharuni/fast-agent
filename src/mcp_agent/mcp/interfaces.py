@@ -146,16 +146,18 @@ class AugmentedLLMProtocol(Protocol, Generic[MessageParamT, MessageT]):
         """Request an LLM generation and return a string representation of the result"""
 
     async def apply_prompt(
-        self, multipart_messages: List["PromptMessageMultipart"], request_params: RequestParams | None = None
+        self,
+        multipart_messages: List["PromptMessageMultipart"],
+        request_params: RequestParams | None = None,
     ) -> str:
         """
         Apply a list of PromptMessageMultipart messages directly to the LLM.
         This is a cleaner interface to _apply_prompt_template_provider_specific.
-        
+
         Args:
             multipart_messages: List of PromptMessageMultipart objects
             request_params: Optional parameters to configure the LLM request
-            
+
         Returns:
             String representation of the assistant's response
         """

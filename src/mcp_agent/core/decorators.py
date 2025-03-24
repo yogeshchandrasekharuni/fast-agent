@@ -4,9 +4,8 @@ Contains decorator definitions extracted from fastagent.py.
 """
 
 from typing import Callable, Dict, List, Optional, TypeVar, Literal
-from mcp_agent.agents.agent import AgentConfig
+from mcp_agent.core.agent_types import AgentConfig, AgentType
 from mcp_agent.workflows.llm.augmented_llm import RequestParams
-from mcp_agent.core.agent_types import AgentType
 
 T = TypeVar("T")  # For the wrapper classes
 

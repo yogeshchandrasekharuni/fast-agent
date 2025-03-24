@@ -7,13 +7,13 @@ from mcp_agent.mcp.prompt_message_multipart import PromptMessageMultipart
 from mcp_agent.mcp.prompt_serialization import (
     multipart_messages_to_delimited_format,
     multipart_messages_to_json,
-    json_to_multipart_messages
+    json_to_multipart_messages,
 )
 
 
 class TestPromptSerialization:
     """Tests for prompt serialization and delimited format conversion."""
-    
+
     def test_json_serialization_and_deserialization(self):
         """Test the new JSON serialization and deserialization approach."""
         # Create multipart messages with various content types
@@ -37,17 +37,15 @@ class TestPromptSerialization:
                 content=[
                     TextContent(type="text", text="I've processed your resource."),
                     ImageContent(
-                        type="image", 
-                        data="base64EncodedImage", 
-                        mimeType="image/jpeg"
+                        type="image", data="base64EncodedImage", mimeType="image/jpeg"
                     ),
                 ],
             ),
         ]
-        
+
         # Convert to JSON
         json_str = multipart_messages_to_json(original_messages)
-        
+
         # Verify JSON contains expected elements
         assert "user" in json_str
         assert "assistant" in json_str
@@ -55,15 +53,15 @@ class TestPromptSerialization:
         assert "application/json" in json_str
         assert "base64EncodedImage" in json_str
         assert "image/jpeg" in json_str
-        
+
         # Convert back from JSON
         parsed_messages = json_to_multipart_messages(json_str)
-        
+
         # Verify round-trip conversion
         assert len(parsed_messages) == len(original_messages)
         assert parsed_messages[0].role == original_messages[0].role
         assert parsed_messages[1].role == original_messages[1].role
-        
+
         # Check first message
         assert len(parsed_messages[0].content) == 2
         assert parsed_messages[0].content[0].type == "text"
@@ -72,7 +70,7 @@ class TestPromptSerialization:
         assert str(parsed_messages[0].content[1].resource.uri) == "resource://data.json"
         assert parsed_messages[0].content[1].resource.mimeType == "application/json"
         assert parsed_messages[0].content[1].resource.text == '{"key": "value"}'
-        
+
         # Check second message
         assert len(parsed_messages[1].content) == 2
         assert parsed_messages[1].content[0].type == "text"
@@ -142,7 +140,7 @@ class TestPromptSerialization:
         assert delimited_content[0] == "---USER"
         assert "Check this code:" in delimited_content[1]
         assert delimited_content[2] == "---RESOURCE"
-        
+
         # Resource is now in JSON format
         resource_json = delimited_content[3]
         assert "type" in resource_json
@@ -150,7 +148,7 @@ class TestPromptSerialization:
         assert "uri" in resource_json.lower()
         assert "example.py" in resource_json
         assert "def hello()" in resource_json
-    
+
     def test_multi_role_messages_to_delimited_format(self):
         """Test converting a list of PromptMessageMultipart objects with different roles to delimited format."""
         # Create multipart messages with different roles

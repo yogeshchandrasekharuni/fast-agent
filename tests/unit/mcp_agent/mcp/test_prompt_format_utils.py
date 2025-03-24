@@ -72,25 +72,27 @@ class TestPromptFormatUtils:
         )
 
         # Verify structure
-        assert len(delimited) == 8  # 2 role delimiters + 2 text blocks + 4 resource-related entries
-        
+        assert (
+            len(delimited) == 8
+        )  # 2 role delimiters + 2 text blocks + 4 resource-related entries
+
         # First message (user)
         assert delimited[0] == "---USER"
         assert "Here's a code sample:" in delimited[1]
         assert delimited[2] == "---RESOURCE"
-        
+
         # User resource in JSON format
         user_resource_json = delimited[3]
         assert "type" in user_resource_json
         assert "resource" in user_resource_json
         assert "code.py" in user_resource_json
         assert "print" in user_resource_json
-        
+
         # Second message (assistant)
         assert delimited[4] == "---ASSISTANT"
         assert "I've analyzed your code" in delimited[5]
         assert delimited[6] == "---RESOURCE"
-        
+
         # Assistant resource in JSON format
         assistant_resource_json = delimited[7]
         assert "type" in assistant_resource_json
@@ -148,7 +150,9 @@ I've reviewed your CSS and made it more efficient:
         assert messages[1].content[0].type == "text"
         assert "I've reviewed your CSS" in messages[1].content[0].text
         assert messages[1].content[1].type == "resource"
-        assert str(messages[1].content[1].resource.uri) == "resource://improved_styles.css"
+        assert (
+            str(messages[1].content[1].resource.uri) == "resource://improved_styles.css"
+        )
         assert messages[1].content[1].resource.mimeType == "text/css"
         assert messages[1].content[1].resource.text == "body { color: #000; }"
 
@@ -186,7 +190,7 @@ I've reviewed your CSS and made it more efficient:
         assert delimited[0] == "---USER"
         assert "I need to analyze these files:" in delimited[1]
         assert delimited[2] == "---RESOURCE"
-        
+
         # First resource JSON
         first_resource_json = delimited[3]
         assert "type" in first_resource_json
@@ -194,9 +198,9 @@ I've reviewed your CSS and made it more efficient:
         assert "data1.csv" in first_resource_json
         assert "text/csv" in first_resource_json
         assert "id,name,value" in first_resource_json
-        
+
         assert delimited[4] == "---RESOURCE"
-        
+
         # Second resource JSON
         second_resource_json = delimited[5]
         assert "type" in second_resource_json
@@ -215,12 +219,12 @@ I've reviewed your CSS and made it more efficient:
         assert messages[0].content[0].type == "text"
         assert messages[0].content[1].type == "resource"
         assert messages[0].content[2].type == "resource"
-        
+
         # Verify resource content is preserved
         assert str(messages[0].content[1].resource.uri) == "resource://data1.csv"
         assert messages[0].content[1].resource.mimeType == "text/csv"
         assert "id,name,value" in messages[0].content[1].resource.text
-        
+
         assert str(messages[0].content[2].resource.uri) == "resource://data2.csv"
         assert messages[0].content[2].resource.mimeType == "text/csv"
         assert "id,name,value" in messages[0].content[2].resource.text
@@ -246,7 +250,7 @@ I've reviewed your CSS and made it more efficient:
         assert delimited[0] == "---USER"
         assert "Look at this image:" in delimited[1]
         assert delimited[2] == "---RESOURCE"
-        
+
         # Image JSON contains the image data
         image_json = delimited[3]
         assert "type" in image_json

@@ -5,7 +5,8 @@ Factory functions for creating agent and workflow instances.
 from typing import Dict, Any, Optional, TypeVar, Callable
 
 from mcp_agent.app import MCPApp
-from mcp_agent.agents.agent import Agent, AgentConfig
+from mcp_agent.agents.agent import Agent
+from mcp_agent.core.agent_types import AgentConfig, AgentType
 from mcp_agent.event_progress import ProgressAction
 from mcp_agent.workflows.evaluator_optimizer.evaluator_optimizer import (
     EvaluatorOptimizerLLM,
@@ -16,8 +17,6 @@ from mcp_agent.workflows.llm.model_factory import ModelFactory
 from mcp_agent.workflows.orchestrator.orchestrator import Orchestrator
 from mcp_agent.workflows.parallel.parallel_llm import ParallelLLM
 from mcp_agent.workflows.router.router_llm import LLMRouter
-
-from mcp_agent.core.agent_types import AgentType
 from mcp_agent.core.exceptions import AgentConfigError
 from mcp_agent.core.proxies import (
     BaseAgentProxy,

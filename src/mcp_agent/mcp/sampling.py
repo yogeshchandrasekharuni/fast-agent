@@ -1,5 +1,4 @@
 """
-Module for handling MCP Sampling functionality without causing circular imports.
 This simplified implementation directly converts between MCP types and PromptMessageMultipart.
 """
 
@@ -9,17 +8,17 @@ from mcp.types import (
     CreateMessageResult,
 )
 
+from mcp_agent.core.agent_types import AgentConfig
 from mcp_agent.logging.logger import get_logger
 from mcp_agent.mcp.interfaces import AugmentedLLMProtocol
 
-# Import the converter since we've fixed the circular import
 from mcp_agent.workflows.llm.sampling_converter import SamplingConverter
 
 logger = get_logger(__name__)
 
 
 def create_sampling_llm(
-    mcp_ctx: ClientSession, model_string: str
+    params: CreateMessageRequestParams, model_string: str
 ) -> AugmentedLLMProtocol:
     """
     Create an LLM instance for sampling without tools support.
@@ -33,7 +32,7 @@ def create_sampling_llm(
         An initialized LLM instance ready to use
     """
     from mcp_agent.workflows.llm.model_factory import ModelFactory
-    from mcp_agent.agents.agent import Agent, AgentConfig
+    from mcp_agent.agents.agent import Agent
 
     app_context = None
     try:
@@ -43,13 +42,8 @@ def create_sampling_llm(
     except Exception:
         logger.warning("App context not available for sampling call")
 
-    # Create a minimal agent configuration
-    agent_config = AgentConfig(
-        name="sampling_agent", instruction="You are a helpful AI Agent.", servers=[]
-    )
-
     agent = Agent(
-        config=agent_config,
+        config=sampling_agent_config(params),
         context=app_context,
         connection_persistence=False,
     )
@@ -99,7 +93,7 @@ async def sample(
             raise ValueError("No model configured")
 
         # Create an LLM instance
-        llm = create_sampling_llm(mcp_ctx, model)
+        llm = create_sampling_llm(params, model)
 
         # Extract all messages from the request params
         if not params.messages:
@@ -124,3 +118,23 @@ async def sample(
         return SamplingConverter.error_result(
             error_message=f"Error in sampling: {str(e)}", model=model
         )
+
+
+def sampling_agent_config(
+    params: CreateMessageRequestParams = None,
+) -> AgentConfig:
+    """
+    Build a sampling AgentConfig based on request parameters.
+
+    Args:
+        params: Optional CreateMessageRequestParams that may contain a system prompt
+
+    Returns:
+        An initialized AgentConfig for use in sampling
+    """
+    # Use systemPrompt from params if available, otherwise use default
+    instruction = "You are a helpful AI Agent."
+    if params and hasattr(params, "systemPrompt") and params.systemPrompt is not None:
+        instruction = params.systemPrompt
+
+    return AgentConfig(name="sampling_agent", instruction=instruction, servers=[])

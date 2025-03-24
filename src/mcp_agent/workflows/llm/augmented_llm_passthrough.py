@@ -182,16 +182,18 @@ class PassthroughLLM(AugmentedLLM):
         return await self.generate_str("\n".join(parts_text), request_params)
 
     async def apply_prompt(
-        self, multipart_messages: List["PromptMessageMultipart"], request_params: Optional[RequestParams] = None
+        self,
+        multipart_messages: List["PromptMessageMultipart"],
+        request_params: Optional[RequestParams] = None,
     ) -> str:
         """
         Apply a list of PromptMessageMultipart messages directly to the LLM.
         In PassthroughLLM, this returns a concatenated string of all message content.
-        
+
         Args:
             multipart_messages: List of PromptMessageMultipart objects
             request_params: Optional parameters to configure the LLM request
-            
+
         Returns:
             String representation of all message content concatenated together
         """
@@ -199,9 +201,9 @@ class PassthroughLLM(AugmentedLLM):
         result = ""
         for prompt in multipart_messages:
             result += await self.generate_prompt(prompt, request_params) + "\n"
-            
+
         return result
-    
+
     async def apply_prompt_template(
         self, prompt_result: GetPromptResult, prompt_name: str
     ) -> str:
@@ -229,9 +231,11 @@ class PassthroughLLM(AugmentedLLM):
             arguments=arguments,
         )
         self._messages = prompt_messages
-        
+
         # Convert prompt messages to multipart format
-        multipart_messages = PromptMessageMultipart.from_prompt_messages(prompt_messages)
-        
+        multipart_messages = PromptMessageMultipart.from_prompt_messages(
+            prompt_messages
+        )
+
         # Use apply_prompt to handle the multipart messages
         return await self.apply_prompt(multipart_messages)
