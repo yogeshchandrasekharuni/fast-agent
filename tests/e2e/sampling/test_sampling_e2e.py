@@ -80,7 +80,6 @@ async def test_sampling_with_image_content_anthropic(fast_agent):
         async with fast.run() as agent:
             result = await agent("***CALL_TOOL sample_with_image")
 
-            print(result)
             assert "evalstate" in result.lower()
 
     await agent_function()
