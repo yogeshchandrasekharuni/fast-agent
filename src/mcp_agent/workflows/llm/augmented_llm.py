@@ -1,6 +1,7 @@
 from abc import abstractmethod
 from typing import (
     TYPE_CHECKING,
+    Any,
     List,
     Optional,
     Type,
@@ -67,7 +68,7 @@ class AugmentedLLM(ContextDependent, AugmentedLLMProtocol[MessageParamT, Message
         request_params: RequestParams | None = None,
         type_converter: Type[ProviderFormatConverter[MessageParamT, MessageT]] = BasicFormatConverter,
         context: Optional["Context"] = None,
-        **kwargs,
+        **kwargs: dict[str, Any],
     ) -> None:
         """
         Initialize the LLM with a list of server names and an instruction.
@@ -175,7 +176,7 @@ class AugmentedLLM(ContextDependent, AugmentedLLMProtocol[MessageParamT, Message
         return default_request_params
 
     @classmethod
-    def convert_message_to_message_param(cls, message: MessageT, **kwargs) -> MessageParamT:
+    def convert_message_to_message_param(cls, message: MessageT, **kwargs: dict[str, Any]) -> MessageParamT:
         """Convert a response object to an input parameter object to allow LLM calls to be chained."""
         # Many LLM implementations will allow the same type for input and output messages
         return cast("MessageParamT", message)
@@ -197,7 +198,7 @@ class AugmentedLLM(ContextDependent, AugmentedLLMProtocol[MessageParamT, Message
         """Display a tool result in a formatted panel."""
         self.display.show_tool_result(result)
 
-    def show_oai_tool_result(self, result) -> None:
+    def show_oai_tool_result(self, result: str) -> None:
         """Display a tool result in a formatted panel."""
         self.display.show_oai_tool_result(result)
 
@@ -455,6 +456,7 @@ class AugmentedLLM(ContextDependent, AugmentedLLMProtocol[MessageParamT, Message
         # Delegate to the provider-specific implementation
         return await self._apply_prompt_template_provider_specific(multipart_messages, request_params)
 
+    # this shouln't need to be very big...
     async def _apply_prompt_template_provider_specific(
         self,
         multipart_messages: List["PromptMessageMultipart"],
@@ -566,3 +568,8 @@ class AugmentedLLM(ContextDependent, AugmentedLLMProtocol[MessageParamT, Message
                 result += "\n\n[Note: This message contained non-text content that may not be fully represented in text format]"
 
             return result
+
+
+#####################################
+### NEW INTERFACE METHODS BELOW   ###
+#####################################

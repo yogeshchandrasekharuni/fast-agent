@@ -1,6 +1,6 @@
 import asyncio
 import uuid
-from typing import TYPE_CHECKING, Callable, Dict, List, Optional, TypeVar, Union
+from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, TypeVar, Union
 
 from mcp.server.fastmcp.tools import Tool as FastTool
 from mcp.types import (
@@ -52,7 +52,7 @@ class Agent(MCPAggregator):
         connection_persistence: bool = True,
         human_input_callback: Optional[HumanInputCallback] = None,
         context: Optional["Context"] = None,
-        **kwargs,
+        **kwargs: dict[str, Any],
     ) -> None:
         # Handle backward compatibility where first arg was name
         if isinstance(config, str):
@@ -149,6 +149,7 @@ class Agent(MCPAggregator):
 
         async def call_callback_and_signal() -> None:
             try:
+                assert self.human_input_callback is not None
                 user_input = await self.human_input_callback(request)
 
                 self.logger.debug("Received human input:", data=user_input)

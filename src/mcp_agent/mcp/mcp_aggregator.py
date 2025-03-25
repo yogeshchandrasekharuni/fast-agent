@@ -454,7 +454,7 @@ class MCPAggregator(ContextDependent):
             error_factory=lambda msg: CallToolResult(isError=True, content=[TextContent(type="text", text=msg)]),
         )
 
-    async def get_prompt(self, prompt_name: str = None, arguments: dict[str, str] = None) -> GetPromptResult:
+    async def get_prompt(self, prompt_name: str | None, arguments: dict[str, str] | None) -> GetPromptResult:
         """
         Get a prompt from a server.
 

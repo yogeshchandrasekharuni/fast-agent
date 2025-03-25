@@ -1,13 +1,16 @@
+import os
 from pathlib import Path
-from typing import List
+from typing import TYPE_CHECKING, List
 
 import pytest
 from mcp.types import ImageContent
 
-from mcp_agent.mcp.prompt_message_multipart import PromptMessageMultipart
 from mcp_agent.mcp.prompts.prompt_load import (
     load_prompt_multipart,
 )
+
+if TYPE_CHECKING:
+    from mcp_agent.mcp.prompt_message_multipart import PromptMessageMultipart
 
 
 @pytest.mark.integration
@@ -69,8 +72,16 @@ async def test_save_text_file(fast_agent):
     @fast.agent()
     async def agent_function():
         async with fast.run() as agent:
-            agent.send("hello")
-            agent.send("world")
-            agent.send("***SAVE_HISTORY simple.txt")
+            # Delete the file if it exists before running the test
+            if os.path.exists("./simple.txt"):
+                os.remove("./simple.txt")
+            await agent.send("hello")
+            await agent.send("world")
+            await agent.send("***SAVE_HISTORY simple.txt")
+
+            prompts: list[PromptMessageMultipart] = load_prompt_multipart(Path("simple.txt"))
+            assert 4 == len(prompts)
+            assert "user" == prompts[0].role
+            assert "assistant" == prompts[1].role
 
     await agent_function()

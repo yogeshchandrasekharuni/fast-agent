@@ -1,5 +1,5 @@
 from contextlib import contextmanager
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Any, Optional
 
 if TYPE_CHECKING:
     from mcp_agent.context import Context
@@ -11,7 +11,7 @@ class ContextDependent:
     Provides both global fallback and instance-specific context support.
     """
 
-    def __init__(self, context: Optional["Context"] = None, **kwargs) -> None:
+    def __init__(self, context: Optional["Context"] = None, **kwargs: dict[str, Any]) -> None:
         self._context = context
         super().__init__(**kwargs)
 
@@ -31,10 +31,7 @@ class ContextDependent:
 
             return get_current_context()
         except Exception as e:
-            raise RuntimeError(
-                f"No context available for {self.__class__.__name__}. "
-                "Either initialize MCPApp first or pass context explicitly."
-            ) from e
+            raise RuntimeError(f"No context available for {self.__class__.__name__}. Either initialize MCPApp first or pass context explicitly.") from e
 
     @contextmanager
     def use_context(self, context: "Context"):

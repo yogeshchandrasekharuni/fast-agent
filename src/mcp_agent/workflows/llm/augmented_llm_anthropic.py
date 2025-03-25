@@ -9,6 +9,8 @@ from mcp_agent.workflows.llm.providers.sampling_converter_anthropic import (
 )
 
 if TYPE_CHECKING:
+    from mcp import ListToolsResult
+
     from mcp_agent.mcp.prompt_message_multipart import PromptMessageMultipart
 
 
@@ -20,6 +22,7 @@ from anthropic.types import (
     TextBlockParam,
     ToolParam,
     ToolUseBlockParam,
+    Usage,
 )
 from mcp.types import (
     CallToolRequest,
@@ -84,7 +87,7 @@ class AnthropicAugmentedLLM(AugmentedLLM[MessageParam, Message]):
         except AuthenticationError as e:
             raise ProviderKeyError(
                 "Invalid Anthropic API key",
-                "The configured Anthropic API key was rejected.\n" "Please check that your API key is valid and not expired.",
+                "The configured Anthropic API key was rejected.\nPlease check that your API key is valid and not expired.",
             ) from e
 
         # Always include prompt messages, but only include conversation history
@@ -98,14 +101,14 @@ class AnthropicAugmentedLLM(AugmentedLLM[MessageParam, Message]):
         else:
             messages.append(message)
 
-        response = await self.aggregator.list_tools()
+        tool_list: ListToolsResult = await self.aggregator.list_tools()
         available_tools: List[ToolParam] = [
-            {
-                "name": tool.name,
-                "description": tool.description,
-                "input_schema": tool.inputSchema,
-            }
-            for tool in response.tools
+            ToolParam(
+                name=tool.name,
+                description=tool.description or "",
+                input_schema=tool.inputSchema,
+            )
+            for tool in tool_list.tools
         ]
 
         responses: List[Message] = []
@@ -139,7 +142,7 @@ class AnthropicAugmentedLLM(AugmentedLLM[MessageParam, Message]):
             if isinstance(response, AuthenticationError):
                 raise ProviderKeyError(
                     "Invalid Anthropic API key",
-                    "The configured Anthropic API key was rejected.\n" "Please check that your API key is valid and not expired.",
+                    "The configured Anthropic API key was rejected.\nPlease check that your API key is valid and not expired.",
                 ) from response
             elif isinstance(response, BaseException):
                 error_details = str(response)
@@ -162,7 +165,7 @@ class AnthropicAugmentedLLM(AugmentedLLM[MessageParam, Message]):
                     type="message",
                     content=[TextBlock(type="text", text=error_message)],
                     stop_reason="end_turn",  # Must be one of the allowed values
-                    usage={"input_tokens": 0, "output_tokens": 0},  # Required field
+                    usage=Usage(input_tokens=0, output_tokens=0),  # Required field
                 )
 
             self.logger.debug(
@@ -423,7 +426,7 @@ class AnthropicAugmentedLLM(AugmentedLLM[MessageParam, Message]):
 
     async def generate_structured(
         self,
-        message,
+        message: str,
         response_model: Type[ModelT],
         request_params: RequestParams | None = None,
     ) -> ModelT:
