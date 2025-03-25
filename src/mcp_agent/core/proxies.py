@@ -12,6 +12,7 @@ from mcp.types import EmbeddedResource
 
 from mcp_agent.agents.agent import Agent
 from mcp_agent.app import MCPApp
+from mcp_agent.core.request_params import RequestParams
 from mcp_agent.mcp.prompt_message_multipart import PromptMessageMultipart
 
 # Handle circular imports
@@ -160,6 +161,25 @@ class LLMAgentProxy(BaseAgentProxy):
             The agent's response as a string
         """
         return await self._agent.with_resource(prompt_content, server_name, resource_name)
+
+    async def apply_prompt_messages(
+        self,
+        multipart_messages: List["PromptMessageMultipart"],
+        request_params: RequestParams | None = None,
+    ) -> str:
+        """
+        Apply a list of PromptMessageMultipart messages directly to the LLM.
+        This is a cleaner interface to _apply_prompt_template_provider_specific.
+
+        Args:
+            multipart_messages: List of PromptMessageMultipart objects
+            request_params: Optional parameters to configure the LLM request
+
+        Returns:
+            String representation of the assistant's response
+        """
+        # Delegate to the provider-specific implementation
+        return await self._agent._llm._apply_prompt_template_provider_specific(multipart_messages, request_params)
 
 
 class WorkflowProxy(BaseAgentProxy):

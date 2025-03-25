@@ -14,6 +14,7 @@ from mcp.types import (
 
 from mcp_agent.core.agent_types import AgentConfig
 from mcp_agent.core.exceptions import PromptExitError
+from mcp_agent.core.request_params import RequestParams
 from mcp_agent.human_input.types import (
     HUMAN_INPUT_SIGNAL_NAME,
     HumanInputCallback,
@@ -275,10 +276,7 @@ class Agent(MCPAggregator):
                 content=[TextContent(type="text", text=f"Error requesting human input: {str(e)}")],
             )
 
-    async def read_resource(self, server_name: str, resource_name: str) -> ReadResourceResult:
-        return None
-
-    async def apply_prompt(self, prompt_name: str, arguments: dict[str, str] = None) -> str:
+    async def apply_prompt(self, prompt_name: str, arguments: dict[str, str] | None) -> str:
         """
         Apply an MCP Server Prompt by name and return the assistant's response.
         Will search all available servers for the prompt if not namespaced.
@@ -368,6 +366,9 @@ class Agent(MCPAggregator):
             embedded_resources.append(embedded_resource)
 
         return embedded_resources
+
+    async def apply_prompt_messages(self, prompts: List[PromptMessageMultipart], request_params: RequestParams | None) -> str:
+        return self._llm.apply_prompt_messages(prompts, request_params)
 
     async def with_resource(
         self,
