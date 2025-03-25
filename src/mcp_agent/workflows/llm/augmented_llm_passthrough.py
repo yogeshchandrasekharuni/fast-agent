@@ -63,6 +63,9 @@ class PassthroughLLM(AugmentedLLM):
 
         return str(message)
 
+    async def initialize(self) -> None:
+        pass
+
     async def _call_tool_and_return_result(self, command: str) -> str:
         """
         Call a tool based on the command and return its result as a string.
