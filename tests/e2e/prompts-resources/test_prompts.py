@@ -68,7 +68,7 @@ async def test_agent_with_prompt_attachment(fast_agent, model_name):
 @pytest.mark.parametrize(
     "model_name",
     [
-        "gpt-4o-mini",  # OpenAI model
+        "gpt-4o",  # OpenAI model
         "haiku35",  # Anthropic model
     ],
 )

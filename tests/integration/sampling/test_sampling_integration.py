@@ -23,10 +23,7 @@ async def test_sampling_config(fast_agent):
     """Test that the config loads sampling configuration."""
     fast = fast_agent
     async with fast.run():
-        assert (
-            "passthrough"
-            == fast.context.config.mcp.servers["sampling_test"].sampling.model
-        )
+        assert "passthrough" == fast.context.config.mcp.servers["sampling_test"].sampling.model
 
 
 @pytest.mark.integration
@@ -40,8 +37,9 @@ async def test_sampling_passback(fast_agent):
     @fast.agent(servers=["sampling_test"])
     async def agent_function():
         async with fast.run() as agent:
-            result = await agent("***CALL_TOOL sample {to_sample='llmindset'}")
+            result = await agent('***CALL_TOOL sample {"to_sample": "llmindset"}')
             assert "llmindset" in result
+            assert '"iserror": true' not in result.lower()
 
     await agent_function()
 
