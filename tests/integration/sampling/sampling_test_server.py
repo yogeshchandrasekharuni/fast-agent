@@ -2,11 +2,11 @@
 Enhanced test server for sampling functionality
 """
 
-from mcp.server.fastmcp import FastMCP
-from mcp.server.fastmcp import Context
-from mcp.types import SamplingMessage, TextContent, CallToolResult
 import logging
 import sys
+
+from mcp.server.fastmcp import Context, FastMCP
+from mcp.types import CallToolResult, SamplingMessage, TextContent
 
 # Configure detailed logging
 logging.basicConfig(
@@ -21,9 +21,7 @@ mcp = FastMCP("MCP Root Tester", log_level="DEBUG")
 
 
 @mcp.tool()
-async def sample(
-    ctx: Context, to_sample: str | None = "hello, world"
-) -> CallToolResult:
+async def sample(ctx: Context, to_sample: str | None = "hello, world") -> CallToolResult:
     """Tool that echoes back the input parameter"""
     try:
         logger.info(f"Sample tool called with to_sample={to_sample!r}")
@@ -35,11 +33,7 @@ async def sample(
         # This creates the sampling context
         await ctx.session.create_message(
             max_tokens=1024,
-            messages=[
-                SamplingMessage(
-                    role="user", content=TextContent(type="text", text=value)
-                )
-            ],
+            messages=[SamplingMessage(role="user", content=TextContent(type="text", text=value))],
         )
 
         # Return the result directly, without nesting
@@ -60,12 +54,8 @@ async def sample_many(ctx: Context) -> CallToolResult:
     result = await ctx.session.create_message(
         max_tokens=1024,
         messages=[
-            SamplingMessage(
-                role="user", content=TextContent(type="text", text="message 1")
-            ),
-            SamplingMessage(
-                role="user", content=TextContent(type="text", text="message 2")
-            ),
+            SamplingMessage(role="user", content=TextContent(type="text", text="message 1")),
+            SamplingMessage(role="user", content=TextContent(type="text", text="message 2")),
         ],
     )
 

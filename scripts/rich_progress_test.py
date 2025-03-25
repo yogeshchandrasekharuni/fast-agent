@@ -3,9 +3,11 @@
 
 import asyncio
 import random
+
+from rich import print
+
 from mcp_agent.logging.events import Event
 from mcp_agent.logging.listeners import ProgressListener
-from rich import print
 
 
 async def generate_test_events():

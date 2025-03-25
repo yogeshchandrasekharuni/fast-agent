@@ -140,15 +140,11 @@ def MCPFile(
 
     return {
         "role": role,
-        "content": EmbeddedResource(
-            type="resource", resource=resource, annotations=annotations
-        ),
+        "content": EmbeddedResource(type="resource", resource=resource, annotations=annotations),
     }
 
 
-def MCPPrompt(
-    *content_items, role: Literal["user", "assistant"] = "user"
-) -> List[dict]:
+def MCPPrompt(*content_items, role: Literal["user", "assistant"] = "user") -> List[dict]:
     """
     Create one or more prompt messages with various content types.
 

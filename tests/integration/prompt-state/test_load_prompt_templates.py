@@ -1,12 +1,13 @@
 from pathlib import Path
 from typing import List
+
 import pytest
+from mcp.types import ImageContent
 
 from mcp_agent.mcp.prompt_message_multipart import PromptMessageMultipart
 from mcp_agent.mcp.prompts.prompt_load import (
     load_prompt_multipart,
 )
-from mcp.types import ImageContent
 
 
 @pytest.mark.integration
@@ -20,9 +21,7 @@ async def test_load_simple_conversation_from_file(fast_agent):
     @fast.agent()
     async def agent_function():
         async with fast.run() as agent:
-            loaded: List[PromptMessageMultipart] = load_prompt_multipart(
-                Path("conv1_simple.md")
-            )
+            loaded: List[PromptMessageMultipart] = load_prompt_multipart(Path("conv1_simple.md"))
             assert 4 == len(loaded)
             assert "message 2" in await agent.apply_prompt(loaded)
 
@@ -40,9 +39,7 @@ async def test_load_conversation_with_attachments(fast_agent):
     @fast.agent()
     async def agent_function():
         async with fast.run():
-            prompts: list[PromptMessageMultipart] = load_prompt_multipart(
-                Path("conv2_attach.md")
-            )
+            prompts: list[PromptMessageMultipart] = load_prompt_multipart(Path("conv2_attach.md"))
 
             assert 5 == len(prompts)
             assert "user" == prompts[0].role

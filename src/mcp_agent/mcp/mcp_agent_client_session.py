@@ -64,9 +64,7 @@ class MCPAgentClientSession(ClientSession, ContextDependent):
     """
 
     def __init__(self, *args, **kwargs):
-        super().__init__(
-            *args, **kwargs, list_roots_callback=list_roots, sampling_callback=sample
-        )
+        super().__init__(*args, **kwargs, list_roots_callback=list_roots, sampling_callback=sample)
         self.server_config: Optional[MCPServerSettings] = None
 
     async def send_request(

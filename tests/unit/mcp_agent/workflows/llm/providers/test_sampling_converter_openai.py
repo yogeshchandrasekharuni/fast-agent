@@ -3,8 +3,8 @@ Tests for OpenAIMCPTypeConverter.
 """
 
 from mcp.types import (
-    TextContent,
     PromptMessage,
+    TextContent,
 )
 
 from mcp_agent.workflows.llm.providers import OpenAISamplingConverter
@@ -23,9 +23,7 @@ class TestOpenAIMCPTypeConverter:
         openai_param = OpenAISamplingConverter.from_prompt_message(prompt_message)
 
         # Verify the conversion
-        assert isinstance(
-            openai_param, dict
-        )  # ChatCompletionMessageParam is a TypedDict
+        assert isinstance(openai_param, dict)  # ChatCompletionMessageParam is a TypedDict
         assert openai_param["role"] == "user"
         assert "Please explain this concept." in openai_param["content"][0]["text"]
 
@@ -41,8 +39,6 @@ class TestOpenAIMCPTypeConverter:
         openai_param = OpenAISamplingConverter.from_prompt_message(prompt_message)
 
         # Verify the conversion
-        assert isinstance(
-            openai_param, dict
-        )  # ChatCompletionMessageParam is a TypedDict
+        assert isinstance(openai_param, dict)  # ChatCompletionMessageParam is a TypedDict
         assert openai_param["role"] == "assistant"
         assert openai_param["content"] == "Here's the explanation..."

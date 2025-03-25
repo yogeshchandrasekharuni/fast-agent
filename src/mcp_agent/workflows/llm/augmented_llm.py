@@ -81,9 +81,7 @@ class AugmentedLLM(ContextDependent, AugmentedLLMProtocol[MessageParamT, Message
         super().__init__(context=context, **kwargs)
         self.logger = get_logger(__name__)
         self.executor = self.context.executor
-        self.aggregator = (
-            agent if agent is not None else MCPAggregator(server_names or [])
-        )
+        self.aggregator = agent if agent is not None else MCPAggregator(server_names or [])
         self.name = name or (agent.name if agent else None)
         self.instruction = instruction or (
             agent.instruction if agent and isinstance(agent.instruction, str) else None
@@ -130,9 +128,7 @@ class AugmentedLLM(ContextDependent, AugmentedLLMProtocol[MessageParamT, Message
     ) -> ModelT:
         """Request a structured LLM generation and return the result as a Pydantic model."""
 
-    async def select_model(
-        self, request_params: RequestParams | None = None
-    ) -> str | None:
+    async def select_model(self, request_params: RequestParams | None = None) -> str | None:
         """
         Return the configured model (legacy support)
         """
@@ -187,9 +183,7 @@ class AugmentedLLM(ContextDependent, AugmentedLLMProtocol[MessageParamT, Message
         return default_request_params
 
     @classmethod
-    def convert_message_to_message_param(
-        cls, message: MessageT, **kwargs
-    ) -> MessageParamT:
+    def convert_message_to_message_param(cls, message: MessageT, **kwargs) -> MessageParamT:
         """Convert a response object to an input parameter object to allow LLM calls to be chained."""
         # Many LLM implementations will allow the same type for input and output messages
         return cast("MessageParamT", message)
@@ -361,9 +355,7 @@ class AugmentedLLM(ContextDependent, AugmentedLLMProtocol[MessageParamT, Message
         # Default fallback
         return str(message)
 
-    def _log_chat_progress(
-        self, chat_turn: Optional[int] = None, model: Optional[str] = None
-    ):
+    def _log_chat_progress(self, chat_turn: Optional[int] = None, model: Optional[str] = None):
         """Log a chat progress event"""
         # Determine action type based on verb
         if hasattr(self, "verb") and self.verb:
@@ -389,9 +381,7 @@ class AugmentedLLM(ContextDependent, AugmentedLLMProtocol[MessageParamT, Message
         }
         self.logger.debug("Chat finished", data=data)
 
-    def _convert_prompt_messages(
-        self, prompt_messages: List[PromptMessage]
-    ) -> List[MessageParamT]:
+    def _convert_prompt_messages(self, prompt_messages: List[PromptMessage]) -> List[MessageParamT]:
         """
         Convert prompt messages to this LLM's specific message format.
         To be implemented by concrete LLM classes.
@@ -423,9 +413,7 @@ class AugmentedLLM(ContextDependent, AugmentedLLMProtocol[MessageParamT, Message
             arguments=arguments,
         )
 
-    async def apply_prompt_template(
-        self, prompt_result: GetPromptResult, prompt_name: str
-    ) -> str:
+    async def apply_prompt_template(self, prompt_result: GetPromptResult, prompt_name: str) -> str:
         """
         Apply a prompt template by adding it to the conversation history.
         If the last message in the prompt is from a user, automatically
@@ -457,14 +445,10 @@ class AugmentedLLM(ContextDependent, AugmentedLLMProtocol[MessageParamT, Message
         )
 
         # Convert to PromptMessageMultipart objects
-        multipart_messages = PromptMessageMultipart.parse_get_prompt_result(
-            prompt_result
-        )
+        multipart_messages = PromptMessageMultipart.parse_get_prompt_result(prompt_result)
 
         # Delegate to the provider-specific implementation
-        return await self._apply_prompt_template_provider_specific(
-            multipart_messages, None
-        )
+        return await self._apply_prompt_template_provider_specific(multipart_messages, None)
 
     async def apply_prompt(
         self,
@@ -510,9 +494,7 @@ class AugmentedLLM(ContextDependent, AugmentedLLMProtocol[MessageParamT, Message
 
         if last_message.role == "user":
             # For user messages: Add all previous messages to history, then generate response to the last one
-            self.logger.debug(
-                "Last message in prompt is from user, generating assistant response"
-            )
+            self.logger.debug("Last message in prompt is from user, generating assistant response")
 
             # Add all but the last message to history
             if len(multipart_messages) > 1:
@@ -524,9 +506,7 @@ class AugmentedLLM(ContextDependent, AugmentedLLMProtocol[MessageParamT, Message
                     # Convert each PromptMessageMultipart to individual PromptMessages
                     prompt_messages = msg.from_multipart()
                     for prompt_msg in prompt_messages:
-                        converted.append(
-                            self.type_converter.from_prompt_message(prompt_msg)
-                        )
+                        converted.append(self.type_converter.from_prompt_message(prompt_msg))
 
                 self.history.extend(converted, is_prompt=True)
 
@@ -535,10 +515,7 @@ class AugmentedLLM(ContextDependent, AugmentedLLMProtocol[MessageParamT, Message
             for content in last_message.content:
                 if content.type == "text":
                     user_text_parts.append(content.text)
-                elif (
-                    content.type == "resource"
-                    and getattr(content, "resource", None) is not None
-                ):
+                elif content.type == "resource" and getattr(content, "resource", None) is not None:
                     if hasattr(content.resource, "text"):
                         user_text_parts.append(content.resource.text)  # type: ignore
                 elif content.type == "image":
@@ -554,9 +531,7 @@ class AugmentedLLM(ContextDependent, AugmentedLLMProtocol[MessageParamT, Message
             return await self.generate_str(user_text)
         else:
             # For assistant messages: Add all messages to history and return the last one
-            self.logger.debug(
-                "Last message in prompt is from assistant, returning it directly"
-            )
+            self.logger.debug("Last message in prompt is from assistant, returning it directly")
 
             # Convert and add all messages to history
             converted = []
@@ -566,9 +541,7 @@ class AugmentedLLM(ContextDependent, AugmentedLLMProtocol[MessageParamT, Message
                 # Convert each PromptMessageMultipart to individual PromptMessages
                 prompt_messages = msg.from_multipart()
                 for prompt_msg in prompt_messages:
-                    converted.append(
-                        self.type_converter.from_prompt_message(prompt_msg)
-                    )
+                    converted.append(self.type_converter.from_prompt_message(prompt_msg))
 
             self.history.extend(converted, is_prompt=True)
 

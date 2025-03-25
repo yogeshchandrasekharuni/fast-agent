@@ -57,9 +57,7 @@ def create_sampling_llm(
     return llm
 
 
-async def sample(
-    mcp_ctx: ClientSession, params: CreateMessageRequestParams
-) -> CreateMessageResult:
+async def sample(mcp_ctx: ClientSession, params: CreateMessageRequestParams) -> CreateMessageResult:
     """
     Handle sampling requests from the MCP protocol using SamplingConverter.
 
@@ -109,9 +107,7 @@ async def sample(
         logger.info(f"Complete sampling request : {llm_response[:50]}...")
 
         # Create result using our converter
-        return SamplingConverter.create_message_result(
-            response=llm_response, model=model
-        )
+        return SamplingConverter.create_message_result(response=llm_response, model=model)
     except Exception as e:
         logger.error(f"Error in sampling: {str(e)}")
         return SamplingConverter.error_result(

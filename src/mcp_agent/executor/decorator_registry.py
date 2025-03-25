@@ -91,12 +91,8 @@ def default_workflow_run(fn: Callable[..., R]) -> Callable[..., R]:
 def register_asyncio_decorators(decorator_registry: DecoratorRegistry):
     """Registers default asyncio decorators."""
     executor_name = "asyncio"
-    decorator_registry.register_workflow_defn_decorator(
-        executor_name, default_workflow_defn
-    )
-    decorator_registry.register_workflow_run_decorator(
-        executor_name, default_workflow_run
-    )
+    decorator_registry.register_workflow_defn_decorator(executor_name, default_workflow_defn)
+    decorator_registry.register_workflow_run_decorator(executor_name, default_workflow_run)
 
 
 def register_temporal_decorators(decorator_registry: DecoratorRegistry):
@@ -112,9 +108,5 @@ def register_temporal_decorators(decorator_registry: DecoratorRegistry):
         return
 
     executor_name = "temporal"
-    decorator_registry.register_workflow_defn_decorator(
-        executor_name, temporal_workflow.defn
-    )
-    decorator_registry.register_workflow_run_decorator(
-        executor_name, temporal_workflow.run
-    )
+    decorator_registry.register_workflow_defn_decorator(executor_name, temporal_workflow.defn)
+    decorator_registry.register_workflow_run_decorator(executor_name, temporal_workflow.run)

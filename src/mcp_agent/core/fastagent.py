@@ -216,9 +216,7 @@ class FastAgent:
         model_factory_func = partial(self._get_model_factory)
         return await create_basic_agents(agent_app, self.agents, model_factory_func)
 
-    async def _create_orchestrators(
-        self, agent_app: MCPApp, active_agents: ProxyDict
-    ) -> ProxyDict:
+    async def _create_orchestrators(self, agent_app: MCPApp, active_agents: ProxyDict) -> ProxyDict:
         """
         Create orchestrator agents.
 
@@ -229,9 +227,7 @@ class FastAgent:
         Returns:
             Dictionary of initialized orchestrator agents wrapped in appropriate proxies
         """
-        return await self._create_agents_by_type(
-            agent_app, AgentType.ORCHESTRATOR, active_agents
-        )
+        return await self._create_agents_by_type(agent_app, AgentType.ORCHESTRATOR, active_agents)
 
     async def _create_evaluator_optimizers(
         self, agent_app: MCPApp, active_agents: ProxyDict
@@ -292,9 +288,7 @@ class FastAgent:
             agent_app, self.agents, active_agents, agent_type, model_factory_func
         )
 
-    async def _create_routers(
-        self, agent_app: MCPApp, active_agents: ProxyDict
-    ) -> ProxyDict:
+    async def _create_routers(self, agent_app: MCPApp, active_agents: ProxyDict) -> ProxyDict:
         """
         Create router agents.
 
@@ -305,9 +299,7 @@ class FastAgent:
         Returns:
             Dictionary of initialized router agents
         """
-        return await self._create_agents_by_type(
-            agent_app, AgentType.ROUTER, active_agents
-        )
+        return await self._create_agents_by_type(agent_app, AgentType.ROUTER, active_agents)
 
     @asynccontextmanager
     async def run(self):
@@ -349,9 +341,7 @@ class FastAgent:
                 active_agents = await self._create_basic_agents(agent_app)
 
                 # Create parallel agents next as they might be dependencies
-                parallel_agents = await self._create_parallel_agents(
-                    agent_app, active_agents
-                )
+                parallel_agents = await self._create_parallel_agents(agent_app, active_agents)
                 active_agents.update(parallel_agents)
 
                 # Create routers next
@@ -371,9 +361,7 @@ class FastAgent:
                 active_agents.update(evaluator_optimizers)
 
                 # Create orchestrators last as they might depend on any other agent type
-                orchestrators = await self._create_orchestrators(
-                    agent_app, active_agents
-                )
+                orchestrators = await self._create_orchestrators(agent_app, active_agents)
 
                 # Add orchestrators to active_agents (other types were already added)
                 active_agents.update(orchestrators)
@@ -406,9 +394,7 @@ class FastAgent:
 
                         raise SystemExit(0)
                     except Exception as e:
-                        print(
-                            f"\n\nError sending message to agent '{agent_name}': {str(e)}"
-                        )
+                        print(f"\n\nError sending message to agent '{agent_name}': {str(e)}")
                         raise SystemExit(1)
 
                 yield wrapper
@@ -486,9 +472,7 @@ class FastAgent:
                             print(f"DEBUG {e.message}")
                             pass  # Ignore cleanup errors
 
-    def _handle_error(
-        self, e: Exception, error_type: str, suggestion: str = None
-    ) -> None:
+    def _handle_error(self, e: Exception, error_type: str, suggestion: str = None) -> None:
         """
         Handle errors with consistent formatting and messaging.
 

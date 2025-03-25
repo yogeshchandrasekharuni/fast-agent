@@ -50,9 +50,7 @@ EXAMPLE_TYPES = {
 }
 
 
-def copy_example_files(
-    example_type: str, target_dir: Path, force: bool = False
-) -> list[str]:
+def copy_example_files(example_type: str, target_dir: Path, force: bool = False) -> list[str]:
     """Copy example files from resources to target directory."""
     created = []
 
@@ -127,9 +125,7 @@ def copy_example_files(
                 console.print(f"[green]Created[/green] mount-point/{filename}")
 
             except Exception as e:
-                console.print(
-                    f"[red]Error copying mount-point/{filename}: {str(e)}[/red]"
-                )
+                console.print(f"[red]Error copying mount-point/{filename}: {str(e)}[/red]")
 
     return created
 
@@ -140,9 +136,7 @@ def show_overview():
     console.print("Build agents and compose workflows through practical examples\n")
 
     # Create a table for better organization
-    table = Table(
-        show_header=True, header_style="bold magenta", box=None, padding=(0, 2)
-    )
+    table = Table(show_header=True, header_style="bold magenta", box=None, padding=(0, 2))
     table.add_column("Example")
     table.add_column("Description")
     table.add_column("Files")
@@ -179,9 +173,7 @@ def workflow(
         Path("."),
         help="Directory where workflow examples will be created",
     ),
-    force: bool = typer.Option(
-        False, "--force", "-f", help="Force overwrite existing files"
-    ),
+    force: bool = typer.Option(False, "--force", "-f", help="Force overwrite existing files"),
 ):
     """Create workflow pattern examples."""
     target_dir = directory.resolve()
@@ -199,9 +191,7 @@ def researcher(
         Path("."),
         help="Directory where researcher examples will be created (in 'researcher' subdirectory)",
     ),
-    force: bool = typer.Option(
-        False, "--force", "-f", help="Force overwrite existing files"
-    ),
+    force: bool = typer.Option(False, "--force", "-f", help="Force overwrite existing files"),
 ):
     """Create researcher pattern examples."""
     target_dir = directory.resolve()
@@ -219,9 +209,7 @@ def data_analysis(
         Path("."),
         help="Directory where data analysis examples will be created (creates 'data-analysis' subdirectory with mount-point)",
     ),
-    force: bool = typer.Option(
-        False, "--force", "-f", help="Force overwrite existing files"
-    ),
+    force: bool = typer.Option(False, "--force", "-f", help="Force overwrite existing files"),
 ):
     """Create data analysis examples with sample dataset."""
     target_dir = directory.resolve()
@@ -259,13 +247,9 @@ def _show_completion_message(example_type: str, created: list[str]):
                 "1. Set up the Brave MCP Server (get an API key from https://brave.com/search/api/)"
             )
             console.print("2. Try `uv run researcher.py` for the basic version")
-            console.print(
-                "3. Try `uv run researcher-eval.py` for the eval/optimize version"
-            )
+            console.print("3. Try `uv run researcher-eval.py` for the eval/optimize version")
         elif example_type == "data-analysis":
-            console.print(
-                "1. Run uv `analysis.py` to perform data analysis and visualization"
-            )
+            console.print("1. Run uv `analysis.py` to perform data analysis and visualization")
             console.print("2. The dataset is available in the mount-point directory:")
             console.print("   - mount-point/WA_Fn-UseC_-HR-Employee-Attrition.csv")
             console.print(

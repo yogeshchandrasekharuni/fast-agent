@@ -99,9 +99,7 @@ class EmbeddingRouter(Router):
             # Get formatted text representation of category
             category_text = self.format_category(category)
             embedding = self._compute_embedding([category_text])
-            category_with_embedding = EmbeddingRouterCategory(
-                **category, embedding=embedding
-            )
+            category_with_embedding = EmbeddingRouterCategory(**category, embedding=embedding)
 
             return category_with_embedding
 
@@ -138,9 +136,7 @@ class EmbeddingRouter(Router):
 
         return await self._route_with_embedding(request, top_k)
 
-    async def route_to_server(
-        self, request: str, top_k: int = 1
-    ) -> List[RouterResult[str]]:
+    async def route_to_server(self, request: str, top_k: int = 1) -> List[RouterResult[str]]:
         """Route specifically to server categories"""
         if not self.initialized:
             await self.initialize()
@@ -154,9 +150,7 @@ class EmbeddingRouter(Router):
         )
         return [r.result for r in results[:top_k]]
 
-    async def route_to_agent(
-        self, request: str, top_k: int = 1
-    ) -> List[RouterResult[Agent]]:
+    async def route_to_agent(self, request: str, top_k: int = 1) -> List[RouterResult[Agent]]:
         """Route specifically to agent categories"""
         if not self.initialized:
             await self.initialize()
@@ -170,9 +164,7 @@ class EmbeddingRouter(Router):
         )
         return [r.result for r in results[:top_k]]
 
-    async def route_to_function(
-        self, request: str, top_k: int = 1
-    ) -> List[RouterResult[Callable]]:
+    async def route_to_function(self, request: str, top_k: int = 1) -> List[RouterResult[Callable]]:
         """Route specifically to function categories"""
         if not self.initialized:
             await self.initialize()
@@ -198,13 +190,9 @@ class EmbeddingRouter(Router):
             if category.embedding is None:
                 return None
 
-            similarity = compute_similarity_scores(
-                request_embedding, category.embedding
-            )
+            similarity = compute_similarity_scores(request_embedding, category.embedding)
 
-            return RouterResult(
-                p_score=compute_confidence(similarity), result=category.category
-            )
+            return RouterResult(p_score=compute_confidence(similarity), result=category.category)
 
         request_embedding = self._compute_embedding([request])
 

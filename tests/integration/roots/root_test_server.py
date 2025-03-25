@@ -1,4 +1,4 @@
-from mcp.server.fastmcp import FastMCP, Context
+from mcp.server.fastmcp import Context, FastMCP
 
 mcp = FastMCP("MCP Root Tester", log_level="DEBUG")
 

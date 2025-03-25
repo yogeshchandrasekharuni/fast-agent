@@ -97,9 +97,7 @@ def format_server_info(
 
     # Combine all components
     server_content = "\n".join(components)
-    return format_fastagent_tag(
-        "server", f"\n{server_content}\n", {"name": server_name}
-    )
+    return format_fastagent_tag("server", f"\n{server_content}\n", {"name": server_name})
 
 
 def format_agent_info(

@@ -39,9 +39,7 @@ class OpenAIConverter:
             True if the MIME type is generally supported, False otherwise
         """
         return (
-            mime_type is not None
-            and is_image_mime_type(mime_type)
-            and mime_type != "image/svg+xml"
+            mime_type is not None and is_image_mime_type(mime_type) and mime_type != "image/svg+xml"
         )
 
     @staticmethod
@@ -103,9 +101,7 @@ class OpenAIConverter:
 
                 # Handle input_audio if implemented
                 elif hasattr(item, "type") and getattr(item, "type") == "input_audio":
-                    _logger.warning(
-                        "Input audio content not supported in standard OpenAI types"
-                    )
+                    _logger.warning("Input audio content not supported in standard OpenAI types")
                     fallback_text = "[Audio content not directly supported]"
                     content_blocks.append({"type": "text", "text": fallback_text})
 
@@ -264,9 +260,7 @@ class OpenAIConverter:
             elif hasattr(resource_content, "blob"):
                 return {
                     "type": "image_url",
-                    "image_url": {
-                        "url": f"data:{mime_type};base64,{resource_content.blob}"
-                    },
+                    "image_url": {"url": f"data:{mime_type};base64,{resource_content.blob}"},
                 }
             else:
                 return {"type": "text", "text": f"[Image missing data: {title}]"}
@@ -348,11 +342,7 @@ class OpenAIConverter:
             if block.get("type") == "text":
                 text_parts.append(block.get("text", ""))
 
-        return (
-            " ".join(text_parts)
-            if text_parts
-            else "[Complex content converted to text]"
-        )
+        return " ".join(text_parts) if text_parts else "[Complex content converted to text]"
 
     @staticmethod
     def convert_tool_result_to_openai(
@@ -422,9 +412,7 @@ class OpenAIConverter:
             return tool_message
 
         # Process non-text content as a separate user message
-        non_text_multipart = PromptMessageMultipart(
-            role="user", content=non_text_content
-        )
+        non_text_multipart = PromptMessageMultipart(role="user", content=non_text_content)
 
         # Convert to OpenAI format
         user_message = OpenAIConverter.convert_to_openai(non_text_multipart)

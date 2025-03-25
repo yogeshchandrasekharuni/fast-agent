@@ -36,9 +36,7 @@ def anthropic_message_param_to_prompt_message_multipart(
 
     # Handle string content (user messages can be simple strings)
     if isinstance(content, str):
-        return PromptMessageMultipart(
-            role=role, content=[TextContent(type="text", text=content)]
-        )
+        return PromptMessageMultipart(role=role, content=[TextContent(type="text", text=content)])
 
     # Convert content blocks to MCP content types
     mcp_contents = []
@@ -51,27 +49,15 @@ def anthropic_message_param_to_prompt_message_multipart(
                 # Check if this is a resource marker
                 if (
                     text
-                    and (
-                        text.startswith("[Resource:")
-                        or text.startswith("[Binary Resource:")
-                    )
+                    and (text.startswith("[Resource:") or text.startswith("[Binary Resource:"))
                     and "\n" in text
                 ):
                     header, content_text = text.split("\n", 1)
                     if "MIME:" in header:
                         mime_match = header.split("MIME:", 1)[1].split("]")[0].strip()
-                        if (
-                            mime_match != "text/plain"
-                        ):  # Only process non-plain text resources
-                            if (
-                                "Resource:" in header
-                                and "Binary Resource:" not in header
-                            ):
-                                uri = (
-                                    header.split("Resource:", 1)[1]
-                                    .split(",")[0]
-                                    .strip()
-                                )
+                        if mime_match != "text/plain":  # Only process non-plain text resources
+                            if "Resource:" in header and "Binary Resource:" not in header:
+                                uri = header.split("Resource:", 1)[1].split(",")[0].strip()
                                 mcp_contents.append(
                                     EmbeddedResource(
                                         type="resource",
@@ -93,8 +79,6 @@ def anthropic_message_param_to_prompt_message_multipart(
                 if isinstance(source, dict) and source.get("type") == "base64":
                     media_type = source.get("media_type", "image/png")
                     data = source.get("data", "")
-                    mcp_contents.append(
-                        ImageContent(type="image", data=data, mimeType=media_type)
-                    )
+                    mcp_contents.append(ImageContent(type="image", data=data, mimeType=media_type))
 
     return PromptMessageMultipart(role=role, content=mcp_contents)

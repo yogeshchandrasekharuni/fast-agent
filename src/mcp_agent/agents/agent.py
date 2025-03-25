@@ -45,9 +45,7 @@ class Agent(MCPAggregator):
 
     def __init__(
         self,
-        config: Union[
-            AgentConfig, str
-        ],  # Can be AgentConfig or backward compatible str name
+        config: Union[AgentConfig, str],  # Can be AgentConfig or backward compatible str name
         instruction: Optional[Union[str, Callable[[Dict], str]]] = None,
         server_names: Optional[List[str]] = None,
         functions: Optional[List[Callable]] = None,
@@ -99,9 +97,7 @@ class Agent(MCPAggregator):
         Initialize the agent and connect to the MCP servers.
         NOTE: This method is called automatically when the agent is used as an async context manager.
         """
-        await (
-            self.__aenter__()
-        )  # This initializes the connection manager and loads the servers
+        await self.__aenter__()  # This initializes the connection manager and loads the servers
 
         for function in self.functions:
             tool: FastTool = FastTool.from_function(function)
@@ -119,9 +115,7 @@ class Agent(MCPAggregator):
         Returns:
             An instance of AugmentedLLM or one of its subclasses.
         """
-        return llm_factory(
-            agent=self, default_request_params=self._default_request_params
-        )
+        return llm_factory(agent=self, default_request_params=self._default_request_params)
 
     async def shutdown(self):
         """
@@ -186,9 +180,7 @@ class Agent(MCPAggregator):
         )
 
         if isinstance(result, dict) and result.get("exit_requested", False):
-            raise PromptExitError(
-                result.get("error", "User requested to exit FastAgent session")
-            )
+            raise PromptExitError(result.get("error", "User requested to exit FastAgent session"))
         self.logger.debug("Received human input signal", data=result)
         return result
 
@@ -226,9 +218,7 @@ class Agent(MCPAggregator):
         return result
 
     # todo would prefer to use tool_name to disambiguate agent name
-    async def call_tool(
-        self, name: str, arguments: dict | None = None
-    ) -> CallToolResult:
+    async def call_tool(self, name: str, arguments: dict | None = None) -> CallToolResult:
         if name == HUMAN_INPUT_TOOL_NAME:
             # Call the human input tool
             return await self._call_human_input_tool(arguments)
@@ -240,9 +230,7 @@ class Agent(MCPAggregator):
         else:
             return await super().call_tool(name, arguments)
 
-    async def _call_human_input_tool(
-        self, arguments: dict | None = None
-    ) -> CallToolResult:
+    async def _call_human_input_tool(self, arguments: dict | None = None) -> CallToolResult:
         # Handle human input request
         try:
             # Make sure arguments is not None
@@ -265,15 +253,11 @@ class Agent(MCPAggregator):
 
             # Use response attribute if available, otherwise use the result directly
             response_text = (
-                result.response
-                if isinstance(result, HumanInputResponse)
-                else str(result)
+                result.response if isinstance(result, HumanInputResponse) else str(result)
             )
 
             return CallToolResult(
-                content=[
-                    TextContent(type="text", text=f"Human response: {response_text}")
-                ]
+                content=[TextContent(type="text", text=f"Human response: {response_text}")]
             )
 
         except PromptExitError:
@@ -293,21 +277,13 @@ class Agent(MCPAggregator):
 
             return CallToolResult(
                 isError=True,
-                content=[
-                    TextContent(
-                        type="text", text=f"Error requesting human input: {str(e)}"
-                    )
-                ],
+                content=[TextContent(type="text", text=f"Error requesting human input: {str(e)}")],
             )
 
-    async def read_resource(
-        self, server_name: str, resource_name: str
-    ) -> ReadResourceResult:
+    async def read_resource(self, server_name: str, resource_name: str) -> ReadResourceResult:
         return None
 
-    async def apply_prompt(
-        self, prompt_name: str, arguments: dict[str, str] = None
-    ) -> str:
+    async def apply_prompt(self, prompt_name: str, arguments: dict[str, str] = None) -> str:
         """
         Apply an MCP Server Prompt by name and return the assistant's response.
         Will search all available servers for the prompt if not namespaced.
@@ -331,9 +307,7 @@ class Agent(MCPAggregator):
         prompt_result = await self.get_prompt(prompt_name, arguments)
 
         if not prompt_result or not prompt_result.messages:
-            error_msg = (
-                f"Prompt '{prompt_name}' could not be found or contains no messages"
-            )
+            error_msg = f"Prompt '{prompt_name}' could not be found or contains no messages"
             self.logger.warning(error_msg)
             return error_msg
 
@@ -396,9 +370,7 @@ class Agent(MCPAggregator):
             ValueError: If the server doesn't exist or the resource couldn't be found
         """
         # Get the raw resource result
-        result: ReadResourceResult = await super().get_resource(
-            server_name, resource_name
-        )
+        result: ReadResourceResult = await super().get_resource(server_name, resource_name)
 
         # Convert each resource content to an EmbeddedResource
         embedded_resources: List[EmbeddedResource] = []

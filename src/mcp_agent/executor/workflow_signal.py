@@ -178,9 +178,7 @@ class ConsoleSignalHandler(SignalHandler[str]):
         print(f"[SIGNAL SENT: {signal.name}] Value: {signal.payload}")
 
         handlers = self._handlers.get(signal.name, [])
-        await asyncio.gather(
-            *(handler(signal) for handler in handlers), return_exceptions=True
-        )
+        await asyncio.gather(*(handler(signal) for handler in handlers), return_exceptions=True)
 
         # Notify any waiting coroutines
         if signal.name in self._pending_signals:
@@ -194,9 +192,7 @@ class AsyncioSignalHandler(BaseSignalHandler[SignalValueT]):
     Asyncio-based signal handling using an internal dictionary of asyncio Events.
     """
 
-    async def wait_for_signal(
-        self, signal, timeout_seconds: int | None = None
-    ) -> SignalValueT:
+    async def wait_for_signal(self, signal, timeout_seconds: int | None = None) -> SignalValueT:
         event = asyncio.Event()
         unique_name = str(uuid.uuid4())
 
@@ -284,9 +280,7 @@ class LocalSignalStore:
                     future.set_result(payload)
             self._waiters[signal_name].clear()
 
-    async def wait_for(
-        self, signal_name: str, timeout_seconds: int | None = None
-    ) -> Any:
+    async def wait_for(self, signal_name: str, timeout_seconds: int | None = None) -> Any:
         loop = asyncio.get_running_loop()
         future = loop.create_future()
 

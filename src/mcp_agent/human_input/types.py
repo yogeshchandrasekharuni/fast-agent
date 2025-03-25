@@ -43,9 +43,7 @@ class HumanInputResponse(BaseModel):
 class HumanInputCallback(Protocol):
     """Protocol for callbacks that handle human input requests."""
 
-    async def __call__(
-        self, request: HumanInputRequest
-    ) -> AsyncIterator[HumanInputResponse]:
+    async def __call__(self, request: HumanInputRequest) -> AsyncIterator[HumanInputResponse]:
         """
         Handle a human input request.
 

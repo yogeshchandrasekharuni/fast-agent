@@ -7,10 +7,11 @@ from pathlib import Path
 
 import typer
 from rich.console import Console
-from rich.table import Table
 from rich.panel import Panel
+from rich.table import Table
 from rich.text import Text
-from mcp_agent.event_progress import convert_log_event, ProgressAction
+
+from mcp_agent.event_progress import ProgressAction, convert_log_event
 from mcp_agent.logging.events import Event
 
 
@@ -58,9 +59,7 @@ def create_event_table(events: list[Event]) -> Table:
         try:
             agent = orig_event.data.get("data", {}).get("agent_name", "")
             if not agent:  # Fallback to namespace if agent_name not found
-                agent = (
-                    orig_event.namespace.split(".")[-1] if orig_event.namespace else ""
-                )
+                agent = orig_event.namespace.split(".")[-1] if orig_event.namespace else ""
         except (AttributeError, KeyError):
             # Fallback to namespace if there's any error accessing data
             agent = orig_event.namespace.split(".")[-1] if orig_event.namespace else ""

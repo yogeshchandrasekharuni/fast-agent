@@ -2,12 +2,13 @@
 Tests for serializing PromptMessageMultipart objects to delimited format.
 """
 
-from mcp.types import TextContent, ImageContent, EmbeddedResource, TextResourceContents
+from mcp.types import EmbeddedResource, ImageContent, TextContent, TextResourceContents
+
 from mcp_agent.mcp.prompt_message_multipart import PromptMessageMultipart
 from mcp_agent.mcp.prompt_serialization import (
+    json_to_multipart_messages,
     multipart_messages_to_delimited_format,
     multipart_messages_to_json,
-    json_to_multipart_messages,
 )
 
 
@@ -36,9 +37,7 @@ class TestPromptSerialization:
                 role="assistant",
                 content=[
                     TextContent(type="text", text="I've processed your resource."),
-                    ImageContent(
-                        type="image", data="base64EncodedImage", mimeType="image/jpeg"
-                    ),
+                    ImageContent(type="image", data="base64EncodedImage", mimeType="image/jpeg"),
                 ],
             ),
         ]
@@ -183,6 +182,4 @@ class TestPromptSerialization:
         assert delimited[2] == "---USER"
         assert delimited[3] == "Hello!\n\nCan you help me?"
         assert delimited[4] == "---ASSISTANT"
-        assert (
-            delimited[5] == "I'd be happy to help.\n\nWhat can I assist you with today?"
-        )
+        assert delimited[5] == "I'd be happy to help.\n\nWhat can I assist you with today?"

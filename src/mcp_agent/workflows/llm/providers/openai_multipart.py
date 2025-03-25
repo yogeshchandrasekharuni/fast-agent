@@ -63,27 +63,16 @@ def _openai_message_to_multipart(
     # Handle list of content parts
     elif isinstance(content, list):
         for part in content:
-            part_type = (
-                part.get("type")
-                if isinstance(part, dict)
-                else getattr(part, "type", None)
-            )
+            part_type = part.get("type") if isinstance(part, dict) else getattr(part, "type", None)
 
             # Handle text content
             if part_type == "text":
-                text = (
-                    part.get("text")
-                    if isinstance(part, dict)
-                    else getattr(part, "text", "")
-                )
+                text = part.get("text") if isinstance(part, dict) else getattr(part, "text", "")
 
                 # Check if this is a resource marker
                 if (
                     text
-                    and (
-                        text.startswith("[Resource:")
-                        or text.startswith("[Binary Resource:")
-                    )
+                    and (text.startswith("[Resource:") or text.startswith("[Binary Resource:"))
                     and "\n" in text
                 ):
                     header, content_text = text.split("\n", 1)
@@ -92,15 +81,8 @@ def _openai_message_to_multipart(
 
                         # If not text/plain, create an embedded resource
                         if mime_match != "text/plain":
-                            if (
-                                "Resource:" in header
-                                and "Binary Resource:" not in header
-                            ):
-                                uri = (
-                                    header.split("Resource:", 1)[1]
-                                    .split(",")[0]
-                                    .strip()
-                                )
+                            if "Resource:" in header and "Binary Resource:" not in header:
+                                uri = header.split("Resource:", 1)[1].split(",")[0].strip()
                                 mcp_contents.append(
                                     EmbeddedResource(
                                         type="resource",
@@ -138,11 +120,7 @@ def _openai_message_to_multipart(
                         )
 
             # Handle explicit resource types
-            elif (
-                part_type == "resource"
-                and isinstance(part, dict)
-                and "resource" in part
-            ):
+            elif part_type == "resource" and isinstance(part, dict) and "resource" in part:
                 resource = part["resource"]
                 if isinstance(resource, dict):
                     # Text resource
@@ -151,9 +129,7 @@ def _openai_message_to_multipart(
                         uri = resource.get("uri", "resource://unknown")
 
                         if mime_type == "text/plain":
-                            mcp_contents.append(
-                                TextContent(type="text", text=resource["text"])
-                            )
+                            mcp_contents.append(TextContent(type="text", text=resource["text"]))
                         else:
                             mcp_contents.append(
                                 EmbeddedResource(
@@ -170,10 +146,7 @@ def _openai_message_to_multipart(
                         mime_type = resource["mimeType"]
                         uri = resource.get("uri", "resource://unknown")
 
-                        if (
-                            mime_type.startswith("image/")
-                            and mime_type != "image/svg+xml"
-                        ):
+                        if mime_type.startswith("image/") and mime_type != "image/svg+xml":
                             mcp_contents.append(
                                 ImageContent(
                                     type="image",

@@ -2,21 +2,21 @@
 Tests for the mcp_content module.
 """
 
-import tempfile
-import os
-from pathlib import Path
 import base64
+import os
+import tempfile
+from pathlib import Path
 
 import pytest
-from mcp.types import TextContent, ImageContent, EmbeddedResource
+from mcp.types import EmbeddedResource, ImageContent, TextContent
 
 from mcp_agent.core.mcp_content import (
-    MCPText,
-    MCPImage,
-    MCPFile,
-    MCPPrompt,
-    User,
     Assistant,
+    MCPFile,
+    MCPImage,
+    MCPPrompt,
+    MCPText,
+    User,
 )
 
 
@@ -56,9 +56,7 @@ def test_image_content():
         assert decoded == b"fake image data"
 
         # Test with raw data
-        message = MCPImage(
-            data=b"fake image data", mime_type="image/jpeg", role="assistant"
-        )
+        message = MCPImage(data=b"fake image data", mime_type="image/jpeg", role="assistant")
         assert message["role"] == "assistant"
         assert message["content"].mimeType == "image/jpeg"
         decoded = base64.b64decode(message["content"].data)

@@ -96,9 +96,7 @@ class PassthroughLLM(AugmentedLLM):
         """
         parts = command.split(" ", 2)
         if len(parts) < 2:
-            raise ValueError(
-                "Invalid format. Expected '***CALL_TOOL <tool_name> [arguments_json]'"
-            )
+            raise ValueError("Invalid format. Expected '***CALL_TOOL <tool_name> [arguments_json]'")
 
         tool_name = parts[1].strip()
         arguments = None
@@ -206,9 +204,7 @@ class PassthroughLLM(AugmentedLLM):
 
         return result
 
-    async def apply_prompt_template(
-        self, prompt_result: GetPromptResult, prompt_name: str
-    ) -> str:
+    async def apply_prompt_template(self, prompt_result: GetPromptResult, prompt_name: str) -> str:
         """
         Apply a prompt template by adding it to the conversation history.
         For PassthroughLLM, this returns all content concatenated together.

@@ -15,9 +15,7 @@ from mcp_agent.workflows.llm.sampling_format_converter import (
 _logger = get_logger(__name__)
 
 
-class OpenAISamplingConverter(
-    ProviderFormatConverter[Dict[str, Any], ChatCompletionMessage]
-):
+class OpenAISamplingConverter(ProviderFormatConverter[Dict[str, Any], ChatCompletionMessage]):
     @classmethod
     def from_prompt_message(cls, message: PromptMessage) -> Dict[str, Any]:
         """Convert an MCP PromptMessage to an OpenAI message dict."""

@@ -295,11 +295,7 @@ def get_settings(config_path: str | None = None) -> Settings:
         """Recursively merge two dictionaries, preserving nested structures."""
         merged = base.copy()
         for key, value in update.items():
-            if (
-                key in merged
-                and isinstance(merged[key], dict)
-                and isinstance(value, dict)
-            ):
+            if key in merged and isinstance(merged[key], dict) and isinstance(value, dict):
                 merged[key] = deep_merge(merged[key], value)
             else:
                 merged[key] = value

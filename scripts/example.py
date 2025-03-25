@@ -13,7 +13,6 @@ import os
 import shutil
 import subprocess
 import tempfile
-
 from pathlib import Path
 
 import typer
@@ -72,9 +71,7 @@ def get_site_packages(venv_dir: Path, python_path: Path) -> Path:
         return venv_dir / "Lib" / "site-packages"
 
 
-def create_requirements_file(
-    example_dir: Path, use_local: bool, version: str | None
-) -> Path:
+def create_requirements_file(example_dir: Path, use_local: bool, version: str | None) -> Path:
     """Create a temporary requirements file with the correct mcp-agent source."""
     temp_req = tempfile.NamedTemporaryFile(mode="w", delete=False, suffix=".txt")
 
@@ -85,9 +82,7 @@ def create_requirements_file(
         # TODO: saqadri - consider just copying the original requirements file
         # f.writelines(requirements)
         for req in requirements:
-            if not (
-                req.strip().startswith("-e") or req.strip().startswith("mcp-agent")
-            ):
+            if not (req.strip().startswith("-e") or req.strip().startswith("mcp-agent")):
                 f.write(req)
 
         f.write("\n")
@@ -112,9 +107,7 @@ def list_examples():
         console.print("[red]No examples directory found[/]")
         raise typer.Exit(1)
 
-    examples = [
-        d for d in examples_dir.iterdir() if d.is_dir() and not d.name.startswith(".")
-    ]
+    examples = [d for d in examples_dir.iterdir() if d.is_dir() and not d.name.startswith(".")]
 
     if not examples:
         console.print("No examples found")
@@ -135,15 +128,11 @@ def list_examples():
 @app.command()
 def run(
     example_name: str = typer.Argument(..., help="Name of the example to run"),
-    use_local: bool = typer.Option(
-        True, "--local", "-l", help="Use local version of mcp-agent"
-    ),
+    use_local: bool = typer.Option(True, "--local", "-l", help="Use local version of mcp-agent"),
     version: str | None = typer.Option(
         None, "--version", "-v", help="Specific version to install from PyPI"
     ),
-    clean: bool = typer.Option(
-        False, "--clean", "-c", help="Create a fresh virtual environment"
-    ),
+    clean: bool = typer.Option(False, "--clean", "-c", help="Create a fresh virtual environment"),
     debug: bool = typer.Option(False, "--debug", "-d", help="Print debug information"),
 ):
     """Run a specific example."""
@@ -241,11 +230,7 @@ def clean_env(
     if example_name:
         dirs = [examples_dir / example_name]
     else:
-        dirs = [
-            d
-            for d in examples_dir.iterdir()
-            if d.is_dir() and not d.name.startswith(".")
-        ]
+        dirs = [d for d in examples_dir.iterdir() if d.is_dir() and not d.name.startswith(".")]
 
     for d in dirs:
         clean_venv(d)

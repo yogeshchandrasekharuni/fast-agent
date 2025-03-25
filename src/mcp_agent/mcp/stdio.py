@@ -47,9 +47,7 @@ async def stdio_client_with_rich_stderr(server: StdioServerParameters):
 
     if process.returncode is not None:
         logger.debug(f"return code (early){process.returncode}")
-        raise RuntimeError(
-            f"Process terminated immediately with code {process.returncode}"
-        )
+        raise RuntimeError(f"Process terminated immediately with code {process.returncode}")
 
     async def stdout_reader():
         assert process.stdout, "Opened process is missing stdout"

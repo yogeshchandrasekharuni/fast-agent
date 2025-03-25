@@ -84,9 +84,7 @@ class EventFilter(BaseModel):
                 return False
 
         # 3) Filter by namespace prefix
-        if self.namespaces and not any(
-            event.namespace.startswith(ns) for ns in self.namespaces
-        ):
+        if self.namespaces and not any(event.namespace.startswith(ns) for ns in self.namespaces):
             return False
 
         # 4) Minimum severity

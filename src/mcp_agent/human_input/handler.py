@@ -31,9 +31,7 @@ async def console_input_callback(request: HumanInputRequest) -> HumanInputRespon
 
     # Extract agent name from metadata dictionary
     agent_name = (
-        request.metadata.get("agent_name", "Unknown Agent")
-        if request.metadata
-        else "Unknown Agent"
+        request.metadata.get("agent_name", "Unknown Agent") if request.metadata else "Unknown Agent"
     )
 
     # Use the context manager to pause the progress display while getting input
@@ -71,9 +69,7 @@ async def console_input_callback(request: HumanInputRequest) -> HumanInputRespon
             if isinstance(command_result, dict) and "list_prompts" in command_result:
                 from rich import print as rich_print
 
-                rich_print(
-                    "[yellow]Prompt listing not available in human input context[/yellow]"
-                )
+                rich_print("[yellow]Prompt listing not available in human input context[/yellow]")
 
         except KeyboardInterrupt:
             console.print("\n[yellow]Input interrupted[/yellow]")

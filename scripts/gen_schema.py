@@ -16,10 +16,11 @@ import re
 import sys
 from pathlib import Path
 from typing import Any, Dict, Tuple
+
 import typer
-from rich.console import Console
 from pydantic import BaseModel
 from pydantic_settings import BaseSettings
+from rich.console import Console
 
 app = typer.Typer()
 console = Console()
@@ -182,9 +183,7 @@ def apply_descriptions_to_schema(
                 if "properties" in model_schema:
                     for field_name, field_schema in model_schema["properties"].items():
                         if field_name in model_info[model_name]:
-                            field_schema["description"] = model_info[model_name][
-                                field_name
-                            ].strip()
+                            field_schema["description"] = model_info[model_name][field_name].strip()
 
     # Handle root properties
     if "properties" in schema:

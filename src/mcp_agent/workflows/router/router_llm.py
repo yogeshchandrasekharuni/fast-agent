@@ -168,9 +168,7 @@ class LLMRouter(Router):
             # Merge with any provided default params
             if self.default_request_params:
                 params_dict = router_params.model_dump()
-                params_dict.update(
-                    self.default_request_params.model_dump(exclude_unset=True)
-                )
+                params_dict.update(self.default_request_params.model_dump(exclude_unset=True))
                 router_params = RequestParams(**params_dict)
             # Set up router-specific request params with routing instruction
             router_params.use_history = False
@@ -197,9 +195,7 @@ class LLMRouter(Router):
 
         return await self._route_with_llm(request, top_k)
 
-    async def route_to_server(
-        self, request: str, top_k: int = 1
-    ) -> List[LLMRouterResult[str]]:
+    async def route_to_server(self, request: str, top_k: int = 1) -> List[LLMRouterResult[str]]:
         if not self.initialized:
             await self.initialize()
 
@@ -211,9 +207,7 @@ class LLMRouter(Router):
             include_functions=False,
         )
 
-    async def route_to_agent(
-        self, request: str, top_k: int = 1
-    ) -> List[LLMRouterResult[Agent]]:
+    async def route_to_agent(self, request: str, top_k: int = 1) -> List[LLMRouterResult[Agent]]:
         if not self.initialized:
             await self.initialize()
 
@@ -260,9 +254,7 @@ class LLMRouter(Router):
         )
 
         # Format the prompt with all the necessary information
-        prompt = routing_instruction.format(
-            context=context, request=request, top_k=top_k
-        )
+        prompt = routing_instruction.format(context=context, request=request, top_k=top_k)
 
         response = await self.llm.generate_structured(
             message=prompt,

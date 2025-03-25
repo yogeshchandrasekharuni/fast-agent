@@ -2,10 +2,11 @@
 Tests for using PromptMessageMultipart in augmented LLMs.
 """
 
-import pytest
 from unittest.mock import AsyncMock, MagicMock
 
-from mcp.types import PromptMessage, TextContent, GetPromptResult
+import pytest
+from mcp.types import GetPromptResult, PromptMessage, TextContent
+
 from mcp_agent.workflows.llm.augmented_llm import AugmentedLLM
 
 
@@ -23,21 +24,15 @@ async def test_apply_prompt_template_with_multipart():
     llm.provider = "Test"  # Add a provider that will use the fallback path
 
     # Make the methods accessible for testing
-    llm.apply_prompt_template = AugmentedLLM.apply_prompt_template.__get__(
-        llm, AugmentedLLM
-    )
+    llm.apply_prompt_template = AugmentedLLM.apply_prompt_template.__get__(llm, AugmentedLLM)
     llm._apply_prompt_template_provider_specific = (
         AugmentedLLM._apply_prompt_template_provider_specific.__get__(llm, AugmentedLLM)
     )
 
     # Create test prompt messages
     prompt_messages = [
-        PromptMessage(
-            role="assistant", content=TextContent(type="text", text="I'm an assistant")
-        ),
-        PromptMessage(
-            role="user", content=TextContent(type="text", text="Tell me about Python")
-        ),
+        PromptMessage(role="assistant", content=TextContent(type="text", text="I'm an assistant")),
+        PromptMessage(role="user", content=TextContent(type="text", text="Tell me about Python")),
     ]
 
     # Create a GetPromptResult
@@ -60,9 +55,7 @@ async def test_apply_prompt_template_with_multipart():
 
     # Test with assistant as last message (should return the text directly)
     prompt_messages = [
-        PromptMessage(
-            role="user", content=TextContent(type="text", text="Tell me about Python")
-        ),
+        PromptMessage(role="user", content=TextContent(type="text", text="Tell me about Python")),
         PromptMessage(
             role="assistant",
             content=TextContent(type="text", text="Python is a programming language"),
@@ -94,9 +87,7 @@ async def test_apply_prompt_template_with_multiple_content():
     llm.provider = "Test"  # Add a provider that will use the fallback path
 
     # Make the methods accessible for testing
-    llm.apply_prompt_template = AugmentedLLM.apply_prompt_template.__get__(
-        llm, AugmentedLLM
-    )
+    llm.apply_prompt_template = AugmentedLLM.apply_prompt_template.__get__(llm, AugmentedLLM)
     llm._apply_prompt_template_provider_specific = (
         AugmentedLLM._apply_prompt_template_provider_specific.__get__(llm, AugmentedLLM)
     )
@@ -150,9 +141,7 @@ async def test_apply_prompt_template_with_images():
     llm.provider = "Test"  # Use the fallback path
 
     # Make the methods accessible for testing
-    llm.apply_prompt_template = AugmentedLLM.apply_prompt_template.__get__(
-        llm, AugmentedLLM
-    )
+    llm.apply_prompt_template = AugmentedLLM.apply_prompt_template.__get__(llm, AugmentedLLM)
     llm._apply_prompt_template_provider_specific = (
         AugmentedLLM._apply_prompt_template_provider_specific.__get__(llm, AugmentedLLM)
     )
@@ -164,9 +153,7 @@ async def test_apply_prompt_template_with_images():
         messages=[
             PromptMessage(
                 role="user",
-                content=ImageContent(
-                    type="image", data="base64encodeddata", mimeType="image/png"
-                ),
+                content=ImageContent(type="image", data="base64encodeddata", mimeType="image/png"),
             ),
         ],
         description="Test prompt with image",
@@ -186,9 +173,7 @@ async def test_apply_prompt_template_with_images():
         messages=[
             PromptMessage(
                 role="assistant",
-                content=ImageContent(
-                    type="image", data="base64encodeddata", mimeType="image/jpeg"
-                ),
+                content=ImageContent(type="image", data="base64encodeddata", mimeType="image/jpeg"),
             ),
         ],
         description="Test prompt with assistant image",

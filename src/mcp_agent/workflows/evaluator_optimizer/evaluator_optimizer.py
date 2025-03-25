@@ -35,12 +35,8 @@ class EvaluationResult(BaseModel):
     """Model representing the evaluation result from the evaluator LLM"""
 
     rating: QualityRating = Field(description="Quality rating of the response")
-    feedback: str = Field(
-        description="Specific feedback and suggestions for improvement"
-    )
-    needs_improvement: bool = Field(
-        description="Whether the output needs further improvement"
-    )
+    feedback: str = Field(description="Specific feedback and suggestions for improvement")
+    needs_improvement: bool = Field(description="Whether the output needs further improvement")
     focus_areas: List[str] = Field(
         default_factory=list, description="Specific areas to focus on in next iteration"
     )
@@ -121,9 +117,7 @@ class EvaluatorOptimizerLLM(AugmentedLLM[MessageParamT, MessageT]):
         if isinstance(generator, Agent):
             self.generator_use_history = generator.config.use_history
         elif isinstance(generator, AugmentedLLM):
-            if hasattr(generator, "aggregator") and isinstance(
-                generator.aggregator, Agent
-            ):
+            if hasattr(generator, "aggregator") and isinstance(generator.aggregator, Agent):
                 self.generator_use_history = generator.aggregator.config.use_history
             elif hasattr(generator, "default_request_params"):
                 self.generator_use_history = getattr(
@@ -141,19 +135,13 @@ class EvaluatorOptimizerLLM(AugmentedLLM[MessageParamT, MessageT]):
         # Set up the generator based on type
         if isinstance(generator, Agent):
             if not llm_factory:
-                raise ValueError(
-                    "llm_factory is required when using an Agent generator"
-                )
+                raise ValueError("llm_factory is required when using an Agent generator")
 
             # Use existing LLM if available, otherwise create new one
-            self.generator_llm = getattr(generator, "_llm", None) or llm_factory(
-                agent=generator
-            )
+            self.generator_llm = getattr(generator, "_llm", None) or llm_factory(agent=generator)
             self.aggregator = generator
             self.instruction = instruction or (
-                generator.instruction
-                if isinstance(generator.instruction, str)
-                else None
+                generator.instruction if isinstance(generator.instruction, str) else None
             )
         elif isinstance(generator, AugmentedLLM):
             self.generator_llm = generator
@@ -163,16 +151,12 @@ class EvaluatorOptimizerLLM(AugmentedLLM[MessageParamT, MessageT]):
             # ChainProxy-like object
             self.generator_llm = generator
             self.aggregator = None
-            self.instruction = (
-                instruction or f"Chain of agents: {', '.join(generator._sequence)}"
-            )
+            self.instruction = instruction or f"Chain of agents: {', '.join(generator._sequence)}"
 
         # Set up the evaluator - always disable history
         if isinstance(evaluator, str):
             if not llm_factory:
-                raise ValueError(
-                    "llm_factory is required when using a string evaluator"
-                )
+                raise ValueError("llm_factory is required when using a string evaluator")
 
             evaluator_agent = Agent(
                 name="Evaluator",
@@ -187,15 +171,11 @@ class EvaluatorOptimizerLLM(AugmentedLLM[MessageParamT, MessageT]):
             self.evaluator_llm = llm_factory(agent=evaluator_agent)
         elif isinstance(evaluator, Agent):
             if not llm_factory:
-                raise ValueError(
-                    "llm_factory is required when using an Agent evaluator"
-                )
+                raise ValueError("llm_factory is required when using an Agent evaluator")
 
             # Disable history and use/create LLM
             evaluator.config.use_history = False
-            self.evaluator_llm = getattr(evaluator, "_llm", None) or llm_factory(
-                agent=evaluator
-            )
+            self.evaluator_llm = getattr(evaluator, "_llm", None) or llm_factory(agent=evaluator)
         elif isinstance(evaluator, AugmentedLLM):
             self.evaluator_llm = evaluator
             # Ensure history is disabled
@@ -339,9 +319,7 @@ class EvaluatorOptimizerLLM(AugmentedLLM[MessageParamT, MessageT]):
         request_params: RequestParams | None = None,
     ) -> ModelT:
         """Generate an optimized structured response"""
-        response_str = await self.generate_str(
-            message=message, request_params=request_params
-        )
+        response_str = await self.generate_str(message=message, request_params=request_params)
 
         return await self.generator.generate_structured(
             message=response_str,
@@ -410,9 +388,7 @@ Be concrete and actionable in your recommendations.
         """Build the refinement prompt for the optimizer"""
         # Get the correct history setting - use param if provided, otherwise class default
         if use_history is None:
-            use_history = (
-                self.generator_use_history
-            )  # Use generator's setting as default
+            use_history = self.generator_use_history  # Use generator's setting as default
 
         # Start with clear non-delimited instructions
         prompt = f"""

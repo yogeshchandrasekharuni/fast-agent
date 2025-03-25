@@ -17,8 +17,6 @@ if TYPE_CHECKING:
     from mcp_agent.core.proxies import BaseAgentProxy
 
 # Type aliases for better readability
-WorkflowType: TypeAlias = Union[
-    Orchestrator, ParallelLLM, EvaluatorOptimizerLLM, LLMRouter
-]
+WorkflowType: TypeAlias = Union[Orchestrator, ParallelLLM, EvaluatorOptimizerLLM, LLMRouter]
 AgentOrWorkflow: TypeAlias = Union[Agent, WorkflowType]
 ProxyDict: TypeAlias = Dict[str, "BaseAgentProxy"]  # Forward reference as string

@@ -38,8 +38,6 @@ class CohereEmbeddingIntentClassifier(EmbeddingIntentClassifier):
         Factory method to create and initialize a classifier.
         Use this instead of constructor since we need async initialization.
         """
-        instance = cls(
-            intents=intents, embedding_model=embedding_model, context=context
-        )
+        instance = cls(intents=intents, embedding_model=embedding_model, context=context)
         await instance.initialize()
         return instance

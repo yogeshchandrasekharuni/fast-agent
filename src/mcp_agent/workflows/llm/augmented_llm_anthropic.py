@@ -133,9 +133,7 @@ class AnthropicAugmentedLLM(AugmentedLLM[MessageParam, Message]):
 
             self.logger.debug(f"{arguments}")
 
-            executor_result = await self.executor.execute(
-                anthropic.messages.create, **arguments
-            )
+            executor_result = await self.executor.execute(anthropic.messages.create, **arguments)
 
             response = executor_result[0]
 
@@ -153,13 +151,9 @@ class AnthropicAugmentedLLM(AugmentedLLM[MessageParam, Message]):
                 if hasattr(response, "status_code") and hasattr(response, "response"):
                     try:
                         error_json = response.response.json()
-                        error_details = (
-                            f"Error code: {response.status_code} - {error_json}"
-                        )
+                        error_details = f"Error code: {response.status_code} - {error_json}"
                     except:  # noqa: E722
-                        error_details = (
-                            f"Error code: {response.status_code} - {str(response)}"
-                        )
+                        error_details = f"Error code: {response.status_code} - {str(response)}"
 
                 # Convert other errors to text response
                 error_message = f"Error during generation: {error_details}"
@@ -192,9 +186,7 @@ class AnthropicAugmentedLLM(AugmentedLLM[MessageParam, Message]):
 
                 await self.show_assistant_message(message_text)
 
-                self.logger.debug(
-                    f"Iteration {i}: Stopping because finish_reason is 'end_turn'"
-                )
+                self.logger.debug(f"Iteration {i}: Stopping because finish_reason is 'end_turn'")
                 break
             elif response.stop_reason == "stop_sequence":
                 # We have reached a stop sequence
@@ -205,9 +197,7 @@ class AnthropicAugmentedLLM(AugmentedLLM[MessageParam, Message]):
             elif response.stop_reason == "max_tokens":
                 # We have reached the max tokens limit
 
-                self.logger.debug(
-                    f"Iteration {i}: Stopping because finish_reason is 'max_tokens'"
-                )
+                self.logger.debug(f"Iteration {i}: Stopping because finish_reason is 'max_tokens'")
                 if params.maxTokens is not None:
                     message_text = Text(
                         f"the assistant has reached the maximum token limit ({params.maxTokens})",
@@ -254,9 +244,7 @@ class AnthropicAugmentedLLM(AugmentedLLM[MessageParam, Message]):
                         self.show_tool_call(available_tools, tool_name, tool_args)
                         tool_call_request = CallToolRequest(
                             method="tools/call",
-                            params=CallToolRequestParams(
-                                name=tool_name, arguments=tool_args
-                            ),
+                            params=CallToolRequestParams(name=tool_name, arguments=tool_args),
                         )
                         # TODO -- support MCP isError etc.
                         result = await self.call_tool(
@@ -267,9 +255,7 @@ class AnthropicAugmentedLLM(AugmentedLLM[MessageParam, Message]):
                         # Add each result to our collection
                         tool_results.append((tool_use_id, result))
 
-                    messages.append(
-                        AnthropicConverter.create_tool_results_message(tool_results)
-                    )
+                    messages.append(AnthropicConverter.create_tool_results_message(tool_results))
 
         # Only save the new conversation messages to history if use_history is true
         # Keep the prompt messages separate
@@ -378,9 +364,7 @@ class AnthropicAugmentedLLM(AugmentedLLM[MessageParam, Message]):
 
         # Add all previous messages to history (or all messages if last is from assistant)
         messages_to_add = (
-            multipart_messages[:-1]
-            if last_message.role == "user"
-            else multipart_messages
+            multipart_messages[:-1] if last_message.role == "user" else multipart_messages
         )
         converted = []
         for msg in messages_to_add:
@@ -389,16 +373,12 @@ class AnthropicAugmentedLLM(AugmentedLLM[MessageParam, Message]):
 
         if last_message.role == "user":
             # For user messages: Generate response to the last one
-            self.logger.debug(
-                "Last message in prompt is from user, generating assistant response"
-            )
+            self.logger.debug("Last message in prompt is from user, generating assistant response")
             message_param = AnthropicConverter.convert_to_anthropic(last_message)
             return await self.generate_str(message_param, request_params)
         else:
             # For assistant messages: Return the last message content as text
-            self.logger.debug(
-                "Last message in prompt is from assistant, returning it directly"
-            )
+            self.logger.debug("Last message in prompt is from assistant, returning it directly")
             return str(last_message)
 
     async def _save_history_to_file(self, command: str) -> str:
@@ -433,9 +413,7 @@ class AnthropicAugmentedLLM(AugmentedLLM[MessageParam, Message]):
             # Convert message params to PromptMessageMultipart objects
             multipart_messages = []
             for msg in messages:
-                multipart_messages.append(
-                    anthropic_message_param_to_prompt_message_multipart(msg)
-                )
+                multipart_messages.append(anthropic_message_param_to_prompt_message_multipart(msg))
 
             # Convert to delimited format
             delimited_content = multipart_messages_to_delimited_format(
@@ -474,9 +452,7 @@ class AnthropicAugmentedLLM(AugmentedLLM[MessageParam, Message]):
         return response_model.model_validate(from_json(response, allow_partial=True))
 
     @classmethod
-    def convert_message_to_message_param(
-        cls, message: Message, **kwargs
-    ) -> MessageParam:
+    def convert_message_to_message_param(cls, message: Message, **kwargs) -> MessageParam:
         """Convert a response object to an input parameter object to allow LLM calls to be chained."""
         content = []
 

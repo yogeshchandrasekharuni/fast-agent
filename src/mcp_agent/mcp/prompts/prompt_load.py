@@ -62,8 +62,8 @@ def create_messages_with_resources(
         for resource_path in section.resources:
             try:
                 # Load resource with information about its type
-                resource_content, mime_type, is_binary = (
-                    resource_utils.load_resource_content(resource_path, prompt_files)
+                resource_content, mime_type, is_binary = resource_utils.load_resource_content(
+                    resource_path, prompt_files
                 )
 
                 # Create and add the resource message
@@ -90,9 +90,7 @@ def create_resource_message(
 
     if mime_utils.is_image_mime_type(mime_type):
         # For images, create an ImageContent
-        image_content = resource_utils.create_image_content(
-            data=content, mime_type=mime_type
-        )
+        image_content = resource_utils.create_image_content(data=content, mime_type=mime_type)
         return message_class(content=image_content)
     else:
         # For other resources, create an EmbeddedResource

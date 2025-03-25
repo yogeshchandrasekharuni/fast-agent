@@ -122,12 +122,8 @@ class ConsoleDisplay:
             )
 
             if selected_tool_name.split(SEP)[0] == parts[0]:
-                style = (
-                    "magenta" if tool_call_name == selected_tool_name else "dim white"
-                )
-                shortened_name = (
-                    parts[1] if len(parts[1]) <= 12 else parts[1][:11] + "…"
-                )
+                style = "magenta" if tool_call_name == selected_tool_name else "dim white"
+                shortened_name = parts[1] if len(parts[1]) <= 12 else parts[1][:11] + "…"
                 display_tool_list.append(f"[{shortened_name}] ", style)
 
         return display_tool_list
@@ -151,9 +147,7 @@ class ConsoleDisplay:
             tools = await aggregator.list_tools()
             if any(tool.name == HUMAN_INPUT_TOOL_NAME for tool in tools.tools):
                 style = (
-                    "green"
-                    if highlight_namespaced_tool == HUMAN_INPUT_TOOL_NAME
-                    else "dim white"
+                    "green" if highlight_namespaced_tool == HUMAN_INPUT_TOOL_NAME else "dim white"
                 )
                 display_server_list.append("[human] ", style)
 
@@ -242,9 +236,7 @@ class ConsoleDisplay:
 
         # Create content text
         content = Text()
-        messages_phrase = (
-            f"Loaded {message_count} message{'s' if message_count != 1 else ''}"
-        )
+        messages_phrase = f"Loaded {message_count} message{'s' if message_count != 1 else ''}"
         content.append(f"{messages_phrase} from template ", style="cyan italic")
         content.append(f"'{prompt_name}'", style="cyan bold italic")
 

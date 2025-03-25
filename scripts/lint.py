@@ -8,6 +8,7 @@
 
 import subprocess
 import sys
+
 import typer
 from rich import print
 
@@ -36,9 +37,7 @@ def main(fix: bool = False, watch: bool = False, path: str = None):
         print(f"Error: {e}")  # Log the error in a user-friendly way
         sys.exit(e.returncode)  # Exit with the error code from the command
     except FileNotFoundError:
-        print(
-            "Error: `ruff` command not found. Make sure it's installed in the environment."
-        )
+        print("Error: `ruff` command not found. Make sure it's installed in the environment.")
         sys.exit(1)
 
 

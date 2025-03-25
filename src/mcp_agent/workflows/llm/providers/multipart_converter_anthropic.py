@@ -127,15 +127,11 @@ class AnthropicConverter:
 
         for content_item in content_items:
             if isinstance(content_item, TextContent):
-                anthropic_blocks.append(
-                    TextBlockParam(type="text", text=content_item.text)
-                )
+                anthropic_blocks.append(TextBlockParam(type="text", text=content_item.text))
 
             elif isinstance(content_item, ImageContent):
                 # Check if image MIME type is supported
-                if not AnthropicConverter._is_supported_image_type(
-                    content_item.mimeType
-                ):
+                if not AnthropicConverter._is_supported_image_type(content_item.mimeType):
                     anthropic_blocks.append(
                         TextBlockParam(
                             type="text",
@@ -155,9 +151,7 @@ class AnthropicConverter:
                     )
 
             elif isinstance(content_item, EmbeddedResource):
-                block = AnthropicConverter._convert_embedded_resource(
-                    content_item, document_mode
-                )
+                block = AnthropicConverter._convert_embedded_resource(content_item, document_mode)
                 anthropic_blocks.append(block)
 
         return anthropic_blocks
@@ -208,9 +202,7 @@ class AnthropicConverter:
                         type="base64", media_type=mime_type, data=resource_content.blob
                     ),
                 )
-            return AnthropicConverter._create_fallback_text(
-                "Image missing data", resource
-            )
+            return AnthropicConverter._create_fallback_text("Image missing data", resource)
 
         elif mime_type == "application/pdf":
             if is_url:
@@ -229,9 +221,7 @@ class AnthropicConverter:
                         data=resource_content.blob,
                     ),
                 )
-            return TextBlockParam(
-                type="text", text=f"[PDF resource missing data: {title}]"
-            )
+            return TextBlockParam(type="text", text=f"[PDF resource missing data: {title}]")
 
         elif is_text_mime_type(mime_type):
             if not hasattr(resource_content, "text"):
@@ -359,16 +349,12 @@ class AnthropicConverter:
                 anthropic_content.append(resource_block)
             elif isinstance(item, (TextContent, ImageContent)):
                 # For text and image, use standard conversion
-                blocks = AnthropicConverter._convert_content_items(
-                    [item], document_mode=False
-                )
+                blocks = AnthropicConverter._convert_content_items([item], document_mode=False)
                 anthropic_content.extend(blocks)
 
         # If we ended up with no valid content blocks, create a placeholder
         if not anthropic_content:
-            anthropic_content = [
-                TextBlockParam(type="text", text="[No content in tool result]")
-            ]
+            anthropic_content = [TextBlockParam(type="text", text="[No content in tool result]")]
 
         # Create the tool result block
         return ToolResultBlockParam(
@@ -401,9 +387,7 @@ class AnthropicConverter:
             # Process each content item in the result
             for item in result.content:
                 if isinstance(item, (TextContent, ImageContent)):
-                    blocks = AnthropicConverter._convert_content_items(
-                        [item], document_mode=False
-                    )
+                    blocks = AnthropicConverter._convert_content_items([item], document_mode=False)
                     tool_result_blocks.extend(blocks)
                 elif isinstance(item, EmbeddedResource):
                     resource_content = item.resource
@@ -437,11 +421,7 @@ class AnthropicConverter:
                     ToolResultBlockParam(
                         type="tool_result",
                         tool_use_id=tool_use_id,
-                        content=[
-                            TextBlockParam(
-                                type="text", text="[No content in tool result]"
-                            )
-                        ],
+                        content=[TextBlockParam(type="text", text="[No content in tool result]")],
                         is_error=result.isError,
                     )
                 )

@@ -1,4 +1,4 @@
-from mcp.server.fastmcp import FastMCP, Context, Image
+from mcp.server.fastmcp import Context, FastMCP, Image
 from mcp.types import SamplingMessage, TextContent
 
 # Create a FastMCP server
@@ -12,9 +12,7 @@ async def generate_short_story(topic: str):
     # Make a sampling request to the client
     result = await mcp.get_context().session.create_message(
         max_tokens=1024,
-        messages=[
-            SamplingMessage(role="user", content=TextContent(type="text", text=prompt))
-        ],
+        messages=[SamplingMessage(role="user", content=TextContent(type="text", text=prompt))],
     )
 
     return result.content.text
@@ -32,9 +30,7 @@ async def sample_with_image(ctx: Context):
                     text="What is the username in this image?",
                 ),
             ),
-            SamplingMessage(
-                role="user", content=Image(path="image.png").to_image_content()
-            ),
+            SamplingMessage(role="user", content=Image(path="image.png").to_image_content()),
         ],
     )
 

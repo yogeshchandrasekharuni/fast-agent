@@ -2,24 +2,24 @@
 Tests for the prompt_format_utils module, focusing on resource handling.
 """
 
-import pytest
-import tempfile
 import os
+import tempfile
 from pathlib import Path
 
+import pytest
 from mcp.types import (
-    TextContent,
     EmbeddedResource,
-    TextResourceContents,
     ImageContent,
+    TextContent,
+    TextResourceContents,
 )
 
 from mcp_agent.mcp.prompt_message_multipart import PromptMessageMultipart
 from mcp_agent.mcp.prompt_serialization import (
-    multipart_messages_to_delimited_format,
     delimited_format_to_multipart_messages,
-    save_messages_to_delimited_file,
     load_messages_from_delimited_file,
+    multipart_messages_to_delimited_format,
+    save_messages_to_delimited_file,
 )
 
 
@@ -72,9 +72,7 @@ class TestPromptFormatUtils:
         )
 
         # Verify structure
-        assert (
-            len(delimited) == 8
-        )  # 2 role delimiters + 2 text blocks + 4 resource-related entries
+        assert len(delimited) == 8  # 2 role delimiters + 2 text blocks + 4 resource-related entries
 
         # First message (user)
         assert delimited[0] == "---USER"
@@ -150,9 +148,7 @@ I've reviewed your CSS and made it more efficient:
         assert messages[1].content[0].type == "text"
         assert "I've reviewed your CSS" in messages[1].content[0].text
         assert messages[1].content[1].type == "resource"
-        assert (
-            str(messages[1].content[1].resource.uri) == "resource://improved_styles.css"
-        )
+        assert str(messages[1].content[1].resource.uri) == "resource://improved_styles.css"
         assert messages[1].content[1].resource.mimeType == "text/css"
         assert messages[1].content[1].resource.text == "body { color: #000; }"
 
@@ -236,9 +232,7 @@ I've reviewed your CSS and made it more efficient:
             role="user",
             content=[
                 TextContent(type="text", text="Look at this image:"),
-                ImageContent(
-                    type="image", data="base64EncodedImageData", mimeType="image/png"
-                ),
+                ImageContent(type="image", data="base64EncodedImageData", mimeType="image/png"),
             ],
         )
 
@@ -317,9 +311,7 @@ analysis.md""")
         assert len(loaded_messages[0].content) == 2  # Text and resource
         assert loaded_messages[0].content[0].type == "text"
         assert loaded_messages[0].content[1].type == "resource"
-        assert (
-            str(loaded_messages[0].content[1].resource.uri) == "resource://config.json"
-        )
+        assert str(loaded_messages[0].content[1].resource.uri) == "resource://config.json"
 
     def test_round_trip_with_mime_types(self):
         """Test round-trip conversion preserving MIME type information."""
@@ -363,9 +355,7 @@ analysis.md""")
 
         # The resource URIs should be preserved
         resources = [
-            content
-            for content in result_messages[0].content
-            if content.type == "resource"
+            content for content in result_messages[0].content if content.type == "resource"
         ]
         assert len(resources) == 2
 

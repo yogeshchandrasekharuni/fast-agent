@@ -181,9 +181,7 @@ async def main():
         # Start the main research workflow
         await agent.prompt("EnhancedResearcher")
 
-        print(
-            "\nWould you like to ask follow-up questions to the Researcher? (Type 'STOP' to end)"
-        )
+        print("\nWould you like to ask follow-up questions to the Researcher? (Type 'STOP' to end)")
         await agent.prompt("Researcher", default="STOP")
 
 

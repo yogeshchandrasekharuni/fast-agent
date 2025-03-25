@@ -23,9 +23,7 @@ def sizing_prompt():
     description="set up the sizing protocol with metric or imperial units",
 )
 def sizing_prompt_units(
-    metric: bool = Field(
-        description="Set to True for Metric, False for Imperial", default=True
-    ),
+    metric: bool = Field(description="Set to True for Metric, False for Imperial", default=True),
 ):
     if metric:
         return [

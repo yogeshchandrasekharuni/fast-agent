@@ -2,12 +2,13 @@
 Tests for the Prompt class.
 """
 
-import tempfile
-import os
-from pathlib import Path
 import base64
+import os
+import tempfile
+from pathlib import Path
 
-from mcp.types import TextContent, ImageContent, EmbeddedResource, PromptMessage
+from mcp.types import EmbeddedResource, ImageContent, PromptMessage, TextContent
+
 from mcp_agent.core.prompt import Prompt
 from mcp_agent.mcp.prompt_message_multipart import PromptMessageMultipart
 

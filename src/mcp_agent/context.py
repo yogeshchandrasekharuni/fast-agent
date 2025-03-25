@@ -105,9 +105,7 @@ async def configure_otel(config: "Settings"):
         tracer_provider.add_span_processor(BatchSpanProcessor(exporter))
 
         if config.otel.console_debug:
-            tracer_provider.add_span_processor(
-                BatchSpanProcessor(ConsoleSpanExporter())
-            )
+            tracer_provider.add_span_processor(BatchSpanProcessor(ConsoleSpanExporter()))
     else:
         # Default to console exporter in development
         tracer_provider.add_span_processor(BatchSpanProcessor(ConsoleSpanExporter()))

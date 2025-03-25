@@ -3,10 +3,10 @@ Unit tests for the PromptMessageMultipart class.
 """
 
 from mcp.types import (
+    GetPromptResult,
+    ImageContent,
     PromptMessage,
     TextContent,
-    ImageContent,
-    GetPromptResult,
 )
 
 from mcp_agent.mcp.prompt_message_multipart import PromptMessageMultipart
@@ -20,9 +20,7 @@ class TestPromptMessageMultipart:
         # Create test messages
         messages = [
             PromptMessage(role="user", content=TextContent(type="text", text="Hello")),
-            PromptMessage(
-                role="user", content=TextContent(type="text", text="How are you?")
-            ),
+            PromptMessage(role="user", content=TextContent(type="text", text="How are you?")),
         ]
 
         # Convert to PromptMessageMultipart
@@ -40,12 +38,8 @@ class TestPromptMessageMultipart:
         # Create test messages with alternating roles
         messages = [
             PromptMessage(role="user", content=TextContent(type="text", text="Hello")),
-            PromptMessage(
-                role="assistant", content=TextContent(type="text", text="Hi there!")
-            ),
-            PromptMessage(
-                role="user", content=TextContent(type="text", text="How are you?")
-            ),
+            PromptMessage(role="assistant", content=TextContent(type="text", text="Hi there!")),
+            PromptMessage(role="user", content=TextContent(type="text", text="How are you?")),
         ]
 
         # Convert to PromptMessageMultipart
@@ -116,12 +110,8 @@ class TestPromptMessageMultipart:
         # Create test messages
         messages = [
             PromptMessage(role="user", content=TextContent(type="text", text="Hello")),
-            PromptMessage(
-                role="assistant", content=TextContent(type="text", text="Hi there!")
-            ),
-            PromptMessage(
-                role="user", content=TextContent(type="text", text="How are you?")
-            ),
+            PromptMessage(role="assistant", content=TextContent(type="text", text="Hi there!")),
+            PromptMessage(role="user", content=TextContent(type="text", text="How are you?")),
         ]
 
         # Create a GetPromptResult
@@ -155,9 +145,7 @@ class TestPromptMessageMultipart:
         # Original messages
         messages = [
             PromptMessage(role="user", content=TextContent(type="text", text="Hello")),
-            PromptMessage(
-                role="user", content=TextContent(type="text", text="How are you?")
-            ),
+            PromptMessage(role="user", content=TextContent(type="text", text="How are you?")),
             PromptMessage(
                 role="assistant",
                 content=TextContent(type="text", text="I'm doing well, thanks!"),

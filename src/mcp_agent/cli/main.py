@@ -39,9 +39,7 @@ def show_welcome():
     table.add_column("Description")
 
     table.add_row("setup", "Set up a new agent project with configuration files")
-    table.add_row(
-        "bootstrap", "Create example applications (workflow, researcher, etc.)"
-    )
+    table.add_row("bootstrap", "Create example applications (workflow, researcher, etc.)")
     # table.add_row("config", "Manage agent configuration settings")
 
     console.print(table)
@@ -63,9 +61,7 @@ def main(
     ctx: typer.Context,
     verbose: bool = typer.Option(False, "--verbose", "-v", help="Enable verbose mode"),
     quiet: bool = typer.Option(False, "--quiet", "-q", help="Disable output"),
-    color: bool = typer.Option(
-        True, "--color/--no-color", help="Enable/disable color output"
-    ),
+    color: bool = typer.Option(True, "--color/--no-color", help="Enable/disable color output"),
 ):
     """FastAgent CLI - Build effective agents using Model Context Protocol (MCP).
 

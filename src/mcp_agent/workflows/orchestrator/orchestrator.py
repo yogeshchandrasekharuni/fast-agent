@@ -198,9 +198,7 @@ class Orchestrator(AugmentedLLM[MessageParamT, MessageT]):
         )
 
         plan_result = PlanResult(objective=objective, step_results=[])
-        plan_result.max_iterations_reached = (
-            False  # Add a flag to track if we hit the limit
-        )
+        plan_result.max_iterations_reached = False  # Add a flag to track if we hit the limit
 
         while iterations < params.max_iterations:
             if self.plan_type == "iterative":
@@ -263,15 +261,10 @@ class Orchestrator(AugmentedLLM[MessageParamT, MessageT]):
                 total_steps_executed += 1
 
             # Check if we need to break from the main loop due to hitting max_steps
-            if (
-                hasattr(plan_result, "max_steps_reached")
-                and plan_result.max_steps_reached
-            ):
+            if hasattr(plan_result, "max_steps_reached") and plan_result.max_steps_reached:
                 break
 
-            logger.debug(
-                f"Iteration {iterations}: Intermediate plan result:", data=plan_result
-            )
+            logger.debug(f"Iteration {iterations}: Intermediate plan result:", data=plan_result)
 
             # Check for diminishing returns
             if iterations > 2 and len(plan.steps) <= 1:
@@ -289,9 +282,7 @@ class Orchestrator(AugmentedLLM[MessageParamT, MessageT]):
 
         # Check if we hit iteration limits without completing
         if iterations >= params.max_iterations and not plan_result.is_complete:
-            self.logger.warning(
-                f"Failed to complete in {params.max_iterations} iterations."
-            )
+            self.logger.warning(f"Failed to complete in {params.max_iterations} iterations.")
             # Mark that we hit the iteration limit
             plan_result.max_iterations_reached = True
 
@@ -303,9 +294,7 @@ class Orchestrator(AugmentedLLM[MessageParamT, MessageT]):
         else:
             # Either plan is complete or we had diminishing returns (which we mark as complete)
             if not plan_result.is_complete:
-                self.logger.info(
-                    "Plan terminated due to diminishing returns, marking as complete"
-                )
+                self.logger.info("Plan terminated due to diminishing returns, marking as complete")
                 plan_result.is_complete = True
 
             # Use standard template for complete plans
@@ -426,9 +415,7 @@ class Orchestrator(AugmentedLLM[MessageParamT, MessageT]):
         plan_status = "Plan Status: Not Started"
         if plan_result.is_complete:
             plan_status = (
-                "Plan Status: Complete"
-                if plan_result.is_complete
-                else "Plan Status: In Progress"
+                "Plan Status: Complete" if plan_result.is_complete else "Plan Status: In Progress"
             )
 
         # Fix the iteration counting display
@@ -436,9 +423,7 @@ class Orchestrator(AugmentedLLM[MessageParamT, MessageT]):
         # Simplified iteration counting logic
         current_iteration = len(plan_result.step_results)
         current_iteration = min(current_iteration, max_iterations - 1)  # Cap at max-1
-        iterations_remaining = max(
-            0, max_iterations - current_iteration - 1
-        )  # Ensure non-negative
+        iterations_remaining = max(0, max_iterations - current_iteration - 1)  # Ensure non-negative
         iterations_info = f"Planning Budget: Iteration {current_iteration + 1} of {max_iterations} (with {iterations_remaining} remaining)"
 
         prompt = FULL_PLAN_PROMPT_TEMPLATE.format(
@@ -496,16 +481,16 @@ class Orchestrator(AugmentedLLM[MessageParamT, MessageT]):
         plan_status = "Plan Status: Not Started"
         if plan_result:
             plan_status = (
-                "Plan Status: Complete"
-                if plan_result.is_complete
-                else "Plan Status: In Progress"
+                "Plan Status: Complete" if plan_result.is_complete else "Plan Status: In Progress"
             )
 
         # Add max_iterations info for the LLM
         max_iterations = params.max_iterations
         current_iteration = len(plan_result.step_results)
         iterations_remaining = max_iterations - current_iteration
-        iterations_info = f"Planning Budget: {iterations_remaining} of {max_iterations} iterations remaining"
+        iterations_info = (
+            f"Planning Budget: {iterations_remaining} of {max_iterations} iterations remaining"
+        )
 
         prompt = ITERATIVE_PLAN_PROMPT_TEMPLATE.format(
             objective=objective,
@@ -573,6 +558,4 @@ class Orchestrator(AugmentedLLM[MessageParamT, MessageT]):
 
             server_info.append({"name": server_name, "description": description})
 
-        return format_agent_info(
-            agent.name, instruction, server_info if server_info else None
-        )
+        return format_agent_info(agent.name, instruction, server_info if server_info else None)

@@ -184,9 +184,7 @@ class BatchingListener(FilteredListener):
         try:
             while not self._stop_event.is_set():
                 try:
-                    await asyncio.wait_for(
-                        self._stop_event.wait(), timeout=self.flush_interval
-                    )
+                    await asyncio.wait_for(self._stop_event.wait(), timeout=self.flush_interval)
                 except asyncio.TimeoutError:
                     await self.flush()
         # except asyncio.CancelledError:

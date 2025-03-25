@@ -85,9 +85,7 @@ class SamplingConverter:
         )
 
     @staticmethod
-    def error_result(
-        error_message: str, model: Optional[str] = None
-    ) -> CreateMessageResult:
+    def error_result(error_message: str, model: Optional[str] = None) -> CreateMessageResult:
         """
         Create an error result.
 
@@ -118,7 +116,4 @@ class SamplingConverter:
         Returns:
             List of PromptMessageMultipart objects, each with a single content item
         """
-        return [
-            SamplingConverter.sampling_message_to_prompt_message(msg)
-            for msg in messages
-        ]
+        return [SamplingConverter.sampling_message_to_prompt_message(msg) for msg in messages]

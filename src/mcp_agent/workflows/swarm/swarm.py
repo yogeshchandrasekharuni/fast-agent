@@ -105,9 +105,7 @@ class SwarmAgent(Agent):
         )
         self.parallel_tool_calls = parallel_tool_calls
 
-    async def call_tool(
-        self, name: str, arguments: dict | None = None
-    ) -> CallToolResult:
+    async def call_tool(self, name: str, arguments: dict | None = None) -> CallToolResult:
         if not self.initialized:
             await self.initialize()
 
@@ -127,14 +125,10 @@ class SwarmAgent(Agent):
                 # TODO: saqadri - this is likely meant for returning context variables
                 return CallToolResult(content=[TextContent(type="text", text=result)])
             elif isinstance(result, dict):
-                return CallToolResult(
-                    content=[TextContent(type="text", text=str(result))]
-                )
+                return CallToolResult(content=[TextContent(type="text", text=str(result))])
             else:
                 logger.warning(f"Unknown result type: {result}, returning as text.")
-                return CallToolResult(
-                    content=[TextContent(type="text", text=str(result))]
-                )
+                return CallToolResult(content=[TextContent(type="text", text=str(result))])
 
         return await super().call_tool(name, arguments)
 
@@ -162,9 +156,7 @@ AgentFunctionReturnType = str | Agent | dict | AgentFunctionResult
 AgentFunctionCallable = Callable[[], AgentFunctionReturnType]
 
 
-async def create_transfer_to_agent_tool(
-    agent: "Agent", agent_function: Callable[[], None]
-) -> Tool:
+async def create_transfer_to_agent_tool(agent: "Agent", agent_function: Callable[[], None]) -> Tool:
     return Tool(
         name="transfer_to_agent",
         description="Transfer control to the agent",
@@ -312,9 +304,5 @@ class DoneAgent(SwarmAgent):
     def __init__(self):
         super().__init__(name="__done__", instruction="Swarm Workflow is complete.")
 
-    async def call_tool(
-        self, _name: str, _arguments: dict | None = None
-    ) -> CallToolResult:
-        return CallToolResult(
-            content=[TextContent(type="text", text="Workflow is complete.")]
-        )
+    async def call_tool(self, _name: str, _arguments: dict | None = None) -> CallToolResult:
+        return CallToolResult(content=[TextContent(type="text", text="Workflow is complete.")])

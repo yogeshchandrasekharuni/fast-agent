@@ -31,9 +31,7 @@ class EmbeddingModel(ABC, ContextDependent):
         """Return the dimensionality of the embeddings"""
 
 
-def compute_similarity_scores(
-    embedding_a: FloatArray, embedding_b: FloatArray
-) -> Dict[str, float]:
+def compute_similarity_scores(embedding_a: FloatArray, embedding_b: FloatArray) -> Dict[str, float]:
     """
     Compute different similarity metrics between embeddings
     """

@@ -8,8 +8,8 @@ import logging
 import sys
 from pathlib import Path
 
-from mcp.server.fastmcp import FastMCP, Context, Image
-from mcp.types import TextContent, ImageContent, EmbeddedResource, BlobResourceContents
+from mcp.server.fastmcp import Context, FastMCP, Image
+from mcp.types import BlobResourceContents, EmbeddedResource, ImageContent, TextContent
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -22,9 +22,7 @@ app = FastMCP(name="ImageToolServer", debug=True)
 image_path = "image.png"
 
 
-@app.tool(
-    name="get_image", description="Returns the sample image with some descriptive text"
-)
+@app.tool(name="get_image", description="Returns the sample image with some descriptive text")
 async def get_image(
     image_name: str = "default", ctx: Context = None
 ) -> list[TextContent | ImageContent]:
@@ -48,9 +46,7 @@ async def get_pdf() -> list[TextContent | EmbeddedResource]:
         pdf_path = "sample.pdf"
         # Check if file exists
         if not Path(pdf_path).exists():
-            return [
-                TextContent(type="text", text=f"Error: PDF file '{pdf_path}' not found")
-            ]
+            return [TextContent(type="text", text=f"Error: PDF file '{pdf_path}' not found")]
 
         # Read the PDF file as binary data
         with open(pdf_path, "rb") as f:
@@ -87,9 +83,7 @@ if __name__ == "__main__":
     # Check if the specified image exists
     if not Path(image_path).exists():
         logger.warning(f"Image file '{image_path}' not found in the current directory")
-        logger.warning(
-            "Please add an image file or specify a valid path as the first argument"
-        )
+        logger.warning("Please add an image file or specify a valid path as the first argument")
 
     # Run the server using stdio transport
     app.run(transport="stdio")

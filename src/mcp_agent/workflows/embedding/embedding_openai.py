@@ -12,9 +12,7 @@ if TYPE_CHECKING:
 class OpenAIEmbeddingModel(EmbeddingModel):
     """OpenAI embedding model implementation"""
 
-    def __init__(
-        self, model: str = "text-embedding-3-small", context: Optional["Context"] = None
-    ):
+    def __init__(self, model: str = "text-embedding-3-small", context: Optional["Context"] = None):
         super().__init__(context=context)
         self.client = OpenAI(api_key=self.context.config.openai.api_key)
         self.model = model
@@ -34,10 +32,7 @@ class OpenAIEmbeddingModel(EmbeddingModel):
 
         # Stack all embeddings into a single array
         embeddings = stack(
-            [
-                array(embedding["embedding"], dtype=float32)
-                for embedding in sorted_embeddings
-            ]
+            [array(embedding["embedding"], dtype=float32) for embedding in sorted_embeddings]
         )
         return embeddings
 

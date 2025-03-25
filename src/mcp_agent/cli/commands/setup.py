@@ -167,9 +167,7 @@ def init(
         "-c",
         help="Directory where configuration files will be created",
     ),
-    force: bool = typer.Option(
-        False, "--force", "-f", help="Force overwrite existing files"
-    ),
+    force: bool = typer.Option(False, "--force", "-f", help="Force overwrite existing files"),
 ):
     """Initialize a new FastAgent project with configuration files and example agent."""
 
@@ -199,23 +197,17 @@ def init(
 
     # Create configuration files
     created = []
-    if create_file(
-        config_path / "fastagent.config.yaml", FASTAGENT_CONFIG_TEMPLATE, force
-    ):
+    if create_file(config_path / "fastagent.config.yaml", FASTAGENT_CONFIG_TEMPLATE, force):
         created.append("fastagent.yaml")
 
-    if create_file(
-        config_path / "fastagent.secrets.yaml", FASTAGENT_SECRETS_TEMPLATE, force
-    ):
+    if create_file(config_path / "fastagent.secrets.yaml", FASTAGENT_SECRETS_TEMPLATE, force):
         created.append("fastagent.secrets.yaml")
 
     if create_file(config_path / "agent.py", AGENT_EXAMPLE_TEMPLATE, force):
         created.append("agent.py")
 
     # Only create .gitignore if none exists in parent directories
-    if needs_gitignore and create_file(
-        config_path / ".gitignore", GITIGNORE_TEMPLATE, force
-    ):
+    if needs_gitignore and create_file(config_path / ".gitignore", GITIGNORE_TEMPLATE, force):
         created.append(".gitignore")
 
     if created:

@@ -3,19 +3,19 @@
 
 import json
 import sys
-import tty
 import termios
+import tty
 from datetime import datetime
 from pathlib import Path
 from typing import List, Optional
 
 import typer
 from rich.console import Console
-from rich.panel import Panel
 from rich.layout import Layout
+from rich.panel import Panel
 from rich.text import Text
 
-from mcp_agent.event_progress import convert_log_event, ProgressEvent
+from mcp_agent.event_progress import ProgressEvent, convert_log_event
 from mcp_agent.logging.events import Event
 
 
@@ -62,9 +62,7 @@ class EventDisplay:
         for i in range(self.current + 1):
             progress_event = convert_log_event(self.events[i])
             if progress_event:
-                if not self.progress_events or str(progress_event) != str(
-                    self.progress_events[-1]
-                ):
+                if not self.progress_events or str(progress_event) != str(self.progress_events[-1]):
                     self.progress_events.append(progress_event)
 
     def _process_current(self) -> None:
@@ -75,9 +73,7 @@ class EventDisplay:
         # Track iterations
         if "Iteration" in message:
             try:
-                self.current_iteration = int(
-                    message.split("Iteration")[1].split(":")[0]
-                )
+                self.current_iteration = int(message.split("Iteration")[1].split(":")[0])
             except (ValueError, IndexError):
                 pass
 
@@ -88,9 +84,7 @@ class EventDisplay:
         # Update progress events
         progress_event = convert_log_event(event)
         if progress_event:
-            if not self.progress_events or str(progress_event) != str(
-                self.progress_events[-1]
-            ):
+            if not self.progress_events or str(progress_event) != str(self.progress_events[-1]):
                 self.progress_events.append(progress_event)
 
     def render(self) -> Panel:
@@ -130,9 +124,7 @@ class EventDisplay:
                 agent = current_event.data.get("data", {}).get("agent_name", "")
                 if not agent:  # Fallback to namespace if agent_name not found
                     agent = (
-                        current_event.namespace.split(".")[-1]
-                        if current_event.namespace
-                        else ""
+                        current_event.namespace.split(".")[-1] if current_event.namespace else ""
                     )
                 if agent:
                     progress_text.append("Agent: ", style="bold")

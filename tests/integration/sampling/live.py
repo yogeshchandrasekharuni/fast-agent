@@ -1,4 +1,5 @@
 import asyncio
+
 from mcp_agent.core.fastagent import FastAgent
 
 # Create the application with specified model
@@ -10,9 +11,7 @@ fast = FastAgent("FastAgent Example")
 async def main():
     # use the --model command line switch or agent arguments to change model
     async with fast.run() as agent:
-        result = await agent.send(
-            '***CALL_TOOL sampling_test-sample {"to_sample": "123foo"}'
-        )
+        result = await agent.send('***CALL_TOOL sampling_test-sample {"to_sample": "123foo"}')
         print(f"RESULT: {result}")
 
 

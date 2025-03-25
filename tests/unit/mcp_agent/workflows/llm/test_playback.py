@@ -1,7 +1,9 @@
-import pytest
 from unittest.mock import MagicMock, patch
+
+import pytest
 from mcp import GetPromptResult
 from mcp.types import PromptMessage, TextContent
+
 from mcp_agent.workflows.llm.augmented_llm_playback import PlaybackLLM
 from mcp_agent.workflows.llm.model_factory import ModelFactory
 
@@ -59,15 +61,9 @@ async def test_playback_llm_apply_prompt_template():
 
     # Create sample prompt messages using Pydantic models
     prompt_messages = [
-        PromptMessage(
-            role="assistant", content=TextContent(type="text", text="Message 1")
-        ),
-        PromptMessage(
-            role="assistant", content=TextContent(type="text", text="Message 2")
-        ),
-        PromptMessage(
-            role="assistant", content=TextContent(type="text", text="Message 3")
-        ),
+        PromptMessage(role="assistant", content=TextContent(type="text", text="Message 1")),
+        PromptMessage(role="assistant", content=TextContent(type="text", text="Message 2")),
+        PromptMessage(role="assistant", content=TextContent(type="text", text="Message 3")),
     ]
 
     # Create a GetPromptResult
@@ -97,15 +93,9 @@ async def test_playback_llm_sequential_messages():
 
     # Create sample prompt messages using Pydantic models
     prompt_messages = [
-        PromptMessage(
-            role="assistant", content=TextContent(type="text", text="Message 1")
-        ),
-        PromptMessage(
-            role="assistant", content=TextContent(type="text", text="Message 2")
-        ),
-        PromptMessage(
-            role="assistant", content=TextContent(type="text", text="Message 3")
-        ),
+        PromptMessage(role="assistant", content=TextContent(type="text", text="Message 1")),
+        PromptMessage(role="assistant", content=TextContent(type="text", text="Message 2")),
+        PromptMessage(role="assistant", content=TextContent(type="text", text="Message 3")),
     ]
 
     # Create a GetPromptResult
@@ -171,13 +161,9 @@ async def test_playback_llm_append_messages():
     ]
 
     # Create GetPromptResults
-    prompt_result1 = GetPromptResult(
-        description="Test prompt 1", messages=prompt_messages1
-    )
+    prompt_result1 = GetPromptResult(description="Test prompt 1", messages=prompt_messages1)
 
-    prompt_result2 = GetPromptResult(
-        description="Test prompt 2", messages=prompt_messages2
-    )
+    prompt_result2 = GetPromptResult(description="Test prompt 2", messages=prompt_messages2)
 
     # Patch the show methods to avoid display issues
     with (
@@ -223,24 +209,14 @@ async def test_playback_llm_skips_user_messages():
 
     # Create mixed prompt messages with both user and assistant roles
     prompt_messages = [
-        PromptMessage(
-            role="user", content=TextContent(type="text", text="User Message 1")
-        ),
-        PromptMessage(
-            role="assistant", content=TextContent(type="text", text="Assistant Reply 1")
-        ),
-        PromptMessage(
-            role="user", content=TextContent(type="text", text="User Message 2")
-        ),
-        PromptMessage(
-            role="assistant", content=TextContent(type="text", text="Assistant Reply 2")
-        ),
+        PromptMessage(role="user", content=TextContent(type="text", text="User Message 1")),
+        PromptMessage(role="assistant", content=TextContent(type="text", text="Assistant Reply 1")),
+        PromptMessage(role="user", content=TextContent(type="text", text="User Message 2")),
+        PromptMessage(role="assistant", content=TextContent(type="text", text="Assistant Reply 2")),
     ]
 
     # Create a GetPromptResult
-    prompt_result = GetPromptResult(
-        description="Mixed role test prompt", messages=prompt_messages
-    )
+    prompt_result = GetPromptResult(description="Mixed role test prompt", messages=prompt_messages)
 
     # Patch the show methods to avoid display issues in tests
     with (

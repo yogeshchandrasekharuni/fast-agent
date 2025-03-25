@@ -1,8 +1,8 @@
 import pytest
-from mcp.types import TextContent
+from mcp.types import GetPromptResult, PromptMessage, TextContent
+
 from mcp_agent.mcp.prompt_message_multipart import PromptMessageMultipart
 from mcp_agent.workflows.llm.augmented_llm_passthrough import PassthroughLLM
-from mcp.types import GetPromptResult, PromptMessage
 
 
 @pytest.fixture
@@ -21,15 +21,9 @@ def message_texts():
 def prompt_messages(message_texts):
     """Create standard PromptMessage objects for testing."""
     return [
-        PromptMessage(
-            role="assistant", content=TextContent(type="text", text=message_texts[0])
-        ),
-        PromptMessage(
-            role="user", content=TextContent(type="text", text=message_texts[1])
-        ),
-        PromptMessage(
-            role="assistant", content=TextContent(type="text", text=message_texts[2])
-        ),
+        PromptMessage(role="assistant", content=TextContent(type="text", text=message_texts[0])),
+        PromptMessage(role="user", content=TextContent(type="text", text=message_texts[1])),
+        PromptMessage(role="assistant", content=TextContent(type="text", text=message_texts[2])),
     ]
 
 

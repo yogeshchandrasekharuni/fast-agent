@@ -1,12 +1,13 @@
 """Test event progress conversion from log events."""
 
+import os
 import subprocess
+from difflib import unified_diff
 from pathlib import Path
+
 from rich import print
 from rich.console import Console
 from rich.syntax import Syntax
-from difflib import unified_diff
-import os
 
 # Create console with fixed width
 console = Console(width=100, force_terminal=True)
@@ -29,9 +30,7 @@ def show_diff(expected: str, got: str, context: int = 3) -> None:
         print("".join(diff))
 
     # Also show full outputs with line numbers for reference
-    print(
-        "\n[blue]Expected output[/blue] ({} lines):".format(len(expected.splitlines()))
-    )
+    print("\n[blue]Expected output[/blue] ({} lines):".format(len(expected.splitlines())))
     syntax = Syntax(expected, "text", line_numbers=True, word_wrap=True)
     console.print(syntax)
 
@@ -96,9 +95,7 @@ def update_test_fixtures():
 
     if not log_file.exists():
         print(f"[red]Error:[/red] Log file not found: {log_file}")
-        print(
-            "Please run an example to generate a log file and copy it to the fixture directory"
-        )
+        print("Please run an example to generate a log file and copy it to the fixture directory")
         return
 
     # Run command and capture output
@@ -117,9 +114,7 @@ def update_test_fixtures():
     # Update expected output file
     expected_output_file.write_text(result.stdout)
 
-    print(
-        f"[green]Successfully updated test fixtures:[/green]\n- {expected_output_file}"
-    )
+    print(f"[green]Successfully updated test fixtures:[/green]\n- {expected_output_file}")
 
 
 if __name__ == "__main__":

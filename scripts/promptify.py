@@ -26,9 +26,7 @@ def parse_gitignore(path: Path) -> List[str]:
         return []
 
     with open(file=gitigore_path, mode="r", encoding="utf-8") as f:
-        patterns = [
-            line.strip() for line in f if line.strip() and not line.startswith("#")
-        ]
+        patterns = [line.strip() for line in f if line.strip() and not line.startswith("#")]
     return patterns
 
 
@@ -91,9 +89,7 @@ def should_include(path: Path, include_patterns: List[str]) -> bool:
     return any(pattern_match(str_path, p) for p in include_patterns)
 
 
-def should_ignore(
-    path: Path, ignore_patterns: List[str], gitignore_patterns: List[str]
-) -> bool:
+def should_ignore(path: Path, ignore_patterns: List[str], gitignore_patterns: List[str]) -> bool:
     """Check if path should be ignored based on patterns."""
     str_path = str(path).replace("\\", "/")
 
@@ -163,9 +159,7 @@ def package_project(
         console = Console(file=None)
         with console.capture() as capture:
             console.print(
-                create_tree_structure(
-                    path, include_patterns, ignore_patterns, gitignore_patterns
-                )
+                create_tree_structure(path, include_patterns, ignore_patterns, gitignore_patterns)
             )
         f.write(capture.get())
         f.write("```\n\n")
@@ -189,9 +183,7 @@ def package_project(
                             f.write("```")
                             # Add file extension for syntax highlighting if available
                             if item.suffix:
-                                f.write(
-                                    item.suffix[1:]
-                                )  # Remove the dot from extension
+                                f.write(item.suffix[1:])  # Remove the dot from extension
                             f.write("\n")
                             f.write(content)
                             f.write("\n```\n\n")
@@ -206,15 +198,11 @@ def package_project(
 
 def main(
     path: str = typer.Argument(".", help="Path to the project directory"),
-    output: str = typer.Option(
-        "project_contents.md", "--output", "-o", help="Output file path"
-    ),
+    output: str = typer.Option("project_contents.md", "--output", "-o", help="Output file path"),
     include: List[str] | None = typer.Option(
         None, "--include", "-i", help="Patterns to include (e.g. '*.py')"
     ),
-    ignore: List[str] | None = typer.Option(
-        None, "--ignore", "-x", help="Patterns to ignore"
-    ),
+    ignore: List[str] | None = typer.Option(None, "--ignore", "-x", help="Patterns to ignore"),
     skip_gitignore: bool = typer.Option(
         False, "--skip-gitignore", help="Skip reading .gitignore patterns"
     ),

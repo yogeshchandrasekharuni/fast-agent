@@ -50,21 +50,15 @@ class Plan(BaseModel):
         description="List of steps to execute sequentially",
         default_factory=list,
     )
-    is_complete: bool = Field(
-        description="Whether the overall plan objective is complete"
-    )
+    is_complete: bool = Field(description="Whether the overall plan objective is complete")
 
 
 class TaskWithResult(Task):
     """An individual task with its result"""
 
-    result: str = Field(
-        description="Result of executing the task", default="Task completed"
-    )
+    result: str = Field(description="Result of executing the task", default="Task completed")
 
-    agent: str = Field(
-        description="Name of the agent that executed this task", default=""
-    )
+    agent: str = Field(description="Name of the agent that executed this task", default="")
 
     model_config = ConfigDict(extra="allow", arbitrary_types_allowed=True)
 
@@ -76,9 +70,7 @@ class StepResult(BaseModel):
     task_results: List[TaskWithResult] = Field(
         description="Results of executing each task", default_factory=list
     )
-    result: str = Field(
-        description="Result of executing the step", default="Step completed"
-    )
+    result: str = Field(description="Result of executing the step", default="Step completed")
 
     def add_task_result(self, task_result: TaskWithResult):
         """Add a task result to this step"""
@@ -118,9 +110,7 @@ class PlanResult(BaseModel):
 class NextStep(Step):
     """Single next step in iterative planning"""
 
-    is_complete: bool = Field(
-        description="Whether the overall plan objective is complete"
-    )
+    is_complete: bool = Field(description="Whether the overall plan objective is complete")
 
 
 def format_task_result_text(task_result: TaskWithResult) -> str:

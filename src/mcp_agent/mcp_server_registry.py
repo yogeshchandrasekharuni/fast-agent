@@ -67,9 +67,7 @@ class ServerRegistry:
             config_path (str): Path to the YAML configuration file.
         """
         self.registry = (
-            self.load_registry_from_file(config_path)
-            if config is None
-            else config.mcp.servers
+            self.load_registry_from_file(config_path) if config is None else config.mcp.servers
         )
         self.init_hooks: Dict[str, InitHookCallable] = {}
         self.connection_manager = MCPConnectionManager(self)
@@ -117,9 +115,7 @@ class ServerRegistry:
         config = self.registry[server_name]
 
         read_timeout_seconds = (
-            timedelta(config.read_timeout_seconds)
-            if config.read_timeout_seconds
-            else None
+            timedelta(config.read_timeout_seconds) if config.read_timeout_seconds else None
         )
 
         if config.transport == "stdio":
@@ -144,9 +140,7 @@ class ServerRegistry:
                     read_timeout_seconds,
                 )
                 async with session:
-                    logger.info(
-                        f"{server_name}: Connected to server using stdio transport."
-                    )
+                    logger.info(f"{server_name}: Connected to server using stdio transport.")
                     try:
                         yield session
                     finally:
@@ -164,9 +158,7 @@ class ServerRegistry:
                     read_timeout_seconds,
                 )
                 async with session:
-                    logger.info(
-                        f"{server_name}: Connected to server using SSE transport."
-                    )
+                    logger.info(f"{server_name}: Connected to server using SSE transport.")
                     try:
                         yield session
                     finally:
@@ -215,9 +207,7 @@ class ServerRegistry:
                 logger.info(f"{server_name}: Initialized.")
 
                 intialization_callback = (
-                    init_hook
-                    if init_hook is not None
-                    else self.init_hooks.get(server_name)
+                    init_hook if init_hook is not None else self.init_hooks.get(server_name)
                 )
 
                 if intialization_callback:

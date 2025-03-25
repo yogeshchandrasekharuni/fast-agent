@@ -38,9 +38,7 @@ def unwrap_proxy(proxy: BaseAgentProxy) -> AgentOrWorkflow:
     return proxy._workflow
 
 
-def get_agent_instances(
-    agent_names: List[str], active_agents: ProxyDict
-) -> List[AgentOrWorkflow]:
+def get_agent_instances(agent_names: List[str], active_agents: ProxyDict) -> List[AgentOrWorkflow]:
     """
     Get list of actual agent/workflow instances from a list of names.
 

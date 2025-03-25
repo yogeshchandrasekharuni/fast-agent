@@ -93,9 +93,7 @@ class Workflow(ABC, Generic[T]):
         Convenience method for human input. Uses `human_input` signal
         so we can unify local (console input) and Temporal signals.
         """
-        return await self.executor.wait_for_signal(
-            "human_input", description=description
-        )
+        return await self.executor.wait_for_signal("human_input", description=description)
 
 
 # ############################

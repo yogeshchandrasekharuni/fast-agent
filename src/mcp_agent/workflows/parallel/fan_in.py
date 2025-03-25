@@ -67,9 +67,7 @@ class FanIn(ContextDependent):
         Request fan-in agent generation from a list of messages from multiple sources/agents.
         Internally aggregates the messages and then calls the aggregator agent to generate a response.
         """
-        message: (
-            str | MessageParamT | List[MessageParamT]
-        ) = await self.aggregate_messages(messages)
+        message: str | MessageParamT | List[MessageParamT] = await self.aggregate_messages(messages)
 
         async with contextlib.AsyncExitStack() as stack:
             if isinstance(self.aggregator_agent, AugmentedLLM):
@@ -95,9 +93,7 @@ class FanIn(ContextDependent):
         response, which is returned as a string.
         """
 
-        message: (
-            str | MessageParamT | List[MessageParamT]
-        ) = await self.aggregate_messages(messages)
+        message: str | MessageParamT | List[MessageParamT] = await self.aggregate_messages(messages)
 
         async with contextlib.AsyncExitStack() as stack:
             if isinstance(self.aggregator_agent, AugmentedLLM):
@@ -107,9 +103,7 @@ class FanIn(ContextDependent):
                 ctx_agent = await stack.enter_async_context(self.aggregator_agent)
                 llm = await ctx_agent.attach_llm(self.llm_factory)
 
-            return await llm.generate_str(
-                message=message, request_params=request_params
-            )
+            return await llm.generate_str(message=message, request_params=request_params)
 
     async def generate_structured(
         self,
@@ -123,9 +117,7 @@ class FanIn(ContextDependent):
         the aggregator agent to generate a response, which is returned as a Pydantic model.
         """
 
-        message: (
-            str | MessageParamT | List[MessageParamT]
-        ) = await self.aggregate_messages(messages)
+        message: str | MessageParamT | List[MessageParamT] = await self.aggregate_messages(messages)
 
         async with contextlib.AsyncExitStack() as stack:
             if isinstance(self.aggregator_agent, AugmentedLLM):
@@ -187,9 +179,7 @@ class FanIn(ContextDependent):
                 return await self.aggregate_agent_message_strings(messages)
 
             else:
-                raise ValueError(
-                    "Dictionary values must be either lists of messages or strings"
-                )
+                raise ValueError("Dictionary values must be either lists of messages or strings")
 
         # Handle list inputs
         elif isinstance(messages, list):
@@ -214,9 +204,7 @@ class FanIn(ContextDependent):
                 return await self.aggregate_message_strings(messages)
 
             else:
-                raise ValueError(
-                    "List items must be either lists of messages or strings"
-                )
+                raise ValueError("List items must be either lists of messages or strings")
 
         else:
             raise ValueError(
@@ -254,9 +242,7 @@ class FanIn(ContextDependent):
                 else:
                     # Assume it's a Message/MessageParamT and add attribution
                     # TODO -- this should really unpack the text from the message
-                    agent_message_strings.append(
-                        f"Agent {agent_name}: {str(msg.content[0])}"
-                    )
+                    agent_message_strings.append(f"Agent {agent_name}: {str(msg.content[0])}")
 
             aggregated_messages.append("\n".join(agent_message_strings))
 
@@ -319,9 +305,7 @@ class FanIn(ContextDependent):
 
         # Combine all messages with clear separation
         final_message = "\n\n".join(aggregated_messages)
-        final_message = (
-            f"Aggregated responses from multiple sources:\n\n{final_message}"
-        )
+        final_message = f"Aggregated responses from multiple sources:\n\n{final_message}"
         return final_message
 
     async def aggregate_message_strings(self, messages: List[str]) -> str:
@@ -338,13 +322,9 @@ class FanIn(ContextDependent):
             return ""
 
         # Format each source's message with attribution
-        aggregated_messages = [
-            f"Source {i}: {message}" for i, message in enumerate(messages, 1)
-        ]
+        aggregated_messages = [f"Source {i}: {message}" for i, message in enumerate(messages, 1)]
 
         # Combine all messages with clear separation
         final_message = "\n\n".join(aggregated_messages)
-        final_message = (
-            f"Aggregated responses from multiple sources:\n\n{final_message}"
-        )
+        final_message = f"Aggregated responses from multiple sources:\n\n{final_message}"
         return final_message

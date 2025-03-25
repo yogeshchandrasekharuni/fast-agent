@@ -42,9 +42,7 @@ class AgentMCPServer:
 
             # Get the agent's context
             agent_context = None
-            if hasattr(agent_proxy, "_agent") and hasattr(
-                agent_proxy._agent, "context"
-            ):
+            if hasattr(agent_proxy, "_agent") and hasattr(agent_proxy._agent, "context"):
                 agent_context = agent_proxy._agent.context
 
             # Define the function to execute
@@ -66,9 +64,7 @@ class AgentMCPServer:
 
         self.mcp_server.run(transport=transport)
 
-    async def run_async(
-        self, transport: str = "sse", host: str = "0.0.0.0", port: int = 8000
-    ):
+    async def run_async(self, transport: str = "sse", host: str = "0.0.0.0", port: int = 8000):
         """Run the MCP server asynchronously."""
         if transport == "sse":
             self.mcp_server.settings.host = host
@@ -77,9 +73,7 @@ class AgentMCPServer:
         else:  # stdio
             await self.mcp_server.run_stdio_async()
 
-    async def with_bridged_context(
-        self, agent_context, mcp_context, func, *args, **kwargs
-    ):
+    async def with_bridged_context(self, agent_context, mcp_context, func, *args, **kwargs):
         """
         Execute a function with bridged context between MCP and agent
 

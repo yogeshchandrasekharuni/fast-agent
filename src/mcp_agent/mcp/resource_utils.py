@@ -27,9 +27,7 @@ def find_resource_file(resource_path: str, prompt_files: List[Path]) -> Optional
     return None
 
 
-def load_resource_content(
-    resource_path: str, prompt_files: List[Path]
-) -> ResourceContent:
+def load_resource_content(resource_path: str, prompt_files: List[Path]) -> ResourceContent:
     """
     Load a resource's content and determine its mime type
 
@@ -140,9 +138,7 @@ def create_image_content(data: str, mime_type: str) -> ImageContent:
     )
 
 
-def create_blob_resource(
-    resource_path: str, content: str, mime_type: str
-) -> EmbeddedResource:
+def create_blob_resource(resource_path: str, content: str, mime_type: str) -> EmbeddedResource:
     """Create an embedded resource for binary data"""
     return EmbeddedResource(
         type="resource",
@@ -154,9 +150,7 @@ def create_blob_resource(
     )
 
 
-def create_text_resource(
-    resource_path: str, content: str, mime_type: str
-) -> EmbeddedResource:
+def create_text_resource(resource_path: str, content: str, mime_type: str) -> EmbeddedResource:
     """Create an embedded resource for text data"""
     return EmbeddedResource(
         type="resource",

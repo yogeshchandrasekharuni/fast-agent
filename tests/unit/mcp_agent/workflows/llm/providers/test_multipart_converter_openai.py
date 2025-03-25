@@ -1,17 +1,17 @@
-import unittest
 import base64
+import unittest
 
 from mcp.types import (
-    TextContent,
-    ImageContent,
-    EmbeddedResource,
-    TextResourceContents,
     BlobResourceContents,
     CallToolResult,
+    EmbeddedResource,
+    ImageContent,
     PromptMessage,
+    TextContent,
+    TextResourceContents,
 )
-from mcp_agent.mcp.prompt_message_multipart import PromptMessageMultipart
 
+from mcp_agent.mcp.prompt_message_multipart import PromptMessageMultipart
 from mcp_agent.workflows.llm.providers.multipart_converter_openai import (
     OpenAIConverter,
 )
@@ -160,9 +160,7 @@ class TestOpenAIUserConverter(unittest.TestCase):
     def test_svg_resource_conversion(self):
         """Test handling of SVG resources - should convert to text with fastagent:file tags for OpenAI."""
         # Create an embedded SVG resource
-        svg_content = (
-            '<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100"></svg>'
-        )
+        svg_content = '<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100"></svg>'
         svg_resource = TextResourceContents(
             uri="test://example.com/image.svg",
             mimeType="image/svg+xml",
@@ -274,9 +272,7 @@ class TestOpenAIAssistantConverter(unittest.TestCase):
         """Test conversion of a PromptMessage with image content to OpenAI format."""
         # Create a PromptMessage with ImageContent
         image_base64 = base64.b64encode(b"fake_image_data").decode("utf-8")
-        image_content = ImageContent(
-            type="image", data=image_base64, mimeType="image/jpeg"
-        )
+        image_content = ImageContent(type="image", data=image_base64, mimeType="image/jpeg")
         prompt_message = PromptMessage(role="user", content=image_content)
 
         # Convert to OpenAI format
@@ -397,9 +393,7 @@ class TestOpenAIToolConverter(unittest.TestCase):
 
         # Create second tool result with image
         image_base64 = base64.b64encode(b"fake_image_data").decode("utf-8")
-        image_content = ImageContent(
-            type="image", data=image_base64, mimeType="image/jpeg"
-        )
+        image_content = ImageContent(type="image", data=image_base64, mimeType="image/jpeg")
         image_result = CallToolResult(
             content=[TextContent(type="text", text="Here's the image:"), image_content],
             isError=False,
@@ -437,9 +431,7 @@ class TestOpenAIToolConverter(unittest.TestCase):
 
         # Add an image
         image_base64 = base64.b64encode(b"fake_image_data").decode("utf-8")
-        image_content = ImageContent(
-            type="image", data=image_base64, mimeType="image/jpeg"
-        )
+        image_content = ImageContent(type="image", data=image_base64, mimeType="image/jpeg")
 
         # Add a PDF file
         pdf_base64 = base64.b64encode(b"fake_pdf_data").decode("utf-8")
@@ -491,9 +483,7 @@ class TestTextConcatenation(unittest.TestCase):
         multipart = PromptMessageMultipart(role="user", content=[text1, text2, text3])
 
         # Convert with concatenation enabled
-        openai_msg = OpenAIConverter.convert_to_openai(
-            multipart, concatenate_text_blocks=True
-        )
+        openai_msg = OpenAIConverter.convert_to_openai(multipart, concatenate_text_blocks=True)
 
         # Assertions - should have combined all text blocks
         self.assertEqual(openai_msg["role"], "user")
@@ -515,14 +505,10 @@ class TestTextConcatenation(unittest.TestCase):
         text2 = TextContent(type="text", text="Text after image.")
         text3 = TextContent(type="text", text="More text after image.")
 
-        multipart = PromptMessageMultipart(
-            role="user", content=[text1, image, text2, text3]
-        )
+        multipart = PromptMessageMultipart(role="user", content=[text1, image, text2, text3])
 
         # Convert with concatenation enabled
-        openai_msg = OpenAIConverter.convert_to_openai(
-            multipart, concatenate_text_blocks=True
-        )
+        openai_msg = OpenAIConverter.convert_to_openai(multipart, concatenate_text_blocks=True)
 
         # Assertions - should have concatenated adjacent text blocks but kept them separate from image
         self.assertEqual(openai_msg["role"], "user")
@@ -560,9 +546,7 @@ class TestTextConcatenation(unittest.TestCase):
         self.assertEqual(tool_message["role"], "tool")
         self.assertEqual(tool_message["tool_call_id"], "call_123")
         self.assertTrue(isinstance(tool_message["content"], str))
-        self.assertEqual(
-            tool_message["content"], "First part of result. Second part of result."
-        )
+        self.assertEqual(tool_message["content"], "First part of result. Second part of result.")
 
     def test_convert_unsupported_binary_format(self):
         """Test handling of unsupported binary formats."""

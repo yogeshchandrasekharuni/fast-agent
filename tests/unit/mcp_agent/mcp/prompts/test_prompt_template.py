@@ -2,27 +2,27 @@
 Unit tests for the prompt template module.
 """
 
-import os
-import pytest
-import tempfile
-import base64
 import asyncio
+import base64
+import os
+import tempfile
 from pathlib import Path
 
-from mcp_agent.mcp.prompts.prompt_template import (
-    PromptTemplate,
-    PromptContent,
-    PromptTemplateLoader,
-    PromptMetadata,
-)
+import pytest
+from mcp.types import ImageContent, TextContent
 
+from mcp_agent.mcp import mime_utils, resource_utils
 
 # Import the prompt server modules for testing
 from mcp_agent.mcp.prompts.prompt_server import (
     create_messages_with_resources,
 )
-from mcp_agent.mcp import mime_utils, resource_utils
-from mcp.types import ImageContent, TextContent
+from mcp_agent.mcp.prompts.prompt_template import (
+    PromptContent,
+    PromptMetadata,
+    PromptTemplate,
+    PromptTemplateLoader,
+)
 
 TINY_IMAGE_PNG = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=="
 
@@ -32,9 +32,7 @@ class TestPromptContent:
 
     def test_apply_substitutions_content(self):
         """Test substituting variables in content"""
-        content = PromptContent(
-            text="Hello {{name}}! Your age is {{age}}.", role="user"
-        )
+        content = PromptContent(text="Hello {{name}}! Your age is {{age}}.", role="user")
         context = {"name": "Alice", "age": 30}
 
         result = content.apply_substitutions(context)
@@ -45,9 +43,7 @@ class TestPromptContent:
 
     def test_apply_substitutions_missing_var(self):
         """Test substituting with missing variables"""
-        content = PromptContent(
-            text="Hello {{name}}! Your age is {{age}}.", role="user"
-        )
+        content = PromptContent(text="Hello {{name}}! Your age is {{age}}.", role="user")
         context = {"name": "Bob"}
 
         result = content.apply_substitutions(context)
@@ -102,10 +98,7 @@ Tell me about {{topic}}.
         assert template.content_sections[0].role == "user"
         assert template.content_sections[0].text == "Hello {{name}}!"
         assert template.content_sections[1].role == "assistant"
-        assert (
-            template.content_sections[1].text
-            == "Hi {{name}}! How can I help you today?"
-        )
+        assert template.content_sections[1].text == "Hi {{name}}! How can I help you today?"
         assert template.content_sections[2].role == "user"
         assert template.content_sections[2].text == "Tell me about {{topic}}."
         assert template.template_variables == {"name", "topic"}
@@ -158,9 +151,7 @@ Let me know if you need more details.
         # Check assistant section
         assert template.content_sections[1].role == "assistant"
         assert "I've analyzed the resource" in template.content_sections[1].text
-        assert (
-            "Let me know if you need more details." in template.content_sections[1].text
-        )
+        assert "Let me know if you need more details." in template.content_sections[1].text
         assert template.content_sections[1].resources == ["response.txt"]
 
     def test_multiple_resources_in_template(self):
@@ -298,10 +289,7 @@ another_resource.txt""")
         assert metadata.name == temp_template_file.stem
         # The description format can be either the first line or "Simple prompt: filename"
         # so we just check that we got a reasonable description
-        assert (
-            metadata.description.startswith("Simple prompt:")
-            or "Hello" in metadata.description
-        )
+        assert metadata.description.startswith("Simple prompt:") or "Hello" in metadata.description
         assert metadata.template_variables == {"name", "variable"}
         assert metadata.resource_paths == []
         assert metadata.file_path == temp_template_file
@@ -495,9 +483,9 @@ This appears to be a 1x1 pixel test image.
         # Test a small custom resource handler function that mimics the server's implementation
         async def read_resource(resource_path):
             mime_type = mime_utils.guess_mime_type(str(resource_path))
-            is_binary = mime_utils.is_image_mime_type(
-                mime_type
-            ) or not mime_type.startswith("text/")
+            is_binary = mime_utils.is_image_mime_type(mime_type) or not mime_type.startswith(
+                "text/"
+            )
 
             if is_binary:
                 # For binary files, read as binary and base64 encode

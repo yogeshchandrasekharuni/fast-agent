@@ -91,9 +91,7 @@ class EmbeddingIntentClassifier(IntentClassifier):
 
         self.initialized = True
 
-    async def classify(
-        self, request: str, top_k: int = 1
-    ) -> List[IntentClassificationResult]:
+    async def classify(self, request: str, top_k: int = 1) -> List[IntentClassificationResult]:
         """
         Classify the input text into one or more intents
 
@@ -116,9 +114,7 @@ class EmbeddingIntentClassifier(IntentClassifier):
             if intent.embedding is None:
                 continue
 
-            similarity_scores = compute_similarity_scores(
-                request_embedding, intent.embedding
-            )
+            similarity_scores = compute_similarity_scores(request_embedding, intent.embedding)
 
             # Compute overall confidence score
             confidence = compute_confidence(similarity_scores)

@@ -78,8 +78,6 @@ async def disconnect(
         )
 
     if server_name:
-        await server_registry.connection_manager.disconnect_server(
-            server_name=server_name
-        )
+        await server_registry.connection_manager.disconnect_server(server_name=server_name)
     else:
         await server_registry.connection_manager.disconnect_all_servers()

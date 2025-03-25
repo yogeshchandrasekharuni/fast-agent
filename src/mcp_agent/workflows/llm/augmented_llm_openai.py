@@ -41,9 +41,7 @@ DEFAULT_OPENAI_MODEL = "gpt-4o"
 DEFAULT_REASONING_EFFORT = "medium"
 
 
-class OpenAIAugmentedLLM(
-    AugmentedLLM[ChatCompletionMessageParam, ChatCompletionMessage]
-):
+class OpenAIAugmentedLLM(AugmentedLLM[ChatCompletionMessageParam, ChatCompletionMessage]):
     """
     The basic building block of agentic systems is an LLM enhanced with augmentations
     such as retrieval, tools, and memory provided from a collection of MCP servers.
@@ -70,9 +68,7 @@ class OpenAIAugmentedLLM(
                 self._reasoning_effort = self.context.config.openai.reasoning_effort
 
         # Determine if we're using a reasoning model
-        chosen_model = (
-            self.default_request_params.model if self.default_request_params else None
-        )
+        chosen_model = self.default_request_params.model if self.default_request_params else None
         self._reasoning = chosen_model and (
             chosen_model.startswith("o3") or chosen_model.startswith("o1")
         )
@@ -120,9 +116,7 @@ class OpenAIAugmentedLLM(
         return api_key
 
     def _base_url(self) -> str:
-        return (
-            self.context.config.openai.base_url if self.context.config.openai else None
-        )
+        return self.context.config.openai.base_url if self.context.config.openai else None
 
     async def generate(
         self,
@@ -149,18 +143,14 @@ class OpenAIAugmentedLLM(
 
         system_prompt = self.instruction or params.systemPrompt
         if system_prompt:
-            messages.append(
-                ChatCompletionSystemMessageParam(role="system", content=system_prompt)
-            )
+            messages.append(ChatCompletionSystemMessageParam(role="system", content=system_prompt))
 
         # Always include prompt messages, but only include conversation history
         # if use_history is True
         messages.extend(self.history.get(include_history=params.use_history))
 
         if isinstance(message, str):
-            messages.append(
-                ChatCompletionUserMessageParam(role="user", content=message)
-            )
+            messages.append(ChatCompletionUserMessageParam(role="user", content=message))
         elif isinstance(message, list):
             messages.extend(message)
         else:
@@ -186,9 +176,7 @@ class OpenAIAugmentedLLM(
         model = await self.select_model(params)
         chat_turn = len(messages) // 2
         if self._reasoning:
-            self.show_user_message(
-                str(message), f"{model} ({self._reasoning_effort})", chat_turn
-            )
+            self.show_user_message(str(message), f"{model} ({self._reasoning_effort})", chat_turn)
         else:
             self.show_user_message(str(message), model, chat_turn)
 
@@ -254,15 +242,10 @@ class OpenAIAugmentedLLM(
             message = choice.message
             responses.append(message)
 
-            converted_message = self.convert_message_to_message_param(
-                message, name=self.name
-            )
+            converted_message = self.convert_message_to_message_param(message, name=self.name)
             messages.append(converted_message)
             message_text = converted_message.content
-            if (
-                choice.finish_reason in ["tool_calls", "function_call"]
-                and message.tool_calls
-            ):
+            if choice.finish_reason in ["tool_calls", "function_call"] and message.tool_calls:
                 if message_text:
                     await self.show_assistant_message(
                         message_text,
@@ -290,9 +273,7 @@ class OpenAIAugmentedLLM(
                         method="tools/call",
                         params=CallToolRequestParams(
                             name=tool_call.function.name,
-                            arguments=from_json(
-                                tool_call.function.arguments, allow_partial=True
-                            ),
+                            arguments=from_json(tool_call.function.arguments, allow_partial=True),
                         ),
                     )
                     result = await self.call_tool(tool_call_request, tool_call.id)
@@ -300,18 +281,14 @@ class OpenAIAugmentedLLM(
 
                     tool_results.append((tool_call.id, result))
 
-                messages.extend(
-                    OpenAIConverter.convert_function_results_to_openai(tool_results)
-                )
+                messages.extend(OpenAIConverter.convert_function_results_to_openai(tool_results))
 
                 self.logger.debug(
                     f"Iteration {i}: Tool call results: {str(tool_results) if tool_results else 'None'}"
                 )
             elif choice.finish_reason == "length":
                 # We have reached the max tokens limit
-                self.logger.debug(
-                    f"Iteration {i}: Stopping because finish_reason is 'length'"
-                )
+                self.logger.debug(f"Iteration {i}: Stopping because finish_reason is 'length'")
                 if request_params and request_params.maxTokens is not None:
                     message_text = Text(
                         f"the assistant has reached the maximum token limit ({request_params.maxTokens})",
@@ -334,9 +311,7 @@ class OpenAIAugmentedLLM(
                 # TODO: saqadri - would be useful to return the reason for stopping to the caller
                 break
             elif choice.finish_reason == "stop":
-                self.logger.debug(
-                    f"Iteration {i}: Stopping because finish_reason is 'stop'"
-                )
+                self.logger.debug(f"Iteration {i}: Stopping because finish_reason is 'stop'")
                 if message_text:
                     await self.show_assistant_message(message_text, "")
                 break
@@ -417,9 +392,7 @@ class OpenAIAugmentedLLM(
 
         # Add all previous messages to history (or all messages if last is from assistant)
         messages_to_add = (
-            multipart_messages[:-1]
-            if last_message.role == "user"
-            else multipart_messages
+            multipart_messages[:-1] if last_message.role == "user" else multipart_messages
         )
         converted = []
         for msg in messages_to_add:
@@ -428,16 +401,12 @@ class OpenAIAugmentedLLM(
 
         if last_message.role == "user":
             # For user messages: Generate response to the last one
-            self.logger.debug(
-                "Last message in prompt is from user, generating assistant response"
-            )
+            self.logger.debug("Last message in prompt is from user, generating assistant response")
             message_param = OpenAIConverter.convert_to_openai(last_message)
             return await self.generate_str(message_param, request_params)
         else:
             # For assistant messages: Return the last message content as text
-            self.logger.debug(
-                "Last message in prompt is from assistant, returning it directly"
-            )
+            self.logger.debug("Last message in prompt is from assistant, returning it directly")
             return str(last_message)
 
     async def _save_history_to_file(self, command: str) -> str:
@@ -477,9 +446,7 @@ class OpenAIAugmentedLLM(
                     continue
 
                 # Convert the message to a multipart message
-                multipart_messages.append(
-                    openai_message_param_to_prompt_message_multipart(msg)
-                )
+                multipart_messages.append(openai_message_param_to_prompt_message_multipart(msg))
 
             # Convert to delimited format
             delimited_content = multipart_messages_to_delimited_format(

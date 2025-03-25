@@ -68,9 +68,7 @@ class ParallelLLM(AugmentedLLM[MessageParamT, MessageT]):
         )
 
         # Get message string for inclusion in formatted output
-        message_str = (
-            str(message) if isinstance(message, (str, MessageParamT)) else None
-        )
+        message_str = str(message) if isinstance(message, (str, MessageParamT)) else None
 
         # Run fan-in to aggregate results
         result = await fan_in_llm.generate(
@@ -100,9 +98,7 @@ class ParallelLLM(AugmentedLLM[MessageParamT, MessageT]):
         )
 
         # Get message string for inclusion in formatted output
-        message_str = (
-            str(message) if isinstance(message, (str, MessageParamT)) else None
-        )
+        message_str = str(message) if isinstance(message, (str, MessageParamT)) else None
 
         # Run fan-in to aggregate results
         result = await fan_in_llm.generate_str(
@@ -136,9 +132,7 @@ class ParallelLLM(AugmentedLLM[MessageParamT, MessageT]):
         )
 
         # Get message string for inclusion in formatted output
-        message_str = (
-            str(message) if isinstance(message, (str, MessageParamT)) else None
-        )
+        message_str = str(message) if isinstance(message, (str, MessageParamT)) else None
 
         # Run fan-in to aggregate results
         result = await fan_in_llm.generate_structured(

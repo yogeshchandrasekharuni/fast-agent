@@ -66,15 +66,11 @@ class TemporalSignalHandler(BaseSignalHandler[SignalValueT]):
         async with self._lock:
             # Register both the signal registration and handler atomically
             self._pending_signals.setdefault(signal.name, []).append(registration)
-            self._handlers.setdefault(signal.name, []).append(
-                (unique_signal_name, signal_handler)
-            )
+            self._handlers.setdefault(signal.name, []).append((unique_signal_name, signal_handler))
 
         try:
             # Wait for signal with optional timeout
-            await workflow.wait_condition(
-                lambda: container["completed"], timeout=timeout_seconds
-            )
+            await workflow.wait_condition(lambda: container["completed"], timeout=timeout_seconds)
 
             return container["value"]
         except asyncio.TimeoutError as exc:
@@ -94,9 +90,7 @@ class TemporalSignalHandler(BaseSignalHandler[SignalValueT]):
                 # Remove ourselves from _handlers
                 if signal.name in self._handlers:
                     self._handlers[signal.name] = [
-                        h
-                        for h in self._handlers[signal.name]
-                        if h[0] != unique_signal_name
+                        h for h in self._handlers[signal.name] if h[0] != unique_signal_name
                     ]
                     if not self._handlers[signal.name]:
                         del self._handlers[signal.name]
@@ -123,9 +117,7 @@ class TemporalSignalHandler(BaseSignalHandler[SignalValueT]):
                     func(signal)
 
             # Register the handler under the original signal name
-            self._handlers.setdefault(signal_name, []).append(
-                (unique_signal_name, wrapped)
-            )
+            self._handlers.setdefault(signal_name, []).append((unique_signal_name, wrapped))
             return func
 
         return decorator
@@ -133,9 +125,7 @@ class TemporalSignalHandler(BaseSignalHandler[SignalValueT]):
     async def signal(self, signal):
         self.validate_signal(signal)
 
-        workflow_handle = workflow.get_external_workflow_handle(
-            workflow_id=signal.workflow_id
-        )
+        workflow_handle = workflow.get_external_workflow_handle(workflow_id=signal.workflow_id)
 
         # Send the signal to all registrations of this signal
         async with self._lock:
@@ -147,9 +137,7 @@ class TemporalSignalHandler(BaseSignalHandler[SignalValueT]):
                     if registration.workflow_id == signal.workflow_id:
                         # Only signal for registrations of that workflow
                         signal_tasks.append(
-                            workflow_handle.signal(
-                                registration.unique_name, signal.payload
-                            )
+                            workflow_handle.signal(registration.unique_name, signal.payload)
                         )
                     else:
                         continue
@@ -157,9 +145,7 @@ class TemporalSignalHandler(BaseSignalHandler[SignalValueT]):
             # Notify any registered handler functions
             if signal.name in self._handlers:
                 for unique_name, _ in self._handlers[signal.name]:
-                    signal_tasks.append(
-                        workflow_handle.signal(unique_name, signal.payload)
-                    )
+                    signal_tasks.append(workflow_handle.signal(unique_name, signal.payload))
 
         await asyncio.gather(*signal_tasks, return_exceptions=True)
 
@@ -205,9 +191,7 @@ class TemporalExecutor(Executor):
         self._activity_semaphore = None
 
         if config.max_concurrent_activities is not None:
-            self._activity_semaphore = asyncio.Semaphore(
-                self.config.max_concurrent_activities
-            )
+            self._activity_semaphore = asyncio.Semaphore(self.config.max_concurrent_activities)
 
     @staticmethod
     def wrap_as_activity(
@@ -275,9 +259,7 @@ class TemporalExecutor(Executor):
         func = task.func if isinstance(task, functools.partial) else task
         is_workflow_task = getattr(func, "is_workflow_task", False)
         if not is_workflow_task:
-            return await asyncio.create_task(
-                self._execute_task_as_async(task, **kwargs)
-            )
+            return await asyncio.create_task(self._execute_task_as_async(task, **kwargs))
 
         execution_metadata: Dict[str, Any] = getattr(func, "execution_metadata", {})
 
@@ -319,9 +301,7 @@ class TemporalExecutor(Executor):
     ) -> List[R | BaseException]:
         # Must be called from within a workflow
         if not workflow._Runtime.current():
-            raise RuntimeError(
-                "TemporalExecutor.execute must be called from within a workflow"
-            )
+            raise RuntimeError("TemporalExecutor.execute must be called from within a workflow")
 
         # TODO: saqadri - validate if async with self.execution_context() is needed here
         async with self.execution_context():
@@ -347,9 +327,7 @@ class TemporalExecutor(Executor):
             pending = set(futures)
 
             while pending:
-                done, pending = await workflow.wait(
-                    pending, return_when=asyncio.FIRST_COMPLETED
-                )
+                done, pending = await workflow.wait(pending, return_when=asyncio.FIRST_COMPLETED)
                 for future in done:
                     try:
                         result = await future

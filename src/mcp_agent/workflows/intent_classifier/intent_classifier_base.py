@@ -55,9 +55,7 @@ class IntentClassifier(ABC):
         - Determining the type of analysis requested for a dataset
     """
 
-    def __init__(
-        self, intents: List[Intent], context: Optional["Context"] = None, **kwargs
-    ):
+    def __init__(self, intents: List[Intent], context: Optional["Context"] = None, **kwargs):
         super().__init__(context=context, **kwargs)
         self.intents = {intent.name: intent for intent in intents}
         self.initialized: bool = False
@@ -66,9 +64,7 @@ class IntentClassifier(ABC):
             raise ValueError("At least one intent must be provided")
 
     @abstractmethod
-    async def classify(
-        self, request: str, top_k: int = 1
-    ) -> List[IntentClassificationResult]:
+    async def classify(self, request: str, top_k: int = 1) -> List[IntentClassificationResult]:
         """
         Classify the input request into one or more intents.
 

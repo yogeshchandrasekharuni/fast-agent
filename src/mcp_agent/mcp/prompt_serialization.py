@@ -44,8 +44,7 @@ def multipart_messages_to_json(messages: List[PromptMessageMultipart]) -> str:
     # Convert to dictionaries using model_dump with proper JSON mode
     # The mode="json" parameter ensures proper handling of AnyUrl objects
     message_dicts = [
-        message.model_dump(by_alias=True, mode="json", exclude_none=True)
-        for message in messages
+        message.model_dump(by_alias=True, mode="json", exclude_none=True) for message in messages
     ]
 
     # Convert to JSON string
@@ -76,9 +75,7 @@ def json_to_multipart_messages(json_str: str) -> List[PromptMessageMultipart]:
     return messages
 
 
-def save_messages_to_json_file(
-    messages: List[PromptMessageMultipart], file_path: str
-) -> None:
+def save_messages_to_json_file(messages: List[PromptMessageMultipart], file_path: str) -> None:
     """
     Save PromptMessageMultipart objects to a JSON file.
 
@@ -169,9 +166,7 @@ def multipart_messages_to_delimited_format(
                     delimited_content.append(resource_delimiter)
 
                     # Convert to dictionary using proper JSON mode
-                    content_dict = content.model_dump(
-                        by_alias=True, mode="json", exclude_none=True
-                    )
+                    content_dict = content.model_dump(by_alias=True, mode="json", exclude_none=True)
 
                     # Add to delimited content as JSON
                     delimited_content.append(json.dumps(content_dict, indent=2))
@@ -186,9 +181,7 @@ def multipart_messages_to_delimited_format(
                     delimited_content.append(resource_delimiter)
 
                     # Convert to dictionary using proper JSON mode
-                    content_dict = content.model_dump(
-                        by_alias=True, mode="json", exclude_none=True
-                    )
+                    content_dict = content.model_dump(by_alias=True, mode="json", exclude_none=True)
 
                     # Add to delimited content as JSON
                     delimited_content.append(json.dumps(content_dict, indent=2))
@@ -237,31 +230,23 @@ def delimited_format_to_multipart_messages(
         collecting_text = True
 
     # Process each line
-    for line in (
-        lines[1:] if lines else []
-    ):  # Skip the first line if already processed above
+    for line in lines[1:] if lines else []:  # Skip the first line if already processed above
         line_stripped = line.strip()
 
         # Handle role delimiters
         if line_stripped == user_delimiter or line_stripped == assistant_delimiter:
             # Save previous message if it exists
-            if current_role is not None and (
-                text_contents or resource_contents or text_lines
-            ):
+            if current_role is not None and (text_contents or resource_contents or text_lines):
                 # If we were collecting text, add it to the text contents
                 if collecting_text and text_lines:
-                    text_contents.append(
-                        TextContent(type="text", text="\n".join(text_lines))
-                    )
+                    text_contents.append(TextContent(type="text", text="\n".join(text_lines)))
                     text_lines = []
 
                 # Create content list with text parts first, then resource parts
                 combined_content = []
 
                 # Filter out any empty text content items
-                filtered_text_contents = [
-                    tc for tc in text_contents if tc.text.strip() != ""
-                ]
+                filtered_text_contents = [tc for tc in text_contents if tc.text.strip() != ""]
 
                 combined_content.extend(filtered_text_contents)
                 combined_content.extend(resource_contents)
@@ -286,9 +271,7 @@ def delimited_format_to_multipart_messages(
         elif line_stripped == resource_delimiter:
             # If we were collecting text, add it to text contents
             if collecting_text and text_lines:
-                text_contents.append(
-                    TextContent(type="text", text="\n".join(text_lines))
-                )
+                text_contents.append(TextContent(type="text", text="\n".join(text_lines)))
                 text_lines = []
 
             # Switch to collecting JSON or legacy format
@@ -303,11 +286,7 @@ def delimited_format_to_multipart_messages(
                 json_lines.append(line)
 
                 # For legacy format or files where resources are just plain text
-                if (
-                    legacy_format
-                    and line_stripped
-                    and not line_stripped.startswith("{")
-                ):
+                if legacy_format and line_stripped and not line_stripped.startswith("{"):
                     # This is probably a legacy resource reference like a filename
                     resource_uri = line_stripped
                     if not resource_uri.startswith("resource://"):
@@ -370,9 +349,7 @@ def delimited_format_to_multipart_messages(
             combined_content = []
 
             # Filter out any empty text content items
-            filtered_text_contents = [
-                tc for tc in text_contents if tc.text.strip() != ""
-            ]
+            filtered_text_contents = [tc for tc in text_contents if tc.text.strip() != ""]
 
             combined_content.extend(filtered_text_contents)
             combined_content.extend(resource_contents)

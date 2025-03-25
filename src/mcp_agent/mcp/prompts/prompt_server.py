@@ -177,9 +177,7 @@ def register_prompt(file_path: Path):
 
         # Create and register prompt handler
         template_vars = list(metadata.template_variables)
-        handler = create_prompt_handler(
-            template, template_vars, config_values["prompt_files"]
-        )
+        handler = create_prompt_handler(template, template_vars, config_values["prompt_files"])
         mcp.prompt(name=metadata.name, description=metadata.description)(handler)
 
         # Register any referenced resources in the prompt
@@ -204,9 +202,7 @@ def register_prompt(file_path: Path):
                             )
                         )
 
-                        logger.info(
-                            f"Registered resource: {resource_id} ({resource_file})"
-                        )
+                        logger.info(f"Registered resource: {resource_id} ({resource_file})")
     except Exception as e:
         logger.error(f"Error registering prompt {file_path}: {e}", exc_info=True)
 
@@ -214,9 +210,7 @@ def register_prompt(file_path: Path):
 def parse_args():
     """Parse command line arguments"""
     parser = argparse.ArgumentParser(description="FastMCP Prompt Server")
-    parser.add_argument(
-        "prompt_files", nargs="+", type=str, help="Prompt files to serve"
-    )
+    parser.add_argument("prompt_files", nargs="+", type=str, help="Prompt files to serve")
     parser.add_argument(
         "--user-delimiter",
         type=str,

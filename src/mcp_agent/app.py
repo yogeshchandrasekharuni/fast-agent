@@ -174,9 +174,7 @@ class MCPApp:
         finally:
             await self.cleanup()
 
-    def workflow(
-        self, cls: Type, *args, workflow_id: str | None = None, **kwargs
-    ) -> Type:
+    def workflow(self, cls: Type, *args, workflow_id: str | None = None, **kwargs) -> Type:
         """
         Decorator for a workflow class. By default it's a no-op,
         but different executors can use this to customize behavior
@@ -188,9 +186,7 @@ class MCPApp:
         """
         decorator_registry = self.context.decorator_registry
         execution_engine = self.engine
-        workflow_defn_decorator = decorator_registry.get_workflow_defn_decorator(
-            execution_engine
-        )
+        workflow_defn_decorator = decorator_registry.get_workflow_defn_decorator(execution_engine)
 
         if workflow_defn_decorator:
             return workflow_defn_decorator(cls, *args, **kwargs)
@@ -212,9 +208,7 @@ class MCPApp:
 
         decorator_registry = self.context.decorator_registry
         execution_engine = self.engine
-        workflow_run_decorator = decorator_registry.get_workflow_run_decorator(
-            execution_engine
-        )
+        workflow_run_decorator = decorator_registry.get_workflow_run_decorator(execution_engine)
 
         if workflow_run_decorator:
             return workflow_run_decorator(fn)

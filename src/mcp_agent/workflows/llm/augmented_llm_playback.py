@@ -72,9 +72,7 @@ class PlaybackLLM(PassthroughLLM):
         # If we get here, we've run out of assistant messages
         return f"MESSAGES EXHAUSTED (list size {len(self._messages)})"
 
-    async def apply_prompt_template(
-        self, prompt_result: GetPromptResult, prompt_name: str
-    ) -> str:
+    async def apply_prompt_template(self, prompt_result: GetPromptResult, prompt_name: str) -> str:
         """
         Apply a prompt template by adding its messages to the playback queue.
 

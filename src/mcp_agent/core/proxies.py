@@ -40,9 +40,7 @@ class BaseAgentProxy:
             return await self.prompt()
         return await self.send(message)
 
-    async def send(
-        self, message: Optional[Union[str, PromptMessageMultipart]] = None
-    ) -> str:
+    async def send(self, message: Optional[Union[str, PromptMessageMultipart]] = None) -> str:
         """
         Allow: agent.researcher.send('message') or agent.researcher.send(Prompt.user('message'))
 
@@ -88,9 +86,7 @@ class BaseAgentProxy:
         """Send a message to the agent and return the response"""
         raise NotImplementedError("Subclasses must implement send(prompt)")
 
-    async def apply_prompt(
-        self, prompt_name: str = None, arguments: dict[str, str] = None
-    ) -> str:
+    async def apply_prompt(self, prompt_name: str = None, arguments: dict[str, str] = None) -> str:
         """
         Apply a Prompt from an MCP Server - implemented by subclasses.
         This is the preferred method for applying prompts.
@@ -118,9 +114,7 @@ class LLMAgentProxy(BaseAgentProxy):
         """Send a message to the agent and return the response"""
         return await self._agent._llm.generate_prompt(prompt, None)
 
-    async def apply_prompt(
-        self, prompt_name: str = None, arguments: dict[str, str] = None
-    ) -> str:
+    async def apply_prompt(self, prompt_name: str = None, arguments: dict[str, str] = None) -> str:
         """
         Apply a prompt from an MCP server.
         This is the preferred method for applying prompts.
@@ -167,9 +161,7 @@ class LLMAgentProxy(BaseAgentProxy):
         Returns:
             The agent's response as a string
         """
-        return await self._agent.with_resource(
-            prompt_content, server_name, resource_name
-        )
+        return await self._agent.with_resource(prompt_content, server_name, resource_name)
 
 
 class WorkflowProxy(BaseAgentProxy):
@@ -216,9 +208,7 @@ class RouterProxy(BaseAgentProxy):
 class ChainProxy(BaseAgentProxy):
     """Proxy for chained agent operations"""
 
-    def __init__(
-        self, app: MCPApp, name: str, sequence: List[str], agent_proxies: ProxyDict
-    ):
+    def __init__(self, app: MCPApp, name: str, sequence: List[str], agent_proxies: ProxyDict):
         super().__init__(app, name)
         self._sequence = sequence
         self._agent_proxies = agent_proxies

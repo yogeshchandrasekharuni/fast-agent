@@ -45,12 +45,8 @@ async def get_image(
 if __name__ == "__main__":
     # Check if the default image exists
     if not Path("image.jpg").exists():
-        logger.warning(
-            "Default image file 'image.jpg' not found in the current directory"
-        )
-        logger.warning(
-            "Please add an image file named 'image.jpg' to the current directory"
-        )
+        logger.warning("Default image file 'image.jpg' not found in the current directory")
+        logger.warning("Please add an image file named 'image.jpg' to the current directory")
 
     # Run the server using stdio transport
     app.run(transport="stdio")

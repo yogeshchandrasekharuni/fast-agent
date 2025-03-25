@@ -61,15 +61,11 @@ def create_proxy(
         return LLMAgentProxy(app, name, instance)
     elif agent_type == AgentType.ORCHESTRATOR.value:
         if not isinstance(instance, Orchestrator):
-            raise TypeError(
-                f"Expected Orchestrator instance for {name}, got {type(instance)}"
-            )
+            raise TypeError(f"Expected Orchestrator instance for {name}, got {type(instance)}")
         return WorkflowProxy(app, name, instance)
     elif agent_type == AgentType.PARALLEL.value:
         if not isinstance(instance, ParallelLLM):
-            raise TypeError(
-                f"Expected ParallelLLM instance for {name}, got {type(instance)}"
-            )
+            raise TypeError(f"Expected ParallelLLM instance for {name}, got {type(instance)}")
         return WorkflowProxy(app, name, instance)
     elif agent_type == AgentType.EVALUATOR_OPTIMIZER.value:
         if not isinstance(instance, EvaluatorOptimizerLLM):
@@ -79,9 +75,7 @@ def create_proxy(
         return WorkflowProxy(app, name, instance)
     elif agent_type == AgentType.ROUTER.value:
         if not isinstance(instance, LLMRouter):
-            raise TypeError(
-                f"Expected LLMRouter instance for {name}, got {type(instance)}"
-            )
+            raise TypeError(f"Expected LLMRouter instance for {name}, got {type(instance)}")
         return RouterProxy(app, name, instance)
     elif agent_type == AgentType.CHAIN.value:
         # Chain proxy is directly returned from _create_agents_by_type
@@ -239,9 +233,7 @@ async def create_agents_by_type(
                     available_agents=child_agents,
                     context=app_instance.context,
                     request_params=planner.default_request_params,  # Base params already include model settings
-                    plan_type=agent_data.get(
-                        "plan_type", "full"
-                    ),  # Get plan_type from agent_data
+                    plan_type=agent_data.get("plan_type", "full"),  # Get plan_type from agent_data
                     verb=ProgressAction.PLANNING,
                 )
 
@@ -261,9 +253,7 @@ async def create_agents_by_type(
                 optimizer_model = None
                 if isinstance(generator, Agent):
                     optimizer_model = generator.config.model
-                elif hasattr(generator, "_sequence") and hasattr(
-                    generator, "_agent_proxies"
-                ):
+                elif hasattr(generator, "_sequence") and hasattr(generator, "_agent_proxies"):
                     # For ChainProxy, use the config model directly
                     optimizer_model = config.model
 
@@ -333,22 +323,20 @@ async def create_agents_by_type(
                             if all_servers
                             else ""
                         )
-                        config.instruction = f"Sequence of agents: {', '.join(agent_names)}{server_part}."
+                        config.instruction = (
+                            f"Sequence of agents: {', '.join(agent_names)}{server_part}."
+                        )
 
                 # Create a ChainProxy without needing a new instance
                 # Just pass the agent proxies and sequence
                 instance = ChainProxy(app_instance, name, sequence, active_agents)
                 # Set continue_with_final behavior from configuration
-                instance._continue_with_final = agent_data.get(
-                    "continue_with_final", True
-                )
+                instance._continue_with_final = agent_data.get("continue_with_final", True)
                 # Set cumulative behavior from configuration
                 instance._cumulative = agent_data.get("cumulative", False)
 
             elif agent_type == AgentType.PARALLEL:
-                fan_out_agents = get_agent_instances(
-                    agent_data["fan_out"], active_agents
-                )
+                fan_out_agents = get_agent_instances(agent_data["fan_out"], active_agents)
 
                 # Get fan-in agent - unwrap proxy
                 fan_in_agent = unwrap_proxy(active_agents[agent_data["fan_in"]])
@@ -370,9 +358,7 @@ async def create_agents_by_type(
                 raise ValueError(f"Unsupported agent type: {agent_type}")
 
             # Create the appropriate proxy and store in results
-            result_agents[name] = create_proxy(
-                app_instance, name, instance, agent_type.value
-            )
+            result_agents[name] = create_proxy(app_instance, name, instance, agent_type.value)
 
     return result_agents
 
@@ -427,9 +413,7 @@ async def create_agents_in_dependency_order(
 
     # Get all agents of the specified type
     agent_names = [
-        name
-        for name, agent_data in agents_dict.items()
-        if agent_data["type"] == agent_type.value
+        name for name, agent_data in agents_dict.items() if agent_data["type"] == agent_type.value
     ]
 
     # Create agents in dependency order
@@ -437,13 +421,9 @@ async def create_agents_in_dependency_order(
         # Get ordered dependencies if not already processed
         if name not in visited:
             try:
-                ordered_agents = get_dependencies(
-                    name, agents_dict, visited, set(), agent_type
-                )
+                ordered_agents = get_dependencies(name, agents_dict, visited, set(), agent_type)
             except ValueError as e:
-                raise ValueError(
-                    f"Error creating {agent_type.name.lower()} agent {name}: {str(e)}"
-                )
+                raise ValueError(f"Error creating {agent_type.name.lower()} agent {name}: {str(e)}")
 
             # Create each agent in order
             for agent_name in ordered_agents:

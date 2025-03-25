@@ -100,9 +100,7 @@ class LLMIntentClassifier(IntentClassifier):
         await instance.initialize()
         return instance
 
-    async def classify(
-        self, request: str, top_k: int = 1
-    ) -> List[LLMIntentClassificationResult]:
+    async def classify(self, request: str, top_k: int = 1) -> List[LLMIntentClassificationResult]:
         if not self.initialized:
             self.initialize()
 
@@ -114,9 +112,7 @@ class LLMIntentClassifier(IntentClassifier):
         context = self._generate_context()
 
         # Format the prompt with all the necessary information
-        prompt = classification_instruction.format(
-            context=context, request=request, top_k=top_k
-        )
+        prompt = classification_instruction.format(context=context, request=request, top_k=top_k)
 
         # Get classification from LLM
         response = await self.llm.generate_structured(
@@ -143,18 +139,14 @@ class LLMIntentClassifier(IntentClassifier):
         context_parts = []
 
         for idx, intent in enumerate(self.intents.values(), 1):
-            description = (
-                f"{idx}. Intent: {intent.name}\nDescription: {intent.description}"
-            )
+            description = f"{idx}. Intent: {intent.name}\nDescription: {intent.description}"
 
             if intent.examples:
                 examples = "\n".join(f"- {example}" for example in intent.examples)
                 description += f"\nExamples:\n{examples}"
 
             if intent.metadata:
-                metadata = "\n".join(
-                    f"- {key}: {value}" for key, value in intent.metadata.items()
-                )
+                metadata = "\n".join(f"- {key}: {value}" for key, value in intent.metadata.items())
                 description += f"\nAdditional Information:\n{metadata}"
 
             context_parts.append(description)

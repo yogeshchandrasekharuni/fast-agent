@@ -143,9 +143,7 @@ def agent(
         @fast.agent("agent_name", instruction="Your instruction here")  # Using keyword arg
     """
     # Use positional argument if provided, otherwise use keyword argument
-    final_instruction = (
-        instruction_or_kwarg if instruction_or_kwarg is not None else instruction
-    )
+    final_instruction = instruction_or_kwarg if instruction_or_kwarg is not None else instruction
 
     decorator = self._create_decorator(
         AgentType.BASIC,
@@ -428,9 +426,7 @@ def chain(
     return decorator
 
 
-def passthrough(
-    self, name: str = "Passthrough", use_history: bool = True, **kwargs
-) -> Callable:
+def passthrough(self, name: str = "Passthrough", use_history: bool = True, **kwargs) -> Callable:
     """
     Decorator to create and register a passthrough agent.
     A passthrough agent simply returns any input message without modification.

@@ -191,9 +191,7 @@ class MCPConnectionManager(ContextDependent):
     Integrates with the application context system for proper resource management.
     """
 
-    def __init__(
-        self, server_registry: "ServerRegistry", context: Optional["Context"] = None
-    ):
+    def __init__(self, server_registry: "ServerRegistry", context: Optional["Context"] = None):
         super().__init__(context=context)
         self.server_registry = server_registry
         self.running_servers: Dict[str, ServerConnection] = {}
@@ -254,9 +252,7 @@ class MCPConnectionManager(ContextDependent):
         if not config:
             raise ValueError(f"Server '{server_name}' not found in registry.")
 
-        logger.debug(
-            f"{server_name}: Found server configuration=", data=config.model_dump()
-        )
+        logger.debug(f"{server_name}: Found server configuration=", data=config.model_dump())
 
         def transport_context_factory():
             if config.transport == "stdio":
@@ -308,9 +304,7 @@ class MCPConnectionManager(ContextDependent):
 
             # If server exists but isn't healthy, remove it so we can create a new one
             if server_conn:
-                logger.info(
-                    f"{server_name}: Server exists but is unhealthy, recreating..."
-                )
+                logger.info(f"{server_name}: Server exists but is unhealthy, recreating...")
                 self.running_servers.pop(server_name)
                 server_conn.request_shutdown()
 
@@ -333,9 +327,7 @@ class MCPConnectionManager(ContextDependent):
 
         return server_conn
 
-    async def get_server_capabilities(
-        self, server_name: str
-    ) -> ServerCapabilities | None:
+    async def get_server_capabilities(self, server_name: str) -> ServerCapabilities | None:
         """Get the capabilities of a specific server."""
         server_conn = await self.get_server(
             server_name, client_session_factory=MCPAgentClientSession
@@ -352,13 +344,9 @@ class MCPConnectionManager(ContextDependent):
             server_conn = self.running_servers.pop(server_name, None)
         if server_conn:
             server_conn.request_shutdown()
-            logger.info(
-                f"{server_name}: Shutdown signal sent (lifecycle task will exit)."
-            )
+            logger.info(f"{server_name}: Shutdown signal sent (lifecycle task will exit).")
         else:
-            logger.info(
-                f"{server_name}: No persistent connection found. Skipping server shutdown"
-            )
+            logger.info(f"{server_name}: No persistent connection found. Skipping server shutdown")
 
     async def disconnect_all(self) -> None:
         """Disconnect all servers that are running under this connection manager."""

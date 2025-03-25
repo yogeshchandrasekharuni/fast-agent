@@ -173,19 +173,13 @@ class ModelFactory:
         # Create a factory function matching the attach_llm protocol
         def factory(agent: Agent, **kwargs) -> LLMClass:
             # Create merged params with parsed model name
-            factory_params = (
-                request_params.model_copy() if request_params else RequestParams()
-            )
-            factory_params.model = (
-                config.model_name
-            )  # Use the parsed model name, not the alias
+            factory_params = request_params.model_copy() if request_params else RequestParams()
+            factory_params.model = config.model_name  # Use the parsed model name, not the alias
 
             # Merge with any provided default_request_params
             if "default_request_params" in kwargs and kwargs["default_request_params"]:
                 params_dict = factory_params.model_dump()
-                params_dict.update(
-                    kwargs["default_request_params"].model_dump(exclude_unset=True)
-                )
+                params_dict.update(kwargs["default_request_params"].model_dump(exclude_unset=True))
                 factory_params = RequestParams(**params_dict)
                 factory_params.model = (
                     config.model_name

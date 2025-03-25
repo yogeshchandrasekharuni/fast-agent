@@ -14,9 +14,7 @@ class ActivityRegistry:
         self._activities: Dict[str, Callable] = {}
         self._metadata: Dict[str, Dict[str, Any]] = {}
 
-    def register(
-        self, name: str, func: Callable, metadata: Dict[str, Any] | None = None
-    ):
+    def register(self, name: str, func: Callable, metadata: Dict[str, Any] | None = None):
         if name in self._activities:
             raise ValueError(f"Activity '{name}' is already registered.")
         self._activities[name] = func

@@ -1,10 +1,11 @@
 from mcp.types import (
     CreateMessageRequestParams,
     CreateMessageResult,
+    ImageContent,
     SamplingMessage,
     TextContent,
-    ImageContent,
 )
+
 from mcp_agent.workflows.llm.sampling_converter import SamplingConverter
 
 
@@ -18,9 +19,7 @@ class TestSamplingConverter:
         sampling_message = SamplingMessage(role="user", content=text_content)
 
         # Convert using our converter
-        prompt_message = SamplingConverter.sampling_message_to_prompt_message(
-            sampling_message
-        )
+        prompt_message = SamplingConverter.sampling_message_to_prompt_message(sampling_message)
 
         # Verify conversion
         assert prompt_message.role == "user"
@@ -37,9 +36,7 @@ class TestSamplingConverter:
         sampling_message = SamplingMessage(role="user", content=image_content)
 
         # Convert using our converter
-        prompt_message = SamplingConverter.sampling_message_to_prompt_message(
-            sampling_message
-        )
+        prompt_message = SamplingConverter.sampling_message_to_prompt_message(sampling_message)
 
         # Verify conversion
         assert prompt_message.role == "user"
@@ -52,15 +49,9 @@ class TestSamplingConverter:
         """Test converting multiple SamplingMessages to PromptMessageMultipart objects"""
         # Create a list of SamplingMessages with different roles
         messages = [
-            SamplingMessage(
-                role="user", content=TextContent(type="text", text="Hello")
-            ),
-            SamplingMessage(
-                role="assistant", content=TextContent(type="text", text="Hi there")
-            ),
-            SamplingMessage(
-                role="user", content=TextContent(type="text", text="How are you?")
-            ),
+            SamplingMessage(role="user", content=TextContent(type="text", text="Hello")),
+            SamplingMessage(role="assistant", content=TextContent(type="text", text="Hi there")),
+            SamplingMessage(role="user", content=TextContent(type="text", text="How are you?")),
         ]
 
         # Convert all messages
@@ -116,11 +107,7 @@ class TestSamplingConverter:
         """Test extracting RequestParams from CreateMessageRequestParams with all fields"""
         # Create a CreateMessageRequestParams with all fields
         request_params = CreateMessageRequestParams(
-            messages=[
-                SamplingMessage(
-                    role="user", content=TextContent(type="text", text="Hello")
-                )
-            ],
+            messages=[SamplingMessage(role="user", content=TextContent(type="text", text="Hello"))],
             maxTokens=1000,
             systemPrompt="You are a helpful assistant",
             temperature=0.7,
@@ -142,11 +129,7 @@ class TestSamplingConverter:
         """Test extracting RequestParams from CreateMessageRequestParams with minimal fields"""
         # Create a CreateMessageRequestParams with minimal fields
         request_params = CreateMessageRequestParams(
-            messages=[
-                SamplingMessage(
-                    role="user", content=TextContent(type="text", text="Hello")
-                )
-            ],
+            messages=[SamplingMessage(role="user", content=TextContent(type="text", text="Hello"))],
             maxTokens=100,  # Only required field besides messages
         )
 
@@ -186,9 +169,7 @@ class TestSamplingConverter:
         model = "test-model"
 
         # Create error result using our converter
-        result = SamplingConverter.error_result(
-            error_message=error_message, model=model
-        )
+        result = SamplingConverter.error_result(error_message=error_message, model=model)
 
         # Verify result
         assert isinstance(result, CreateMessageResult)
@@ -201,9 +182,7 @@ class TestSamplingConverter:
     def test_error_result_no_model(self):
         """Test creating an error result without a model"""
         # Create error result without specifying a model
-        result = SamplingConverter.error_result(
-            error_message="Error in sampling: Test error"
-        )
+        result = SamplingConverter.error_result(error_message="Error in sampling: Test error")
 
         # Verify the default model value is used
         assert result.model == "unknown"

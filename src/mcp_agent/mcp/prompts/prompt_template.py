@@ -71,9 +71,7 @@ class PromptContent(BaseModel):
                 substituted = substituted.replace(make_placeholder(key), str(value))
             substituted_resources.append(substituted)
 
-        return PromptContent(
-            text=result, role=self.role, resources=substituted_resources
-        )
+        return PromptContent(text=result, role=self.role, resources=substituted_resources)
 
 
 class PromptTemplate:
@@ -131,9 +129,7 @@ class PromptTemplate:
         # Convert to delimited format
         delimited_content = multipart_messages_to_delimited_format(
             messages,
-            user_delimiter=next(
-                (k for k, v in delimiter_map.items() if v == "user"), "---USER"
-            ),
+            user_delimiter=next((k for k, v in delimiter_map.items() if v == "user"), "---USER"),
             assistant_delimiter=next(
                 (k for k, v in delimiter_map.items() if v == "assistant"),
                 "---ASSISTANT",
@@ -205,9 +201,7 @@ class PromptTemplate:
                     )
                 )
 
-            multiparts.append(
-                PromptMessageMultipart(role=section.role, content=content_items)
-            )
+            multiparts.append(PromptMessageMultipart(role=section.role, content=content_items))
 
         return multiparts
 
@@ -245,9 +239,7 @@ class PromptTemplate:
                     )
                 )
 
-            multiparts.append(
-                PromptMessageMultipart(role=section.role, content=content_items)
-            )
+            multiparts.append(PromptMessageMultipart(role=section.role, content=content_items))
 
         return multiparts
 
@@ -264,9 +256,7 @@ class PromptTemplate:
         first_non_empty_line = next((line for line in lines if line.strip()), "")
         delimiter_values = set(self.delimiter_map.keys())
 
-        is_simple_mode = (
-            first_non_empty_line and first_non_empty_line not in delimiter_values
-        )
+        is_simple_mode = first_non_empty_line and first_non_empty_line not in delimiter_values
 
         if is_simple_mode:
             # Simple mode: treat the entire content as a single user message
@@ -362,9 +352,7 @@ class PromptTemplateLoader:
 
         return PromptTemplate(content, self.delimiter_map, template_file_path=file_path)
 
-    def load_from_multipart(
-        self, messages: List[PromptMessageMultipart]
-    ) -> PromptTemplate:
+    def load_from_multipart(self, messages: List[PromptMessageMultipart]) -> PromptTemplate:
         """
         Create a PromptTemplate from a list of PromptMessageMultipart objects.
 
@@ -405,18 +393,12 @@ class PromptTemplateLoader:
         first_non_empty_line = next((line for line in lines if line.strip()), "")
 
         # Check if we're in simple mode
-        is_simple_mode = (
-            first_non_empty_line and first_non_empty_line not in self.delimiter_map
-        )
+        is_simple_mode = first_non_empty_line and first_non_empty_line not in self.delimiter_map
 
         if is_simple_mode:
             # In simple mode, use first line as description if it seems like one
             first_line = lines[0].strip() if lines else ""
-            if (
-                len(first_line) < 60
-                and "{{" not in first_line
-                and "}}" not in first_line
-            ):
+            if len(first_line) < 60 and "{{" not in first_line and "}}" not in first_line:
                 description = first_line
             else:
                 description = f"Simple prompt: {file_path.stem}"
@@ -438,9 +420,7 @@ class PromptTemplateLoader:
             if first_role and first_content_index and first_content_index < len(lines):
                 # Get up to 3 non-empty lines after the delimiter for a preview
                 preview_lines = []
-                for j in range(
-                    first_content_index, min(first_content_index + 10, len(lines))
-                ):
+                for j in range(first_content_index, min(first_content_index + 10, len(lines))):
                     stripped = lines[j].strip()
                     if stripped and stripped not in self.delimiter_map:
                         preview_lines.append(stripped)

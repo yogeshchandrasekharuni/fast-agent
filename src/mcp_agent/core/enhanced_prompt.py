@@ -62,9 +62,7 @@ class AgentCompleter(Completer):
         if is_human_input:
             self.commands.pop("agents")
             self.commands.pop("prompts")  # Remove prompts command in human input mode
-            self.commands.pop(
-                "prompt", None
-            )  # Remove prompt command in human input mode
+            self.commands.pop("prompt", None)  # Remove prompt command in human input mode
         self.agent_types = agent_types or {}
 
     def get_completions(self, document, complete_event):
@@ -210,9 +208,7 @@ async def get_enhanced_input(
             ("↑/↓", "History"),
         ]
 
-        newline = (
-            "Ctrl+&lt;Enter&gt;:Submit" if in_multiline_mode else "&lt;Enter&gt;:Submit"
-        )
+        newline = "Ctrl+&lt;Enter&gt;:Submit" if in_multiline_mode else "&lt;Enter&gt;:Submit"
 
         # Only show relevant shortcuts based on mode
         shortcuts = [(k, v) for k, v in shortcuts if v]
@@ -251,9 +247,7 @@ async def get_enhanced_input(
     )
 
     # Create key bindings with a reference to the app
-    bindings = create_keybindings(
-        on_toggle_multiline=on_multiline_toggle, app=session.app
-    )
+    bindings = create_keybindings(on_toggle_multiline=on_multiline_toggle, app=session.app)
     session.app.key_bindings = bindings
 
     # Create formatted prompt text
@@ -268,16 +262,12 @@ async def get_enhanced_input(
         if default == "STOP":
             rich_print("Enter a prompt, [red]STOP[/red] to finish")
             if default:
-                rich_print(
-                    f"Press <ENTER> to use the default prompt:\n[cyan]{default}[/cyan]"
-                )
+                rich_print(f"Press <ENTER> to use the default prompt:\n[cyan]{default}[/cyan]")
 
     # Mention available features but only on first usage globally
     if not help_message_shown:
         if is_human_input:
-            rich_print(
-                "[dim]Type /help for commands. Ctrl+T toggles multiline mode.[/dim]"
-            )
+            rich_print("[dim]Type /help for commands. Ctrl+T toggles multiline mode.[/dim]")
         else:
             rich_print(
                 "[dim]Type /help for commands, @agent to switch agent. Ctrl+T toggles multiline mode.[/dim]"
@@ -367,9 +357,7 @@ async def get_selection_input(
 
         try:
             # Get user input
-            selection = await prompt_session.prompt_async(
-                prompt_text, default=default or ""
-            )
+            selection = await prompt_session.prompt_async(prompt_text, default=default or "")
 
             # Handle cancellation
             if allow_cancel and not selection.strip():
@@ -453,13 +441,9 @@ async def handle_special_commands(command, agent_app=None):
         rich_print("  /prompt <name> - Apply a specific prompt by name")
         rich_print("  @agent_name    - Switch to agent")
         rich_print("  STOP           - Return control back to the workflow")
-        rich_print(
-            "  EXIT           - Exit fast-agent, terminating any running workflows"
-        )
+        rich_print("  EXIT           - Exit fast-agent, terminating any running workflows")
         rich_print("\n[bold]Keyboard Shortcuts:[/bold]")
-        rich_print(
-            "  Enter          - Submit (normal mode) / New line (multiline mode)"
-        )
+        rich_print("  Enter          - Submit (normal mode) / New line (multiline mode)")
         rich_print("  Ctrl+Enter      - Always submit (in any mode)")
         rich_print("  Ctrl+T         - Toggle multiline mode")
         rich_print("  Ctrl+L         - Clear input")
@@ -520,9 +504,7 @@ async def handle_special_commands(command, agent_app=None):
                 #                rich_print(f"[green]Switching to agent: {agent_name}[/green]")
                 return {"switch_agent": agent_name}
             else:
-                rich_print(
-                    "[yellow]Agent switching not available in this context[/yellow]"
-                )
+                rich_print("[yellow]Agent switching not available in this context[/yellow]")
         else:
             rich_print(f"[red]Unknown agent: {agent_name}[/red]")
         return True

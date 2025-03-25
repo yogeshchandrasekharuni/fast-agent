@@ -2,12 +2,13 @@
 Integration tests for PromptTemplate and PromptMessageMultipart.
 """
 
-import pytest
-import tempfile
 import os
+import tempfile
 from pathlib import Path
 
+import pytest
 from mcp.types import TextContent
+
 from mcp_agent.mcp.prompt_message_multipart import PromptMessageMultipart
 from mcp_agent.mcp.prompt_serialization import (
     load_messages_from_delimited_file,
@@ -45,18 +46,12 @@ Here are some key points about {{topic}}:
         assert multiparts[0].role == "user"
         assert len(multiparts[0].content) == 1
         assert multiparts[0].content[0].type == "text"
-        assert (
-            "Hello, I'm trying to learn about {{topic}}."
-            in multiparts[0].content[0].text
-        )
+        assert "Hello, I'm trying to learn about {{topic}}." in multiparts[0].content[0].text
 
         assert multiparts[1].role == "assistant"
         assert len(multiparts[1].content) == 1
         assert multiparts[1].content[0].type == "text"
-        assert (
-            "I'd be happy to help you learn about {{topic}}!"
-            in multiparts[1].content[0].text
-        )
+        assert "I'd be happy to help you learn about {{topic}}!" in multiparts[1].content[0].text
 
     def test_template_with_substitutions_to_multipart(self):
         """Test applying substitutions to a template and converting to multipart."""
@@ -77,8 +72,7 @@ I'd be happy to help you learn about {{topic}}!
         assert len(multiparts) == 2
         assert multiparts[0].role == "user"
         assert (
-            "Hello, I'm trying to learn about Python programming."
-            in multiparts[0].content[0].text
+            "Hello, I'm trying to learn about Python programming." in multiparts[0].content[0].text
         )
 
         assert multiparts[1].role == "assistant"
@@ -93,15 +87,11 @@ I'd be happy to help you learn about {{topic}}!
         multiparts = [
             PromptMessageMultipart(
                 role="user",
-                content=[
-                    TextContent(type="text", text="What's the capital of France?")
-                ],
+                content=[TextContent(type="text", text="What's the capital of France?")],
             ),
             PromptMessageMultipart(
                 role="assistant",
-                content=[
-                    TextContent(type="text", text="The capital of France is Paris.")
-                ],
+                content=[TextContent(type="text", text="The capital of France is Paris.")],
             ),
         ]
 
@@ -139,16 +129,12 @@ Here's information about {{subject}}:
         new_template = PromptTemplate.from_multipart_messages(multiparts)
 
         # Verify the structure is preserved
-        assert len(new_template.content_sections) == len(
-            original_template.content_sections
-        )
+        assert len(new_template.content_sections) == len(original_template.content_sections)
 
         for i, section in enumerate(original_template.content_sections):
             new_section = new_template.content_sections[i]
             assert new_section.role == section.role
-            assert (
-                section.text in new_section.text
-            )  # Text might have whitespace differences
+            assert section.text in new_section.text  # Text might have whitespace differences
 
     @pytest.fixture
     def temp_delimited_file(self):
@@ -230,9 +216,7 @@ Hi there! I'm here to help with your test.
             ),
             PromptMessageMultipart(
                 role="assistant",
-                content=[
-                    TextContent(type="text", text="Why did the chicken cross the road?")
-                ],
+                content=[TextContent(type="text", text="Why did the chicken cross the road?")],
             ),
             PromptMessageMultipart(
                 role="user",
@@ -252,7 +236,4 @@ Hi there! I'm here to help with your test.
         assert new_template.content_sections[0].role == "user"
         assert new_template.content_sections[0].text == "Tell me a joke."
         assert new_template.content_sections[1].role == "assistant"
-        assert (
-            new_template.content_sections[1].text
-            == "Why did the chicken cross the road?"
-        )
+        assert new_template.content_sections[1].text == "Why did the chicken cross the road?"

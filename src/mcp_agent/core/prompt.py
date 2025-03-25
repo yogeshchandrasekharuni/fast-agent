@@ -40,9 +40,7 @@ class Prompt:
             A PromptMessageMultipart with user role and the specified content
         """
         messages = User(*content_items)
-        return PromptMessageMultipart(
-            role="user", content=[msg["content"] for msg in messages]
-        )
+        return PromptMessageMultipart(role="user", content=[msg["content"] for msg in messages])
 
     @classmethod
     def assistant(cls, *content_items) -> PromptMessageMultipart:
@@ -115,9 +113,7 @@ class Prompt:
         return result
 
     @classmethod
-    def from_multipart(
-        cls, multipart: List[PromptMessageMultipart]
-    ) -> List[PromptMessage]:
+    def from_multipart(cls, multipart: List[PromptMessageMultipart]) -> List[PromptMessage]:
         """
         Convert a list of PromptMessageMultipart objects to PromptMessages.
 

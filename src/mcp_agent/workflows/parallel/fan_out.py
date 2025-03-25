@@ -47,9 +47,7 @@ class FanOut(ContextDependent):
         self.functions: List[Callable[[MessageParamT], MessageT]] = functions or []
 
         if not self.agents and not self.functions:
-            raise ValueError(
-                "At least one agent or function must be provided for fan-out to work"
-            )
+            raise ValueError("At least one agent or function must be provided for fan-out to work")
 
         if not self.llm_factory:
             for agent in self.agents:
@@ -65,9 +63,7 @@ class FanOut(ContextDependent):
         Request fan-out agent/function generations, and return the results as a dictionary.
         The keys are the names of the agents or functions that generated the results.
         """
-        tasks: List[
-            Callable[..., List[MessageT]] | Coroutine[Any, Any, List[MessageT]]
-        ] = []
+        tasks: List[Callable[..., List[MessageT]] | Coroutine[Any, Any, List[MessageT]]] = []
         task_names: List[str] = []
         task_results = []
 
@@ -97,9 +93,7 @@ class FanOut(ContextDependent):
             logger.debug("Running fan-out tasks:", data=task_names)
             task_results = await self.executor.execute(*tasks)
 
-        logger.debug(
-            "Fan-out tasks completed:", data=dict(zip(task_names, task_results))
-        )
+        logger.debug("Fan-out tasks completed:", data=dict(zip(task_names, task_results)))
         return dict(zip(task_names, task_results))
 
     async def generate_str(
