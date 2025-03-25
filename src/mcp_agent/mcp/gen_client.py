@@ -28,9 +28,7 @@ async def gen_client(
     For persistent connections, use connect() or MCPConnectionManager instead.
     """
     if not server_registry:
-        raise ValueError(
-            "Server registry not found in the context. Please specify one either on this method, or in the context."
-        )
+        raise ValueError("Server registry not found in the context. Please specify one either on this method, or in the context.")
 
     async with server_registry.initialize_server(
         server_name=server_name,
@@ -53,9 +51,7 @@ async def connect(
     If required, callers can specify their own message receive loop and ClientSession class constructor to customize further.
     """
     if not server_registry:
-        raise ValueError(
-            "Server registry not found in the context. Please specify one either on this method, or in the context."
-        )
+        raise ValueError("Server registry not found in the context. Please specify one either on this method, or in the context.")
 
     server_connection = await server_registry.connection_manager.get_server(
         server_name=server_name,
@@ -73,9 +69,7 @@ async def disconnect(
     Disconnect from the specified server. If server_name is None, disconnect from all servers.
     """
     if not server_registry:
-        raise ValueError(
-            "Server registry not found in the context. Please specify one either on this method, or in the context."
-        )
+        raise ValueError("Server registry not found in the context. Please specify one either on this method, or in the context.")
 
     if server_name:
         await server_registry.connection_manager.disconnect_server(server_name=server_name)

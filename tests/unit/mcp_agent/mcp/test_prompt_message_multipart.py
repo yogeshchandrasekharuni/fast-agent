@@ -60,9 +60,7 @@ class TestPromptMessageMultipart:
     def test_from_prompt_messages_with_mixed_content_types(self):
         """Test converting messages with mixed content types (text and image)."""
         # Create a message with an image content
-        image_content = ImageContent(
-            type="image", data="base64_encoded_image_data", mimeType="image/png"
-        )
+        image_content = ImageContent(type="image", data="base64_encoded_image_data", mimeType="image/png")
 
         messages = [
             PromptMessage(

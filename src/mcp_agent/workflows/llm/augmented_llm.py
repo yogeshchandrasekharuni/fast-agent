@@ -65,12 +65,10 @@ class AugmentedLLM(ContextDependent, AugmentedLLMProtocol[MessageParamT, Message
         instruction: str | None = None,
         name: str | None = None,
         request_params: RequestParams | None = None,
-        type_converter: Type[
-            ProviderFormatConverter[MessageParamT, MessageT]
-        ] = BasicFormatConverter,
+        type_converter: Type[ProviderFormatConverter[MessageParamT, MessageT]] = BasicFormatConverter,
         context: Optional["Context"] = None,
         **kwargs,
-    ):
+    ) -> None:
         """
         Initialize the LLM with a list of server names and an instruction.
         If a name is provided, it will be used to identify the LLM.
@@ -83,9 +81,7 @@ class AugmentedLLM(ContextDependent, AugmentedLLMProtocol[MessageParamT, Message
         self.executor = self.context.executor
         self.aggregator = agent if agent is not None else MCPAggregator(server_names or [])
         self.name = name or (agent.name if agent else None)
-        self.instruction = instruction or (
-            agent.instruction if agent and isinstance(agent.instruction, str) else None
-        )
+        self.instruction = instruction or (agent.instruction if agent and isinstance(agent.instruction, str) else None)
         self.history: Memory[MessageParamT] = SimpleMemory[MessageParamT]()
 
         # Initialize the display component
@@ -96,9 +92,7 @@ class AugmentedLLM(ContextDependent, AugmentedLLMProtocol[MessageParamT, Message
 
         # Merge with provided params if any
         if self._init_request_params:
-            self.default_request_params = self._merge_request_params(
-                self.default_request_params, self._init_request_params
-            )
+            self.default_request_params = self._merge_request_params(self.default_request_params, self._init_request_params)
 
         self.type_converter = type_converter
         self.verb = kwargs.get("verb")
@@ -147,9 +141,7 @@ class AugmentedLLM(ContextDependent, AugmentedLLMProtocol[MessageParamT, Message
             use_history=True,
         )
 
-    def _merge_request_params(
-        self, default_params: RequestParams, provided_params: RequestParams
-    ) -> RequestParams:
+    def _merge_request_params(self, default_params: RequestParams, provided_params: RequestParams) -> RequestParams:
         """Merge default and provided request parameters"""
 
         merged = default_params.model_dump()
@@ -201,15 +193,15 @@ class AugmentedLLM(ContextDependent, AugmentedLLMProtocol[MessageParamT, Message
         last_message = await self.get_last_message()
         return self.message_param_str(last_message) if last_message else None
 
-    def show_tool_result(self, result: CallToolResult):
+    def show_tool_result(self, result: CallToolResult) -> None:
         """Display a tool result in a formatted panel."""
         self.display.show_tool_result(result)
 
-    def show_oai_tool_result(self, result):
+    def show_oai_tool_result(self, result) -> None:
         """Display a tool result in a formatted panel."""
         self.display.show_oai_tool_result(result)
 
-    def show_tool_call(self, available_tools, tool_name, tool_args):
+    def show_tool_call(self, available_tools, tool_name, tool_args) -> None:
         """Display a tool call in a formatted panel."""
         self.display.show_tool_call(available_tools, tool_name, tool_args)
 
@@ -218,7 +210,7 @@ class AugmentedLLM(ContextDependent, AugmentedLLMProtocol[MessageParamT, Message
         message_text: str | Text,
         highlight_namespaced_tool: str = "",
         title: str = "ASSISTANT",
-    ):
+    ) -> None:
         """Display an assistant message in a formatted panel."""
         await self.display.show_assistant_message(
             message_text,
@@ -228,19 +220,15 @@ class AugmentedLLM(ContextDependent, AugmentedLLMProtocol[MessageParamT, Message
             name=self.name,
         )
 
-    def show_user_message(self, message, model: str | None, chat_turn: int):
+    def show_user_message(self, message, model: str | None, chat_turn: int) -> None:
         """Display a user message in a formatted panel."""
         self.display.show_user_message(message, model, chat_turn, name=self.name)
 
-    async def pre_tool_call(
-        self, tool_call_id: str | None, request: CallToolRequest
-    ) -> CallToolRequest | bool:
+    async def pre_tool_call(self, tool_call_id: str | None, request: CallToolRequest) -> CallToolRequest | bool:
         """Called before a tool is executed. Return False to prevent execution."""
         return request
 
-    async def post_tool_call(
-        self, tool_call_id: str | None, request: CallToolRequest, result: CallToolResult
-    ) -> CallToolResult:
+    async def post_tool_call(self, tool_call_id: str | None, request: CallToolRequest, result: CallToolResult) -> CallToolResult:
         """Called after a tool execution. Can modify the result before it's returned."""
         return result
 
@@ -275,9 +263,7 @@ class AugmentedLLM(ContextDependent, AugmentedLLMProtocol[MessageParamT, Message
             tool_args = request.params.arguments
             result = await self.aggregator.call_tool(tool_name, tool_args)
 
-            postprocess = await self.post_tool_call(
-                tool_call_id=tool_call_id, request=request, result=result
-            )
+            postprocess = await self.post_tool_call(tool_call_id=tool_call_id, request=request, result=result)
 
             if isinstance(postprocess, CallToolResult):
                 result = postprocess
@@ -355,7 +341,7 @@ class AugmentedLLM(ContextDependent, AugmentedLLMProtocol[MessageParamT, Message
         # Default fallback
         return str(message)
 
-    def _log_chat_progress(self, chat_turn: Optional[int] = None, model: Optional[str] = None):
+    def _log_chat_progress(self, chat_turn: Optional[int] = None, model: Optional[str] = None) -> None:
         """Log a chat progress event"""
         # Determine action type based on verb
         if hasattr(self, "verb") and self.verb:
@@ -372,7 +358,7 @@ class AugmentedLLM(ContextDependent, AugmentedLLMProtocol[MessageParamT, Message
         }
         self.logger.debug("Chat in progress", data=data)
 
-    def _log_chat_finished(self, model: Optional[str] = None):
+    def _log_chat_finished(self, model: Optional[str] = None) -> None:
         """Log a chat finished event"""
         data = {
             "progress_action": ProgressAction.READY,
@@ -394,7 +380,7 @@ class AugmentedLLM(ContextDependent, AugmentedLLMProtocol[MessageParamT, Message
         description: Optional[str] = None,
         message_count: int = 0,
         arguments: Optional[dict[str, str]] = None,
-    ):
+    ) -> None:
         """
         Display information about a loaded prompt template.
 
@@ -467,9 +453,7 @@ class AugmentedLLM(ContextDependent, AugmentedLLMProtocol[MessageParamT, Message
             String representation of the assistant's response
         """
         # Delegate to the provider-specific implementation
-        return await self._apply_prompt_template_provider_specific(
-            multipart_messages, request_params
-        )
+        return await self._apply_prompt_template_provider_specific(multipart_messages, request_params)
 
     async def _apply_prompt_template_provider_specific(
         self,
@@ -575,11 +559,7 @@ class AugmentedLLM(ContextDependent, AugmentedLLMProtocol[MessageParamT, Message
                     has_non_text_content = True
 
             # Join all parts with double newlines for better readability
-            result = (
-                "\n\n".join(assistant_text_parts)
-                if assistant_text_parts
-                else str(last_message.content)
-            )
+            result = "\n\n".join(assistant_text_parts) if assistant_text_parts else str(last_message.content)
 
             # Add a note if non-text content was present
             if has_non_text_content:

@@ -98,7 +98,7 @@ class Router(ABC, ContextDependent):
         routing_instruction: str | None = None,
         context: Optional["Context"] = None,
         **kwargs,
-    ):
+    ) -> None:
         super().__init__(context=context, **kwargs)
         self.routing_instruction = routing_instruction
         self.server_names = server_names or []
@@ -115,17 +115,13 @@ class Router(ABC, ContextDependent):
         self.initialized: bool = False
 
         if not self.server_names and not self.agents and not self.functions:
-            raise ValueError(
-                "At least one of mcp_servers_names, agents, or functions must be provided."
-            )
+            raise ValueError("At least one of mcp_servers_names, agents, or functions must be provided.")
 
         if self.server_names and not self.server_registry:
             raise ValueError("server_registry must be provided if mcp_servers_names are provided.")
 
     @abstractmethod
-    async def route(
-        self, request: str, top_k: int = 1
-    ) -> List[RouterResult[str | Agent | Callable]]:
+    async def route(self, request: str, top_k: int = 1) -> List[RouterResult[str | Agent | Callable]]:
         """
         Route the input request to one or more MCP servers, agents, or functions.
         If no routing decision can be made, returns an empty list.
@@ -152,15 +148,13 @@ class Router(ABC, ContextDependent):
             input: The input to route.
         """
 
-    async def initialize(self):
+    async def initialize(self) -> None:
         """Initialize the router categories."""
 
         if self.initialized:
             return
 
-        server_categories = [
-            self.get_server_category(server_name) for server_name in self.server_names
-        ]
+        server_categories = [self.get_server_category(server_name) for server_name in self.server_names]
         self.server_categories = {category.name: category for category in server_categories}
 
         agent_categories = [self.get_agent_category(agent) for agent in self.agents]
@@ -188,15 +182,11 @@ class Router(ABC, ContextDependent):
         )
 
     def get_agent_category(self, agent: Agent) -> AgentRouterCategory:
-        agent_description = (
-            agent.instruction({}) if callable(agent.instruction) else agent.instruction
-        )
+        agent_description = agent.instruction({}) if callable(agent.instruction) else agent.instruction
 
         # Just get server categories without attempting to access tools
         # This is a simpler approach that avoids potential issues with uninitialized agents
-        server_categories = [
-            self.get_server_category(server_name) for server_name in agent.server_names
-        ]
+        server_categories = [self.get_server_category(server_name) for server_name in agent.server_names]
 
         return AgentRouterCategory(
             category=agent,
@@ -255,9 +245,7 @@ class Router(ABC, ContextDependent):
         # Otherwise, build the content
         description_section = ""
         if has_description:
-            description_section = (
-                f"\n<fastagent:description>{category.description}</fastagent:description>"
-            )
+            description_section = f"\n<fastagent:description>{category.description}</fastagent:description>"
 
         # Add tools section if we have tool information
         if has_tools:
@@ -285,9 +273,7 @@ class Router(ABC, ContextDependent):
         # Build description section if needed
         description_section = ""
         if has_description:
-            description_section = (
-                f"\n<fastagent:description>{category.description}</fastagent:description>"
-            )
+            description_section = f"\n<fastagent:description>{category.description}</fastagent:description>"
 
         # Handle the case with no servers
         if not has_servers:
@@ -310,22 +296,16 @@ class Router(ABC, ContextDependent):
             # Build server description if needed
             server_desc_section = ""
             if has_server_description:
-                server_desc_section = (
-                    f"\n<fastagent:description>{server.description}</fastagent:description>"
-                )
+                server_desc_section = f"\n<fastagent:description>{server.description}</fastagent:description>"
 
             # Format server tools if available
             if has_server_tools:
                 tool_items = []
                 for tool in server.tools:
                     tool_desc = tool.description if tool.description else ""
-                    tool_items.append(
-                        f'<fastagent:tool name="{tool.name}">{tool_desc}</fastagent:tool>'
-                    )
+                    tool_items.append(f'<fastagent:tool name="{tool.name}">{tool_desc}</fastagent:tool>')
 
-                tools_section = (
-                    f"\n<fastagent:tools>\n{chr(10).join(tool_items)}\n</fastagent:tools>"
-                )
+                tools_section = f"\n<fastagent:tools>\n{chr(10).join(tool_items)}\n</fastagent:tools>"
                 server_section = f"""<fastagent:server name="{server.name}">{server_desc_section}{tools_section}
 </fastagent:server>"""
             else:

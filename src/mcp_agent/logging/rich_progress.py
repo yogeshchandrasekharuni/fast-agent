@@ -14,7 +14,7 @@ from mcp_agent.event_progress import ProgressAction, ProgressEvent
 class RichProgressDisplay:
     """Rich-based display for progress events."""
 
-    def __init__(self, console: Optional[Console] = None):
+    def __init__(self, console: Optional[Console] = None) -> None:
         """Initialize the progress display."""
         self.console = console or default_console
         self._taskmap = {}
@@ -31,16 +31,16 @@ class RichProgressDisplay:
         )
         self._paused = False
 
-    def start(self):
+    def start(self) -> None:
         """start"""
 
         self._progress.start()
 
-    def stop(self):
+    def stop(self) -> None:
         """stop"""
         self._progress.stop()
 
-    def pause(self):
+    def pause(self) -> None:
         """Pause the progress display."""
         if not self._paused:
             self._paused = True
@@ -49,7 +49,7 @@ class RichProgressDisplay:
                 task.visible = False
             self._progress.stop()
 
-    def resume(self):
+    def resume(self) -> None:
         """Resume the progress display."""
         if self._paused:
             for task in self._progress.tasks:

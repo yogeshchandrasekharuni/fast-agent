@@ -23,9 +23,7 @@ image_path = "image.png"
 
 
 @app.tool(name="get_image", description="Returns the sample image with some descriptive text")
-async def get_image(
-    image_name: str = "default", ctx: Context = None
-) -> list[TextContent | ImageContent]:
+async def get_image(image_name: str = "default", ctx: Context = None) -> list[TextContent | ImageContent]:
     try:
         # Use the global image path
         return [

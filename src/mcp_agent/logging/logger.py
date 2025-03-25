@@ -29,7 +29,7 @@ class Logger:
     - `name` can be a custom domain-specific event name, e.g. "ORDER_PLACED".
     """
 
-    def __init__(self, namespace: str):
+    def __init__(self, namespace: str) -> None:
         self.namespace = namespace
         self.event_bus = AsyncEventBus.get()
 
@@ -43,7 +43,7 @@ class Logger:
             asyncio.set_event_loop(loop)
             return loop
 
-    def _emit_event(self, event: Event):
+    def _emit_event(self, event: Event) -> None:
         """Emit an event by running it in the event loop."""
         loop = self._ensure_event_loop()
         if loop.is_running():
@@ -60,7 +60,7 @@ class Logger:
         message: str,
         context: EventContext | None,
         data: dict,
-    ):
+    ) -> None:
         """Create and emit an event."""
         evt = Event(
             type=etype,
@@ -78,7 +78,7 @@ class Logger:
         name: str | None = None,
         context: EventContext | None = None,
         **data,
-    ):
+    ) -> None:
         """Log a debug message."""
         self.event("debug", name, message, context, data)
 
@@ -88,7 +88,7 @@ class Logger:
         name: str | None = None,
         context: EventContext | None = None,
         **data,
-    ):
+    ) -> None:
         """Log an info message."""
         self.event("info", name, message, context, data)
 
@@ -98,7 +98,7 @@ class Logger:
         name: str | None = None,
         context: EventContext | None = None,
         **data,
-    ):
+    ) -> None:
         """Log a warning message."""
         self.event("warning", name, message, context, data)
 
@@ -108,7 +108,7 @@ class Logger:
         name: str | None = None,
         context: EventContext | None = None,
         **data,
-    ):
+    ) -> None:
         """Log an error message."""
         self.event("error", name, message, context, data)
 
@@ -119,7 +119,7 @@ class Logger:
         percentage: float | None = None,
         context: EventContext | None = None,
         **data,
-    ):
+    ) -> None:
         """Log a progress message."""
         merged_data = dict(percentage=percentage, **data)
         self.event("progress", name, message, context, merged_data)

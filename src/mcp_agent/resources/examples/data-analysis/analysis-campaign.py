@@ -172,7 +172,7 @@ Extract key insights that would be compelling for a social media campaign.
     request_params=RequestParams(maxTokens=8192),
     plan_type="full",
 )
-async def main():
+async def main() -> None:
     # Use the app's context manager
     print(
         "WARNING: This workflow will likely run for >10 minutes and consume a lot of tokens. Press Enter to accept the default prompt and proceed"

@@ -32,15 +32,13 @@ else:
 class AgentApp:
     """Main application wrapper"""
 
-    def __init__(self, app: MCPApp, agents: ProxyDict):
+    def __init__(self, app: MCPApp, agents: ProxyDict) -> None:
         self._app = app
         self._agents = agents
         # Optional: set default agent for direct calls
         self._default = next(iter(agents)) if agents else None
 
-    async def send_prompt(
-        self, prompt: PromptMessageMultipart, agent_name: Optional[str] = None
-    ) -> str:
+    async def send_prompt(self, prompt: PromptMessageMultipart, agent_name: Optional[str] = None) -> str:
         """
         Send a PromptMessageMultipart to an agent
 
@@ -218,12 +216,8 @@ class AgentApp:
                             found_prompts = False
                             for agent_name, agent_proxy in self._agents.items():
                                 # Check if agent has an mcp_aggregator (agent instance)
-                                if hasattr(agent_proxy, "_agent") and hasattr(
-                                    agent_proxy._agent, "list_prompts"
-                                ):
-                                    rich_print(
-                                        f"\n[bold]Fetching prompts for agent [cyan]{agent_name}[/cyan]...[/bold]"
-                                    )
+                                if hasattr(agent_proxy, "_agent") and hasattr(agent_proxy._agent, "list_prompts"):
+                                    rich_print(f"\n[bold]Fetching prompts for agent [cyan]{agent_name}[/cyan]...[/bold]")
                                     prompt_servers = await agent_proxy._agent.list_prompts()
 
                                     if prompt_servers:
@@ -232,25 +226,14 @@ class AgentApp:
                                             server_name,
                                             prompts_info,
                                         ) in prompt_servers.items():
-                                            if (
-                                                prompts_info
-                                                and hasattr(prompts_info, "prompts")
-                                                and prompts_info.prompts
-                                            ):
-                                                rich_print(
-                                                    f"\n[bold cyan]{server_name}:[/bold cyan]"
-                                                )
+                                            if prompts_info and hasattr(prompts_info, "prompts") and prompts_info.prompts:
+                                                rich_print(f"\n[bold cyan]{server_name}:[/bold cyan]")
                                                 for prompt in prompts_info.prompts:
                                                     rich_print(f"  {prompt.name}")
                                             elif isinstance(prompts_info, list) and prompts_info:
-                                                rich_print(
-                                                    f"\n[bold cyan]{server_name}:[/bold cyan]"
-                                                )
+                                                rich_print(f"\n[bold cyan]{server_name}:[/bold cyan]")
                                                 for prompt in prompts_info:
-                                                    if (
-                                                        isinstance(prompt, dict)
-                                                        and "name" in prompt
-                                                    ):
+                                                    if isinstance(prompt, dict) and "name" in prompt:
                                                         rich_print(f"  {prompt['name']}")
                                                     else:
                                                         rich_print(f"  {prompt}")
@@ -271,12 +254,8 @@ class AgentApp:
                         current_proxy = self._agents[agent]
 
                         # Check if the agent has prompt capabilities
-                        if not hasattr(current_proxy, "_agent") or not hasattr(
-                            current_proxy._agent, "list_prompts"
-                        ):
-                            rich_print(
-                                f"[red]Current agent '{agent}' does not support prompts[/red]"
-                            )
+                        if not hasattr(current_proxy, "_agent") or not hasattr(current_proxy._agent, "list_prompts"):
+                            rich_print(f"[red]Current agent '{agent}' does not support prompts[/red]")
                             continue
 
                         try:
@@ -284,9 +263,7 @@ class AgentApp:
                             all_prompts = []
 
                             # Get prompts from the current agent
-                            rich_print(
-                                f"\n[bold]Fetching prompts for agent [cyan]{agent}[/cyan]...[/bold]"
-                            )
+                            rich_print(f"\n[bold]Fetching prompts for agent [cyan]{agent}[/cyan]...[/bold]")
                             prompt_servers = await current_proxy._agent.list_prompts()
 
                             if not prompt_servers:
@@ -368,12 +345,7 @@ class AgentApp:
                             if "prompt_name" in command_result and command_result["prompt_name"]:
                                 requested_name = command_result["prompt_name"]
                                 # Find the prompt in our list (either by name or namespaced name)
-                                matching_prompts = [
-                                    p
-                                    for p in all_prompts
-                                    if p["name"] == requested_name
-                                    or p["namespaced_name"] == requested_name
-                                ]
+                                matching_prompts = [p for p in all_prompts if p["name"] == requested_name or p["namespaced_name"] == requested_name]
 
                                 if not matching_prompts:
                                     rich_print(f"[red]Prompt '{requested_name}' not found[/red]")
@@ -387,22 +359,16 @@ class AgentApp:
                                     selected_prompt = matching_prompts[0]
                                 else:
                                     # If multiple matches, show them and ask user to be more specific
-                                    rich_print(
-                                        f"[yellow]Multiple prompts match '{requested_name}':[/yellow]"
-                                    )
+                                    rich_print(f"[yellow]Multiple prompts match '{requested_name}':[/yellow]")
                                     for i, p in enumerate(matching_prompts):
-                                        rich_print(
-                                            f"  {i + 1}. {p['namespaced_name']} - {p['description']}"
-                                        )
+                                        rich_print(f"  {i + 1}. {p['namespaced_name']} - {p['description']}")
 
                                     # Ask user to select one
                                     from mcp_agent.core.enhanced_prompt import (
                                         get_selection_input,
                                     )
 
-                                    selection = await get_selection_input(
-                                        "Enter prompt number to select: ", default="1"
-                                    )
+                                    selection = await get_selection_input("Enter prompt number to select: ", default="1")
 
                                     try:
                                         idx = int(selection) - 1
@@ -412,9 +378,7 @@ class AgentApp:
                                             rich_print("[red]Invalid selection[/red]")
                                             continue
                                     except ValueError:
-                                        rich_print(
-                                            "[red]Invalid input, please enter a number[/red]"
-                                        )
+                                        rich_print("[red]Invalid input, please enter a number[/red]")
                                         continue
                             else:
                                 # Display prompt selection UI
@@ -495,13 +459,9 @@ class AgentApp:
                                         f"\n[bold]Prompt [cyan]{selected_prompt['name']}[/cyan] requires {len(required_args)} arguments and has {len(optional_args)} optional arguments:[/bold]"
                                     )
                                 elif required_args:
-                                    rich_print(
-                                        f"\n[bold]Prompt [cyan]{selected_prompt['name']}[/cyan] requires {len(required_args)} arguments:[/bold]"
-                                    )
+                                    rich_print(f"\n[bold]Prompt [cyan]{selected_prompt['name']}[/cyan] requires {len(required_args)} arguments:[/bold]")
                                 elif optional_args:
-                                    rich_print(
-                                        f"\n[bold]Prompt [cyan]{selected_prompt['name']}[/cyan] has {len(optional_args)} optional arguments:[/bold]"
-                                    )
+                                    rich_print(f"\n[bold]Prompt [cyan]{selected_prompt['name']}[/cyan] has {len(optional_args)} optional arguments:[/bold]")
 
                                 # Collect required arguments
                                 for arg_name in required_args:
@@ -543,14 +503,10 @@ class AgentApp:
                                             arg_values[arg_name] = arg_value
 
                             # Apply the prompt with or without arguments
-                            rich_print(
-                                f"\n[bold]Applying prompt [cyan]{selected_prompt['namespaced_name']}[/cyan]...[/bold]"
-                            )
+                            rich_print(f"\n[bold]Applying prompt [cyan]{selected_prompt['namespaced_name']}[/cyan]...[/bold]")
 
                             # Call apply_prompt on the agent - always pass arg_values (empty dict if no args)
-                            await current_proxy._agent.apply_prompt(
-                                selected_prompt["namespaced_name"], arg_values
-                            )
+                            await current_proxy._agent.apply_prompt(selected_prompt["namespaced_name"], arg_values)
 
                         except Exception as e:
                             import traceback

@@ -21,11 +21,9 @@ class OpenAIEmbeddingIntentClassifier(EmbeddingIntentClassifier):
         embedding_model: OpenAIEmbeddingModel | None = None,
         context: Optional["Context"] = None,
         **kwargs,
-    ):
+    ) -> None:
         embedding_model = embedding_model or OpenAIEmbeddingModel()
-        super().__init__(
-            embedding_model=embedding_model, intents=intents, context=context, **kwargs
-        )
+        super().__init__(embedding_model=embedding_model, intents=intents, context=context, **kwargs)
 
     @classmethod
     async def create(

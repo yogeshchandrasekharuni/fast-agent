@@ -13,7 +13,7 @@ import typer
 from rich import print
 
 
-def main(path: str = None):
+def main(path: str = None) -> None:
     try:
         command = ["ruff", "format"]
 

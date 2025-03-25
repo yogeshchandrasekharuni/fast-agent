@@ -35,7 +35,7 @@ def load_events(path: Path) -> list[Event]:
     return events
 
 
-def main(log_file: str):
+def main(log_file: str) -> None:
     """Replay MCP Agent events from a log file with progress display."""
     # Load events from file
     events = load_events(Path(log_file))

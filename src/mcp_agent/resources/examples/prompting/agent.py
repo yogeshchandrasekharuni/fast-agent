@@ -14,7 +14,7 @@ fast = FastAgent("FastAgent Example")
     #    model="gpt-4o",
     #    instruction="You are a helpful AI Agent", servers=["prompts","basic_memory"], model="haiku"
 )
-async def main():
+async def main() -> None:
     # use the --model command line switch or agent arguments to change model
     async with fast.run() as agent:
         await agent()

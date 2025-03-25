@@ -31,15 +31,9 @@ def prompt_messages(message_texts):
 def multipart_messages(message_texts):
     """Create PromptMessageMultipart objects for testing."""
     return [
-        PromptMessageMultipart(
-            role="assistant", content=[TextContent(type="text", text=message_texts[0])]
-        ),
-        PromptMessageMultipart(
-            role="user", content=[TextContent(type="text", text=message_texts[1])]
-        ),
-        PromptMessageMultipart(
-            role="assistant", content=[TextContent(type="text", text=message_texts[2])]
-        ),
+        PromptMessageMultipart(role="assistant", content=[TextContent(type="text", text=message_texts[0])]),
+        PromptMessageMultipart(role="user", content=[TextContent(type="text", text=message_texts[1])]),
+        PromptMessageMultipart(role="assistant", content=[TextContent(type="text", text=message_texts[2])]),
     ]
 
 
@@ -55,9 +49,7 @@ def prompt_result(prompt_messages):
 
 
 @pytest.mark.asyncio
-async def test_apply_prompt_template_concatenates_all_content(
-    passthrough_llm, prompt_result, message_texts
-):
+async def test_apply_prompt_template_concatenates_all_content(passthrough_llm, prompt_result, message_texts):
     # Apply the template
     result = await passthrough_llm.apply_prompt_template(prompt_result, "test-prompt")
 
@@ -67,9 +59,7 @@ async def test_apply_prompt_template_concatenates_all_content(
 
 
 @pytest.mark.asyncio
-async def test_apply_prompt_concatenates_all_content(
-    passthrough_llm, multipart_messages, message_texts
-):
+async def test_apply_prompt_concatenates_all_content(passthrough_llm, multipart_messages, message_texts):
     # Apply the prompt directly
     result = await passthrough_llm.apply_prompt(multipart_messages)
 

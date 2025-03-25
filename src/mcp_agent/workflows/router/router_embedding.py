@@ -56,7 +56,7 @@ class EmbeddingRouter(Router):
         functions: List[Callable] | None = None,
         context: Optional["Context"] = None,
         **kwargs,
-    ):
+    ) -> None:
         super().__init__(
             server_names=server_names,
             agents=agents,
@@ -90,7 +90,7 @@ class EmbeddingRouter(Router):
         await instance.initialize()
         return instance
 
-    async def initialize(self):
+    async def initialize(self) -> None:
         """Initialize by computing embeddings for all categories"""
 
         async def create_category_with_embedding(
@@ -127,9 +127,7 @@ class EmbeddingRouter(Router):
 
         self.initialized = True
 
-    async def route(
-        self, request: str, top_k: int = 1
-    ) -> List[RouterResult[str | Agent | Callable]]:
+    async def route(self, request: str, top_k: int = 1) -> List[RouterResult[str | Agent | Callable]]:
         """Route the request based on embedding similarity"""
         if not self.initialized:
             await self.initialize()

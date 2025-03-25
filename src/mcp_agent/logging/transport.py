@@ -30,7 +30,7 @@ class EventTransport(Protocol):
     (Kafka, RabbitMQ, REST, etc.).
     """
 
-    async def send_event(self, event: Event):
+    async def send_event(self, event: Event) -> None:
         """
         Send an event to the external system.
         Args:
@@ -44,10 +44,10 @@ class FilteredEventTransport(EventTransport, ABC):
     Event transport that filters events based on a filter before sending.
     """
 
-    def __init__(self, event_filter: EventFilter | None = None):
+    def __init__(self, event_filter: EventFilter | None = None) -> None:
         self.filter = event_filter
 
-    async def send_event(self, event: Event):
+    async def send_event(self, event: Event) -> None:
         if not self.filter or self.filter.matches(event):
             await self.send_matched_event(event)
 
@@ -59,7 +59,7 @@ class FilteredEventTransport(EventTransport, ABC):
 class NoOpTransport(FilteredEventTransport):
     """Default transport that does nothing (purely local)."""
 
-    async def send_matched_event(self, event):
+    async def send_matched_event(self, event) -> None:
         """Do nothing."""
         pass
 
@@ -67,7 +67,7 @@ class NoOpTransport(FilteredEventTransport):
 class ConsoleTransport(FilteredEventTransport):
     """Simple transport that prints events to console."""
 
-    def __init__(self, event_filter: EventFilter | None = None):
+    def __init__(self, event_filter: EventFilter | None = None) -> None:
         super().__init__(event_filter=event_filter)
         # Use shared console instances
         self._serializer = JSONSerializer()
@@ -78,7 +78,7 @@ class ConsoleTransport(FilteredEventTransport):
             "error": "bold red",
         }
 
-    async def send_matched_event(self, event: Event):
+    async def send_matched_event(self, event: Event) -> None:
         # Map log levels to styles
         style = self.log_level_styles.get(event.type, "white")
 
@@ -114,7 +114,7 @@ class FileTransport(FilteredEventTransport):
         event_filter: EventFilter | None = None,
         mode: str = "a",
         encoding: str = "utf-8",
-    ):
+    ) -> None:
         """Initialize FileTransport.
 
         Args:
@@ -186,7 +186,7 @@ class HTTPTransport(FilteredEventTransport):
         batch_size: int = 100,
         timeout: float = 5.0,
         event_filter: EventFilter | None = None,
-    ):
+    ) -> None:
         super().__init__(event_filter=event_filter)
         self.endpoint = endpoint
         self.headers = headers or {}
@@ -198,14 +198,14 @@ class HTTPTransport(FilteredEventTransport):
         self._session: aiohttp.ClientSession | None = None
         self._serializer = JSONSerializer()
 
-    async def start(self):
+    async def start(self) -> None:
         """Initialize HTTP session."""
         if not self._session:
             self._session = aiohttp.ClientSession(
                 headers=self.headers, timeout=aiohttp.ClientTimeout(total=self.timeout)
             )
 
-    async def stop(self):
+    async def stop(self) -> None:
         """Close HTTP session and flush any remaining events."""
         if self.batch:
             await self._flush()
@@ -213,14 +213,14 @@ class HTTPTransport(FilteredEventTransport):
             await self._session.close()
             self._session = None
 
-    async def send_matched_event(self, event: Event):
+    async def send_matched_event(self, event: Event) -> None:
         """Add event to batch, flush if batch is full."""
         async with self.lock:
             self.batch.append(event)
             if len(self.batch) >= self.batch_size:
                 await self._flush()
 
-    async def _flush(self):
+    async def _flush(self) -> None:
         """Send batch of events to HTTP endpoint."""
         if not self.batch:
             return
@@ -266,7 +266,7 @@ class AsyncEventBus:
 
     _instance = None
 
-    def __init__(self, transport: EventTransport | None = None):
+    def __init__(self, transport: EventTransport | None = None) -> None:
         self.transport: EventTransport = transport or NoOpTransport()
         self.listeners: Dict[str, EventListener] = {}
         self._queue = asyncio.Queue()
@@ -306,7 +306,7 @@ class AsyncEventBus:
             # Clear the singleton instance
             cls._instance = None
 
-    async def start(self):
+    async def start(self) -> None:
         """Start the event bus and all lifecycle-aware listeners."""
         if self._running:
             return
@@ -321,7 +321,7 @@ class AsyncEventBus:
         self._running = True
         self._task = asyncio.create_task(self._process_events())
 
-    async def stop(self):
+    async def stop(self) -> None:
         """Stop the event bus and all lifecycle-aware listeners."""
         if not self._running:
             return
@@ -369,7 +369,7 @@ class AsyncEventBus:
                 except Exception as e:
                     print(f"Error stopping listener: {e}")
 
-    async def emit(self, event: Event):
+    async def emit(self, event: Event) -> None:
         """Emit an event to all listeners and transport."""
         # Inject current tracing info if available
         span = trace.get_current_span()
@@ -387,15 +387,15 @@ class AsyncEventBus:
         # Then queue for listeners
         await self._queue.put(event)
 
-    def add_listener(self, name: str, listener: EventListener):
+    def add_listener(self, name: str, listener: EventListener) -> None:
         """Add a listener to the event bus."""
         self.listeners[name] = listener
 
-    def remove_listener(self, name: str):
+    def remove_listener(self, name: str) -> None:
         """Remove a listener from the event bus."""
         self.listeners.pop(name, None)
 
-    async def _process_events(self):
+    async def _process_events(self) -> None:
         """Process events from the queue until stopped."""
         while self._running:
             event = None

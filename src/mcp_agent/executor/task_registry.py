@@ -10,11 +10,11 @@ from typing import Any, Callable, Dict, List
 class ActivityRegistry:
     """Centralized task/activity management with validation and metadata."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._activities: Dict[str, Callable] = {}
         self._metadata: Dict[str, Dict[str, Any]] = {}
 
-    def register(self, name: str, func: Callable, metadata: Dict[str, Any] | None = None):
+    def register(self, name: str, func: Callable, metadata: Dict[str, Any] | None = None) -> None:
         if name in self._activities:
             raise ValueError(f"Activity '{name}' is already registered.")
         self._activities[name] = func

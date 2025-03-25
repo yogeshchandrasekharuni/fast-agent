@@ -29,7 +29,7 @@ else:
 class BaseAgentProxy:
     """Base class for all proxy types"""
 
-    def __init__(self, app: MCPApp, name: str):
+    def __init__(self, app: MCPApp, name: str) -> None:
         self._app = app
         self._name = name
 
@@ -102,7 +102,7 @@ class BaseAgentProxy:
 class LLMAgentProxy(BaseAgentProxy):
     """Proxy for regular agents that use _llm.generate_str()"""
 
-    def __init__(self, app: MCPApp, name: str, agent: Agent):
+    def __init__(self, app: MCPApp, name: str, agent: Agent) -> None:
         super().__init__(app, name)
         self._agent = agent
 
@@ -129,9 +129,7 @@ class LLMAgentProxy(BaseAgentProxy):
         return await self._agent.apply_prompt(prompt_name, arguments)
 
     # Add the new methods
-    async def get_embedded_resources(
-        self, server_name: str, resource_name: str
-    ) -> List[EmbeddedResource]:
+    async def get_embedded_resources(self, server_name: str, resource_name: str) -> List[EmbeddedResource]:
         """
         Get a resource from an MCP server and return it as a list of embedded resources ready for use in prompts.
 
@@ -167,7 +165,7 @@ class LLMAgentProxy(BaseAgentProxy):
 class WorkflowProxy(BaseAgentProxy):
     """Proxy for workflow types that implement generate_str() directly"""
 
-    def __init__(self, app: MCPApp, name: str, workflow: WorkflowType):
+    def __init__(self, app: MCPApp, name: str, workflow: WorkflowType) -> None:
         super().__init__(app, name)
         self._workflow = workflow
 
@@ -179,7 +177,7 @@ class WorkflowProxy(BaseAgentProxy):
 class RouterProxy(BaseAgentProxy):
     """Proxy for LLM Routers"""
 
-    def __init__(self, app: MCPApp, name: str, workflow: WorkflowType):
+    def __init__(self, app: MCPApp, name: str, workflow: WorkflowType) -> None:
         super().__init__(app, name)
         self._workflow = workflow
 
@@ -208,7 +206,7 @@ class RouterProxy(BaseAgentProxy):
 class ChainProxy(BaseAgentProxy):
     """Proxy for chained agent operations"""
 
-    def __init__(self, app: MCPApp, name: str, sequence: List[str], agent_proxies: ProxyDict):
+    def __init__(self, app: MCPApp, name: str, sequence: List[str], agent_proxies: ProxyDict) -> None:
         super().__init__(app, name)
         self._sequence = sequence
         self._agent_proxies = agent_proxies

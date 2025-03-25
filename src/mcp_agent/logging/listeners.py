@@ -26,11 +26,11 @@ class LifecycleAwareListener(EventListener):
     The event bus calls these at bus start/stop time.
     """
 
-    async def start(self):
+    async def start(self) -> None:
         """Start an event listener, usually when the event bus is set up."""
         pass
 
-    async def stop(self):
+    async def stop(self) -> None:
         """Stop an event listener, usually when the event bus is shutting down."""
         pass
 
@@ -41,7 +41,7 @@ class FilteredListener(LifecycleAwareListener):
     Subclasses override _handle_matched_event().
     """
 
-    def __init__(self, event_filter: EventFilter | None = None):
+    def __init__(self, event_filter: EventFilter | None = None) -> None:
         """
         Initialize the listener.
         Args:
@@ -49,11 +49,11 @@ class FilteredListener(LifecycleAwareListener):
         """
         self.filter = event_filter
 
-    async def handle_event(self, event):
+    async def handle_event(self, event) -> None:
         if not self.filter or self.filter.matches(event):
             await self.handle_matched_event(event)
 
-    async def handle_matched_event(self, event: Event):
+    async def handle_matched_event(self, event: Event) -> None:
         """Process an event that matches the filter."""
         pass
 
@@ -67,7 +67,7 @@ class LoggingListener(FilteredListener):
         self,
         event_filter: EventFilter | None = None,
         logger: logging.Logger | None = None,
-    ):
+    ) -> None:
         """
         Initialize the listener.
         Args:
@@ -76,7 +76,7 @@ class LoggingListener(FilteredListener):
         super().__init__(event_filter=event_filter)
         self.logger = logger or logging.getLogger("mcp_agent")
 
-    async def handle_matched_event(self, event):
+    async def handle_matched_event(self, event) -> None:
         level_map: Dict[EventType, int] = {
             "debug": logging.DEBUG,
             "info": logging.INFO,
@@ -112,7 +112,7 @@ class ProgressListener(LifecycleAwareListener):
     FilteredListener, we get events before any filtering occurs.
     """
 
-    def __init__(self, display=None):
+    def __init__(self, display=None) -> None:
         """Initialize the progress listener.
         Args:
             display: Optional display handler. If None, the shared progress_display will be used.
@@ -121,15 +121,15 @@ class ProgressListener(LifecycleAwareListener):
 
         self.display = display or progress_display
 
-    async def start(self):
+    async def start(self) -> None:
         """Start the progress display."""
         self.display.start()
 
-    async def stop(self):
+    async def stop(self) -> None:
         """Stop the progress display."""
         self.display.stop()
 
-    async def handle_event(self, event: Event):
+    async def handle_event(self, event: Event) -> None:
         """Process an incoming event and display progress if relevant."""
 
         if event.data:
@@ -149,7 +149,7 @@ class BatchingListener(FilteredListener):
         event_filter: EventFilter | None = None,
         batch_size: int = 5,
         flush_interval: float = 2.0,
-    ):
+    ) -> None:
         """
         Initialize the listener.
         Args:
@@ -164,12 +164,12 @@ class BatchingListener(FilteredListener):
         self._flush_task: asyncio.Task | None = None  # Task for periodic flush loop
         self._stop_event = None  # Event to signal flush task to stop
 
-    async def start(self, loop=None):
+    async def start(self, loop=None) -> None:
         """Spawn a periodic flush loop."""
         self._stop_event = asyncio.Event()
         self._flush_task = asyncio.create_task(self._periodic_flush())
 
-    async def stop(self):
+    async def stop(self) -> None:
         """Stop flush loop and flush any remaining events."""
         if self._stop_event:
             self._stop_event.set()
@@ -180,7 +180,7 @@ class BatchingListener(FilteredListener):
             self._flush_task = None
         await self.flush()
 
-    async def _periodic_flush(self):
+    async def _periodic_flush(self) -> None:
         try:
             while not self._stop_event.is_set():
                 try:
@@ -192,12 +192,12 @@ class BatchingListener(FilteredListener):
         finally:
             await self.flush()  # Final flush
 
-    async def handle_matched_event(self, event):
+    async def handle_matched_event(self, event) -> None:
         self.batch.append(event)
         if len(self.batch) >= self.batch_size:
             await self.flush()
 
-    async def flush(self):
+    async def flush(self) -> None:
         """Flush the current batch of events."""
         if not self.batch:
             return
@@ -206,5 +206,5 @@ class BatchingListener(FilteredListener):
         self.last_flush = time.time()
         await self._process_batch(to_process)
 
-    async def _process_batch(self, events: List[Event]):
+    async def _process_batch(self, events: List[Event]) -> None:
         pass

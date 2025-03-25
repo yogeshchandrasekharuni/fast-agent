@@ -11,7 +11,7 @@ class Memory(Protocol, Generic[MessageParamT]):
 
     # TODO: saqadri - add checkpointing and other advanced memory capabilities
 
-    def __init__(self): ...
+    def __init__(self) -> None: ...
 
     def extend(self, messages: List[MessageParamT], is_prompt: bool = False) -> None: ...
 
@@ -32,11 +32,11 @@ class SimpleMemory(Memory, Generic[MessageParamT]):
     generated conversation history (which is included based on use_history setting).
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.history: List[MessageParamT] = []
         self.prompt_messages: List[MessageParamT] = []  # Always included
 
-    def extend(self, messages: List[MessageParamT], is_prompt: bool = False):
+    def extend(self, messages: List[MessageParamT], is_prompt: bool = False) -> None:
         """
         Add multiple messages to history.
 
@@ -49,7 +49,7 @@ class SimpleMemory(Memory, Generic[MessageParamT]):
         else:
             self.history.extend(messages)
 
-    def set(self, messages: List[MessageParamT], is_prompt: bool = False):
+    def set(self, messages: List[MessageParamT], is_prompt: bool = False) -> None:
         """
         Replace messages in history.
 
@@ -62,7 +62,7 @@ class SimpleMemory(Memory, Generic[MessageParamT]):
         else:
             self.history = messages.copy()
 
-    def append(self, message: MessageParamT, is_prompt: bool = False):
+    def append(self, message: MessageParamT, is_prompt: bool = False) -> None:
         """
         Add a single message to history.
 
@@ -91,7 +91,7 @@ class SimpleMemory(Memory, Generic[MessageParamT]):
         else:
             return self.prompt_messages.copy()
 
-    def clear(self, clear_prompts: bool = False):
+    def clear(self, clear_prompts: bool = False) -> None:
         """
         Clear history and optionally prompt messages.
 

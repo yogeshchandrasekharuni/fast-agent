@@ -63,7 +63,7 @@ class ServerConnection:
             ClientSession,
         ],
         init_hook: Optional["InitHookCallable"] = None,
-    ):
+    ) -> None:
         self.server_name = server_name
         self.server_config = server_config
         self.session: ClientSession | None = None
@@ -133,11 +133,7 @@ class ServerConnection:
         Create a new session instance for this server connection.
         """
 
-        read_timeout = (
-            timedelta(seconds=self.server_config.read_timeout_seconds)
-            if self.server_config.read_timeout_seconds
-            else None
-        )
+        read_timeout = timedelta(seconds=self.server_config.read_timeout_seconds) if self.server_config.read_timeout_seconds else None
 
         session = self._client_session_factory(read_stream, send_stream, read_timeout)
 
@@ -191,7 +187,7 @@ class MCPConnectionManager(ContextDependent):
     Integrates with the application context system for proper resource management.
     """
 
-    def __init__(self, server_registry: "ServerRegistry", context: Optional["Context"] = None):
+    def __init__(self, server_registry: "ServerRegistry", context: Optional["Context"] = None) -> None:
         super().__init__(context=context)
         self.server_registry = server_registry
         self.running_servers: Dict[str, ServerConnection] = {}
@@ -321,17 +317,13 @@ class MCPConnectionManager(ContextDependent):
         # Check if the server is healthy after initialization
         if not server_conn.is_healthy():
             error_msg = server_conn._error_message or "Unknown error"
-            raise ServerInitializationError(
-                f"MCP Server: '{server_name}': Failed to initialize with error: '{error_msg}'. Check fastagent.config.yaml"
-            )
+            raise ServerInitializationError(f"MCP Server: '{server_name}': Failed to initialize with error: '{error_msg}'. Check fastagent.config.yaml")
 
         return server_conn
 
     async def get_server_capabilities(self, server_name: str) -> ServerCapabilities | None:
         """Get the capabilities of a specific server."""
-        server_conn = await self.get_server(
-            server_name, client_session_factory=MCPAgentClientSession
-        )
+        server_conn = await self.get_server(server_name, client_session_factory=MCPAgentClientSession)
         return server_conn.server_capabilities if server_conn else None
 
     async def disconnect_server(self, server_name: str) -> None:

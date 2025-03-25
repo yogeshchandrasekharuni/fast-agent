@@ -33,7 +33,7 @@ def get_key() -> str:
 class EventDisplay:
     """Display MCP events from a log file."""
 
-    def __init__(self, events: List[Event]):
+    def __init__(self, events: List[Event]) -> None:
         self.events = events
         self.total = len(events)
         self.current = 0
@@ -123,9 +123,7 @@ class EventDisplay:
                 current_event = self.events[self.current]
                 agent = current_event.data.get("data", {}).get("agent_name", "")
                 if not agent:  # Fallback to namespace if agent_name not found
-                    agent = (
-                        current_event.namespace.split(".")[-1] if current_event.namespace else ""
-                    )
+                    agent = current_event.namespace.split(".")[-1] if current_event.namespace else ""
                 if agent:
                     progress_text.append("Agent: ", style="bold")
                     progress_text.append(f"{agent}\n", style="yellow")
@@ -185,7 +183,7 @@ def load_events(path: Path) -> List[Event]:
     return events
 
 
-def main(log_file: str):
+def main(log_file: str) -> None:
     """View MCP Agent events from a log file."""
     events = load_events(Path(log_file))
     if not events:

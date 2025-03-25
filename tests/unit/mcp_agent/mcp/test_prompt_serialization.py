@@ -106,10 +106,7 @@ class TestPromptSerialization:
         assert delimited_content[0] == "---USER"
         assert delimited_content[1] == "Hello!\n\nCan you help me?"
         assert delimited_content[2] == "---ASSISTANT"
-        assert (
-            delimited_content[3]
-            == "Sure, I'd be happy to help.\n\nWhat do you need assistance with?"
-        )
+        assert delimited_content[3] == "Sure, I'd be happy to help.\n\nWhat do you need assistance with?"
 
     def test_multipart_with_resources_to_delimited_format(self):
         """Test converting PromptMessageMultipart with resources to delimited format."""

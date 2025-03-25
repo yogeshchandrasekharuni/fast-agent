@@ -23,7 +23,7 @@ class OpenAIEmbeddingRouter(EmbeddingRouter):
         embedding_model: OpenAIEmbeddingModel | None = None,
         context: Optional["Context"] = None,
         **kwargs,
-    ):
+    ) -> None:
         embedding_model = embedding_model or OpenAIEmbeddingModel()
 
         super().__init__(

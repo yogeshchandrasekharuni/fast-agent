@@ -23,7 +23,7 @@ class CohereEmbeddingRouter(EmbeddingRouter):
         embedding_model: CohereEmbeddingModel | None = None,
         context: Optional["Context"] = None,
         **kwargs,
-    ):
+    ) -> None:
         embedding_model = embedding_model or CohereEmbeddingModel()
 
         super().__init__(

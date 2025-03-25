@@ -67,12 +67,10 @@ class StepResult(BaseModel):
     """Result of executing a step"""
 
     step: Step = Field(description="The step that was executed", default_factory=Step)
-    task_results: List[TaskWithResult] = Field(
-        description="Results of executing each task", default_factory=list
-    )
+    task_results: List[TaskWithResult] = Field(description="Results of executing each task", default_factory=list)
     result: str = Field(description="Result of executing the step", default="Step completed")
 
-    def add_task_result(self, task_result: TaskWithResult):
+    def add_task_result(self, task_result: TaskWithResult) -> None:
         """Add a task result to this step"""
         if not isinstance(self.task_results, list):
             self.task_results = []
@@ -100,7 +98,7 @@ class PlanResult(BaseModel):
     result: str | None = None
     """Result of executing the plan"""
 
-    def add_step_result(self, step_result: StepResult):
+    def add_step_result(self, step_result: StepResult) -> None:
         """Add a step result to this plan"""
         if not isinstance(self.step_results, list):
             self.step_results = []
@@ -115,16 +113,12 @@ class NextStep(Step):
 
 def format_task_result_text(task_result: TaskWithResult) -> str:
     """Format a task result as plain text for display"""
-    return TASK_RESULT_TEMPLATE.format(
-        task_description=task_result.description, task_result=task_result.result
-    )
+    return TASK_RESULT_TEMPLATE.format(task_description=task_result.description, task_result=task_result.result)
 
 
 def format_step_result_text(step_result: StepResult) -> str:
     """Format a step result as plain text for display"""
-    tasks_str = "\n".join(
-        f"  - {format_task_result_text(task)}" for task in step_result.task_results
-    )
+    tasks_str = "\n".join(f"  - {format_task_result_text(task)}" for task in step_result.task_results)
     return STEP_RESULT_TEMPLATE.format(
         step_description=step_result.step.description,
         step_result=step_result.result,
@@ -135,10 +129,7 @@ def format_step_result_text(step_result: StepResult) -> str:
 def format_plan_result_text(plan_result: PlanResult) -> str:
     """Format the full plan execution state as plain text for display"""
     steps_str = (
-        "\n\n".join(
-            f"{i + 1}:\n{format_step_result_text(step)}"
-            for i, step in enumerate(plan_result.step_results)
-        )
+        "\n\n".join(f"{i + 1}:\n{format_step_result_text(step)}" for i, step in enumerate(plan_result.step_results))
         if plan_result.step_results
         else "No steps executed yet"
     )
@@ -156,13 +147,8 @@ def format_task_result_xml(task_result: TaskWithResult) -> str:
 
     return format_fastagent_tag(
         "task-result",
-        f"\n<fastagent:description>{task_result.description}</fastagent:description>\n"
-        f"<fastagent:result>{task_result.result}</fastagent:result>\n",
-        {
-            "description": task_result.description[:50] + "..."
-            if len(task_result.description) > 50
-            else task_result.description
-        },
+        f"\n<fastagent:description>{task_result.description}</fastagent:description>\n" f"<fastagent:result>{task_result.result}</fastagent:result>\n",
+        {"description": task_result.description[:50] + "..." if len(task_result.description) > 50 else task_result.description},
     )
 
 
@@ -211,9 +197,7 @@ def format_plan_result(plan_result: PlanResult) -> str:
     else:
         # No steps executed yet
         progress_content = (
-            f"{objective_tag}\n"
-            f"<fastagent:steps>No steps executed yet</fastagent:steps>\n"
-            f"<fastagent:status>Not Started</fastagent:status>\n"
+            f"{objective_tag}\n" f"<fastagent:steps>No steps executed yet</fastagent:steps>\n" f"<fastagent:status>Not Started</fastagent:status>\n"
         )
 
     return format_fastagent_tag("progress", progress_content)

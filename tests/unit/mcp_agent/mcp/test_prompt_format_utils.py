@@ -128,9 +128,7 @@ I've reviewed your CSS and made it more efficient:
 }"""
 
         # Convert to multipart messages
-        messages = delimited_format_to_multipart_messages(
-            delimited_content, resource_delimiter="---RESOURCE"
-        )
+        messages = delimited_format_to_multipart_messages(delimited_content, resource_delimiter="---RESOURCE")
 
         # Verify structure
         assert len(messages) == 2
@@ -354,9 +352,7 @@ analysis.md""")
         assert len(result_messages[0].content) == 3  # Text and two resources
 
         # The resource URIs should be preserved
-        resources = [
-            content for content in result_messages[0].content if content.type == "resource"
-        ]
+        resources = [content for content in result_messages[0].content if content.type == "resource"]
         assert len(resources) == 2
 
         # Resource URIs should be preserved

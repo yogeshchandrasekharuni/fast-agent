@@ -50,7 +50,7 @@ fast = FastAgent("Evaluator-Optimizer")
     min_rating="EXCELLENT",  # Strive for excellence
     max_refinements=3,  # Maximum iterations
 )
-async def main():
+async def main() -> None:
     async with fast.run() as agent:
         job_posting = (
             "Software Engineer at LastMile AI. Responsibilities include developing AI systems, "

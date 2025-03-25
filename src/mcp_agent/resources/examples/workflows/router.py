@@ -44,7 +44,7 @@ SAMPLE_REQUESTS = [
     model="sonnet",
     agents=["code_expert", "general_assistant", "fetcher"],
 )
-async def main():
+async def main() -> None:
     async with fast.run() as agent:
         for request in SAMPLE_REQUESTS:
             await agent.route(request)

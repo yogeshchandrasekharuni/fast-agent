@@ -21,7 +21,7 @@ class PlaybackLLM(PassthroughLLM):
     been played back, it returns a message indicating that messages are exhausted.
     """
 
-    def __init__(self, name: str = "Playback", **kwargs):
+    def __init__(self, name: str = "Playback", **kwargs) -> None:
         super().__init__(name=name, **kwargs)
         self._messages: List[PromptMessage] = []
         self._current_index = 0

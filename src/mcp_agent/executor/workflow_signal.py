@@ -71,14 +71,14 @@ class PendingSignal(BaseModel):
 class BaseSignalHandler(ABC, Generic[SignalValueT]):
     """Base class implementing common signal handling functionality."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         # Map signal_name -> list of PendingSignal objects
         self._pending_signals: Dict[str, List[PendingSignal]] = {}
         # Map signal_name -> list of (unique_name, handler) tuples
         self._handlers: Dict[str, List[tuple[str, Callable]]] = {}
         self._lock = asyncio.Lock()
 
-    async def cleanup(self, signal_name: str | None = None):
+    async def cleanup(self, signal_name: str | None = None) -> None:
         """Clean up handlers and registrations for a signal or all signals."""
         async with self._lock:
             if signal_name:
@@ -90,7 +90,7 @@ class BaseSignalHandler(ABC, Generic[SignalValueT]):
                 self._handlers.clear()
                 self._pending_signals.clear()
 
-    def validate_signal(self, signal: Signal[SignalValueT]):
+    def validate_signal(self, signal: Signal[SignalValueT]) -> None:
         """Validate signal properties."""
         if not signal.name:
             raise ValueError("Signal name is required")
@@ -102,7 +102,7 @@ class BaseSignalHandler(ABC, Generic[SignalValueT]):
         def decorator(func: Callable) -> Callable:
             unique_name = f"{signal_name}_{uuid.uuid4()}"
 
-            async def wrapped(value: SignalValueT):
+            async def wrapped(value: SignalValueT) -> None:
                 try:
                     if asyncio.iscoroutinefunction(func):
                         await func(value)
@@ -133,7 +133,7 @@ class BaseSignalHandler(ABC, Generic[SignalValueT]):
 class ConsoleSignalHandler(SignalHandler[str]):
     """Simple console-based signal handling (blocks on input)."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._pending_signals: Dict[str, List[PendingSignal]] = {}
         self._handlers: Dict[str, List[Callable]] = {}
 
@@ -147,9 +147,7 @@ class ConsoleSignalHandler(SignalHandler[str]):
         loop = asyncio.get_event_loop()
         if timeout_seconds is not None:
             try:
-                value = await asyncio.wait_for(
-                    loop.run_in_executor(None, input, "Enter value: "), timeout_seconds
-                )
+                value = await asyncio.wait_for(loop.run_in_executor(None, input, "Enter value: "), timeout_seconds)
             except asyncio.TimeoutError:
                 print("\nTimeout waiting for input")
                 raise
@@ -163,7 +161,7 @@ class ConsoleSignalHandler(SignalHandler[str]):
 
     def on_signal(self, signal_name):
         def decorator(func):
-            async def wrapped(value: SignalValueT):
+            async def wrapped(value: SignalValueT) -> None:
                 if asyncio.iscoroutinefunction(func):
                     await func(value)
                 else:
@@ -174,7 +172,7 @@ class ConsoleSignalHandler(SignalHandler[str]):
 
         return decorator
 
-    async def signal(self, signal):
+    async def signal(self, signal) -> None:
         print(f"[SIGNAL SENT: {signal.name}] Value: {signal.payload}")
 
         handlers = self._handlers.get(signal.name, [])
@@ -222,17 +220,13 @@ class AsyncioSignalHandler(BaseSignalHandler[SignalValueT]):
             async with self._lock:
                 # Remove from pending signals
                 if signal.name in self._pending_signals:
-                    self._pending_signals[signal.name] = [
-                        ps
-                        for ps in self._pending_signals[signal.name]
-                        if ps.registration.unique_name != unique_name
-                    ]
+                    self._pending_signals[signal.name] = [ps for ps in self._pending_signals[signal.name] if ps.registration.unique_name != unique_name]
                     if not self._pending_signals[signal.name]:
                         del self._pending_signals[signal.name]
 
     def on_signal(self, signal_name):
         def decorator(func):
-            async def wrapped(value: SignalValueT):
+            async def wrapped(value: SignalValueT) -> None:
                 if asyncio.iscoroutinefunction(func):
                     await func(value)
                 else:
@@ -243,7 +237,7 @@ class AsyncioSignalHandler(BaseSignalHandler[SignalValueT]):
 
         return decorator
 
-    async def signal(self, signal):
+    async def signal(self, signal) -> None:
         async with self._lock:
             # Notify any waiting coroutines
             if signal.name in self._pending_signals:
@@ -268,11 +262,11 @@ class LocalSignalStore:
     and triggers them when a signal is emitted.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         # For each signal_name, store a list of futures that are waiting for it
         self._waiters: Dict[str, List[asyncio.Future]] = {}
 
-    async def emit(self, signal_name: str, payload: Any):
+    async def emit(self, signal_name: str, payload: Any) -> None:
         # If we have waiting futures, set their result
         if signal_name in self._waiters:
             for future in self._waiters[signal_name]:

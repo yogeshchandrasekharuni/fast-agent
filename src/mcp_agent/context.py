@@ -64,7 +64,7 @@ class Context(BaseModel):
     )
 
 
-async def configure_otel(config: "Settings"):
+async def configure_otel(config: "Settings") -> None:
     """
     Configure OpenTelemetry based on the application config.
     """
@@ -114,7 +114,7 @@ async def configure_otel(config: "Settings"):
     trace.set_tracer_provider(tracer_provider)
 
 
-async def configure_logger(config: "Settings"):
+async def configure_logger(config: "Settings") -> None:
     """
     Configure logging and tracing based on the application config.
     """
@@ -130,7 +130,7 @@ async def configure_logger(config: "Settings"):
     )
 
 
-async def configure_usage_telemetry(_config: "Settings"):
+async def configure_usage_telemetry(_config: "Settings") -> None:
     """
     Configure usage telemetry based on the application config.
     TODO: saqadri - implement usage tracking
@@ -156,9 +156,7 @@ async def configure_executor(config: "Settings"):
         return executor
 
 
-async def initialize_context(
-    config: Optional[Union["Settings", str]] = None, store_globally: bool = False
-):
+async def initialize_context(config: Optional[Union["Settings", str]] = None, store_globally: bool = False):
     """
     Initialize the global application context.
     """
@@ -193,7 +191,7 @@ async def initialize_context(
     return context
 
 
-async def cleanup_context():
+async def cleanup_context() -> None:
     """
     Cleanup the global application context.
     """

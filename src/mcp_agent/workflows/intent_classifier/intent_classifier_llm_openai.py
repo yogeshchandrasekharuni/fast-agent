@@ -27,7 +27,7 @@ class OpenAILLMIntentClassifier(LLMIntentClassifier):
         classification_instruction: str | None = None,
         context: Optional["Context"] = None,
         **kwargs,
-    ):
+    ) -> None:
         openai_llm = OpenAIAugmentedLLM(instruction=CLASSIFIER_SYSTEM_INSTRUCTION, context=context)
 
         super().__init__(

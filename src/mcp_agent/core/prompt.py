@@ -54,14 +54,10 @@ class Prompt:
             A PromptMessageMultipart with assistant role and the specified content
         """
         messages = Assistant(*content_items)
-        return PromptMessageMultipart(
-            role="assistant", content=[msg["content"] for msg in messages]
-        )
+        return PromptMessageMultipart(role="assistant", content=[msg["content"] for msg in messages])
 
     @classmethod
-    def message(
-        cls, *content_items, role: Literal["user", "assistant"] = "user"
-    ) -> PromptMessageMultipart:
+    def message(cls, *content_items, role: Literal["user", "assistant"] = "user") -> PromptMessageMultipart:
         """
         Create a PromptMessageMultipart with the specified role and content items.
 

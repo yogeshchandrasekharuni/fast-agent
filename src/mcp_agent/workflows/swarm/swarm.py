@@ -90,7 +90,7 @@ class SwarmAgent(Agent):
         human_input_callback: HumanInputCallback = None,
         context: Optional["Context"] = None,
         **kwargs,
-    ):
+    ) -> None:
         super().__init__(
             name=name,
             instruction=instruction,
@@ -182,18 +182,14 @@ class Swarm(AugmentedLLM[MessageParamT, MessageT], Generic[MessageParamT, Messag
     """
 
     # TODO: saqadri - streaming isn't supported yet because the underlying AugmentedLLM classes don't support it
-    def __init__(self, agent: SwarmAgent, context_variables: Dict[str, str] = None):
+    def __init__(self, agent: SwarmAgent, context_variables: Dict[str, str] = None) -> None:
         """
         Initialize the LLM planner with an agent, which will be used as the
         starting point for the workflow.
         """
         super().__init__(agent=agent)
         self.context_variables = defaultdict(str, context_variables or {})
-        self.instruction = (
-            agent.instruction(self.context_variables)
-            if isinstance(agent.instruction, Callable)
-            else agent.instruction
-        )
+        self.instruction = agent.instruction(self.context_variables) if isinstance(agent.instruction, Callable) else agent.instruction
         logger.debug(
             f"Swarm initialized with agent {agent.name}",
             data={
@@ -211,18 +207,14 @@ class Swarm(AugmentedLLM[MessageParamT, MessageT], Generic[MessageParamT, Messag
 
         return None
 
-    async def pre_tool_call(
-        self, tool_call_id: str | None, request: CallToolRequest
-    ) -> CallToolRequest | bool:
+    async def pre_tool_call(self, tool_call_id: str | None, request: CallToolRequest) -> CallToolRequest | bool:
         if not self.aggregator:
             # If there are no agents, we can't do anything, so we should bail
             return False
 
         tool = await self.get_tool(request.params.name)
         if not tool:
-            logger.warning(
-                f"Warning: Tool '{request.params.name}' not found in agent '{self.aggregator.name}' tools. Proceeding with original request params."
-            )
+            logger.warning(f"Warning: Tool '{request.params.name}' not found in agent '{self.aggregator.name}' tools. Proceeding with original request params.")
             return request
 
         # If the tool has a "context_variables" parameter, we set it to our context variables state
@@ -235,9 +227,7 @@ class Swarm(AugmentedLLM[MessageParamT, MessageT], Generic[MessageParamT, Messag
 
         return request
 
-    async def post_tool_call(
-        self, tool_call_id: str | None, request: CallToolRequest, result: CallToolResult
-    ) -> CallToolResult:
+    async def post_tool_call(self, tool_call_id: str | None, request: CallToolRequest, result: CallToolResult) -> CallToolResult:
         contents = []
         for content in result.content:
             if isinstance(content, AgentResource):
@@ -264,10 +254,8 @@ class Swarm(AugmentedLLM[MessageParamT, MessageT], Generic[MessageParamT, Messag
     async def set_agent(
         self,
         agent: SwarmAgent,
-    ):
-        logger.info(
-            f"Switching from agent '{self.aggregator.name}' -> agent '{agent.name if agent else 'NULL'}'"
-        )
+    ) -> None:
+        logger.info(f"Switching from agent '{self.aggregator.name}' -> agent '{agent.name if agent else 'NULL'}'")
         if self.aggregator:
             # Close the current agent
             await self.aggregator.shutdown()
@@ -280,11 +268,7 @@ class Swarm(AugmentedLLM[MessageParamT, MessageT], Generic[MessageParamT, Messag
             return
 
         await self.aggregator.initialize()
-        self.instruction = (
-            agent.instruction(self.context_variables)
-            if callable(agent.instruction)
-            else agent.instruction
-        )
+        self.instruction = agent.instruction(self.context_variables) if callable(agent.instruction) else agent.instruction
 
     def should_continue(self) -> bool:
         """
@@ -301,7 +285,7 @@ class DoneAgent(SwarmAgent):
     A special agent that represents the end of a Swarm workflow.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__(name="__done__", instruction="Swarm Workflow is complete.")
 
     async def call_tool(self, _name: str, _arguments: dict | None = None) -> CallToolResult:

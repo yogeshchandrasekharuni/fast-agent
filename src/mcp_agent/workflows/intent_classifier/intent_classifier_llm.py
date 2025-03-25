@@ -76,7 +76,7 @@ class LLMIntentClassifier(IntentClassifier):
         classification_instruction: str | None = None,
         context: Optional["Context"] = None,
         **kwargs,
-    ):
+    ) -> None:
         super().__init__(intents=intents, context=context, **kwargs)
         self.llm = llm
         self.classification_instruction = classification_instruction
@@ -104,9 +104,7 @@ class LLMIntentClassifier(IntentClassifier):
         if not self.initialized:
             self.initialize()
 
-        classification_instruction = (
-            self.classification_instruction or DEFAULT_INTENT_CLASSIFICATION_INSTRUCTION
-        )
+        classification_instruction = self.classification_instruction or DEFAULT_INTENT_CLASSIFICATION_INSTRUCTION
 
         # Generate the context with intent descriptions and examples
         context = self._generate_context()
@@ -115,9 +113,7 @@ class LLMIntentClassifier(IntentClassifier):
         prompt = classification_instruction.format(context=context, request=request, top_k=top_k)
 
         # Get classification from LLM
-        response = await self.llm.generate_structured(
-            message=prompt, response_model=StructuredIntentResponse
-        )
+        response = await self.llm.generate_structured(message=prompt, response_model=StructuredIntentResponse)
 
         if not response or not response.classifications:
             return []

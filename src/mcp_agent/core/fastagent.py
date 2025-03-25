@@ -72,7 +72,7 @@ class FastAgent:
         name: str,
         config_path: Optional[str] = None,
         ignore_unknown_args: bool = False,
-    ):
+    ) -> None:
         """
         Initialize the decorator interface.
 
@@ -229,9 +229,7 @@ class FastAgent:
         """
         return await self._create_agents_by_type(agent_app, AgentType.ORCHESTRATOR, active_agents)
 
-    async def _create_evaluator_optimizers(
-        self, agent_app: MCPApp, active_agents: ProxyDict
-    ) -> ProxyDict:
+    async def _create_evaluator_optimizers(self, agent_app: MCPApp, active_agents: ProxyDict) -> ProxyDict:
         """
         Create evaluator-optimizer workflows.
 
@@ -242,13 +240,9 @@ class FastAgent:
         Returns:
             Dictionary of initialized evaluator-optimizer workflows
         """
-        return await self._create_agents_by_type(
-            agent_app, AgentType.EVALUATOR_OPTIMIZER, active_agents
-        )
+        return await self._create_agents_by_type(agent_app, AgentType.EVALUATOR_OPTIMIZER, active_agents)
 
-    async def _create_parallel_agents(
-        self, agent_app: MCPApp, active_agents: ProxyDict
-    ) -> ProxyDict:
+    async def _create_parallel_agents(self, agent_app: MCPApp, active_agents: ProxyDict) -> ProxyDict:
         """
         Create parallel execution agents in dependency order.
 
@@ -268,9 +262,7 @@ class FastAgent:
             model_factory_func,
         )
 
-    async def _create_agents_in_dependency_order(
-        self, agent_app: MCPApp, active_agents: ProxyDict, agent_type: AgentType
-    ) -> ProxyDict:
+    async def _create_agents_in_dependency_order(self, agent_app: MCPApp, active_agents: ProxyDict, agent_type: AgentType) -> ProxyDict:
         """
         Create agents in dependency order to avoid circular references.
         Works for both Parallel and Chain workflows.
@@ -284,9 +276,7 @@ class FastAgent:
             Dictionary of initialized agents
         """
         model_factory_func = partial(self._get_model_factory)
-        return await create_agents_in_dependency_order(
-            agent_app, self.agents, active_agents, agent_type, model_factory_func
-        )
+        return await create_agents_in_dependency_order(agent_app, self.agents, active_agents, agent_type, model_factory_func)
 
     async def _create_routers(self, agent_app: MCPApp, active_agents: ProxyDict) -> ProxyDict:
         """
@@ -317,11 +307,7 @@ class FastAgent:
         try:
             async with self.app.run() as agent_app:
                 # Apply quiet mode directly to the context's config if needed
-                if (
-                    quiet_mode
-                    and hasattr(agent_app.context, "config")
-                    and hasattr(agent_app.context.config, "logger")
-                ):
+                if quiet_mode and hasattr(agent_app.context, "config") and hasattr(agent_app.context.config, "logger"):
                     # Apply after initialization but before agents are created
                     agent_app.context.config.logger.progress_display = False
                     agent_app.context.config.logger.show_chat = False
@@ -349,15 +335,11 @@ class FastAgent:
                 active_agents.update(routers)
 
                 # Create chains next - MOVED UP because evaluator-optimizers might depend on chains
-                chains = await self._create_agents_in_dependency_order(
-                    agent_app, active_agents, AgentType.CHAIN
-                )
+                chains = await self._create_agents_in_dependency_order(agent_app, active_agents, AgentType.CHAIN)
                 active_agents.update(chains)
 
                 # Now create evaluator-optimizers AFTER chains are available
-                evaluator_optimizers = await self._create_evaluator_optimizers(
-                    agent_app, active_agents
-                )
+                evaluator_optimizers = await self._create_evaluator_optimizers(agent_app, active_agents)
                 active_agents.update(evaluator_optimizers)
 
                 # Create orchestrators last as they might depend on any other agent type
@@ -379,9 +361,7 @@ class FastAgent:
 
                     if agent_name not in active_agents:
                         available_agents = ", ".join(active_agents.keys())
-                        print(
-                            f"\n\nError: Agent '{agent_name}' not found. Available agents: {available_agents}"
-                        )
+                        print(f"\n\nError: Agent '{agent_name}' not found. Available agents: {available_agents}")
                         raise SystemExit(1)
 
                     try:
@@ -517,7 +497,7 @@ class FastAgent:
         port: int = 8000,
         server_name: str = None,
         server_description: str = None,
-    ):
+    ) -> None:
         """
         Run the FastAgent application and expose agents through an MCP server.
 
@@ -537,9 +517,7 @@ class FastAgent:
             )
 
             # Run the MCP server in a separate task
-            server_task = asyncio.create_task(
-                mcp_server.run_async(transport=transport, host=host, port=port)
-            )
+            server_task = asyncio.create_task(mcp_server.run_async(transport=transport, host=host, port=port))
 
             try:
                 # Wait for the server task to complete (or be cancelled)

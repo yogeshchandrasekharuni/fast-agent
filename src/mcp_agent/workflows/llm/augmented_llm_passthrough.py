@@ -25,7 +25,7 @@ class PassthroughLLM(AugmentedLLM):
     parallel workflow where no fan-in aggregation is needed.
     """
 
-    def __init__(self, name: str = "Passthrough", context=None, **kwargs):
+    def __init__(self, name: str = "Passthrough", context=None, **kwargs) -> None:
         super().__init__(name=name, context=context, **kwargs)
         self.provider = "fast-agent"
         # Initialize logger - keep it simple without name reference
@@ -158,15 +158,9 @@ class PassthroughLLM(AugmentedLLM):
         elif isinstance(message, str):
             return response_model.model_validate(from_json(message, allow_partial=True))
 
-    async def generate_prompt(
-        self, prompt: "PromptMessageMultipart", request_params: RequestParams | None
-    ) -> str:
+    async def generate_prompt(self, prompt: "PromptMessageMultipart", request_params: RequestParams | None) -> str:
         # Check if this prompt contains a tool call command
-        if (
-            prompt.content
-            and prompt.content[0].text
-            and prompt.content[0].text.startswith("***CALL_TOOL ")
-        ):
+        if prompt.content and prompt.content[0].text and prompt.content[0].text.startswith("***CALL_TOOL "):
             return await self._call_tool_and_return_result(prompt.content[0].text)
 
         # Process all parts of the PromptMessageMultipart

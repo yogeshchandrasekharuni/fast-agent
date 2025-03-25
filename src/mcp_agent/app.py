@@ -44,7 +44,7 @@ class MCPApp:
         human_input_callback: Optional[HumanInputCallback] = console_input_callback,
         signal_notification: Optional[SignalWaitCallback] = None,
         upstream_session: Optional["ServerSession"] = None,
-    ):
+    ) -> None:
         """
         Initialize the application with a name and optional settings.
         Args:
@@ -71,9 +71,7 @@ class MCPApp:
     @property
     def context(self) -> Context:
         if self._context is None:
-            raise RuntimeError(
-                "MCPApp not initialized, please call initialize() first, or use async with app.run()."
-            )
+            raise RuntimeError("MCPApp not initialized, please call initialize() first, or use async with app.run().")
         return self._context
 
     @property
@@ -97,7 +95,7 @@ class MCPApp:
         return self._context.upstream_session
 
     @upstream_session.setter
-    def upstream_session(self, value):
+    def upstream_session(self, value) -> None:
         self._context.upstream_session = value
 
     @property
@@ -114,7 +112,7 @@ class MCPApp:
             self._logger = get_logger(f"mcp_agent.{self.name}")
         return self._logger
 
-    async def initialize(self):
+    async def initialize(self) -> None:
         """Initialize the application."""
         if self._initialized:
             return
@@ -136,7 +134,7 @@ class MCPApp:
             },
         )
 
-    async def cleanup(self):
+    async def cleanup(self) -> None:
         """Cleanup application resources."""
         if not self._initialized:
             return

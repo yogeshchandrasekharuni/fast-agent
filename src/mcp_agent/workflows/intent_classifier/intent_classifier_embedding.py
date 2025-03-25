@@ -43,7 +43,7 @@ class EmbeddingIntentClassifier(IntentClassifier):
         embedding_model: EmbeddingModel,
         context: Optional["Context"] = None,
         **kwargs,
-    ):
+    ) -> None:
         super().__init__(intents=intents, context=context, **kwargs)
         self.embedding_model = embedding_model
         self.initialized = False
@@ -65,7 +65,7 @@ class EmbeddingIntentClassifier(IntentClassifier):
         await instance.initialize()
         return instance
 
-    async def initialize(self):
+    async def initialize(self) -> None:
         """
         Precompute embeddings for all intents by combining their
         descriptions and examples

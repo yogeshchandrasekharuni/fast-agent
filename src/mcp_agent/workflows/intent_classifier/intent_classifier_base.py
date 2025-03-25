@@ -55,7 +55,7 @@ class IntentClassifier(ABC):
         - Determining the type of analysis requested for a dataset
     """
 
-    def __init__(self, intents: List[Intent], context: Optional["Context"] = None, **kwargs):
+    def __init__(self, intents: List[Intent], context: Optional["Context"] = None, **kwargs) -> None:
         super().__init__(context=context, **kwargs)
         self.intents = {intent.name: intent for intent in intents}
         self.initialized: bool = False
@@ -76,7 +76,7 @@ class IntentClassifier(ABC):
             List of classification results, ordered by confidence
         """
 
-    async def initialize(self):
+    async def initialize(self) -> None:
         """Initialize the classifier. Override this method if needed."""
         self.initialized = True
 

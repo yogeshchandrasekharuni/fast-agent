@@ -63,7 +63,7 @@ if needed. Remind the Human of this.
     request_params=RequestParams(maxTokens=8192),
     max_iterations=5,
 )
-async def main():
+async def main() -> None:
     async with fast.run() as agent:
         CODER_WARMUP = """
 - Read this paper: https://www.anthropic.com/research/building-effective-agents" to understand how 

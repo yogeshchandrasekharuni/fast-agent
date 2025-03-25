@@ -58,7 +58,7 @@ class ServerRegistry:
         init_hooks (Dict[str, InitHookCallable]): Registered initialization hooks.
     """
 
-    def __init__(self, config: Settings | None = None, config_path: str | None = None):
+    def __init__(self, config: Settings | None = None, config_path: str | None = None) -> None:
         """
         Initialize the ServerRegistry with a configuration file.
 
@@ -66,15 +66,11 @@ class ServerRegistry:
             config (Settings): The Settings object containing the server configurations.
             config_path (str): Path to the YAML configuration file.
         """
-        self.registry = (
-            self.load_registry_from_file(config_path) if config is None else config.mcp.servers
-        )
+        self.registry = self.load_registry_from_file(config_path) if config is None else config.mcp.servers
         self.init_hooks: Dict[str, InitHookCallable] = {}
         self.connection_manager = MCPConnectionManager(self)
 
-    def load_registry_from_file(
-        self, config_path: str | None = None
-    ) -> Dict[str, MCPServerSettings]:
+    def load_registry_from_file(self, config_path: str | None = None) -> Dict[str, MCPServerSettings]:
         """
         Load the YAML configuration file and validate it.
 
@@ -114,15 +110,11 @@ class ServerRegistry:
 
         config = self.registry[server_name]
 
-        read_timeout_seconds = (
-            timedelta(config.read_timeout_seconds) if config.read_timeout_seconds else None
-        )
+        read_timeout_seconds = timedelta(config.read_timeout_seconds) if config.read_timeout_seconds else None
 
         if config.transport == "stdio":
             if not config.command or not config.args:
-                raise ValueError(
-                    f"Command and args are required for stdio transport: {server_name}"
-                )
+                raise ValueError(f"Command and args are required for stdio transport: {server_name}")
 
             server_params = StdioServerParameters(
                 command=config.command,
@@ -198,17 +190,13 @@ class ServerRegistry:
 
         config = self.registry[server_name]
 
-        async with self.start_server(
-            server_name, client_session_factory=client_session_factory
-        ) as session:
+        async with self.start_server(server_name, client_session_factory=client_session_factory) as session:
             try:
                 logger.info(f"{server_name}: Initializing server...")
                 await session.initialize()
                 logger.info(f"{server_name}: Initialized.")
 
-                intialization_callback = (
-                    init_hook if init_hook is not None else self.init_hooks.get(server_name)
-                )
+                intialization_callback = init_hook if init_hook is not None else self.init_hooks.get(server_name)
 
                 if intialization_callback:
                     logger.info(f"{server_name}: Executing init hook")

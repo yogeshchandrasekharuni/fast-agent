@@ -100,7 +100,7 @@ def create_requirements_file(example_dir: Path, use_local: bool, version: str | 
 
 
 @app.command(name="list")
-def list_examples():
+def list_examples() -> None:
     """List all available examples."""
     examples_dir = Path("examples")
     if not examples_dir.exists():
@@ -129,12 +129,10 @@ def list_examples():
 def run(
     example_name: str = typer.Argument(..., help="Name of the example to run"),
     use_local: bool = typer.Option(True, "--local", "-l", help="Use local version of mcp-agent"),
-    version: str | None = typer.Option(
-        None, "--version", "-v", help="Specific version to install from PyPI"
-    ),
+    version: str | None = typer.Option(None, "--version", "-v", help="Specific version to install from PyPI"),
     clean: bool = typer.Option(False, "--clean", "-c", help="Create a fresh virtual environment"),
     debug: bool = typer.Option(False, "--debug", "-d", help="Print debug information"),
-):
+) -> None:
     """Run a specific example."""
     examples_dir = Path("examples").resolve()
     example_dir = (examples_dir / example_name).resolve()
@@ -220,10 +218,8 @@ def run(
 
 @app.command(name="clean")
 def clean_env(
-    example_name: str | None = typer.Argument(
-        None, help="Name of the example to clean, or all if not specified"
-    ),
-):
+    example_name: str | None = typer.Argument(None, help="Name of the example to clean, or all if not specified"),
+) -> None:
     """Clean up virtual environments from examples."""
     examples_dir = Path("examples")
 

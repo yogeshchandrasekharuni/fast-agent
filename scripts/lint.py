@@ -13,7 +13,7 @@ import typer
 from rich import print
 
 
-def main(fix: bool = False, watch: bool = False, path: str = None):
+def main(fix: bool = False, watch: bool = False, path: str = None) -> None:
     try:
         command = ["ruff", "check"]
         if fix:

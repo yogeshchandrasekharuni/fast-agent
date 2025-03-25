@@ -42,9 +42,7 @@ async def sample(ctx: Context, to_sample: str | None = "hello, world") -> CallTo
     except Exception as e:
         logger.error(f"Error in sample tool: {e}", exc_info=True)
         # Ensure we always include the content field in the error response
-        return CallToolResult(
-            isError=True, content=[TextContent(type="text", text=f"Error: {str(e)}")]
-        )
+        return CallToolResult(isError=True, content=[TextContent(type="text", text=f"Error: {str(e)}")])
 
 
 @mcp.tool()

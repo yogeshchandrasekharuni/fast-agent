@@ -17,7 +17,7 @@ class ConsoleDisplay:
     This centralizes the UI display logic used by LLM implementations.
     """
 
-    def __init__(self, config=None):
+    def __init__(self, config=None) -> None:
         """
         Initialize the console display handler.
 
@@ -26,7 +26,7 @@ class ConsoleDisplay:
         """
         self.config = config
 
-    def show_tool_result(self, result: CallToolResult):
+    def show_tool_result(self, result: CallToolResult) -> None:
         """Display a tool result in a formatted panel."""
         if not self.config or not self.config.logger.show_tools:
             return
@@ -49,7 +49,7 @@ class ConsoleDisplay:
         console.console.print(panel)
         console.console.print("\n")
 
-    def show_oai_tool_result(self, result):
+    def show_oai_tool_result(self, result) -> None:
         """Display an OpenAI tool result in a formatted panel."""
         if not self.config or not self.config.logger.show_tools:
             return
@@ -70,7 +70,7 @@ class ConsoleDisplay:
         console.console.print(panel)
         console.console.print("\n")
 
-    def show_tool_call(self, available_tools, tool_name, tool_args):
+    def show_tool_call(self, available_tools, tool_name, tool_args) -> None:
         """Display a tool call in a formatted panel."""
         if not self.config or not self.config.logger.show_tools:
             return
@@ -109,17 +109,9 @@ class ConsoleDisplay:
                     tool_call_name = display_tool["name"]
             else:
                 # Handle potential object format (e.g., Pydantic models)
-                tool_call_name = (
-                    display_tool.function.name
-                    if hasattr(display_tool, "function")
-                    else display_tool.name
-                )
+                tool_call_name = display_tool.function.name if hasattr(display_tool, "function") else display_tool.name
 
-            parts = (
-                tool_call_name.split(SEP)
-                if SEP in tool_call_name
-                else [tool_call_name, tool_call_name]
-            )
+            parts = tool_call_name.split(SEP) if SEP in tool_call_name else [tool_call_name, tool_call_name]
 
             if selected_tool_name.split(SEP)[0] == parts[0]:
                 style = "magenta" if tool_call_name == selected_tool_name else "dim white"
@@ -135,7 +127,7 @@ class ConsoleDisplay:
         highlight_namespaced_tool: str = "",
         title: str = "ASSISTANT",
         name: Optional[str] = None,
-    ):
+    ) -> None:
         """Display an assistant message in a formatted panel."""
         if not self.config or not self.config.logger.show_chat:
             return
@@ -146,17 +138,11 @@ class ConsoleDisplay:
             # Add human input tool if available
             tools = await aggregator.list_tools()
             if any(tool.name == HUMAN_INPUT_TOOL_NAME for tool in tools.tools):
-                style = (
-                    "green" if highlight_namespaced_tool == HUMAN_INPUT_TOOL_NAME else "dim white"
-                )
+                style = "green" if highlight_namespaced_tool == HUMAN_INPUT_TOOL_NAME else "dim white"
                 display_server_list.append("[human] ", style)
 
             # Add all available servers
-            mcp_server_name = (
-                highlight_namespaced_tool.split(SEP)[0]
-                if SEP in highlight_namespaced_tool
-                else highlight_namespaced_tool
-            )
+            mcp_server_name = highlight_namespaced_tool.split(SEP)[0] if SEP in highlight_namespaced_tool else highlight_namespaced_tool
 
             for server_name in await aggregator.list_servers():
                 style = "green" if server_name == mcp_server_name else "dim white"
@@ -175,9 +161,7 @@ class ConsoleDisplay:
         console.console.print(panel)
         console.console.print("\n")
 
-    def show_user_message(
-        self, message, model: Optional[str], chat_turn: int, name: Optional[str] = None
-    ):
+    def show_user_message(self, message, model: Optional[str], chat_turn: int, name: Optional[str] = None) -> None:
         """Display a user message in a formatted panel."""
         if not self.config or not self.config.logger.show_chat:
             return
@@ -203,7 +187,7 @@ class ConsoleDisplay:
         agent_name: Optional[str] = None,
         aggregator=None,
         arguments: Optional[dict[str, str]] = None,
-    ):
+    ) -> None:
         """
         Display information about a loaded prompt template.
 

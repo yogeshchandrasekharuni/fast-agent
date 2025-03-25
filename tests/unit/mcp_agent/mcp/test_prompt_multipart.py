@@ -25,9 +25,7 @@ async def test_apply_prompt_template_with_multipart():
 
     # Make the methods accessible for testing
     llm.apply_prompt_template = AugmentedLLM.apply_prompt_template.__get__(llm, AugmentedLLM)
-    llm._apply_prompt_template_provider_specific = (
-        AugmentedLLM._apply_prompt_template_provider_specific.__get__(llm, AugmentedLLM)
-    )
+    llm._apply_prompt_template_provider_specific = AugmentedLLM._apply_prompt_template_provider_specific.__get__(llm, AugmentedLLM)
 
     # Create test prompt messages
     prompt_messages = [
@@ -88,9 +86,7 @@ async def test_apply_prompt_template_with_multiple_content():
 
     # Make the methods accessible for testing
     llm.apply_prompt_template = AugmentedLLM.apply_prompt_template.__get__(llm, AugmentedLLM)
-    llm._apply_prompt_template_provider_specific = (
-        AugmentedLLM._apply_prompt_template_provider_specific.__get__(llm, AugmentedLLM)
-    )
+    llm._apply_prompt_template_provider_specific = AugmentedLLM._apply_prompt_template_provider_specific.__get__(llm, AugmentedLLM)
 
     # Create test prompt messages with multiple content parts
     # This simulates a scenario where the same user sent multiple messages
@@ -107,9 +103,7 @@ async def test_apply_prompt_template_with_multiple_content():
     ]
 
     # Create a GetPromptResult
-    prompt_result = GetPromptResult(
-        messages=prompt_messages, description="Test prompt with multiple parts"
-    )
+    prompt_result = GetPromptResult(messages=prompt_messages, description="Test prompt with multiple parts")
 
     # Test the method
     await llm.apply_prompt_template(prompt_result, "test_prompt")
@@ -142,9 +136,7 @@ async def test_apply_prompt_template_with_images():
 
     # Make the methods accessible for testing
     llm.apply_prompt_template = AugmentedLLM.apply_prompt_template.__get__(llm, AugmentedLLM)
-    llm._apply_prompt_template_provider_specific = (
-        AugmentedLLM._apply_prompt_template_provider_specific.__get__(llm, AugmentedLLM)
-    )
+    llm._apply_prompt_template_provider_specific = AugmentedLLM._apply_prompt_template_provider_specific.__get__(llm, AugmentedLLM)
 
     # Create a GetPromptResult with a message containing an image
     from mcp.types import ImageContent

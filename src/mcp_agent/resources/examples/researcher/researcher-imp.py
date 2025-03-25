@@ -163,7 +163,7 @@ The researcher should be able to understand exactly why they received their rati
     min_rating="EXCELLENT",
     name="EnhancedResearcher",
 )
-async def main():
+async def main() -> None:
     async with agents.run() as agent:
         # Start with a warm-up to set expectations and explain the research approach
         await agent.Researcher.send(

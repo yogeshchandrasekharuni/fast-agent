@@ -66,7 +66,7 @@ and whispers of a hidden agenda linger among the villagers.
     fan_in="grader",
     name="parallel",
 )
-async def main():
+async def main() -> None:
     # Use the app's context manager
     async with fast.run() as agent:
         await agent.parallel(f"student short story submission: {SHORT_STORY}")

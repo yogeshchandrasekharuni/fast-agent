@@ -32,9 +32,7 @@ from mcp_agent.workflows.router.router_llm import LLMRouter
 T = TypeVar("T")  # For the wrapper classes
 
 
-def create_proxy(
-    app: MCPApp, name: str, instance: AgentOrWorkflow, agent_type: str
-) -> BaseAgentProxy:
+def create_proxy(app: MCPApp, name: str, instance: AgentOrWorkflow, agent_type: str) -> BaseAgentProxy:
     """Create appropriate proxy type based on agent type and validate instance type
 
     Args:
@@ -69,9 +67,7 @@ def create_proxy(
         return WorkflowProxy(app, name, instance)
     elif agent_type == AgentType.EVALUATOR_OPTIMIZER.value:
         if not isinstance(instance, EvaluatorOptimizerLLM):
-            raise TypeError(
-                f"Expected EvaluatorOptimizerLLM instance for {name}, got {type(instance)}"
-            )
+            raise TypeError(f"Expected EvaluatorOptimizerLLM instance for {name}, got {type(instance)}")
         return WorkflowProxy(app, name, instance)
     elif agent_type == AgentType.ROUTER.value:
         if not isinstance(instance, LLMRouter):
@@ -181,11 +177,7 @@ async def create_agents_by_type(
 
             elif agent_type == AgentType.ORCHESTRATOR:
                 # Get base params configured with model settings
-                base_params = (
-                    config.default_request_params.model_copy()
-                    if config.default_request_params
-                    else RequestParams()
-                )
+                base_params = config.default_request_params.model_copy() if config.default_request_params else RequestParams()
                 base_params.use_history = False  # Force no history for orchestrator
 
                 # Get the child agents - need to unwrap proxies and validate LLM config
@@ -243,11 +235,7 @@ async def create_agents_by_type(
                 evaluator = unwrap_proxy(active_agents[agent_data["evaluator"]])
 
                 if not generator or not evaluator:
-                    raise ValueError(
-                        f"Missing agents for workflow {name}: "
-                        f"generator={agent_data['generator']}, "
-                        f"evaluator={agent_data['evaluator']}"
-                    )
+                    raise ValueError(f"Missing agents for workflow {name}: " f"generator={agent_data['generator']}, " f"evaluator={agent_data['evaluator']}")
 
                 # Get model from generator if it's an Agent, or from config otherwise
                 optimizer_model = None
@@ -318,14 +306,8 @@ async def create_agents_by_type(
 
                     # Generate a better description
                     if agent_names:
-                        server_part = (
-                            f" with access to servers: {', '.join(sorted(all_servers))}"
-                            if all_servers
-                            else ""
-                        )
-                        config.instruction = (
-                            f"Sequence of agents: {', '.join(agent_names)}{server_part}."
-                        )
+                        server_part = f" with access to servers: {', '.join(sorted(all_servers))}" if all_servers else ""
+                        config.instruction = f"Sequence of agents: {', '.join(agent_names)}{server_part}."
 
                 # Create a ChainProxy without needing a new instance
                 # Just pass the agent proxies and sequence
@@ -412,9 +394,7 @@ async def create_agents_in_dependency_order(
     visited = set()
 
     # Get all agents of the specified type
-    agent_names = [
-        name for name, agent_data in agents_dict.items() if agent_data["type"] == agent_type.value
-    ]
+    agent_names = [name for name, agent_data in agents_dict.items() if agent_data["type"] == agent_type.value]
 
     # Create agents in dependency order
     for name in agent_names:

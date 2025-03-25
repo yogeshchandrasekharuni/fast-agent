@@ -49,7 +49,7 @@ async def stdio_client_with_rich_stderr(server: StdioServerParameters):
         logger.debug(f"return code (early){process.returncode}")
         raise RuntimeError(f"Process terminated immediately with code {process.returncode}")
 
-    async def stdout_reader():
+    async def stdout_reader() -> None:
         assert process.stdout, "Opened process is missing stdout"
         try:
             async with read_stream_writer:
@@ -89,7 +89,7 @@ async def stdio_client_with_rich_stderr(server: StdioServerParameters):
     #     except anyio.ClosedResourceError:
     #         await anyio.lowlevel.checkpoint()
 
-    async def stdin_writer():
+    async def stdin_writer() -> None:
         assert process.stdin, "Opened process is missing stdin"
         try:
             async with write_stream_reader:

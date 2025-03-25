@@ -35,7 +35,7 @@ class JSONSerializer:
         "refresh_token",
     }
 
-    def __init__(self):
+    def __init__(self) -> None:
         # Set of already processed objects to prevent infinite recursion
         self._processed_objects: Set[int] = set()
         # Check if secrets should be logged in full

@@ -11,7 +11,7 @@ fast = FastAgent("Sizer Prompt Test")
     servers=["sizer", "category"],
     use_history=True,
 )
-async def main():
+async def main() -> None:
     async with fast.run() as agent:
         await agent()
 

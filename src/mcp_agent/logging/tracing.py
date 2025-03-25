@@ -25,7 +25,7 @@ class TelemetryManager(ContextDependent):
     Decorator usage: @telemetry.traced("SomeSpanName")
     """
 
-    def __init__(self, context: Optional["Context"] = None, **kwargs):
+    def __init__(self, context: Optional["Context"] = None, **kwargs) -> None:
         # If needed, configure resources, exporters, etc.
         # E.g.: from opentelemetry.sdk.trace import TracerProvider
         # trace.set_tracer_provider(TracerProvider(...))
@@ -86,7 +86,7 @@ class TelemetryManager(ContextDependent):
 
         return decorator
 
-    def _record_args(self, span, args, kwargs):
+    def _record_args(self, span, args, kwargs) -> None:
         """Optionally record primitive args as span attributes."""
         for i, arg in enumerate(args):
             if isinstance(arg, (str, int, float, bool)):

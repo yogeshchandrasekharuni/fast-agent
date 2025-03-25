@@ -63,7 +63,7 @@ class MCPAgentClientSession(ClientSession, ContextDependent):
     Developers can extend this class to add more custom functionality as needed
     """
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs, list_roots_callback=list_roots, sampling_callback=sample)
         self.server_config: Optional[MCPServerSettings] = None
 
@@ -89,9 +89,7 @@ class MCPAgentClientSession(ClientSession, ContextDependent):
             logger.error("send_notification failed", data=e)
             raise
 
-    async def _send_response(
-        self, request_id: RequestId, response: SendResultT | ErrorData
-    ) -> None:
+    async def _send_response(self, request_id: RequestId, response: SendResultT | ErrorData) -> None:
         logger.debug(
             f"send_response: request_id={request_id}, response=",
             data=response.model_dump(),
@@ -109,16 +107,10 @@ class MCPAgentClientSession(ClientSession, ContextDependent):
         )
         return await super()._received_notification(notification)
 
-    async def send_progress_notification(
-        self, progress_token: str | int, progress: float, total: float | None = None
-    ) -> None:
+    async def send_progress_notification(self, progress_token: str | int, progress: float, total: float | None = None) -> None:
         """
         Sends a progress notification for a request that is currently being
         processed.
         """
-        logger.debug(
-            "send_progress_notification: progress_token={progress_token}, progress={progress}, total={total}"
-        )
-        return await super().send_progress_notification(
-            progress_token=progress_token, progress=progress, total=total
-        )
+        logger.debug("send_progress_notification: progress_token={progress_token}, progress={progress}, total={total}")
+        return await super().send_progress_notification(progress_token=progress_token, progress=progress, total=total)

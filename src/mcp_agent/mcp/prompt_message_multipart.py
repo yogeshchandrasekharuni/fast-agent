@@ -50,9 +50,7 @@ class PromptMessageMultipart(BaseModel):
 
     def from_multipart(self) -> List[PromptMessage]:
         """Convert this PromptMessageMultipart to a sequence of standard PromptMessages."""
-        return [
-            PromptMessage(role=self.role, content=content_part) for content_part in self.content
-        ]
+        return [PromptMessage(role=self.role, content=content_part) for content_part in self.content]
 
     @classmethod
     def parse_get_prompt_result(cls, result: GetPromptResult) -> List["PromptMessageMultipart"]:

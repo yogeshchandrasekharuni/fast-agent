@@ -43,9 +43,7 @@ class TestOpenAIUserConverter(unittest.TestCase):
     def test_image_content_conversion(self):
         """Test conversion of ImageContent to OpenAI image block."""
         # Create an image content message
-        image_content = ImageContent(
-            type="image", data=self.sample_image_base64, mimeType="image/jpeg"
-        )
+        image_content = ImageContent(type="image", data=self.sample_image_base64, mimeType="image/jpeg")
         multipart = PromptMessageMultipart(role="user", content=[image_content])
 
         # Convert to OpenAI format
@@ -136,14 +134,10 @@ class TestOpenAIUserConverter(unittest.TestCase):
         """Test conversion of messages with multiple content blocks."""
         # Create multiple content blocks
         text_content1 = TextContent(type="text", text="First text")
-        image_content = ImageContent(
-            type="image", data=self.sample_image_base64, mimeType="image/jpeg"
-        )
+        image_content = ImageContent(type="image", data=self.sample_image_base64, mimeType="image/jpeg")
         text_content2 = TextContent(type="text", text="Second text")
 
-        multipart = PromptMessageMultipart(
-            role="user", content=[text_content1, image_content, text_content2]
-        )
+        multipart = PromptMessageMultipart(role="user", content=[text_content1, image_content, text_content2])
 
         # Convert to OpenAI format
         openai_msg = OpenAIConverter.convert_to_openai(multipart)
@@ -375,9 +369,7 @@ class TestOpenAIToolConverter(unittest.TestCase):
         tool_call_id = "call_abc123"
 
         # Convert directly to OpenAI tool message
-        tool_message = OpenAIConverter.convert_tool_result_to_openai(
-            tool_result=tool_result, tool_call_id=tool_call_id
-        )
+        tool_message = OpenAIConverter.convert_tool_result_to_openai(tool_result=tool_result, tool_call_id=tool_call_id)
 
         # Assertions
         self.assertEqual(tool_message["role"], "tool")
@@ -387,9 +379,7 @@ class TestOpenAIToolConverter(unittest.TestCase):
     def test_multiple_tool_results_with_mixed_content(self):
         """Test conversion of multiple tool results with different content types."""
         # Create first tool result with text only
-        text_result = CallToolResult(
-            content=[TextContent(type="text", text="Text-only result")], isError=False
-        )
+        text_result = CallToolResult(content=[TextContent(type="text", text="Text-only result")], isError=False)
 
         # Create second tool result with image
         image_base64 = base64.b64encode(b"fake_image_data").decode("utf-8")
@@ -443,17 +433,13 @@ class TestOpenAIToolConverter(unittest.TestCase):
         pdf_embedded = EmbeddedResource(type="resource", resource=pdf_resource)
 
         # Create the tool result with all content types
-        tool_result = CallToolResult(
-            content=[text_content, image_content, pdf_embedded], isError=False
-        )
+        tool_result = CallToolResult(content=[text_content, image_content, pdf_embedded], isError=False)
 
         # Create a tool call ID
         tool_call_id = "call_mixed_content"
 
         # Convert to OpenAI tool message
-        tool_message = OpenAIConverter.convert_tool_result_to_openai(
-            tool_result=tool_result, tool_call_id=tool_call_id
-        )
+        tool_message = OpenAIConverter.convert_tool_result_to_openai(tool_result=tool_result, tool_call_id=tool_call_id)
 
         self.assertEqual(len(tool_message), 2)
         self.assertEqual(tool_message[0]["role"], "tool")
@@ -523,9 +509,7 @@ class TestTextConcatenation(unittest.TestCase):
 
         # Third block should be combined text2 and text3
         self.assertEqual(openai_msg["content"][2]["type"], "text")
-        self.assertEqual(
-            openai_msg["content"][2]["text"], "Text after image. More text after image."
-        )
+        self.assertEqual(openai_msg["content"][2]["text"], "Text after image. More text after image.")
 
     def test_tool_result_with_concatenation(self):
         """Test that tool results can use text concatenation."""

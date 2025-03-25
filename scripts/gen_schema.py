@@ -163,9 +163,7 @@ def load_settings_class(
     return namespace["Settings"], model_info
 
 
-def apply_descriptions_to_schema(
-    schema: Dict[str, Any], model_info: Dict[str, Dict[str, str]]
-) -> None:
+def apply_descriptions_to_schema(schema: Dict[str, Any], model_info: Dict[str, Dict[str, str]]) -> None:
     """Recursively apply descriptions to schema and all its nested models."""
     if not isinstance(schema, dict):
         return
@@ -206,7 +204,7 @@ def generate(
         "-o",
         help="Output path for the schema file",
     ),
-):
+) -> None:
     """Generate JSON schema from Pydantic models in config.py"""
     if not config_py.exists():
         console.print(f"[red]Error:[/] File not found: {config_py}")

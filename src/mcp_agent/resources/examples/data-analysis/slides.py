@@ -26,7 +26,7 @@ You produce compelling slide decks for impactful presentations. You usually try 
 """,
     request_params=RequestParams(maxTokens=8192),
 )
-async def main():
+async def main() -> None:
     # Use the app's context manager
     async with fast.run() as agent:
         slide_templates: List[PromptMessageMultipart] = (

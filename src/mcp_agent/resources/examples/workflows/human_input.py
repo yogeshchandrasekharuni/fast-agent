@@ -15,7 +15,7 @@ fast = FastAgent("Human Input")
     instruction="An AI agent that assists with basic tasks. Request Human Input when needed.",
     human_input=True,
 )
-async def main():
+async def main() -> None:
     async with fast.run() as agent:
         # this usually causes the LLM to request the Human Input Tool
         await agent("print the next number in the sequence")

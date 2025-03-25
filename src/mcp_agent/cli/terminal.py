@@ -2,7 +2,7 @@ from mcp_agent.console import console, error_console
 
 
 class Application:
-    def __init__(self, verbosity: int = 0, enable_color: bool = True):
+    def __init__(self, verbosity: int = 0, enable_color: bool = True) -> None:
         self.verbosity = verbosity
         # Use the central console instances, respecting color setting
         if not enable_color:
@@ -13,7 +13,7 @@ class Application:
             self.console = console
             self.error_console = error_console
 
-    def log(self, message: str, level: str = "info"):
+    def log(self, message: str, level: str = "info") -> None:
         if level == "info" or (level == "debug" and self.verbosity > 0):
             if level == "error":
                 self.error_console.print(f"[{level.upper()}] {message}")

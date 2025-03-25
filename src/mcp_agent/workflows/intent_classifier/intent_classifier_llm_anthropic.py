@@ -27,7 +27,7 @@ class AnthropicLLMIntentClassifier(LLMIntentClassifier):
         classification_instruction: str | None = None,
         context: Optional["Context"] = None,
         **kwargs,
-    ):
+    ) -> None:
         anthropic_llm = AnthropicAugmentedLLM(
             instruction=CLASSIFIER_SYSTEM_INSTRUCTION, context=context
         )

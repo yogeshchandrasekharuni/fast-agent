@@ -17,7 +17,7 @@ The interpreter has numpy, pandas, matplotlib and seaborn already installed
     """,
     servers=["brave", "interpreter", "filesystem", "fetch"],
 )
-async def main():
+async def main() -> None:
     research_prompt = """
 Produce an investment report for the company Eutelsat. The final report should be saved in the filesystem in markdown format, and
 contain at least the following: 

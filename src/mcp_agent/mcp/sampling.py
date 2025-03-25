@@ -16,9 +16,7 @@ from mcp_agent.workflows.llm.sampling_converter import SamplingConverter
 logger = get_logger(__name__)
 
 
-def create_sampling_llm(
-    params: CreateMessageRequestParams, model_string: str
-) -> AugmentedLLMProtocol:
+def create_sampling_llm(params: CreateMessageRequestParams, model_string: str) -> AugmentedLLMProtocol:
     """
     Create an LLM instance for sampling without tools support.
     This utility function creates a minimal LLM instance based on the model string.
@@ -110,9 +108,7 @@ async def sample(mcp_ctx: ClientSession, params: CreateMessageRequestParams) -> 
         return SamplingConverter.create_message_result(response=llm_response, model=model)
     except Exception as e:
         logger.error(f"Error in sampling: {str(e)}")
-        return SamplingConverter.error_result(
-            error_message=f"Error in sampling: {str(e)}", model=model
-        )
+        return SamplingConverter.error_result(error_message=f"Error in sampling: {str(e)}", model=model)
 
 
 def sampling_agent_config(

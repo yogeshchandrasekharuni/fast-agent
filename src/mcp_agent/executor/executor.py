@@ -56,7 +56,7 @@ class Executor(ABC, ContextDependent):
         signal_bus: SignalHandler = None,
         context: Optional["Context"] = None,
         **kwargs,
-    ):
+    ) -> None:
         super().__init__(context=context, **kwargs)
         self.execution_engine = engine
 
@@ -186,7 +186,7 @@ class AsyncioExecutor(Executor):
         self,
         config: ExecutorConfig | None = None,
         signal_bus: SignalHandler | None = None,
-    ):
+    ) -> None:
         signal_bus = signal_bus or AsyncioSignalHandler()
         super().__init__(engine="asyncio", config=config, signal_bus=signal_bus)
 

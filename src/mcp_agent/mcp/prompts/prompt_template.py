@@ -84,7 +84,7 @@ class PromptTemplate:
         template_text: str,
         delimiter_map: Optional[Dict[str, str]] = None,
         template_file_path: Optional[Path] = None,
-    ):
+    ) -> None:
         """
         Initialize a prompt template.
 
@@ -167,9 +167,7 @@ class PromptTemplate:
             result.append(section.apply_substitutions(context))
         return result
 
-    def apply_substitutions_to_multipart(
-        self, context: Dict[str, Any]
-    ) -> List[PromptMessageMultipart]:
+    def apply_substitutions_to_multipart(self, context: Dict[str, Any]) -> List[PromptMessageMultipart]:
         """
         Apply variable substitutions to the template and return PromptMessageMultipart objects.
 
@@ -324,7 +322,7 @@ class PromptTemplateLoader:
     Loads and processes prompt templates from files.
     """
 
-    def __init__(self, delimiter_map: Optional[Dict[str, str]] = None):
+    def __init__(self, delimiter_map: Optional[Dict[str, str]] = None) -> None:
         """
         Initialize the loader with optional custom delimiters.
 
@@ -364,9 +362,7 @@ class PromptTemplateLoader:
         """
         delimited_content = multipart_messages_to_delimited_format(
             messages,
-            user_delimiter=next(
-                (k for k, v in self.delimiter_map.items() if v == "user"), "---USER"
-            ),
+            user_delimiter=next((k for k, v in self.delimiter_map.items() if v == "user"), "---USER"),
             assistant_delimiter=next(
                 (k for k, v in self.delimiter_map.items() if v == "assistant"),
                 "---ASSISTANT",
@@ -436,9 +432,7 @@ class PromptTemplateLoader:
 
         # Extract resource paths from all sections that come after RESOURCE delimiters
         resource_paths = []
-        resource_delimiter = next(
-            (k for k, v in self.delimiter_map.items() if v == "resource"), "---RESOURCE"
-        )
+        resource_delimiter = next((k for k, v in self.delimiter_map.items() if v == "resource"), "---RESOURCE")
         for i, line in enumerate(lines):
             if line.strip() == resource_delimiter:
                 if i + 1 < len(lines) and lines[i + 1].strip():

@@ -51,11 +51,7 @@ def pattern_match(path: str, pattern: str) -> bool:
     if pattern.startswith("**/"):
         base_pattern = pattern[3:]  # Pattern without **/ prefix
         # Try matching both with and without the **/ prefix
-        return (
-            fnmatch.fnmatch(path, base_pattern)
-            or fnmatch.fnmatch(path, pattern)
-            or fnmatch.fnmatch(path, f"**/{base_pattern}")
-        )
+        return fnmatch.fnmatch(path, base_pattern) or fnmatch.fnmatch(path, pattern) or fnmatch.fnmatch(path, f"**/{base_pattern}")
 
     # Handle *registry.py style patterns
     elif pattern.startswith("*") and not pattern.startswith("**/"):
@@ -158,9 +154,7 @@ def package_project(
         f.write("```\n")
         console = Console(file=None)
         with console.capture() as capture:
-            console.print(
-                create_tree_structure(path, include_patterns, ignore_patterns, gitignore_patterns)
-            )
+            console.print(create_tree_structure(path, include_patterns, ignore_patterns, gitignore_patterns))
         f.write(capture.get())
         f.write("```\n\n")
 
@@ -199,14 +193,10 @@ def package_project(
 def main(
     path: str = typer.Argument(".", help="Path to the project directory"),
     output: str = typer.Option("project_contents.md", "--output", "-o", help="Output file path"),
-    include: List[str] | None = typer.Option(
-        None, "--include", "-i", help="Patterns to include (e.g. '*.py')"
-    ),
+    include: List[str] | None = typer.Option(None, "--include", "-i", help="Patterns to include (e.g. '*.py')"),
     ignore: List[str] | None = typer.Option(None, "--ignore", "-x", help="Patterns to ignore"),
-    skip_gitignore: bool = typer.Option(
-        False, "--skip-gitignore", help="Skip reading .gitignore patterns"
-    ),
-):
+    skip_gitignore: bool = typer.Option(False, "--skip-gitignore", help="Skip reading .gitignore patterns"),
+) -> None:
     """
     Package project files into a single markdown file with directory structure.
     """

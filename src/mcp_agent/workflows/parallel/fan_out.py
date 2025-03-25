@@ -34,7 +34,7 @@ class FanOut(ContextDependent):
         llm_factory: Callable[[Agent], AugmentedLLM[MessageParamT, MessageT]] = None,
         context: Optional["Context"] = None,
         **kwargs,
-    ):
+    ) -> None:
         """
         Initialize the FanOut with a list of agents, functions, or LLMs.
         If agents are provided, they will be wrapped in an AugmentedLLM using llm_factory if not already done so.

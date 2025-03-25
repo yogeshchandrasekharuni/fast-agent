@@ -37,9 +37,7 @@ class EvaluationResult(BaseModel):
     rating: QualityRating = Field(description="Quality rating of the response")
     feedback: str = Field(description="Specific feedback and suggestions for improvement")
     needs_improvement: bool = Field(description="Whether the output needs further improvement")
-    focus_areas: List[str] = Field(
-        default_factory=list, description="Specific areas to focus on in next iteration"
-    )
+    focus_areas: List[str] = Field(default_factory=list, description="Specific areas to focus on in next iteration")
 
 
 class EvaluatorOptimizerLLM(AugmentedLLM[MessageParamT, MessageT]):
@@ -72,7 +70,7 @@ class EvaluatorOptimizerLLM(AugmentedLLM[MessageParamT, MessageT]):
             use_history=self.generator_use_history,  # Use generator's history setting
         )
 
-    def _init_request_params(self):
+    def _init_request_params(self) -> None:
         """Initialize request parameters for both generator and evaluator components."""
         # Set up workflow's default params based on generator's history setting
         self.default_request_params = self._initialize_default_params({})
@@ -91,7 +89,7 @@ class EvaluatorOptimizerLLM(AugmentedLLM[MessageParamT, MessageT]):
         context: Optional["Context"] = None,
         name: Optional[str] = None,
         instruction: Optional[str] = None,
-    ):
+    ) -> None:
         """
         Initialize the evaluator-optimizer workflow.
 
@@ -120,9 +118,7 @@ class EvaluatorOptimizerLLM(AugmentedLLM[MessageParamT, MessageT]):
             if hasattr(generator, "aggregator") and isinstance(generator.aggregator, Agent):
                 self.generator_use_history = generator.aggregator.config.use_history
             elif hasattr(generator, "default_request_params"):
-                self.generator_use_history = getattr(
-                    generator.default_request_params, "use_history", False
-                )
+                self.generator_use_history = getattr(generator.default_request_params, "use_history", False)
         # All other types default to False
 
         # Initialize parent class
@@ -140,9 +136,7 @@ class EvaluatorOptimizerLLM(AugmentedLLM[MessageParamT, MessageT]):
             # Use existing LLM if available, otherwise create new one
             self.generator_llm = getattr(generator, "_llm", None) or llm_factory(agent=generator)
             self.aggregator = generator
-            self.instruction = instruction or (
-                generator.instruction if isinstance(generator.instruction, str) else None
-            )
+            self.instruction = instruction or (generator.instruction if isinstance(generator.instruction, str) else None)
         elif isinstance(generator, AugmentedLLM):
             self.generator_llm = generator
             self.aggregator = getattr(generator, "aggregator", None)
@@ -263,10 +257,7 @@ class EvaluatorOptimizerLLM(AugmentedLLM[MessageParamT, MessageT]):
                     )
 
                 # Check if we've reached acceptable quality
-                if (
-                    evaluation_result.rating.value >= self.min_rating.value
-                    or not evaluation_result.needs_improvement
-                ):
+                if evaluation_result.rating.value >= self.min_rating.value or not evaluation_result.needs_improvement:
                     logger.debug(
                         f"Acceptable quality {evaluation_result.rating.value} reached",
                         data={
@@ -327,9 +318,7 @@ class EvaluatorOptimizerLLM(AugmentedLLM[MessageParamT, MessageT]):
             request_params=request_params,
         )
 
-    def _build_eval_prompt(
-        self, original_request: str, current_response: str, iteration: int
-    ) -> str:
+    def _build_eval_prompt(self, original_request: str, current_response: str, iteration: int) -> str:
         """Build the evaluation prompt for the evaluator"""
         return f"""
 You are an expert evaluator for content quality. Your task is to evaluate a response against the user's original request.

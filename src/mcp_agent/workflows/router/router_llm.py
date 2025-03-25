@@ -109,7 +109,7 @@ class LLMRouter(Router):
         context: Optional["Context"] = None,
         default_request_params: Optional[RequestParams] = None,
         **kwargs,
-    ):
+    ) -> None:
         # Extract verb from kwargs to avoid passing it up the inheritance chain
         self._llm_verb = kwargs.pop("verb", None)
 
@@ -156,7 +156,7 @@ class LLMRouter(Router):
         await instance.initialize()
         return instance
 
-    async def initialize(self):
+    async def initialize(self) -> None:
         """Initialize the router and create the LLM instance."""
         if not self.initialized:
             await super().initialize()
@@ -173,11 +173,7 @@ class LLMRouter(Router):
             # Set up router-specific request params with routing instruction
             router_params.use_history = False
             # Use the stored verb if available, otherwise default to ROUTING
-            verb_param = (
-                self._llm_verb
-                if hasattr(self, "_llm_verb") and self._llm_verb
-                else ProgressAction.ROUTING
-            )
+            verb_param = self._llm_verb if hasattr(self, "_llm_verb") and self._llm_verb else ProgressAction.ROUTING
 
             self.llm = self.llm_factory(
                 agent=None,  # Router doesn't need an agent context
@@ -187,9 +183,7 @@ class LLMRouter(Router):
             )
             self.initialized = True
 
-    async def route(
-        self, request: str, top_k: int = 1
-    ) -> List[LLMRouterResult[str | Agent | Callable]]:
+    async def route(self, request: str, top_k: int = 1) -> List[LLMRouterResult[str | Agent | Callable]]:
         if not self.initialized:
             await self.initialize()
 
@@ -219,9 +213,7 @@ class LLMRouter(Router):
             include_functions=False,
         )
 
-    async def route_to_function(
-        self, request: str, top_k: int = 1
-    ) -> List[LLMRouterResult[Callable]]:
+    async def route_to_function(self, request: str, top_k: int = 1) -> List[LLMRouterResult[Callable]]:
         if not self.initialized:
             await self.initialize()
 

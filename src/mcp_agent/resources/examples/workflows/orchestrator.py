@@ -48,7 +48,7 @@ fast = FastAgent("Orchestrator-Workers")
     agents=["finder", "writer", "proofreader"],
     plan_type="iterative",
 )
-async def main():
+async def main() -> None:
     async with fast.run() as agent:
         await agent()
         await agent.author(

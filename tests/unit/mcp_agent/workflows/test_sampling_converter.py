@@ -30,9 +30,7 @@ class TestSamplingConverter:
     def test_sampling_message_to_prompt_message_image(self):
         """Test converting an image SamplingMessage to PromptMessageMultipart"""
         # Create a SamplingMessage with image content
-        image_content = ImageContent(
-            type="image", data="base64_encoded_image_data", mimeType="image/png"
-        )
+        image_content = ImageContent(type="image", data="base64_encoded_image_data", mimeType="image/png")
         sampling_message = SamplingMessage(role="user", content=image_content)
 
         # Convert using our converter
@@ -80,9 +78,7 @@ class TestSamplingConverter:
             ),
             SamplingMessage(
                 role="user",
-                content=ImageContent(
-                    type="image", data="base64_encoded_image_data", mimeType="image/png"
-                ),
+                content=ImageContent(type="image", data="base64_encoded_image_data", mimeType="image/png"),
             ),
         ]
 
@@ -150,9 +146,7 @@ class TestSamplingConverter:
         model = "claude-3-opus-20240229"
 
         # Create result using our converter
-        result = SamplingConverter.create_message_result(
-            response=response, model=model, stop_reason="endTurn"
-        )
+        result = SamplingConverter.create_message_result(response=response, model=model, stop_reason="endTurn")
 
         # Verify result
         assert isinstance(result, CreateMessageResult)

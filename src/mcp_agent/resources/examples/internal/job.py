@@ -58,7 +58,7 @@ fast = FastAgent("PMO Job Description Generator")
     min_rating="EXCELLENT",
     max_refinements=2,
 )
-async def main():
+async def main() -> None:
     async with fast.run() as agent:
         roles = [
             "PMO Director",

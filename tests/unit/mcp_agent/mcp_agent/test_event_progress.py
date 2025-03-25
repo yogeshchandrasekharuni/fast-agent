@@ -51,10 +51,7 @@ def test_event_conversion():
         raise FileNotFoundError(f"Test log file not found: {log_file}")
 
     if not expected_output_file.exists():
-        raise FileNotFoundError(
-            f"Expected output file not found: {expected_output_file}\n"
-            "Run update_test_fixtures() to generate it first"
-        )
+        raise FileNotFoundError(f"Expected output file not found: {expected_output_file}\n" "Run update_test_fixtures() to generate it first")
 
     # Run the event_summary script to get current output
     try:

@@ -57,7 +57,7 @@ Social Media report ready to review with the Human.
         "human_review_and_post",
     ],
 )
-async def main():
+async def main() -> None:
     async with fast.run() as agent:
         # using chain workflow
         await agent.post_writer.prompt()

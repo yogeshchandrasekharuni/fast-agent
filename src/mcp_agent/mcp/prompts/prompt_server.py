@@ -65,9 +65,7 @@ DEFAULT_RESOURCE_DELIMITER = "---RESOURCE"
 PromptHandler = Callable[..., Awaitable[List[Message]]]
 
 
-def create_prompt_handler(
-    template: "PromptTemplate", template_vars: List[str], prompt_files: List[Path]
-) -> PromptHandler:
+def create_prompt_handler(template: "PromptTemplate", template_vars: List[str], prompt_files: List[Path]) -> PromptHandler:
     """Create a prompt handler function for the given template"""
     if template_vars:
         # With template variables
@@ -75,11 +73,7 @@ def create_prompt_handler(
 
         async def prompt_handler(**kwargs: Any) -> List[Message]:
             # Build context from parameters
-            context = {
-                var: kwargs.get(var)
-                for var in template_vars
-                if var in kwargs and kwargs[var] is not None
-            }
+            context = {var: kwargs.get(var) for var in template_vars if var in kwargs and kwargs[var] is not None}
 
             content_sections = template.apply_substitutions(context)
 
@@ -143,7 +137,7 @@ def get_delimiter_config(file_path: Optional[Path] = None) -> Dict[str, Any]:
     return config_values
 
 
-def register_prompt(file_path: Path):
+def register_prompt(file_path: Path) -> None:
     """Register a prompt file"""
     try:
         # Get delimiter configuration
@@ -248,14 +242,12 @@ def parse_args():
         default=8000,
         help="Port to use for SSE transport (default: 8000)",
     )
-    parser.add_argument(
-        "--test", type=str, help="Test a specific prompt without starting the server"
-    )
+    parser.add_argument("--test", type=str, help="Test a specific prompt without starting the server")
 
     return parser.parse_args()
 
 
-async def register_file_resource_handler():
+async def register_file_resource_handler() -> None:
     """Register the general file resource handler"""
 
     @mcp.resource("file://{path}")
@@ -381,9 +373,7 @@ async def async_main():
     logger.info("Starting prompt server")
     logger.info(f"Registered {len(prompt_registry)} prompts")
     logger.info(f"Registered {len(exposed_resources)} resources")
-    logger.info(
-        f"Using delimiters: {config.user_delimiter}, {config.assistant_delimiter}, {config.resource_delimiter}"
-    )
+    logger.info(f"Using delimiters: {config.user_delimiter}, {config.assistant_delimiter}, {config.resource_delimiter}")
 
     # If a test prompt was specified, print it and exit
     if args.test:

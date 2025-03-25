@@ -70,11 +70,7 @@ def _openai_message_to_multipart(
                 text = part.get("text") if isinstance(part, dict) else getattr(part, "text", "")
 
                 # Check if this is a resource marker
-                if (
-                    text
-                    and (text.startswith("[Resource:") or text.startswith("[Binary Resource:"))
-                    and "\n" in text
-                ):
+                if text and (text.startswith("[Resource:") or text.startswith("[Binary Resource:")) and "\n" in text:
                     header, content_text = text.split("\n", 1)
                     if "MIME:" in header:
                         mime_match = header.split("MIME:", 1)[1].split("]")[0].strip()
@@ -100,24 +96,14 @@ def _openai_message_to_multipart(
 
             # Handle image content
             elif part_type == "image_url":
-                image_url = (
-                    part.get("image_url", {})
-                    if isinstance(part, dict)
-                    else getattr(part, "image_url", None)
-                )
+                image_url = part.get("image_url", {}) if isinstance(part, dict) else getattr(part, "image_url", None)
                 if image_url:
-                    url = (
-                        image_url.get("url")
-                        if isinstance(image_url, dict)
-                        else getattr(image_url, "url", "")
-                    )
+                    url = image_url.get("url") if isinstance(image_url, dict) else getattr(image_url, "url", "")
                     if url and url.startswith("data:image/"):
                         # Handle base64 data URLs
                         mime_type = url.split(";")[0].replace("data:", "")
                         data = url.split(",")[1]
-                        mcp_contents.append(
-                            ImageContent(type="image", data=data, mimeType=mime_type)
-                        )
+                        mcp_contents.append(ImageContent(type="image", data=data, mimeType=mime_type))
 
             # Handle explicit resource types
             elif part_type == "resource" and isinstance(part, dict) and "resource" in part:

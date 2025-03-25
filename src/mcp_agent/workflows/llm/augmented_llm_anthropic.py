@@ -47,7 +47,7 @@ class AnthropicAugmentedLLM(AugmentedLLM[MessageParam, Message]):
     selecting appropriate tools, and determining what information to retain.
     """
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, **kwargs) -> None:
         self.provider = "Anthropic"
         # Initialize logger - keep it simple without name reference
         self.logger = get_logger(__name__)
@@ -84,8 +84,7 @@ class AnthropicAugmentedLLM(AugmentedLLM[MessageParam, Message]):
         except AuthenticationError as e:
             raise ProviderKeyError(
                 "Invalid Anthropic API key",
-                "The configured Anthropic API key was rejected.\n"
-                "Please check that your API key is valid and not expired.",
+                "The configured Anthropic API key was rejected.\n" "Please check that your API key is valid and not expired.",
             ) from e
 
         # Always include prompt messages, but only include conversation history
@@ -140,8 +139,7 @@ class AnthropicAugmentedLLM(AugmentedLLM[MessageParam, Message]):
             if isinstance(response, AuthenticationError):
                 raise ProviderKeyError(
                     "Invalid Anthropic API key",
-                    "The configured Anthropic API key was rejected.\n"
-                    "Please check that your API key is valid and not expired.",
+                    "The configured Anthropic API key was rejected.\n" "Please check that your API key is valid and not expired.",
                 ) from response
             elif isinstance(response, BaseException):
                 error_details = str(response)
@@ -190,9 +188,7 @@ class AnthropicAugmentedLLM(AugmentedLLM[MessageParam, Message]):
                 break
             elif response.stop_reason == "stop_sequence":
                 # We have reached a stop sequence
-                self.logger.debug(
-                    f"Iteration {i}: Stopping because finish_reason is 'stop_sequence'"
-                )
+                self.logger.debug(f"Iteration {i}: Stopping because finish_reason is 'stop_sequence'")
                 break
             elif response.stop_reason == "max_tokens":
                 # We have reached the max tokens limit
@@ -247,9 +243,7 @@ class AnthropicAugmentedLLM(AugmentedLLM[MessageParam, Message]):
                             params=CallToolRequestParams(name=tool_name, arguments=tool_args),
                         )
                         # TODO -- support MCP isError etc.
-                        result = await self.call_tool(
-                            request=tool_call_request, tool_call_id=tool_use_id
-                        )
+                        result = await self.call_tool(request=tool_call_request, tool_call_id=tool_use_id)
                         self.show_tool_result(result)
 
                         # Add each result to our collection
@@ -336,12 +330,8 @@ class AnthropicAugmentedLLM(AugmentedLLM[MessageParam, Message]):
         # Join all collected text
         return "\n".join(final_text)
 
-    async def generate_prompt(
-        self, prompt: "PromptMessageMultipart", request_params: RequestParams | None
-    ) -> str:
-        return await self.generate_str(
-            AnthropicConverter.convert_to_anthropic(prompt), request_params
-        )
+    async def generate_prompt(self, prompt: "PromptMessageMultipart", request_params: RequestParams | None) -> str:
+        return await self.generate_str(AnthropicConverter.convert_to_anthropic(prompt), request_params)
 
     async def _apply_prompt_template_provider_specific(
         self,
@@ -363,9 +353,7 @@ class AnthropicAugmentedLLM(AugmentedLLM[MessageParam, Message]):
         last_message = multipart_messages[-1]
 
         # Add all previous messages to history (or all messages if last is from assistant)
-        messages_to_add = (
-            multipart_messages[:-1] if last_message.role == "user" else multipart_messages
-        )
+        messages_to_add = multipart_messages[:-1] if last_message.role == "user" else multipart_messages
         converted = []
         for msg in messages_to_add:
             converted.append(AnthropicConverter.convert_to_anthropic(msg))

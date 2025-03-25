@@ -109,7 +109,7 @@ def create_summary_panel(events: list[Event]) -> Panel:
     return Panel(text, title="Event Statistics")
 
 
-def main(log_file: str):
+def main(log_file: str) -> None:
     """View MCP Agent events from a log file."""
     events = load_events(Path(log_file))
     console = Console()

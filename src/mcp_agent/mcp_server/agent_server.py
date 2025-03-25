@@ -15,21 +15,20 @@ class AgentMCPServer:
         agent_app: AgentApp,
         server_name: str = "FastAgent-MCP-Server",
         server_description: str = None,
-    ):
+    ) -> None:
         self.agent_app = agent_app
         self.mcp_server = FastMCP(
             name=server_name,
-            instructions=server_description
-            or f"This server provides access to {len(agent_app.agents)} agents",
+            instructions=server_description or f"This server provides access to {len(agent_app.agents)} agents",
         )
         self.setup_tools()
 
-    def setup_tools(self):
+    def setup_tools(self) -> None:
         """Register all agents as MCP tools."""
         for agent_name, agent_proxy in self.agent_app._agents.items():
             self.register_agent_tools(agent_name, agent_proxy)
 
-    def register_agent_tools(self, agent_name: str, agent_proxy):
+    def register_agent_tools(self, agent_name: str, agent_proxy) -> None:
         """Register tools for a specific agent."""
 
         # Basic send message tool
@@ -55,7 +54,7 @@ class AgentMCPServer:
             else:
                 return await execute_send()
 
-    def run(self, transport: str = "sse", host: str = "0.0.0.0", port: int = 8000):
+    def run(self, transport: str = "sse", host: str = "0.0.0.0", port: int = 8000) -> None:
         """Run the MCP server."""
         if transport == "sse":
             # For running as a web server
@@ -64,7 +63,7 @@ class AgentMCPServer:
 
         self.mcp_server.run(transport=transport)
 
-    async def run_async(self, transport: str = "sse", host: str = "0.0.0.0", port: int = 8000):
+    async def run_async(self, transport: str = "sse", host: str = "0.0.0.0", port: int = 8000) -> None:
         """Run the MCP server asynchronously."""
         if transport == "sse":
             self.mcp_server.settings.host = host
@@ -92,7 +91,7 @@ class AgentMCPServer:
         agent_context.mcp_context = mcp_context
 
         # Create bridged progress reporter
-        async def bridged_progress(progress, total=None):
+        async def bridged_progress(progress, total=None) -> None:
             if mcp_context:
                 await mcp_context.report_progress(progress, total)
             if original_progress_reporter:

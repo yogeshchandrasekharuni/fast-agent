@@ -47,11 +47,7 @@ def _create_decorator(
         # Create base request params
         def decorator(func: Callable) -> Callable:
             # Create base request params
-            if (
-                request_params is not None
-                or model is not None
-                or use_history != default_use_history
-            ):
+            if request_params is not None or model is not None or use_history != default_use_history:
                 max_tokens = 4096 if agent_type == AgentType.BASIC else None
                 params_dict = {"use_history": use_history, "model": model}
                 if max_tokens:

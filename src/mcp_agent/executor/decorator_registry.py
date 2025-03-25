@@ -11,17 +11,15 @@ R = TypeVar("R")
 class DecoratorRegistry:
     """Centralized decorator management with validation and metadata."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._workflow_defn_decorators: Dict[str, Callable[[Type], Type]] = {}
-        self._workflow_run_decorators: Dict[
-            str, Callable[[Callable[..., R]], Callable[..., R]]
-        ] = {}
+        self._workflow_run_decorators: Dict[str, Callable[[Callable[..., R]], Callable[..., R]]] = {}
 
     def register_workflow_defn_decorator(
         self,
         executor_name: str,
         decorator: Callable[[Type], Type],
-    ):
+    ) -> None:
         """
         Registers a workflow definition decorator for a given executor.
 
@@ -48,7 +46,7 @@ class DecoratorRegistry:
         self,
         executor_name: str,
         decorator: Callable[[Callable[..., R]], Callable[..., R]],
-    ):
+    ) -> None:
         """
         Registers a workflow run decorator for a given executor.
 
@@ -62,9 +60,7 @@ class DecoratorRegistry:
             )
         self._workflow_run_decorators[executor_name] = decorator
 
-    def get_workflow_run_decorator(
-        self, executor_name: str
-    ) -> Callable[[Callable[..., R]], Callable[..., R]]:
+    def get_workflow_run_decorator(self, executor_name: str) -> Callable[[Callable[..., R]], Callable[..., R]]:
         """
         Retrieves a workflow run decorator for a given executor.
 
@@ -88,14 +84,14 @@ def default_workflow_run(fn: Callable[..., R]) -> Callable[..., R]:
     return wrapper
 
 
-def register_asyncio_decorators(decorator_registry: DecoratorRegistry):
+def register_asyncio_decorators(decorator_registry: DecoratorRegistry) -> None:
     """Registers default asyncio decorators."""
     executor_name = "asyncio"
     decorator_registry.register_workflow_defn_decorator(executor_name, default_workflow_defn)
     decorator_registry.register_workflow_run_decorator(executor_name, default_workflow_run)
 
 
-def register_temporal_decorators(decorator_registry: DecoratorRegistry):
+def register_temporal_decorators(decorator_registry: DecoratorRegistry) -> None:
     """Registers Temporal decorators if Temporal SDK is available."""
     try:
         import temporalio.workflow as temporal_workflow

@@ -73,7 +73,7 @@ class Orchestrator(AugmentedLLM[MessageParamT, MessageT]):
         plan_type: Literal["full", "iterative"] = "full",
         context: Optional["Context"] = None,
         **kwargs,
-    ):
+    ) -> None:
         """
         Args:
             name: Name of the orchestrator workflow
@@ -171,17 +171,13 @@ class Orchestrator(AugmentedLLM[MessageParamT, MessageT]):
     ) -> ModelT:
         return None
 
-    async def execute(
-        self, objective: str, request_params: RequestParams | None = None
-    ) -> PlanResult:
+    async def execute(self, objective: str, request_params: RequestParams | None = None) -> PlanResult:
         """Execute task with result chaining between steps"""
         iterations = 0
         total_steps_executed = 0
 
         params = self.get_request_params(request_params)
-        max_steps = getattr(
-            params, "max_steps", params.max_iterations * 5
-        )  # Default to 5× max_iterations
+        max_steps = getattr(params, "max_steps", params.max_iterations * 5)  # Default to 5× max_iterations
 
         # Single progress event for orchestration start
         model = await self.select_model(params) or "unknown-model"
@@ -203,17 +199,13 @@ class Orchestrator(AugmentedLLM[MessageParamT, MessageT]):
         while iterations < params.max_iterations:
             if self.plan_type == "iterative":
                 # Get next plan/step
-                next_step = await self._get_next_step(
-                    objective=objective, plan_result=plan_result, request_params=params
-                )
+                next_step = await self._get_next_step(objective=objective, plan_result=plan_result, request_params=params)
                 logger.debug(f"Iteration {iterations}: Iterative plan:", data=next_step)
                 plan = Plan(steps=[next_step], is_complete=next_step.is_complete)
                 # Validate agent names in the plan early
                 self._validate_agent_names(plan)
             elif self.plan_type == "full":
-                plan = await self._get_full_plan(
-                    objective=objective, plan_result=plan_result, request_params=params
-                )
+                plan = await self._get_full_plan(objective=objective, plan_result=plan_result, request_params=params)
                 logger.debug(f"Iteration {iterations}: Full Plan:", data=plan)
                 # Validate agent names in the plan early
                 self._validate_agent_names(plan)
@@ -228,9 +220,7 @@ class Orchestrator(AugmentedLLM[MessageParamT, MessageT]):
 
                 # Synthesize final result into a single message
                 # Use the structured XML format for better context
-                synthesis_prompt = SYNTHESIZE_PLAN_PROMPT_TEMPLATE.format(
-                    plan_result=format_plan_result(plan_result)
-                )
+                synthesis_prompt = SYNTHESIZE_PLAN_PROMPT_TEMPLATE.format(plan_result=format_plan_result(plan_result))
 
                 # Use planner directly - planner already has PLANNING verb
                 plan_result.result = await self.planner.generate_str(
@@ -245,9 +235,7 @@ class Orchestrator(AugmentedLLM[MessageParamT, MessageT]):
             for step in plan.steps:
                 # Check if we've hit the step limit
                 if total_steps_executed >= max_steps:
-                    self.logger.warning(
-                        f"Reached maximum step limit ({max_steps}) without completing objective."
-                    )
+                    self.logger.warning(f"Reached maximum step limit ({max_steps}) without completing objective.")
                     plan_result.max_steps_reached = True
                     break
 
@@ -298,9 +286,7 @@ class Orchestrator(AugmentedLLM[MessageParamT, MessageT]):
                 plan_result.is_complete = True
 
             # Use standard template for complete plans
-            synthesis_prompt = SYNTHESIZE_PLAN_PROMPT_TEMPLATE.format(
-                plan_result=format_plan_result(plan_result)
-            )
+            synthesis_prompt = SYNTHESIZE_PLAN_PROMPT_TEMPLATE.format(plan_result=format_plan_result(plan_result))
 
         # Generate the final synthesis with the appropriate template
         plan_result.result = await self.planner.generate_str(
@@ -330,9 +316,7 @@ class Orchestrator(AugmentedLLM[MessageParamT, MessageT]):
             # Make sure we're using a valid agent name
             agent = self.agents.get(task.agent)
             if not agent:
-                self.logger.error(
-                    f"AGENT VALIDATION ERROR: No agent found matching '{task.agent}'. Available agents: {list(self.agents.keys())}"
-                )
+                self.logger.error(f"AGENT VALIDATION ERROR: No agent found matching '{task.agent}'. Available agents: {list(self.agents.keys())}")
                 error_tasks.append(
                     (
                         task,
@@ -414,9 +398,7 @@ class Orchestrator(AugmentedLLM[MessageParamT, MessageT]):
         # Create clear plan status indicator for the template
         plan_status = "Plan Status: Not Started"
         if plan_result.is_complete:
-            plan_status = (
-                "Plan Status: Complete" if plan_result.is_complete else "Plan Status: In Progress"
-            )
+            plan_status = "Plan Status: Complete" if plan_result.is_complete else "Plan Status: In Progress"
 
         # Fix the iteration counting display
         max_iterations = params.max_iterations
@@ -473,24 +455,18 @@ class Orchestrator(AugmentedLLM[MessageParamT, MessageT]):
 
         # Format agents without numeric prefixes for cleaner XML
         # FIX: Iterate over agent names instead of agent objects
-        agents = "\n".join(
-            [self._format_agent_info(agent_name) for agent_name in self.agents.keys()]
-        )
+        agents = "\n".join([self._format_agent_info(agent_name) for agent_name in self.agents.keys()])
 
         # Create clear plan status indicator for the template
         plan_status = "Plan Status: Not Started"
         if plan_result:
-            plan_status = (
-                "Plan Status: Complete" if plan_result.is_complete else "Plan Status: In Progress"
-            )
+            plan_status = "Plan Status: Complete" if plan_result.is_complete else "Plan Status: In Progress"
 
         # Add max_iterations info for the LLM
         max_iterations = params.max_iterations
         current_iteration = len(plan_result.step_results)
         iterations_remaining = max_iterations - current_iteration
-        iterations_info = (
-            f"Planning Budget: {iterations_remaining} of {max_iterations} iterations remaining"
-        )
+        iterations_info = f"Planning Budget: {iterations_remaining} of {max_iterations} iterations remaining"
 
         prompt = ITERATIVE_PLAN_PROMPT_TEMPLATE.format(
             objective=objective,
@@ -501,9 +477,7 @@ class Orchestrator(AugmentedLLM[MessageParamT, MessageT]):
         )
 
         # Get raw JSON response from LLM
-        return await self.planner.generate_structured(
-            message=prompt, request_params=params, response_model=NextStep
-        )
+        return await self.planner.generate_structured(message=prompt, request_params=params, response_model=NextStep)
 
     def _format_server_info(self, server_name: str) -> str:
         """Format server information for display to planners using XML tags"""

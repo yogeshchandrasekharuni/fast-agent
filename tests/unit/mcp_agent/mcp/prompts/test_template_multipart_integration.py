@@ -71,15 +71,10 @@ I'd be happy to help you learn about {{topic}}!
         # Verify results
         assert len(multiparts) == 2
         assert multiparts[0].role == "user"
-        assert (
-            "Hello, I'm trying to learn about Python programming." in multiparts[0].content[0].text
-        )
+        assert "Hello, I'm trying to learn about Python programming." in multiparts[0].content[0].text
 
         assert multiparts[1].role == "assistant"
-        assert (
-            "I'd be happy to help you learn about Python programming!"
-            in multiparts[1].content[0].text
-        )
+        assert "I'd be happy to help you learn about Python programming!" in multiparts[1].content[0].text
 
     def test_multipart_to_template_conversion(self):
         """Test converting PromptMessageMultipart objects to a PromptTemplate."""
@@ -162,9 +157,7 @@ Hi there! I'm here to help with your test.
             f.write("---USER\n")
             f.write("Can you explain quantum physics?\n")
             f.write("---ASSISTANT\n")
-            f.write(
-                "Quantum physics is fascinating! It deals with the behavior of matter at atomic scales.\n"
-            )
+            f.write("Quantum physics is fascinating! It deals with the behavior of matter at atomic scales.\n")
 
         # DEBUG: Read the file content to verify it's written correctly
         with open(str(temp_delimited_file), "r", encoding="utf-8") as f:
@@ -211,9 +204,7 @@ Hi there! I'm here to help with your test.
 
         # Create new messages and convert to template
         new_messages = [
-            PromptMessageMultipart(
-                role="user", content=[TextContent(type="text", text="Tell me a joke.")]
-            ),
+            PromptMessageMultipart(role="user", content=[TextContent(type="text", text="Tell me a joke.")]),
             PromptMessageMultipart(
                 role="assistant",
                 content=[TextContent(type="text", text="Why did the chicken cross the road?")],

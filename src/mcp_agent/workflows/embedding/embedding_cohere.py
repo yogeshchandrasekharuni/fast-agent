@@ -17,7 +17,7 @@ class CohereEmbeddingModel(EmbeddingModel):
         model: str = "embed-multilingual-v3.0",
         context: Optional["Context"] = None,
         **kwargs,
-    ):
+    ) -> None:
         super().__init__(context=context, **kwargs)
         self.client = Client(api_key=self.context.config.cohere.api_key)
         self.model = model

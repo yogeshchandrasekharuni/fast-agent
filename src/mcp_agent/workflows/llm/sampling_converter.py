@@ -63,9 +63,7 @@ class SamplingConverter:
         )
 
     @staticmethod
-    def create_message_result(
-        response: str, model: str, stop_reason: StopReason = "endTurn"
-    ) -> CreateMessageResult:
+    def create_message_result(response: str, model: str, stop_reason: StopReason = "endTurn") -> CreateMessageResult:
         """
         Create a CreateMessageResult from an LLM response.
 

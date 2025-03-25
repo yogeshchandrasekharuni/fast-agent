@@ -41,7 +41,7 @@ Summarize your evaluation as a structured response with:
     min_rating="EXCELLENT",
     name="Researcher_Evaluator",
 )
-async def main():
+async def main() -> None:
     async with agents.run() as agent:
         await agent.prompt("Researcher_Evaluator")
 

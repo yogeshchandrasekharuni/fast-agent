@@ -10,7 +10,7 @@ fa = FastAgent("My Application")
 @fa.agent("analyst", "hello, world", servers=["fetch"])
 
 # Run the application with MCP server
-async def main():
+async def main() -> None:
     await fa.run_with_mcp_server(
         transport="sse",  # Use "sse" for web server, "stdio" for command line
         port=8000,

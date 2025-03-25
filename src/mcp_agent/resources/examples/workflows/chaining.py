@@ -22,7 +22,7 @@ fast = FastAgent("Agent Chaining")
     name="post_writer",
     sequence=["url_fetcher", "social_media"],
 )
-async def main():
+async def main() -> None:
     async with fast.run() as agent:
         # using chain workflow
         await agent.post_writer.prompt()

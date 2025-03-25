@@ -87,7 +87,7 @@ async def generate_test_events():
         await asyncio.sleep(1)
 
 
-async def main():
+async def main() -> None:
     """Run the progress display test."""
     # Set up the progress listener
     listener = ProgressListener()

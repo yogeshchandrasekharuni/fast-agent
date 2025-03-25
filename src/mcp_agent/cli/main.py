@@ -21,7 +21,7 @@ application = Application()
 console = Console()
 
 
-def show_welcome():
+def show_welcome() -> None:
     """Show a welcome message with available commands."""
     from importlib.metadata import version
 
@@ -62,7 +62,7 @@ def main(
     verbose: bool = typer.Option(False, "--verbose", "-v", help="Enable verbose mode"),
     quiet: bool = typer.Option(False, "--quiet", "-q", help="Disable output"),
     color: bool = typer.Option(True, "--color/--no-color", help="Enable/disable color output"),
-):
+) -> None:
     """FastAgent CLI - Build effective agents using Model Context Protocol (MCP).
 
     Use --help with any command for detailed usage information.

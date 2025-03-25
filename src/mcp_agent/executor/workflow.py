@@ -62,7 +62,7 @@ class Workflow(ABC, Generic[T]):
         name: str | None = None,
         metadata: Dict[str, Any] | None = None,
         **kwargs: Any,
-    ):
+    ) -> None:
         self.executor = executor
         self.name = name or self.__class__.__name__
         self.init_kwargs = kwargs
@@ -80,7 +80,7 @@ class Workflow(ABC, Generic[T]):
         Main workflow implementation. Must be overridden by subclasses.
         """
 
-    async def update_state(self, **kwargs):
+    async def update_state(self, **kwargs) -> None:
         """Syntactic sugar to update workflow state."""
         for key, value in kwargs.items():
             self.state[key] = value

@@ -77,9 +77,7 @@ class MCPAggregator(ContextDependent):
         if self.connection_persistence:
             # Try to get existing connection manager from context
             if not hasattr(self.context, "_connection_manager"):
-                self.context._connection_manager = MCPConnectionManager(
-                    self.context.server_registry
-                )
+                self.context._connection_manager = MCPConnectionManager(self.context.server_registry)
                 await self.context._connection_manager.__aenter__()
             self._persistent_connection_manager = self.context._connection_manager
 
@@ -97,7 +95,7 @@ class MCPAggregator(ContextDependent):
         context: Optional["Context"] = None,
         name: str = None,
         **kwargs,
-    ):
+    ) -> None:
         """
         :param server_names: A list of server names to connect to.
         :param connection_persistence: Whether to maintain persistent connections to servers (default: True).
@@ -128,17 +126,14 @@ class MCPAggregator(ContextDependent):
         self._prompt_cache: Dict[str, List[Prompt]] = {}
         self._prompt_cache_lock = Lock()
 
-    async def close(self):
+    async def close(self) -> None:
         """
         Close all persistent connections when the aggregator is deleted.
         """
         if self.connection_persistence and self._persistent_connection_manager:
             try:
                 # Only attempt cleanup if we own the connection manager
-                if (
-                    hasattr(self.context, "_connection_manager")
-                    and self.context._connection_manager == self._persistent_connection_manager
-                ):
+                if hasattr(self.context, "_connection_manager") and self.context._connection_manager == self._persistent_connection_manager:
                     logger.info("Shutting down all persistent connections...")
                     await self._persistent_connection_manager.disconnect_all()
                     await self._persistent_connection_manager.__aexit__(None, None, None)
@@ -180,7 +175,7 @@ class MCPAggregator(ContextDependent):
             logger.error(f"Error creating MCPAggregator: {e}")
             await instance.__aexit__(None, None, None)
 
-    async def load_servers(self):
+    async def load_servers(self) -> None:
         """
         Discover tools from each server in parallel and build an index of namespaced tool names.
         Also populate the prompt cache.
@@ -207,9 +202,7 @@ class MCPAggregator(ContextDependent):
                     },
                 )
 
-                await self._persistent_connection_manager.get_server(
-                    server_name, client_session_factory=MCPAgentClientSession
-                )
+                await self._persistent_connection_manager.get_server(server_name, client_session_factory=MCPAgentClientSession)
 
             logger.info(
                 f"MCP Servers initialized for agent '{self.agent_name}'",
@@ -246,15 +239,11 @@ class MCPAggregator(ContextDependent):
             prompts: List[Prompt] = []
 
             if self.connection_persistence:
-                server_connection = await self._persistent_connection_manager.get_server(
-                    server_name, client_session_factory=MCPAgentClientSession
-                )
+                server_connection = await self._persistent_connection_manager.get_server(server_name, client_session_factory=MCPAgentClientSession)
                 tools = await fetch_tools(server_connection.session)
                 prompts = await fetch_prompts(server_connection.session, server_name)
             else:
-                async with gen_client(
-                    server_name, server_registry=self.context.server_registry
-                ) as client:
+                async with gen_client(server_name, server_registry=self.context.server_registry) as client:
                     tools = await fetch_tools(client)
                     prompts = await fetch_prompts(client, server_name)
 
@@ -310,9 +299,7 @@ class MCPAggregator(ContextDependent):
             return None
 
         try:
-            server_conn = await self._persistent_connection_manager.get_server(
-                server_name, client_session_factory=MCPAgentClientSession
-            )
+            server_conn = await self._persistent_connection_manager.get_server(server_name, client_session_factory=MCPAgentClientSession)
             # server_capabilities is a property, not a coroutine
             return server_conn.server_capabilities
         except Exception as e:
@@ -369,16 +356,12 @@ class MCPAggregator(ContextDependent):
                 method = getattr(client, method_name)
                 return await method(**method_args)
             except Exception as e:
-                error_msg = (
-                    f"Failed to {method_name} '{operation_name}' on server '{server_name}': {e}"
-                )
+                error_msg = f"Failed to {method_name} '{operation_name}' on server '{server_name}': {e}"
                 logger.error(error_msg)
                 return error_factory(error_msg) if error_factory else None
 
         if self.connection_persistence:
-            server_connection = await self._persistent_connection_manager.get_server(
-                server_name, client_session_factory=MCPAgentClientSession
-            )
+            server_connection = await self._persistent_connection_manager.get_server(server_name, client_session_factory=MCPAgentClientSession)
             return await try_execute(server_connection.session)
         else:
             logger.debug(
@@ -389,9 +372,7 @@ class MCPAggregator(ContextDependent):
                     "agent_name": self.agent_name,
                 },
             )
-            async with gen_client(
-                server_name, server_registry=self.context.server_registry
-            ) as client:
+            async with gen_client(server_name, server_registry=self.context.server_registry) as client:
                 result = await try_execute(client)
                 logger.debug(
                     f"Closing temporary connection to server: {server_name}",
@@ -470,14 +451,10 @@ class MCPAggregator(ContextDependent):
             operation_name=local_tool_name,
             method_name="call_tool",
             method_args={"name": local_tool_name, "arguments": arguments},
-            error_factory=lambda msg: CallToolResult(
-                isError=True, content=[TextContent(type="text", text=msg)]
-            ),
+            error_factory=lambda msg: CallToolResult(isError=True, content=[TextContent(type="text", text=msg)]),
         )
 
-    async def get_prompt(
-        self, prompt_name: str = None, arguments: dict[str, str] = None
-    ) -> GetPromptResult:
+    async def get_prompt(self, prompt_name: str = None, arguments: dict[str, str] = None) -> GetPromptResult:
         """
         Get a prompt from a server.
 
@@ -531,9 +508,7 @@ class MCPAggregator(ContextDependent):
                         # Check if any prompt in the cache has this name
                         prompt_names = [prompt.name for prompt in self._prompt_cache[server_name]]
                         if local_prompt_name not in prompt_names:
-                            logger.debug(
-                                f"Prompt '{local_prompt_name}' not found in cache for server '{server_name}'"
-                            )
+                            logger.debug(f"Prompt '{local_prompt_name}' not found in cache for server '{server_name}'")
                             return GetPromptResult(
                                 description=f"Prompt '{local_prompt_name}' not found on server '{server_name}'",
                                 messages=[],
@@ -575,9 +550,7 @@ class MCPAggregator(ContextDependent):
                     potential_servers.append(s_name)
 
         if potential_servers:
-            logger.debug(
-                f"Found prompt '{local_prompt_name}' in cache for servers: {potential_servers}"
-            )
+            logger.debug(f"Found prompt '{local_prompt_name}' in cache for servers: {potential_servers}")
 
             # Try each server from the cache
             for s_name in potential_servers:
@@ -603,9 +576,7 @@ class MCPAggregator(ContextDependent):
 
                     # If we got a successful result with messages, return it
                     if result and result.messages:
-                        logger.debug(
-                            f"Successfully retrieved prompt '{local_prompt_name}' from server '{s_name}'"
-                        )
+                        logger.debug(f"Successfully retrieved prompt '{local_prompt_name}' from server '{s_name}'")
                         # Add namespaced name using the actual server where found
                         result.namespaced_name = f"{s_name}{SEP}{local_prompt_name}"
 
@@ -628,9 +599,7 @@ class MCPAggregator(ContextDependent):
                 if capabilities and capabilities.prompts:
                     supported_servers.append(s_name)
                 else:
-                    logger.debug(
-                        f"Server '{s_name}' does not support prompts, skipping from fallback search"
-                    )
+                    logger.debug(f"Server '{s_name}' does not support prompts, skipping from fallback search")
 
             # Try all supported servers in order
             for s_name in supported_servers:
@@ -651,9 +620,7 @@ class MCPAggregator(ContextDependent):
 
                     # If we got a successful result with messages, return it
                     if result and result.messages:
-                        logger.debug(
-                            f"Found prompt '{local_prompt_name}' on server '{s_name}' (not in cache)"
-                        )
+                        logger.debug(f"Found prompt '{local_prompt_name}' on server '{s_name}' (not in cache)")
                         # Add namespaced name using the actual server where found
                         result.namespaced_name = f"{s_name}{SEP}{local_prompt_name}"
 
@@ -678,9 +645,7 @@ class MCPAggregator(ContextDependent):
                                     if s_name not in self._prompt_cache:
                                         self._prompt_cache[s_name] = []
                                     # Add if not already in the cache
-                                    prompt_names_in_cache = [
-                                        p.name for p in self._prompt_cache[s_name]
-                                    ]
+                                    prompt_names_in_cache = [p.name for p in self._prompt_cache[s_name]]
                                     if local_prompt_name not in prompt_names_in_cache:
                                         self._prompt_cache[s_name].append(matching_prompts[0])
                         except Exception:
@@ -852,7 +817,7 @@ class MCPCompoundServer(Server):
     A compound server (server-of-servers) that aggregates multiple MCP servers and is itself an MCP server
     """
 
-    def __init__(self, server_names: List[str], name: str = "MCPCompoundServer"):
+    def __init__(self, server_names: List[str], name: str = "MCPCompoundServer") -> None:
         super().__init__(name)
         self.aggregator = MCPAggregator(server_names)
 
@@ -878,9 +843,7 @@ class MCPCompoundServer(Server):
                 content=[TextContent(type="text", text=f"Error calling tool: {e}")],
             )
 
-    async def _get_prompt(
-        self, name: str = None, arguments: dict[str, str] = None
-    ) -> GetPromptResult:
+    async def _get_prompt(self, name: str = None, arguments: dict[str, str] = None) -> GetPromptResult:
         """
         Get a prompt from the aggregated servers.
 

@@ -23,7 +23,7 @@ Visualisations should be saved as .png files in the current working directory.
     servers=["interpreter"],
     request_params=RequestParams(maxTokens=8192),
 )
-async def main():
+async def main() -> None:
     # Use the app's context manager
     async with fast.run() as agent:
         await agent(

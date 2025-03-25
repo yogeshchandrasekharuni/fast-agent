@@ -86,9 +86,7 @@ def MCPImage(
 
     return {
         "role": role,
-        "content": ImageContent(
-            type="image", data=b64_data, mimeType=mime_type, annotations=annotations
-        ),
+        "content": ImageContent(type="image", data=b64_data, mimeType=mime_type, annotations=annotations),
     }
 
 
@@ -134,9 +132,7 @@ def MCPFile(
             # Fallback to binary if text read fails
             binary_data = path.read_bytes()
             b64_data = base64.b64encode(binary_data).decode("ascii")
-            resource = BlobResourceContents(
-                uri=uri, blob=b64_data, mimeType=mime_type or "application/octet-stream"
-            )
+            resource = BlobResourceContents(uri=uri, blob=b64_data, mimeType=mime_type or "application/octet-stream")
 
     return {
         "role": role,
