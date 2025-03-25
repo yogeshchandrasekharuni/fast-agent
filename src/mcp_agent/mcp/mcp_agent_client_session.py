@@ -3,7 +3,7 @@ A derived client session for the MCP Agent framework.
 It adds logging and supports sampling requests.
 """
 
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
 
 from mcp import ClientSession
 from mcp.shared.session import (
@@ -21,10 +21,12 @@ from mcp.types import (
 )
 from pydantic import AnyUrl
 
-from mcp_agent.config import MCPServerSettings
 from mcp_agent.context_dependent import ContextDependent
 from mcp_agent.logging.logger import get_logger
 from mcp_agent.mcp.sampling import sample
+
+if TYPE_CHECKING:
+    from mcp_agent.config import MCPServerSettings
 
 logger = get_logger(__name__)
 

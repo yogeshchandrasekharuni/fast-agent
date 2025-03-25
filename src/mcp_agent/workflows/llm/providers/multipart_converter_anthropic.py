@@ -1,4 +1,4 @@
-from typing import List, Optional, Sequence, Union
+from typing import TYPE_CHECKING, List, Optional, Sequence, Union
 
 from anthropic.types import (
     Base64ImageSourceParam,
@@ -22,7 +22,6 @@ from mcp.types import (
     TextContent,
     TextResourceContents,
 )
-from pydantic import AnyUrl
 
 from mcp_agent.logging.logger import get_logger
 from mcp_agent.mcp.mime_utils import (
@@ -32,6 +31,9 @@ from mcp_agent.mcp.mime_utils import (
 )
 from mcp_agent.mcp.prompt_message_multipart import PromptMessageMultipart
 from mcp_agent.mcp.resource_utils import extract_title_from_uri
+
+if TYPE_CHECKING:
+    from pydantic import AnyUrl
 
 _logger = get_logger("multipart_converter_anthropic")
 

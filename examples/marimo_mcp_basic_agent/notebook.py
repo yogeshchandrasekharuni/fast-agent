@@ -57,10 +57,12 @@ def _(llm, mo):
 
 @app.cell
 async def _():
-    from mcp import ListToolsResult
     import asyncio
-    from mcp_agent.app import MCPApp
+
+    from mcp import ListToolsResult
+
     from mcp_agent.agents.agent import Agent
+    from mcp_agent.app import MCPApp
     from mcp_agent.workflows.llm.augmented_llm_openai import OpenAIAugmentedLLM
 
     app = MCPApp(name="mcp_basic_agent")

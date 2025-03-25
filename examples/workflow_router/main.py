@@ -1,13 +1,14 @@
 import asyncio
 import os
 
+from rich import print
+
+from mcp_agent.agents.agent import Agent, AgentConfig
 from mcp_agent.app import MCPApp
 from mcp_agent.logging.logger import get_logger
-from mcp_agent.agents.agent import Agent, AgentConfig
-from mcp_agent.workflows.router.router_llm import LLMRouter
-from mcp_agent.workflows.llm.model_factory import ModelFactory
 from mcp_agent.workflows.llm.augmented_llm import RequestParams
-from rich import print
+from mcp_agent.workflows.llm.model_factory import ModelFactory
+from mcp_agent.workflows.router.router_llm import LLMRouter
 
 app = MCPApp(name="router")
 

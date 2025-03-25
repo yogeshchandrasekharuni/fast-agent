@@ -1,15 +1,15 @@
 import asyncio
-from typing import Optional
 from contextlib import AsyncExitStack
-
-from mcp import ClientSession, StdioServerParameters
-from mcp.client.stdio import stdio_client
-from mcp_agent.app import MCPApp
-from mcp_agent.agents.agent import Agent
-from mcp_agent.workflows.llm.augmented_llm_openai import OpenAIAugmentedLLM
-from rich import print
+from typing import Optional
 
 from dotenv import load_dotenv
+from mcp import ClientSession, StdioServerParameters
+from mcp.client.stdio import stdio_client
+from rich import print
+
+from mcp_agent.agents.agent import Agent
+from mcp_agent.app import MCPApp
+from mcp_agent.workflows.llm.augmented_llm_openai import OpenAIAugmentedLLM
 
 load_dotenv()  # load environment variables from .env
 

@@ -1,10 +1,12 @@
-from typing import List, Optional, Union
+from typing import TYPE_CHECKING, List, Optional, Union
 
 from mcp import GetPromptResult
-from mcp.types import PromptMessage
 
 from mcp_agent.workflows.llm.augmented_llm import MessageParamT, RequestParams
 from mcp_agent.workflows.llm.augmented_llm_passthrough import PassthroughLLM
+
+if TYPE_CHECKING:
+    from mcp.types import PromptMessage
 
 
 # TODO -- support tool calling

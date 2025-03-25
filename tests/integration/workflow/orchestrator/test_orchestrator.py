@@ -13,7 +13,7 @@ async def test_loading_agent(fast_agent):
     @fast.agent("agent2")
     @fast.orchestrator("orchestrator", agents=["agent1", "agent2"])
     async def agent_function():
-        async with fast.run() as agent:
+        async with fast.run():
             # assert "orchestrate" in await agent.orchestrator.send("orchestrate")
             assert True  # pending implementation
 

@@ -121,9 +121,9 @@ select = [
     "E",   # pycodestyle errors
     "F",   # pyflakes
     "I",   # isort
-    "ANN", # type annotations
     "TCH"  # type checking
 ]
+ignore=["E501"]
 
 # More lenient settings for existing code
 [tool.ruff.lint.per-file-ignores]

@@ -1,15 +1,15 @@
 import asyncio
 
-from mcp_agent.app import MCPApp
-from mcp_agent.agents.agent import Agent
-from mcp_agent.workflows.llm.augmented_llm import RequestParams
-from mcp_agent.workflows.llm.augmented_llm_openai import OpenAIAugmentedLLM
+from rich import print
 
+from mcp_agent.agents.agent import Agent
+from mcp_agent.app import MCPApp
 from mcp_agent.workflows.evaluator_optimizer.evaluator_optimizer import (
     EvaluatorOptimizerLLM,
     QualityRating,
 )
-from rich import print
+from mcp_agent.workflows.llm.augmented_llm import RequestParams
+from mcp_agent.workflows.llm.augmented_llm_openai import OpenAIAugmentedLLM
 
 # To illustrate an evaluator-optimizer workflow, we will build a job cover letter refinement system,
 # which generates a draft based on job description, company information, and candidate details.
