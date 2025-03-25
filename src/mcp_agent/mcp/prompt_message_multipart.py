@@ -21,9 +21,7 @@ class PromptMessageMultipart(BaseModel):
     content: List[Union[TextContent, ImageContent, EmbeddedResource]]
 
     @classmethod
-    def from_prompt_messages(
-        cls, messages: List[PromptMessage]
-    ) -> List["PromptMessageMultipart"]:
+    def flatten(cls, messages: List[PromptMessage]) -> List["PromptMessageMultipart"]:
         """Convert a sequence of PromptMessages into PromptMessageMultipart objects."""
         if not messages:
             return []
@@ -49,7 +47,7 @@ class PromptMessageMultipart(BaseModel):
 
         return result
 
-    def to_prompt_messages(self) -> List[PromptMessage]:
+    def unflatten(self) -> List[PromptMessage]:
         """Convert this PromptMessageMultipart to a sequence of standard PromptMessages."""
         return [
             PromptMessage(role=self.role, content=content_part)
@@ -61,4 +59,4 @@ class PromptMessageMultipart(BaseModel):
         cls, result: GetPromptResult
     ) -> List["PromptMessageMultipart"]:
         """Parse a GetPromptResult into PromptMessageMultipart objects."""
-        return cls.from_prompt_messages(result.messages)
+        return cls.flatten(result.messages)

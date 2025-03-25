@@ -24,7 +24,6 @@ if TYPE_CHECKING:
     from mcp_agent.context import Context
 
 
-
 from mcp.types import (
     CallToolRequest,
     CallToolResult,
@@ -664,7 +663,7 @@ class AugmentedLLM(ContextDependent, AugmentedLLMProtocol[MessageParamT, Message
                 # Fallback generic method for all LLM types
                 for msg in previous_messages:
                     # Convert each PromptMessageMultipart to individual PromptMessages
-                    prompt_messages = msg.to_prompt_messages()
+                    prompt_messages = msg.unflatten()
                     for prompt_msg in prompt_messages:
                         converted.append(
                             self.type_converter.from_prompt_message(prompt_msg)
@@ -702,7 +701,7 @@ class AugmentedLLM(ContextDependent, AugmentedLLMProtocol[MessageParamT, Message
             # Fallback to the original method for all LLM types
             for msg in multipart_messages:
                 # Convert each PromptMessageMultipart to individual PromptMessages
-                prompt_messages = msg.to_prompt_messages()
+                prompt_messages = msg.unflatten()
                 for prompt_msg in prompt_messages:
                     converted.append(
                         self.type_converter.from_prompt_message(prompt_msg)

@@ -233,9 +233,7 @@ class PassthroughLLM(AugmentedLLM):
         self._messages = prompt_messages
 
         # Convert prompt messages to multipart format
-        multipart_messages = PromptMessageMultipart.from_prompt_messages(
-            prompt_messages
-        )
+        multipart_messages = PromptMessageMultipart.flatten(prompt_messages)
 
         # Use apply_prompt to handle the multipart messages
         return await self.apply_prompt(multipart_messages)

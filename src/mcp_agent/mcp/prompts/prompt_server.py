@@ -27,6 +27,7 @@ from mcp.types import (
     TextContent,
 )
 
+from mcp_agent.mcp.prompts.prompt_load import create_messages_with_resources
 from mcp_agent.mcp.prompts.prompt_template import (
     PromptTemplateLoader,
     PromptMetadata,
@@ -61,94 +62,10 @@ config = None
 exposed_resources: Dict[str, Path] = {}
 prompt_registry: Dict[str, PromptMetadata] = {}
 
-# Define message role type
-MessageRole = Literal["user", "assistant"]
-
 # Default delimiter values
 DEFAULT_USER_DELIMITER = "---USER"
 DEFAULT_ASSISTANT_DELIMITER = "---ASSISTANT"
 DEFAULT_RESOURCE_DELIMITER = "---RESOURCE"
-
-
-def create_content_message(text: str, role: MessageRole) -> Message:
-    """Create a text content message with the specified role"""
-    message_class = UserMessage if role == "user" else AssistantMessage
-    return message_class(content=TextContent(type="text", text=text))
-
-
-def create_resource_message(
-    resource_path: str, content: str, mime_type: str, is_binary: bool, role: MessageRole
-) -> Message:
-    """Create a resource message with the specified content and role"""
-    message_class = UserMessage if role == "user" else AssistantMessage
-
-    if mime_utils.is_image_mime_type(mime_type):
-        # For images, create an ImageContent
-        image_content = resource_utils.create_image_content(
-            data=content, mime_type=mime_type
-        )
-        return message_class(content=image_content)
-    else:
-        # For other resources, create an EmbeddedResource
-        embedded_resource = resource_utils.create_embedded_resource(
-            resource_path, content, mime_type, is_binary
-        )
-        return message_class(content=embedded_resource)
-
-
-def create_messages_with_resources(
-    content_sections: List[PromptContent], prompt_files: List[Path]
-) -> List[Message]:
-    """
-    Create a list of messages from content sections, with resources properly handled.
-
-    This implementation produces one message for each content section's text,
-    followed by separate messages for each resource (with the same role type
-    as the section they belong to).
-
-    Args:
-        content_sections: List of PromptContent objects
-        prompt_files: List of prompt files (to help locate resource files)
-
-    Returns:
-        List of Message objects
-    """
-
-    messages = []
-
-    for section in content_sections:
-        # Convert to our literal type for role
-        role = cast_message_role(section.role)
-
-        # Add the text message
-        messages.append(create_content_message(section.text, role))
-
-        # Add resource messages with the same role type as the section
-        for resource_path in section.resources:
-            try:
-                # Load resource with information about its type
-                resource_content, mime_type, is_binary = (
-                    resource_utils.load_resource_content(resource_path, prompt_files)
-                )
-
-                # Create and add the resource message
-                resource_message = create_resource_message(
-                    resource_path, resource_content, mime_type, is_binary, role
-                )
-                messages.append(resource_message)
-            except Exception as e:
-                logger.error(f"Error loading resource {resource_path}: {e}")
-
-    return messages
-
-
-def cast_message_role(role: str) -> MessageRole:
-    """Cast a string role to a MessageRole literal type"""
-    if role == "user" or role == "assistant":
-        return role  # type: ignore
-    # Default to user if the role is invalid
-    logger.warning(f"Invalid message role: {role}, defaulting to 'user'")
-    return "user"
 
 
 # Define a single type for prompt handlers to avoid mypy issues
@@ -170,20 +87,21 @@ def create_prompt_handler(
                 for var in template_vars
                 if var in kwargs and kwargs[var] is not None
             }
-            return PromptTemplateLoader().template_to_prompt_messages(
-                template, prompt_files, context
-            )
+
+            content_sections = template.apply_substitutions(context)
+
+            # Convert to MCP Message objects, handling resources properly
+            return create_messages_with_resources(content_sections, prompt_files)
 
     else:
         # No template variables
         docstring = "Get a prompt with no variable substitution"
 
         async def prompt_handler(**kwargs: Any) -> List[Message]:
-            # Get the content sections
+            content_sections = template.content_sections
 
-            return PromptTemplateLoader().template_to_prompt_messages(
-                template, prompt_files
-            )
+            # Convert to MCP Message objects, handling resources properly
+            return create_messages_with_resources(content_sections, prompt_files)
 
     # Set the docstring
     prompt_handler.__doc__ = docstring

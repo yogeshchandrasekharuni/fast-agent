@@ -1,8 +1,13 @@
+from pathlib import Path
 from typing import List
 import pytest
 
 from mcp_agent.mcp.prompt_message_multipart import PromptMessageMultipart
+from mcp_agent.mcp.prompts.prompt_load import (
+    load_prompt_multipart,
+)
 from mcp_agent.mcp.prompts.prompt_template import PromptTemplateLoader
+from mcp.types import ImageContent
 
 
 @pytest.mark.integration
@@ -38,14 +43,41 @@ async def test_load_conversation_with_attachments(fast_agent):
     # Define the agent
     @fast.agent()
     async def agent_function():
-        async with fast.run() as agent:
-            loaded: List[PromptMessageMultipart] = (
-                PromptTemplateLoader()
-                .load_from_file("conv2_attach.md")
-                .to_multipart_messages()
+        async with fast.run():
+            prompts: list[PromptMessageMultipart] = load_prompt_multipart(
+                Path("conv2_attach.md")
             )
-            assert 5 == len(loaded)
-            # make sure that all messages, including assistant are returned by passthrough
-            assert "message 2" in await agent.apply_prompt(loaded)
+
+            assert 5 == len(prompts)
+            assert "user" == prompts[0].role
+            assert "text/css" == prompts[0].content[1].resource.mimeType
+            assert "f5f5f5" in prompts[0].content[1].resource.text
+
+            assert "assistant" == prompts[1].role
+            assert "sharing" in prompts[1].content[0].text
+
+            assert 3 == len(prompts[2].content)
+            assert isinstance(prompts[2].content[2], ImageContent)
+            assert 12780 == len(prompts[2].content[2].data)
+
+    await agent_function()
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_save_text_file(fast_agent):
+    """Check to see if we can save a conversation to a text file. This functionality
+    is extremely simple, and does not support round-tripping. JSON support using MCP
+    types will be added in a future release."""
+    # Use the FastAgent instance from the test directory fixture
+    fast = fast_agent
+
+    # Define the agent
+    @fast.agent()
+    async def agent_function():
+        async with fast.run() as agent:
+            agent.send("hello")
+            agent.send("world")
+            agent.send("***SAVE_HISTORY simple.txt")
 
     await agent_function()

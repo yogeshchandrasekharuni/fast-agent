@@ -100,7 +100,7 @@ class Prompt:
         for item in messages:
             if isinstance(item, PromptMessageMultipart):
                 # Convert PromptMessageMultipart to a list of PromptMessages
-                result.extend(item.to_prompt_messages())
+                result.extend(item.unflatten())
             elif isinstance(item, dict) and "role" in item and "content" in item:
                 # Convert a single message dict to PromptMessage
                 result.append(PromptMessage(**item))
@@ -128,5 +128,5 @@ class Prompt:
         """
         result = []
         for mp in multipart:
-            result.extend(mp.to_prompt_messages())
+            result.extend(mp.unflatten())
         return result

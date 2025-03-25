@@ -26,7 +26,7 @@ class TestPromptMessageMultipart:
         ]
 
         # Convert to PromptMessageMultipart
-        result = PromptMessageMultipart.from_prompt_messages(messages)
+        result = PromptMessageMultipart.flatten(messages)
 
         # Verify results
         assert len(result) == 1
@@ -49,7 +49,7 @@ class TestPromptMessageMultipart:
         ]
 
         # Convert to PromptMessageMultipart
-        result = PromptMessageMultipart.from_prompt_messages(messages)
+        result = PromptMessageMultipart.flatten(messages)
 
         # Verify results
         assert len(result) == 3
@@ -79,7 +79,7 @@ class TestPromptMessageMultipart:
         ]
 
         # Convert to PromptMessageMultipart
-        result = PromptMessageMultipart.from_prompt_messages(messages)
+        result = PromptMessageMultipart.flatten(messages)
 
         # Verify results
         assert len(result) == 1
@@ -102,7 +102,7 @@ class TestPromptMessageMultipart:
         )
 
         # Convert back to PromptMessages
-        result = multipart.to_prompt_messages()
+        result = multipart.unflatten()
 
         # Verify results
         assert len(result) == 2
@@ -145,7 +145,7 @@ class TestPromptMessageMultipart:
     def test_empty_messages(self):
         """Test handling of empty message lists."""
         # Convert an empty list
-        result = PromptMessageMultipart.from_prompt_messages([])
+        result = PromptMessageMultipart.flatten([])
 
         # Should return an empty list
         assert result == []
@@ -165,12 +165,12 @@ class TestPromptMessageMultipart:
         ]
 
         # Convert to multipart
-        multiparts = PromptMessageMultipart.from_prompt_messages(messages)
+        multiparts = PromptMessageMultipart.flatten(messages)
 
         # Convert back to regular messages
         result = []
         for mp in multiparts:
-            result.extend(mp.to_prompt_messages())
+            result.extend(mp.unflatten())
 
         # Verify the result matches the original
         assert len(result) == len(messages)
