@@ -8,11 +8,10 @@ leveraging existing code for resource handling and delimited formats.
 from anthropic.types import (
     MessageParam,
 )
-
 from mcp.types import (
-    TextContent,
-    ImageContent,
     EmbeddedResource,
+    ImageContent,
+    TextContent,
     TextResourceContents,
 )
 

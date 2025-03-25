@@ -4,6 +4,7 @@ from abc import ABC, abstractmethod
 from contextlib import asynccontextmanager
 from datetime import timedelta
 from typing import (
+    TYPE_CHECKING,
     Any,
     AsyncIterator,
     Callable,
@@ -13,7 +14,6 @@ from typing import (
     Optional,
     Type,
     TypeVar,
-    TYPE_CHECKING,
 )
 
 from pydantic import BaseModel, ConfigDict
@@ -127,9 +127,7 @@ class Executor(ABC, ContextDependent):
 
         return results
 
-    async def validate_task(
-        self, task: Callable[..., R] | Coroutine[Any, Any, R]
-    ) -> None:
+    async def validate_task(self, task: Callable[..., R] | Coroutine[Any, Any, R]) -> None:
         """Validate a task before execution."""
         if not (asyncio.iscoroutine(task) or asyncio.iscoroutinefunction(task)):
             raise TypeError(f"Task must be async: {task}")
@@ -164,7 +162,7 @@ class Executor(ABC, ContextDependent):
 
         # Notify any callbacks that the workflow is about to be paused waiting for a signal
         if self.context.signal_notification:
-            self.context.signal_notification(
+            await self.context.signal_notification(
                 signal_name=signal_name,
                 request_id=request_id,
                 workflow_id=workflow_id,
@@ -194,9 +192,7 @@ class AsyncioExecutor(Executor):
 
         self._activity_semaphore: asyncio.Semaphore | None = None
         if self.config.max_concurrent_activities is not None:
-            self._activity_semaphore = asyncio.Semaphore(
-                self.config.max_concurrent_activities
-            )
+            self._activity_semaphore = asyncio.Semaphore(self.config.max_concurrent_activities)
 
     async def _execute_task(
         self, task: Callable[..., R] | Coroutine[Any, Any, R], **kwargs: Any
@@ -253,16 +249,11 @@ class AsyncioExecutor(Executor):
         # TODO: saqadri - validate if async with self.execution_context() is needed here
         async with self.execution_context():
             # Create futures for all tasks
-            futures = [
-                asyncio.create_task(self._execute_task(task, **kwargs))
-                for task in tasks
-            ]
+            futures = [asyncio.create_task(self._execute_task(task, **kwargs)) for task in tasks]
             pending = set(futures)
 
             while pending:
-                done, pending = await asyncio.wait(
-                    pending, return_when=asyncio.FIRST_COMPLETED
-                )
+                done, pending = await asyncio.wait(pending, return_when=asyncio.FIRST_COMPLETED)
                 for future in done:
                     yield await future
 

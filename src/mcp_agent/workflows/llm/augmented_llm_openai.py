@@ -1,5 +1,5 @@
 import os
-from typing import List, Type, TYPE_CHECKING
+from typing import TYPE_CHECKING, List, Type
 
 from pydantic_core import from_json
 
@@ -10,30 +10,30 @@ from mcp_agent.workflows.llm.providers.sampling_converter_openai import (
 
 if TYPE_CHECKING:
     from mcp_agent.mcp.prompt_message_multipart import PromptMessageMultipart
-from openai import OpenAI, AuthenticationError
+from mcp.types import (
+    CallToolRequest,
+    CallToolRequestParams,
+    CallToolResult,
+)
+from openai import AuthenticationError, OpenAI
 
 # from openai.types.beta.chat import
 from openai.types.chat import (
-    ChatCompletionMessageParam,
     ChatCompletionMessage,
+    ChatCompletionMessageParam,
     ChatCompletionSystemMessageParam,
     ChatCompletionToolParam,
     ChatCompletionUserMessageParam,
 )
-from mcp.types import (
-    CallToolRequestParams,
-    CallToolRequest,
-    CallToolResult,
-)
+from rich.text import Text
 
+from mcp_agent.core.exceptions import ProviderKeyError
+from mcp_agent.logging.logger import get_logger
 from mcp_agent.workflows.llm.augmented_llm import (
     AugmentedLLM,
     ModelT,
     RequestParams,
 )
-from mcp_agent.core.exceptions import ProviderKeyError
-from mcp_agent.logging.logger import get_logger
-from rich.text import Text
 
 _logger = get_logger(__name__)
 
@@ -462,11 +462,11 @@ class OpenAIAugmentedLLM(
             messages = self.history.get(include_history=True)
 
             # Import required utilities
-            from mcp_agent.workflows.llm.openai_utils import (
-                openai_message_param_to_prompt_message_multipart,
-            )
             from mcp_agent.mcp.prompt_serialization import (
                 multipart_messages_to_delimited_format,
+            )
+            from mcp_agent.workflows.llm.openai_utils import (
+                openai_message_param_to_prompt_message_multipart,
             )
 
             # Convert message params to PromptMessageMultipart objects

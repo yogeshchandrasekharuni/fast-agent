@@ -1,8 +1,8 @@
 from abc import ABC, abstractmethod
-from typing import Callable, Dict, Generic, List, Optional, TypeVar, TYPE_CHECKING
+from typing import TYPE_CHECKING, Callable, Dict, Generic, List, Optional, TypeVar
 
-from pydantic import BaseModel, Field, ConfigDict
 from mcp.server.fastmcp.tools import Tool as FastTool
+from pydantic import BaseModel, ConfigDict, Field
 
 from mcp_agent.agents.agent import Agent
 from mcp_agent.context_dependent import ContextDependent

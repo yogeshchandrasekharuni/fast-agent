@@ -3,10 +3,10 @@ Interface definitions to prevent circular imports.
 This module defines protocols (interfaces) that can be used to break circular dependencies.
 """
 
-from contextlib import asynccontextmanager
+from datetime import timedelta
 from typing import (
     Any,
-    AsyncGenerator,
+    AsyncContextManager,
     Callable,
     Generic,
     List,
@@ -14,136 +14,120 @@ from typing import (
     Protocol,
     Type,
     TypeVar,
+    Union,
+    runtime_checkable,
 )
 
+from anyio.streams.memory import MemoryObjectReceiveStream, MemoryObjectSendStream
 from mcp import ClientSession
-from mcp.types import CreateMessageRequestParams
-from pydantic import Field
+from mcp.types import PromptMessage
 
+from mcp_agent.core.request_params import RequestParams
 from mcp_agent.mcp.prompt_message_multipart import PromptMessageMultipart
 
 
-class ServerRegistryProtocol(Protocol):
-    """
-    Protocol defining the minimal interface of ServerRegistry needed by gen_client.
-    This allows gen_client to depend on this protocol rather than the full ServerRegistry class.
-    """
-
-    @asynccontextmanager
-    async def initialize_server(
-        self,
-        server_name: str,
-        client_session_factory=None,
-        init_hook=None,
-    ) -> AsyncGenerator[ClientSession, None]:
-        """Initialize a server and yield a client session."""
-        ...
-
-    @property
-    def connection_manager(self) -> "ConnectionManagerProtocol":
-        """Get the connection manager."""
-        ...
-
-
-class ConnectionManagerProtocol(Protocol):
-    """
-    Protocol defining the minimal interface of ConnectionManager needed.
-    """
+@runtime_checkable
+class MCPConnectionManagerProtocol(Protocol):
+    """Protocol for MCPConnectionManager functionality needed by ServerRegistry."""
 
     async def get_server(
         self,
         server_name: str,
-        client_session_factory=None,
-    ):
-        """Get a server connection."""
+        client_session_factory: Optional[
+            Callable[
+                [
+                    MemoryObjectReceiveStream,
+                    MemoryObjectSendStream,
+                    Optional[timedelta],
+                ],
+                ClientSession,
+            ]
+        ] = None,
+    ) -> "ServerConnection": ...
+
+    async def disconnect_server(self, server_name: str) -> None: ...
+
+    async def disconnect_all_servers(self) -> None: ...
+
+
+@runtime_checkable
+class ServerRegistryProtocol(Protocol):
+    """Protocol defining the minimal interface of ServerRegistry needed by gen_client."""
+
+    @property
+    def connection_manager(self) -> MCPConnectionManagerProtocol: ...
+
+    def initialize_server(
+        self,
+        server_name: str,
+        client_session_factory: Optional[
+            Callable[
+                [
+                    MemoryObjectReceiveStream,
+                    MemoryObjectSendStream,
+                    Optional[timedelta],
+                ],
+                ClientSession,
+            ]
+        ] = None,
+        init_hook: Optional[Callable] = None,
+    ) -> AsyncContextManager[ClientSession]:
+        """Initialize a server and yield a client session."""
         ...
 
-    async def disconnect_server(self, server_name: str) -> None:
-        """Disconnect from a server."""
-        ...
 
-    async def disconnect_all_servers(self) -> None:
-        """Disconnect from all servers."""
-        ...
+class ServerConnection(Protocol):
+    """Protocol for server connection objects returned by MCPConnectionManager."""
+
+    @property
+    def session(self) -> ClientSession: ...
 
 
-# Type variables for generic protocols
+# Regular invariant type variables
 MessageParamT = TypeVar("MessageParamT")
-"""A type representing an input message to an LLM."""
-
 MessageT = TypeVar("MessageT")
-"""A type representing an output message from an LLM."""
-
 ModelT = TypeVar("ModelT")
-"""A type representing a structured output message from an LLM."""
+
+# Variance-annotated type variables
+MessageParamT_co = TypeVar("MessageParamT_co", contravariant=True)
+MessageT_co = TypeVar("MessageT_co")
 
 
-class RequestParams(CreateMessageRequestParams):
-    """
-    Parameters to configure the AugmentedLLM 'generate' requests.
-    """
-
-    messages: None = Field(exclude=True, default=None)
-    """
-    Ignored. 'messages' are removed from CreateMessageRequestParams 
-    to avoid confusion with the 'message' parameter on 'generate' method.
-    """
-
-    maxTokens: int = 2048
-    """The maximum number of tokens to sample, as requested by the server."""
-
-    model: str | None = None
-    """
-    The model to use for the LLM generation.
-    If specified, this overrides the 'modelPreferences' selection criteria.
-    """
-
-    use_history: bool = True
-    """
-    Include the message history in the generate request.
-    """
-
-    max_iterations: int = 10
-    """
-    The maximum number of iterations to run the LLM for.
-    """
-
-    parallel_tool_calls: bool = True
-    """
-    Whether to allow multiple tool calls per iteration.
-    Also known as multi-step tool use.
-    """
-
-
-class AugmentedLLMProtocol(Protocol, Generic[MessageParamT, MessageT]):
+class AugmentedLLMProtocol(Protocol, Generic[MessageParamT_co, MessageT_co]):
     """Protocol defining the interface for augmented LLMs"""
 
     async def generate(
         self,
-        message: str | MessageParamT | List[MessageParamT],
+        message: Union[str, MessageParamT_co, List[MessageParamT_co]],
         request_params: RequestParams | None = None,
-    ) -> List[MessageT]:
+    ) -> List[MessageT_co]:
         """Request an LLM generation, which may run multiple iterations, and return the result"""
+        ...
 
     async def generate_str(
         self,
-        message: str | MessageParamT | List[MessageParamT],
+        message: Union[str, MessageParamT_co, List[MessageParamT_co]],
         request_params: RequestParams | None = None,
     ) -> str:
         """Request an LLM generation and return the string representation of the result"""
+        ...
 
-    async def generate_structured(
+    async def structured(
         self,
-        message: str | MessageParamT | List[MessageParamT],
-        response_model: Type[ModelT],
-        request_params: RequestParams | None = None,
+        prompt: Union[str, PromptMessage, PromptMessageMultipart, List[str]],
+        model: Type[ModelT],
+        request_params: RequestParams | None,
     ) -> ModelT:
-        """Request a structured LLM generation and return the result as a Pydantic model."""
+        """Apply the prompt and return the result as a Pydantic model, or None if coercion fails"""
+        ...
 
     async def generate_prompt(
-        self, prompt: PromptMessageMultipart, request_params: RequestParams | None
+        self,
+        prompt: Union[str, PromptMessage, PromptMessageMultipart, List[str]],
+        request_params: RequestParams | None,
     ) -> str:
         """Request an LLM generation and return a string representation of the result"""
+        ...
 
     async def apply_prompt(
         self,
@@ -161,6 +145,7 @@ class AugmentedLLMProtocol(Protocol, Generic[MessageParamT, MessageT]):
         Returns:
             String representation of the assistant's response
         """
+        ...
 
 
 class ModelFactoryClassProtocol(Protocol):

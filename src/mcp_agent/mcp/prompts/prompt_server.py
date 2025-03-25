@@ -5,34 +5,27 @@ A server that loads prompts from text files with simple delimiters and serves th
 Uses the prompt_template module for clean, testable handling of prompt templates.
 """
 
-import asyncio
 import argparse
+import asyncio
 import base64
 import logging
 import sys
 from pathlib import Path
-from typing import List, Dict, Optional, Callable, Awaitable, Literal, Any
+from typing import Any, Awaitable, Callable, Dict, List, Optional
+
+from mcp.server.fastmcp import FastMCP
+from mcp.server.fastmcp.prompts.base import (
+    Message,
+)
 from mcp.server.fastmcp.resources import FileResource
 from pydantic import AnyUrl
 
 from mcp_agent.mcp import mime_utils, resource_utils
-
-from mcp.server.fastmcp import FastMCP
-from mcp.server.fastmcp.prompts.base import (
-    UserMessage,
-    AssistantMessage,
-    Message,
-)
-from mcp.types import (
-    TextContent,
-)
-
 from mcp_agent.mcp.prompts.prompt_load import create_messages_with_resources
 from mcp_agent.mcp.prompts.prompt_template import (
-    PromptTemplateLoader,
     PromptMetadata,
-    PromptContent,
     PromptTemplate,
+    PromptTemplateLoader,
 )
 
 # Configure logging

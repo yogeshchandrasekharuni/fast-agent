@@ -6,12 +6,14 @@ Transports for the Logger module for MCP Agent, including:
 
 import asyncio
 import json
+import traceback
 from abc import ABC, abstractmethod
-from typing import Dict, List, Protocol
 from pathlib import Path
+from typing import Dict, List, Protocol
 
 import aiohttp
 from opentelemetry import trace
+from rich import print
 from rich.json import JSON
 from rich.text import Text
 
@@ -20,8 +22,6 @@ from mcp_agent.console import console
 from mcp_agent.logging.events import Event, EventFilter
 from mcp_agent.logging.json_serializer import JSONSerializer
 from mcp_agent.logging.listeners import EventListener, LifecycleAwareListener
-from rich import print
-import traceback
 
 
 class EventTransport(Protocol):

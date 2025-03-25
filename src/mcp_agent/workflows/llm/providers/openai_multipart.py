@@ -4,19 +4,18 @@ Clean utilities for converting between PromptMessageMultipart and OpenAI message
 Each function handles all content types consistently and is designed for simple testing.
 """
 
-from typing import Dict, Any, Union, List
+from typing import Any, Dict, List, Union
 
+from mcp.types import (
+    BlobResourceContents,
+    EmbeddedResource,
+    ImageContent,
+    TextContent,
+    TextResourceContents,
+)
 from openai.types.chat import (
     ChatCompletionMessage,
     ChatCompletionMessageParam,
-)
-
-from mcp.types import (
-    TextContent,
-    ImageContent,
-    EmbeddedResource,
-    TextResourceContents,
-    BlobResourceContents,
 )
 
 from mcp_agent.mcp.prompt_message_multipart import PromptMessageMultipart

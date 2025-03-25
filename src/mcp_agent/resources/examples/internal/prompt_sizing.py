@@ -1,6 +1,6 @@
-from pydantic import Field
 from mcp.server.fastmcp import FastMCP
-from mcp.server.fastmcp.prompts.base import UserMessage, AssistantMessage
+from mcp.server.fastmcp.prompts.base import AssistantMessage, UserMessage
+from pydantic import Field
 
 mcp = FastMCP("MCP Prompt Tester")
 

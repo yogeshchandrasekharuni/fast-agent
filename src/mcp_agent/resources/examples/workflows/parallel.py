@@ -3,6 +3,7 @@ Parallel Workflow showing Fan Out and Fan In agents, using different models
 """
 
 import asyncio
+
 from mcp_agent.core.fastagent import FastAgent
 
 # Create the application

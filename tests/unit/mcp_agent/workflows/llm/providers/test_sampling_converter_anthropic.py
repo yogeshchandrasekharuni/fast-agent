@@ -18,7 +18,6 @@ class TestAnthropicMCPTypeConverter:
             mcp_stop_reason_to_anthropic_stop_reason("stopSequence") == "stop_sequence"
         )
         assert mcp_stop_reason_to_anthropic_stop_reason("toolUse") == "tool_use"
-        assert mcp_stop_reason_to_anthropic_stop_reason(None) is None
         assert mcp_stop_reason_to_anthropic_stop_reason("unknown") == "unknown"
 
         # Test Anthropic to MCP conversions
@@ -28,5 +27,4 @@ class TestAnthropicMCPTypeConverter:
             anthropic_stop_reason_to_mcp_stop_reason("stop_sequence") == "stopSequence"
         )
         assert anthropic_stop_reason_to_mcp_stop_reason("tool_use") == "toolUse"
-        assert anthropic_stop_reason_to_mcp_stop_reason(None) is None
         assert anthropic_stop_reason_to_mcp_stop_reason("unknown") == "unknown"

@@ -1,5 +1,5 @@
 from mcp.server.fastmcp import FastMCP
-from mcp.server.fastmcp.prompts.base import UserMessage, AssistantMessage
+from mcp.server.fastmcp.prompts.base import AssistantMessage, UserMessage
 
 mcp = FastMCP("MCP Root Tester")
 

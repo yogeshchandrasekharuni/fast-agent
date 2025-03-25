@@ -1,5 +1,5 @@
-from typing import Any, Callable, List, Optional, Type, TYPE_CHECKING, Union
 import asyncio
+from typing import TYPE_CHECKING, Any, Callable, List, Optional, Type, Union
 
 from mcp_agent.agents.agent import Agent
 from mcp_agent.workflows.llm.augmented_llm import (

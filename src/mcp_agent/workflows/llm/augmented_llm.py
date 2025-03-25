@@ -1,192 +1,51 @@
 from abc import abstractmethod
-
 from typing import (
-    Generic,
+    TYPE_CHECKING,
     List,
     Optional,
-    Protocol,
     Type,
-    TypeVar,
-    TYPE_CHECKING,
+    cast,
 )
 
-from mcp_agent.mcp.prompt_message_multipart import PromptMessageMultipart
-from mcp_agent.workflows.llm.sampling_format_converter import (
-    SamplingFormatConverter,
+from mcp_agent.logging.logger import get_logger
+from mcp_agent.mcp.interfaces import (
+    AugmentedLLMProtocol,
     MessageParamT,
     MessageT,
+    ModelT,
+)
+from mcp_agent.mcp.prompt_message_multipart import PromptMessageMultipart
+from mcp_agent.workflows.llm.sampling_format_converter import (
+    BasicFormatConverter,
+    ProviderFormatConverter,
 )
 
 # Forward reference for type annotations
 if TYPE_CHECKING:
-    from mcp_agent.mcp.prompt_message_multipart import PromptMessageMultipart
     from mcp_agent.agents.agent import Agent
     from mcp_agent.context import Context
+    from mcp_agent.mcp.prompt_message_multipart import PromptMessageMultipart
 
 
 from mcp.types import (
     CallToolRequest,
     CallToolResult,
+    GetPromptResult,
     PromptMessage,
     TextContent,
-    GetPromptResult,
 )
+from rich.text import Text
 
 from mcp_agent.context_dependent import ContextDependent
 from mcp_agent.core.exceptions import ModelConfigError, PromptExitError
 from mcp_agent.core.request_params import RequestParams
 from mcp_agent.event_progress import ProgressAction
-
-try:
-    from mcp_agent.mcp.mcp_aggregator import MCPAggregator
-except ImportError:
-    # For testing purposes
-    class MCPAggregator:
-        pass
-
-
+from mcp_agent.mcp.mcp_aggregator import MCPAggregator
 from mcp_agent.ui.console_display import ConsoleDisplay
-from rich.text import Text
-
-
-ModelT = TypeVar("ModelT")
-"""A type representing a structured output message from an LLM."""
-
+from mcp_agent.workflows.llm.memory import Memory, SimpleMemory
 
 # TODO -- move this to a constant
 HUMAN_INPUT_TOOL_NAME = "__human_input__"
-
-
-class Memory(Protocol, Generic[MessageParamT]):
-    """
-    Simple memory management for storing past interactions in-memory.
-    """
-
-    # TODO: saqadri - add checkpointing and other advanced memory capabilities
-
-    def __init__(self): ...
-
-    def extend(
-        self, messages: List[MessageParamT], is_prompt: bool = False
-    ) -> None: ...
-
-    def set(self, messages: List[MessageParamT], is_prompt: bool = False) -> None: ...
-
-    def append(self, message: MessageParamT, is_prompt: bool = False) -> None: ...
-
-    def get(self, include_history: bool = True) -> List[MessageParamT]: ...
-
-    def clear(self, clear_prompts: bool = False) -> None: ...
-
-
-class SimpleMemory(Memory, Generic[MessageParamT]):
-    """
-    Simple memory management for storing past interactions in-memory.
-
-    Maintains both prompt messages (which are always included) and
-    generated conversation history (which is included based on use_history setting).
-    """
-
-    def __init__(self):
-        self.history: List[MessageParamT] = []
-        self.prompt_messages: List[MessageParamT] = []  # Always included
-
-    def extend(self, messages: List[MessageParamT], is_prompt: bool = False):
-        """
-        Add multiple messages to history.
-
-        Args:
-            messages: Messages to add
-            is_prompt: If True, add to prompt_messages instead of regular history
-        """
-        if is_prompt:
-            self.prompt_messages.extend(messages)
-        else:
-            self.history.extend(messages)
-
-    def set(self, messages: List[MessageParamT], is_prompt: bool = False):
-        """
-        Replace messages in history.
-
-        Args:
-            messages: Messages to set
-            is_prompt: If True, replace prompt_messages instead of regular history
-        """
-        if is_prompt:
-            self.prompt_messages = messages.copy()
-        else:
-            self.history = messages.copy()
-
-    def append(self, message: MessageParamT, is_prompt: bool = False):
-        """
-        Add a single message to history.
-
-        Args:
-            message: Message to add
-            is_prompt: If True, add to prompt_messages instead of regular history
-        """
-        if is_prompt:
-            self.prompt_messages.append(message)
-        else:
-            self.history.append(message)
-
-    def get(self, include_history: bool = True) -> List[MessageParamT]:
-        """
-        Get all messages in memory.
-
-        Args:
-            include_history: If True, include regular history messages
-                             If False, only return prompt messages
-
-        Returns:
-            Combined list of prompt messages and optionally history messages
-        """
-        if include_history:
-            return self.prompt_messages + self.history
-        else:
-            return self.prompt_messages.copy()
-
-    def clear(self, clear_prompts: bool = False):
-        """
-        Clear history and optionally prompt messages.
-
-        Args:
-            clear_prompts: If True, also clear prompt messages
-        """
-        self.history = []
-        if clear_prompts:
-            self.prompt_messages = []
-
-
-class AugmentedLLMProtocol(Protocol, Generic[MessageParamT, MessageT]):
-    """Protocol defining the interface for augmented LLMs"""
-
-    async def generate(
-        self,
-        message: str | MessageParamT | List[MessageParamT],
-        request_params: RequestParams | None = None,
-    ) -> List[MessageT]:
-        """Request an LLM generation, which may run multiple iterations, and return the result"""
-
-    async def generate_str(
-        self,
-        message: str | MessageParamT | List[MessageParamT],
-        request_params: RequestParams | None = None,
-    ) -> str:
-        """Request an LLM generation and return the string representation of the result"""
-
-    async def generate_structured(
-        self,
-        message: str | MessageParamT | List[MessageParamT],
-        response_model: Type[ModelT],
-        request_params: RequestParams | None = None,
-    ) -> ModelT:
-        """Request a structured LLM generation and return the result as a Pydantic model."""
-
-    async def generate_prompt(
-        self, prompt: PromptMessageMultipart, request_params: RequestParams | None
-    ) -> str:
-        """Request an LLM generation and return a string representation of the result"""
 
 
 class AugmentedLLM(ContextDependent, AugmentedLLMProtocol[MessageParamT, MessageT]):
@@ -197,9 +56,6 @@ class AugmentedLLM(ContextDependent, AugmentedLLMProtocol[MessageParamT, Message
     selecting appropriate tools, and determining what information to retain.
     """
 
-    # TODO: saqadri - add streaming support (e.g. generate_stream)
-    # TODO: saqadri - consider adding middleware patterns for pre/post processing of messages, for now we have pre/post_tool_call
-
     provider: str | None = None
 
     def __init__(
@@ -209,7 +65,9 @@ class AugmentedLLM(ContextDependent, AugmentedLLMProtocol[MessageParamT, Message
         instruction: str | None = None,
         name: str | None = None,
         request_params: RequestParams | None = None,
-        type_converter: Type[SamplingFormatConverter[MessageParamT, MessageT]] = None,
+        type_converter: Type[
+            ProviderFormatConverter[MessageParamT, MessageT]
+        ] = BasicFormatConverter,
         context: Optional["Context"] = None,
         **kwargs,
     ):
@@ -221,7 +79,7 @@ class AugmentedLLM(ContextDependent, AugmentedLLMProtocol[MessageParamT, Message
         # Extract request_params before super() call
         self._init_request_params = request_params
         super().__init__(context=context, **kwargs)
-
+        self.logger = get_logger(__name__)
         self.executor = self.context.executor
         self.aggregator = (
             agent if agent is not None else MCPAggregator(server_names or [])
@@ -278,7 +136,7 @@ class AugmentedLLM(ContextDependent, AugmentedLLMProtocol[MessageParamT, Message
         """
         Return the configured model (legacy support)
         """
-        if request_params.model:
+        if request_params and request_params.model:
             return request_params.model
 
         raise ModelConfigError("Internal Error: Model is not configured correctly")
@@ -334,7 +192,7 @@ class AugmentedLLM(ContextDependent, AugmentedLLMProtocol[MessageParamT, Message
     ) -> MessageParamT:
         """Convert a response object to an input parameter object to allow LLM calls to be chained."""
         # Many LLM implementations will allow the same type for input and output messages
-        return message
+        return cast("MessageParamT", message)
 
     async def get_last_message(self) -> MessageParamT | None:
         """
@@ -411,7 +269,8 @@ class AugmentedLLM(ContextDependent, AugmentedLLMProtocol[MessageParamT, Message
                         isError=True,
                         content=[
                             TextContent(
-                                text=f"Error: Tool '{request.params.name}' was not allowed to run."
+                                type="text",
+                                text=f"Error: Tool '{request.params.name}' was not allowed to run.",
                             )
                         ],
                     )
@@ -462,13 +321,13 @@ class AugmentedLLM(ContextDependent, AugmentedLLMProtocol[MessageParamT, Message
                         if isinstance(part, dict) and "text" in part:
                             text_parts.append(part["text"])
                         elif hasattr(part, "text"):
-                            text_parts.append(part.text)
+                            text_parts.append(part.text)  # type: ignore
                     if text_parts:
                         return "\n".join(text_parts)
 
         # For objects with content attribute
         if hasattr(message, "content"):
-            content = message.content
+            content = message.content  # type: ignore
             if isinstance(content, str):
                 return content
             elif hasattr(content, "text"):
@@ -483,13 +342,13 @@ class AugmentedLLM(ContextDependent, AugmentedLLMProtocol[MessageParamT, Message
         Tries to extract just the content when possible.
         """
         # First try to use the same method for consistency
-        result = self.message_param_str(message)
+        result = self.message_param_str(message)  # type: ignore
         if result != str(message):
             return result
 
         # Additional handling for output-specific formats
         if hasattr(message, "content"):
-            content = message.content
+            content = getattr(message, "content")
             if isinstance(content, list):
                 # Extract text from content blocks
                 text_parts = []
@@ -663,7 +522,7 @@ class AugmentedLLM(ContextDependent, AugmentedLLMProtocol[MessageParamT, Message
                 # Fallback generic method for all LLM types
                 for msg in previous_messages:
                     # Convert each PromptMessageMultipart to individual PromptMessages
-                    prompt_messages = msg.unflatten()
+                    prompt_messages = msg.from_multipart()
                     for prompt_msg in prompt_messages:
                         converted.append(
                             self.type_converter.from_prompt_message(prompt_msg)
@@ -676,8 +535,12 @@ class AugmentedLLM(ContextDependent, AugmentedLLMProtocol[MessageParamT, Message
             for content in last_message.content:
                 if content.type == "text":
                     user_text_parts.append(content.text)
-                elif content.type == "resource" and hasattr(content.resource, "text"):
-                    user_text_parts.append(content.resource.text)
+                elif (
+                    content.type == "resource"
+                    and getattr(content, "resource", None) is not None
+                ):
+                    if hasattr(content.resource, "text"):
+                        user_text_parts.append(content.resource.text)  # type: ignore
                 elif content.type == "image":
                     # Add a placeholder for images
                     mime_type = getattr(content, "mimeType", "image/unknown")
@@ -701,7 +564,7 @@ class AugmentedLLM(ContextDependent, AugmentedLLMProtocol[MessageParamT, Message
             # Fallback to the original method for all LLM types
             for msg in multipart_messages:
                 # Convert each PromptMessageMultipart to individual PromptMessages
-                prompt_messages = msg.unflatten()
+                prompt_messages = msg.from_multipart()
                 for prompt_msg in prompt_messages:
                     converted.append(
                         self.type_converter.from_prompt_message(prompt_msg)
@@ -722,11 +585,11 @@ class AugmentedLLM(ContextDependent, AugmentedLLMProtocol[MessageParamT, Message
                     uri = getattr(content.resource, "uri", "")
                     if uri:
                         assistant_text_parts.append(
-                            f"[Resource: {uri}, Type: {mime_type}]\n{content.resource.text}"
+                            f"[Resource: {uri}, Type: {mime_type}]\n{content.resource.text}"  # ignore # type: ignore
                         )
                     else:
                         assistant_text_parts.append(
-                            f"[Resource Type: {mime_type}]\n{content.resource.text}"
+                            f"[Resource Type: {mime_type}]\n{content.resource.text}"  # type ignore # type: ignore
                         )
                 elif content.type == "image":
                     # Note the presence of images

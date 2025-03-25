@@ -2,7 +2,7 @@
 Utility functions for agent operations.
 """
 
-from typing import List, TYPE_CHECKING
+from typing import TYPE_CHECKING, List
 
 from mcp_agent.event_progress import ProgressAction
 
@@ -28,7 +28,7 @@ def unwrap_proxy(proxy: BaseAgentProxy) -> AgentOrWorkflow:
     Returns:
         The underlying Agent or workflow instance
     """
-    from mcp_agent.core.proxies import LLMAgentProxy, ChainProxy
+    from mcp_agent.core.proxies import ChainProxy, LLMAgentProxy
 
     if isinstance(proxy, LLMAgentProxy):
         return proxy._agent

@@ -2,8 +2,11 @@
 Request parameters definitions for LLM interactions.
 """
 
-from pydantic import Field
+from typing import List
+
+from mcp import SamplingMessage
 from mcp.types import CreateMessageRequestParams
+from pydantic import Field
 
 
 class RequestParams(CreateMessageRequestParams):
@@ -11,7 +14,7 @@ class RequestParams(CreateMessageRequestParams):
     Parameters to configure the AugmentedLLM 'generate' requests.
     """
 
-    messages: None = Field(exclude=True, default=None)
+    messages: List[SamplingMessage] = Field(exclude=True, default=[])
     """
     Ignored. 'messages' are removed from CreateMessageRequestParams 
     to avoid confusion with the 'message' parameter on 'generate' method.

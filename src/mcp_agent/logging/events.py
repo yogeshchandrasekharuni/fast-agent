@@ -4,7 +4,6 @@ Events and event filters for the logger module for the MCP Agent
 
 import logging
 import random
-
 from datetime import datetime
 from typing import (
     Any,
@@ -14,7 +13,6 @@ from typing import (
 )
 
 from pydantic import BaseModel, ConfigDict, Field
-
 
 EventType = Literal["debug", "info", "warning", "error", "progress"]
 """Broad categories for events (severity or role)."""

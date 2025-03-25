@@ -1,24 +1,24 @@
-from typing import Callable, Dict, Generic, List, Optional, TYPE_CHECKING
 from collections import defaultdict
+from typing import TYPE_CHECKING, Callable, Dict, Generic, List, Optional
 
-from pydantic import AnyUrl, BaseModel, ConfigDict
 from mcp.types import (
     CallToolRequest,
-    EmbeddedResource,
     CallToolResult,
+    EmbeddedResource,
     TextContent,
     TextResourceContents,
     Tool,
 )
+from pydantic import AnyUrl, BaseModel, ConfigDict
 
 from mcp_agent.agents.agent import Agent
 from mcp_agent.human_input.types import HumanInputCallback
+from mcp_agent.logging.logger import get_logger
 from mcp_agent.workflows.llm.augmented_llm import (
     AugmentedLLM,
     MessageParamT,
     MessageT,
 )
-from mcp_agent.logging.logger import get_logger
 
 if TYPE_CHECKING:
     from mcp_agent.context import Context

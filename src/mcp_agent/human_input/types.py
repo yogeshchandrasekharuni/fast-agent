@@ -1,4 +1,5 @@
 from typing import Any, AsyncIterator, Protocol
+
 from pydantic import BaseModel
 
 HUMAN_INPUT_SIGNAL_NAME = "__human_input__"

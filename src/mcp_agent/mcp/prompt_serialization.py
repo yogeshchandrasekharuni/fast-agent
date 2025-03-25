@@ -19,9 +19,9 @@ and PromptMessageMultipart objects. It includes functionality for:
 import json
 from typing import List
 
-from mcp.types import TextContent, EmbeddedResource, ImageContent, TextResourceContents
-from mcp_agent.mcp.prompt_message_multipart import PromptMessageMultipart
+from mcp.types import EmbeddedResource, ImageContent, TextContent, TextResourceContents
 
+from mcp_agent.mcp.prompt_message_multipart import PromptMessageMultipart
 
 # -------------------------------------------------------------------------
 # JSON Serialization Functions

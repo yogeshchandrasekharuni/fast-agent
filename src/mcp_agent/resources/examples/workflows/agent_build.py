@@ -3,6 +3,7 @@ This demonstrates creating multiple agents and an orchestrator to coordinate the
 """
 
 import asyncio
+
 from mcp_agent.core.fastagent import FastAgent
 from mcp_agent.workflows.llm.augmented_llm import RequestParams
 

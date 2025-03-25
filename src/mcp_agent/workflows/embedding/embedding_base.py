@@ -7,7 +7,6 @@ from sklearn.metrics.pairwise import cosine_similarity
 
 from mcp_agent.context_dependent import ContextDependent
 
-
 FloatArray = NDArray[float32]
 
 

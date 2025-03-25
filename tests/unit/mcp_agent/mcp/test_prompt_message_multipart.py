@@ -26,7 +26,7 @@ class TestPromptMessageMultipart:
         ]
 
         # Convert to PromptMessageMultipart
-        result = PromptMessageMultipart.flatten(messages)
+        result = PromptMessageMultipart.to_multipart(messages)
 
         # Verify results
         assert len(result) == 1
@@ -49,7 +49,7 @@ class TestPromptMessageMultipart:
         ]
 
         # Convert to PromptMessageMultipart
-        result = PromptMessageMultipart.flatten(messages)
+        result = PromptMessageMultipart.to_multipart(messages)
 
         # Verify results
         assert len(result) == 3
@@ -79,7 +79,7 @@ class TestPromptMessageMultipart:
         ]
 
         # Convert to PromptMessageMultipart
-        result = PromptMessageMultipart.flatten(messages)
+        result = PromptMessageMultipart.to_multipart(messages)
 
         # Verify results
         assert len(result) == 1
@@ -102,7 +102,7 @@ class TestPromptMessageMultipart:
         )
 
         # Convert back to PromptMessages
-        result = multipart.unflatten()
+        result = multipart.from_multipart()
 
         # Verify results
         assert len(result) == 2
@@ -145,7 +145,7 @@ class TestPromptMessageMultipart:
     def test_empty_messages(self):
         """Test handling of empty message lists."""
         # Convert an empty list
-        result = PromptMessageMultipart.flatten([])
+        result = PromptMessageMultipart.to_multipart([])
 
         # Should return an empty list
         assert result == []
@@ -165,12 +165,12 @@ class TestPromptMessageMultipart:
         ]
 
         # Convert to multipart
-        multiparts = PromptMessageMultipart.flatten(messages)
+        multiparts = PromptMessageMultipart.to_multipart(messages)
 
         # Convert back to regular messages
         result = []
         for mp in multiparts:
-            result.extend(mp.unflatten())
+            result.extend(mp.from_multipart())
 
         # Verify the result matches the original
         assert len(result) == len(messages)

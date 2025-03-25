@@ -1,12 +1,12 @@
-from typing import Callable, List, Literal, Optional, TYPE_CHECKING
+from typing import TYPE_CHECKING, Callable, List, Literal, Optional
 
 from pydantic import BaseModel
 
 from mcp_agent.agents.agent import Agent
+from mcp_agent.event_progress import ProgressAction
+from mcp_agent.logging.logger import get_logger
 from mcp_agent.workflows.llm.augmented_llm import AugmentedLLM, RequestParams
 from mcp_agent.workflows.router.router_base import ResultT, Router, RouterResult
-from mcp_agent.logging.logger import get_logger
-from mcp_agent.event_progress import ProgressAction
 
 if TYPE_CHECKING:
     from mcp_agent.context import Context

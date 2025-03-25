@@ -1,4 +1,4 @@
-from typing import List, Optional, TYPE_CHECKING
+from typing import TYPE_CHECKING, List, Optional
 
 from mcp_agent.workflows.embedding.embedding_openai import OpenAIEmbeddingModel
 from mcp_agent.workflows.intent_classifier.intent_classifier_base import Intent

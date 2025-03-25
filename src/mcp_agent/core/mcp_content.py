@@ -7,14 +7,14 @@ EmbeddedResource, and other MCP content types with minimal boilerplate.
 
 import base64
 from pathlib import Path
-from typing import Literal, Optional, Union, List, Any
+from typing import Any, List, Literal, Optional, Union
 
 from mcp.types import (
-    TextContent,
-    ImageContent,
-    EmbeddedResource,
-    TextResourceContents,
     BlobResourceContents,
+    EmbeddedResource,
+    ImageContent,
+    TextContent,
+    TextResourceContents,
 )
 
 from mcp_agent.mcp.mime_utils import (

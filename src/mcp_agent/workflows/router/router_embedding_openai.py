@@ -1,4 +1,4 @@
-from typing import Callable, List, Optional, TYPE_CHECKING
+from typing import TYPE_CHECKING, Callable, List, Optional
 
 from mcp_agent.agents.agent import Agent
 from mcp_agent.workflows.embedding.embedding_openai import OpenAIEmbeddingModel

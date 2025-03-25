@@ -5,12 +5,11 @@ Listeners for the logger module of MCP Agent.
 import asyncio
 import logging
 import time
-
 from abc import ABC, abstractmethod
 from typing import Dict, List
 
-from mcp_agent.logging.events import Event, EventFilter, EventType
 from mcp_agent.event_progress import convert_log_event
+from mcp_agent.logging.events import Event, EventFilter, EventType
 
 
 class EventListener(ABC):

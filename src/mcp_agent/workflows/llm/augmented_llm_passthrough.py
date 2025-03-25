@@ -1,8 +1,11 @@
-from typing import Any, List, Optional, Type, Union
 import json  # Import at the module level
+from typing import Any, List, Optional, Type, Union
+
 from mcp import GetPromptResult
 from mcp.types import PromptMessage
 from pydantic_core import from_json
+
+from mcp_agent.logging.logger import get_logger
 from mcp_agent.mcp.prompt_message_multipart import PromptMessageMultipart
 from mcp_agent.workflows.llm.augmented_llm import (
     AugmentedLLM,
@@ -11,7 +14,6 @@ from mcp_agent.workflows.llm.augmented_llm import (
     ModelT,
     RequestParams,
 )
-from mcp_agent.logging.logger import get_logger
 
 
 class PassthroughLLM(AugmentedLLM):
@@ -233,7 +235,7 @@ class PassthroughLLM(AugmentedLLM):
         self._messages = prompt_messages
 
         # Convert prompt messages to multipart format
-        multipart_messages = PromptMessageMultipart.flatten(prompt_messages)
+        multipart_messages = PromptMessageMultipart.to_multipart(prompt_messages)
 
         # Use apply_prompt to handle the multipart messages
         return await self.apply_prompt(multipart_messages)

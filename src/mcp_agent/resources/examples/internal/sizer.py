@@ -1,4 +1,5 @@
 import asyncio
+
 from mcp_agent.core.fastagent import FastAgent
 
 fast = FastAgent("Sizer Prompt Test")

@@ -2,15 +2,16 @@
 Enhanced prompt functionality with advanced prompt_toolkit features.
 """
 
-from typing import List, Optional
 from importlib.metadata import version
+from typing import List, Optional
+
 from prompt_toolkit import PromptSession
+from prompt_toolkit.completion import Completer, Completion, WordCompleter
+from prompt_toolkit.filters import Condition
 from prompt_toolkit.formatted_text import HTML
 from prompt_toolkit.history import InMemoryHistory
 from prompt_toolkit.key_binding import KeyBindings
-from prompt_toolkit.completion import Completer, Completion, WordCompleter
 from prompt_toolkit.lexers import PygmentsLexer
-from prompt_toolkit.filters import Condition
 from prompt_toolkit.styles import Style
 from pygments.lexers.python import PythonLexer
 from rich import print as rich_print

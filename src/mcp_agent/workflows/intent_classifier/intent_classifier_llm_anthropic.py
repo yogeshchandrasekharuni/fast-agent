@@ -1,10 +1,10 @@
-from typing import List, Optional, TYPE_CHECKING
+from typing import TYPE_CHECKING, List, Optional
 
-from mcp_agent.workflows.llm.augmented_llm_anthropic import AnthropicAugmentedLLM
 from mcp_agent.workflows.intent_classifier.intent_classifier_base import Intent
 from mcp_agent.workflows.intent_classifier.intent_classifier_llm import (
     LLMIntentClassifier,
 )
+from mcp_agent.workflows.llm.augmented_llm_anthropic import AnthropicAugmentedLLM
 
 if TYPE_CHECKING:
     from mcp_agent.context import Context

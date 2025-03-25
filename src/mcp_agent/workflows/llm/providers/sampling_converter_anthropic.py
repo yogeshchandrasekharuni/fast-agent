@@ -1,24 +1,22 @@
-from mcp import StopReason
-from mcp_agent.workflows.llm.providers.multipart_converter_anthropic import (
-    AnthropicConverter,
-)
-from mcp_agent.workflows.llm.sampling_format_converter import SamplingFormatConverter
-
-from mcp.types import (
-    PromptMessage,
-)
-
 from anthropic.types import (
     Message,
     MessageParam,
 )
+from mcp import StopReason
+from mcp.types import (
+    PromptMessage,
+)
 
 from mcp_agent.logging.logger import get_logger
+from mcp_agent.workflows.llm.providers.multipart_converter_anthropic import (
+    AnthropicConverter,
+)
+from mcp_agent.workflows.llm.sampling_format_converter import ProviderFormatConverter
 
 _logger = get_logger(__name__)
 
 
-class AnthropicSamplingConverter(SamplingFormatConverter[MessageParam, Message]):
+class AnthropicSamplingConverter(ProviderFormatConverter[MessageParam, Message]):
     """
     Convert between Anthropic and MCP types.
     """
@@ -46,7 +44,7 @@ def mcp_stop_reason_to_anthropic_stop_reason(stop_reason: StopReason):
 
 def anthropic_stop_reason_to_mcp_stop_reason(stop_reason: str) -> StopReason:
     if not stop_reason:
-        return None
+        return "end_turn"
     elif stop_reason == "end_turn":
         return "endTurn"
     elif stop_reason == "max_tokens":

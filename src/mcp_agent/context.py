@@ -4,40 +4,33 @@ A central context object to store global state that is shared across the applica
 
 import asyncio
 import concurrent.futures
-from typing import Any, Optional, Union, TYPE_CHECKING
-
-from pydantic import BaseModel, ConfigDict
+from typing import TYPE_CHECKING, Any, Optional, Union
 
 from mcp import ServerSession
-
 from opentelemetry import trace
+from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
 from opentelemetry.propagate import set_global_textmap
 from opentelemetry.sdk.resources import Resource
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import BatchSpanProcessor, ConsoleSpanExporter
 from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
-from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
+from pydantic import BaseModel, ConfigDict
 
-from mcp_agent.config import get_settings
-from mcp_agent.config import Settings
-from mcp_agent.executor.executor import Executor
+from mcp_agent.config import Settings, get_settings
 from mcp_agent.executor.decorator_registry import (
     DecoratorRegistry,
     register_asyncio_decorators,
 )
+from mcp_agent.executor.executor import AsyncioExecutor, Executor
 from mcp_agent.executor.task_registry import ActivityRegistry
-from mcp_agent.executor.executor import AsyncioExecutor
-
 from mcp_agent.logging.events import EventFilter
-from mcp_agent.logging.logger import LoggingConfig
+from mcp_agent.logging.logger import LoggingConfig, get_logger
 from mcp_agent.logging.transport import create_transport
 from mcp_agent.mcp_server_registry import ServerRegistry
-from mcp_agent.logging.logger import get_logger
-
 
 if TYPE_CHECKING:
-    from mcp_agent.human_input.types import HumanInputCallback
     from mcp_agent.executor.workflow_signal import SignalWaitCallback
+    from mcp_agent.human_input.types import HumanInputCallback
 else:
     # Runtime placeholders for the types
     HumanInputCallback = Any

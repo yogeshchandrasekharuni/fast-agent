@@ -3,61 +3,59 @@ Decorator-based interface for MCP Agent applications.
 Provides a simplified way to create and manage agents using decorators.
 """
 
-import asyncio
-from typing import (
-    Optional,
-    Dict,
-    TypeVar,
-    Any,
-)
-import yaml
 import argparse
+import asyncio
 from contextlib import asynccontextmanager
 from functools import partial
+from typing import (
+    Any,
+    Dict,
+    Optional,
+    TypeVar,
+)
+
+import yaml
+
+# TODO -- reinstate once Windows&Python 3.13 platform issues are fixed
+# import readline  # noqa: F401
+from rich import print
 
 from mcp_agent.app import MCPApp
 from mcp_agent.config import Settings
-
 from mcp_agent.core.agent_app import AgentApp
 from mcp_agent.core.agent_types import AgentType
+from mcp_agent.core.decorators import (
+    _create_decorator,
+    agent,
+    chain,
+    evaluator_optimizer,
+    orchestrator,
+    parallel,
+    passthrough,
+    router,
+)
 from mcp_agent.core.error_handling import handle_error
-from mcp_agent.core.proxies import LLMAgentProxy
-from mcp_agent.core.types import ProxyDict
 from mcp_agent.core.exceptions import (
     AgentConfigError,
     CircularDependencyError,
     ModelConfigError,
     PromptExitError,
-    ServerConfigError,
     ProviderKeyError,
+    ServerConfigError,
     ServerInitializationError,
 )
-from mcp_agent.core.decorators import (
-    _create_decorator,
-    agent,
-    orchestrator,
-    parallel,
-    evaluator_optimizer,
-    router,
-    chain,
-    passthrough,
+from mcp_agent.core.factory import (
+    create_agents_by_type,
+    create_agents_in_dependency_order,
+    create_basic_agents,
+    get_model_factory,
 )
+from mcp_agent.core.proxies import LLMAgentProxy
+from mcp_agent.core.types import ProxyDict
 from mcp_agent.core.validation import (
     validate_server_references,
     validate_workflow_references,
 )
-from mcp_agent.core.factory import (
-    get_model_factory,
-    create_basic_agents,
-    create_agents_in_dependency_order,
-    create_agents_by_type,
-)
-
-# TODO -- reinstate once Windows&Python 3.13 platform issues are fixed
-# import readline  # noqa: F401
-
-from rich import print
-
 from mcp_agent.mcp_server import AgentMCPServer
 
 T = TypeVar("T")  # For the wrapper classes

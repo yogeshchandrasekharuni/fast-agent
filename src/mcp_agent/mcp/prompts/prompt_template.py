@@ -7,18 +7,15 @@ Provides clean, testable classes for managing template substitution.
 
 import re
 from pathlib import Path
-from typing import Dict, List, Set, Any, Optional, Literal
-
-from pydantic import BaseModel, field_validator
+from typing import Any, Dict, List, Literal, Optional, Set
 
 from mcp.types import (
-    TextContent,
     EmbeddedResource,
+    TextContent,
     TextResourceContents,
-    PromptMessage,
-    ImageContent,
 )
-from mcp_agent.mcp import mime_utils, resource_utils
+from pydantic import BaseModel, field_validator
+
 from mcp_agent.mcp.prompt_message_multipart import PromptMessageMultipart
 from mcp_agent.mcp.prompt_serialization import (
     multipart_messages_to_delimited_format,

@@ -1,7 +1,9 @@
 import asyncio
+
 from mcp.server import NotificationOptions
 from mcp.server.fastmcp import FastMCP
 from mcp.server.stdio import stdio_server
+
 from mcp_agent.executor.temporal import get_temporal_client
 from mcp_agent.telemetry.tracing import setup_tracing
 

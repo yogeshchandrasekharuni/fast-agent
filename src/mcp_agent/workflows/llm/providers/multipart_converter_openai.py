@@ -1,22 +1,21 @@
-from typing import List, Union, Optional, Tuple, Dict, Any
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 from mcp.types import (
-    TextContent,
-    ImageContent,
-    EmbeddedResource,
     CallToolResult,
+    EmbeddedResource,
+    ImageContent,
     PromptMessage,
+    TextContent,
 )
-from mcp_agent.mcp.prompt_message_multipart import PromptMessageMultipart
-from mcp_agent.mcp.mime_utils import (
-    guess_mime_type,
-    is_text_mime_type,
-    is_image_mime_type,
-)
-from mcp_agent.mcp.resource_utils import extract_title_from_uri
-
 
 from mcp_agent.logging.logger import get_logger
+from mcp_agent.mcp.mime_utils import (
+    guess_mime_type,
+    is_image_mime_type,
+    is_text_mime_type,
+)
+from mcp_agent.mcp.prompt_message_multipart import PromptMessageMultipart
+from mcp_agent.mcp.resource_utils import extract_title_from_uri
 
 _logger = get_logger("multipart_converter_openai")
 

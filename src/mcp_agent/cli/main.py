@@ -3,8 +3,9 @@
 import typer
 from rich.console import Console
 from rich.table import Table
+
+from mcp_agent.cli.commands import bootstrap, setup
 from mcp_agent.cli.terminal import Application
-from mcp_agent.cli.commands import setup, bootstrap
 
 app = typer.Typer(
     help="MCP Agent CLI - Build effective agents using Model Context Protocol",

@@ -10,10 +10,8 @@ Logger module for the MCP Agent, which provides:
 import asyncio
 import threading
 import time
-
-from typing import Any, Dict
-
 from contextlib import asynccontextmanager, contextmanager
+from typing import Any, Dict
 
 from mcp_agent.logging.events import Event, EventContext, EventFilter, EventType
 from mcp_agent.logging.listeners import (
@@ -78,7 +76,7 @@ class Logger:
         self,
         message: str,
         name: str | None = None,
-        context: EventContext = None,
+        context: EventContext | None = None,
         **data,
     ):
         """Log a debug message."""
@@ -88,7 +86,7 @@ class Logger:
         self,
         message: str,
         name: str | None = None,
-        context: EventContext = None,
+        context: EventContext | None = None,
         **data,
     ):
         """Log an info message."""
@@ -98,7 +96,7 @@ class Logger:
         self,
         message: str,
         name: str | None = None,
-        context: EventContext = None,
+        context: EventContext | None = None,
         **data,
     ):
         """Log a warning message."""
@@ -108,7 +106,7 @@ class Logger:
         self,
         message: str,
         name: str | None = None,
-        context: EventContext = None,
+        context: EventContext | None = None,
         **data,
     ):
         """Log an error message."""
@@ -118,8 +116,8 @@ class Logger:
         self,
         message: str,
         name: str | None = None,
-        percentage: float = None,
-        context: EventContext = None,
+        percentage: float | None = None,
+        context: EventContext | None = None,
         **data,
     ):
         """Log a progress message."""

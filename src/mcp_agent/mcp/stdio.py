@@ -2,14 +2,16 @@
 Custom implementation of stdio_client that handles stderr through rich console.
 """
 
-from contextlib import asynccontextmanager
 import subprocess
+from contextlib import asynccontextmanager
+
 import anyio
+import mcp.types as types
+from anyio.streams.memory import MemoryObjectReceiveStream, MemoryObjectSendStream
 from anyio.streams.text import TextReceiveStream
 from mcp.client.stdio import StdioServerParameters, get_default_environment
-import mcp.types as types
+
 from mcp_agent.logging.logger import get_logger
-from anyio.streams.memory import MemoryObjectReceiveStream, MemoryObjectSendStream
 
 logger = get_logger(__name__)
 

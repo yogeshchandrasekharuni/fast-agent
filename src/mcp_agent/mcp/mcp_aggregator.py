@@ -1,31 +1,31 @@
 from asyncio import Lock, gather
 from typing import (
-    List,
-    Dict,
-    Optional,
     TYPE_CHECKING,
     Any,
     Callable,
+    Dict,
+    List,
+    Optional,
     TypeVar,
 )
+
 from mcp import GetPromptResult, ReadResourceResult
-from pydantic import AnyUrl, BaseModel, ConfigDict
 from mcp.client.session import ClientSession
 from mcp.server.lowlevel.server import Server
 from mcp.server.stdio import stdio_server
 from mcp.types import (
     CallToolResult,
     ListToolsResult,
+    Prompt,
     TextContent,
     Tool,
-    Prompt,
 )
+from pydantic import AnyUrl, BaseModel, ConfigDict
 
+from mcp_agent.context_dependent import ContextDependent
 from mcp_agent.event_progress import ProgressAction
 from mcp_agent.logging.logger import get_logger
 from mcp_agent.mcp.gen_client import gen_client
-
-from mcp_agent.context_dependent import ContextDependent
 from mcp_agent.mcp.mcp_agent_client_session import MCPAgentClientSession
 from mcp_agent.mcp.mcp_connection_manager import MCPConnectionManager
 

@@ -1,10 +1,10 @@
 # src/mcp_agent/mcp_server/agent_server.py
 
+from mcp.server.fastmcp import Context as MCPContext
 from mcp.server.fastmcp import FastMCP
 
 # Remove circular import
 from mcp_agent.core.agent_app import AgentApp
-from mcp.server.fastmcp import Context as MCPContext
 
 
 class AgentMCPServer:

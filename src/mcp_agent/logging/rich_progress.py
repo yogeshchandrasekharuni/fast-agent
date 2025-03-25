@@ -1,12 +1,14 @@
 """Rich-based progress display for MCP Agent."""
 
 import time
-from typing import Optional
-from rich.console import Console
-from mcp_agent.console import console as default_console
-from mcp_agent.event_progress import ProgressEvent, ProgressAction
-from rich.progress import Progress, SpinnerColumn, TextColumn
 from contextlib import contextmanager
+from typing import Optional
+
+from rich.console import Console
+from rich.progress import Progress, SpinnerColumn, TextColumn
+
+from mcp_agent.console import console as default_console
+from mcp_agent.event_progress import ProgressAction, ProgressEvent
 
 
 class RichProgressDisplay:

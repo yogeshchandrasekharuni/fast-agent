@@ -6,7 +6,6 @@ from mcp_agent.mcp.prompt_message_multipart import PromptMessageMultipart
 from mcp_agent.mcp.prompts.prompt_load import (
     load_prompt_multipart,
 )
-from mcp_agent.mcp.prompts.prompt_template import PromptTemplateLoader
 from mcp.types import ImageContent
 
 
@@ -21,13 +20,10 @@ async def test_load_simple_conversation_from_file(fast_agent):
     @fast.agent()
     async def agent_function():
         async with fast.run() as agent:
-            loaded: List[PromptMessageMultipart] = (
-                PromptTemplateLoader()
-                .load_from_file("conv1_simple.md")
-                .to_multipart_messages()
+            loaded: List[PromptMessageMultipart] = load_prompt_multipart(
+                Path("conv1_simple.md")
             )
             assert 4 == len(loaded)
-            # make sure that all messages, including assistant are returned by passthrough
             assert "message 2" in await agent.apply_prompt(loaded)
 
     await agent_function()
@@ -50,11 +46,11 @@ async def test_load_conversation_with_attachments(fast_agent):
 
             assert 5 == len(prompts)
             assert "user" == prompts[0].role
-            assert "text/css" == prompts[0].content[1].resource.mimeType
-            assert "f5f5f5" in prompts[0].content[1].resource.text
+            assert "text/css" == prompts[0].content[1].resource.mimeType  # type: ignore
+            assert "f5f5f5" in prompts[0].content[1].resource.text  # type: ignore
 
             assert "assistant" == prompts[1].role
-            assert "sharing" in prompts[1].content[0].text
+            assert "sharing" in prompts[1].content[0].text  # type: ignore
 
             assert 3 == len(prompts[2].content)
             assert isinstance(prompts[2].content[2], ImageContent)

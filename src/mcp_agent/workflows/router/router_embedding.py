@@ -1,4 +1,4 @@
-from typing import Callable, List, Optional, TYPE_CHECKING
+from typing import TYPE_CHECKING, Callable, List, Optional
 
 from numpy import mean
 
@@ -6,8 +6,8 @@ from mcp_agent.agents.agent import Agent
 from mcp_agent.workflows.embedding.embedding_base import (
     EmbeddingModel,
     FloatArray,
-    compute_similarity_scores,
     compute_confidence,
+    compute_similarity_scores,
 )
 from mcp_agent.workflows.router.router_base import (
     Router,

@@ -1,13 +1,14 @@
 import asyncio
+
 from rich.panel import Panel
 
 from mcp_agent.console import console
+from mcp_agent.core.enhanced_prompt import get_enhanced_input, handle_special_commands
 from mcp_agent.human_input.types import (
     HumanInputRequest,
     HumanInputResponse,
 )
 from mcp_agent.progress_display import progress_display
-from mcp_agent.core.enhanced_prompt import get_enhanced_input, handle_special_commands
 
 
 async def console_input_callback(request: HumanInputRequest) -> HumanInputResponse:

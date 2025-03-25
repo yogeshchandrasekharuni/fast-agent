@@ -9,6 +9,7 @@ import asyncio
 import functools
 import uuid
 from typing import (
+    TYPE_CHECKING,
     Any,
     AsyncIterator,
     Callable,
@@ -16,11 +17,10 @@ from typing import (
     Dict,
     List,
     Optional,
-    TYPE_CHECKING,
 )
 
 from pydantic import ConfigDict
-from temporalio import activity, workflow, exceptions
+from temporalio import activity, exceptions, workflow
 from temporalio.client import Client as TemporalClient
 from temporalio.worker import Worker
 

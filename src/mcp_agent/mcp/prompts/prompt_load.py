@@ -1,7 +1,14 @@
+from pathlib import Path
 from typing import List, Literal
 
-from pathlib import Path
-from mcp_agent.logging import logger
+from mcp.server.fastmcp.prompts.base import (
+    AssistantMessage,
+    Message,
+    UserMessage,
+)
+from mcp.types import PromptMessage, TextContent
+
+from mcp_agent.logging.logger import get_logger
 from mcp_agent.mcp import mime_utils, resource_utils
 from mcp_agent.mcp.prompt_message_multipart import PromptMessageMultipart
 from mcp_agent.mcp.prompts.prompt_template import (
@@ -9,15 +16,10 @@ from mcp_agent.mcp.prompts.prompt_template import (
     PromptTemplate,
     PromptTemplateLoader,
 )
-from mcp.types import TextContent, PromptMessage
-from mcp.server.fastmcp.prompts.base import (
-    UserMessage,
-    AssistantMessage,
-    Message,
-)
 
 # Define message role type
 MessageRole = Literal["user", "assistant"]
+logger = get_logger("prompt_load")
 
 
 def cast_message_role(role: str) -> MessageRole:
@@ -77,8 +79,7 @@ def create_messages_with_resources(
 
 def create_content_message(text: str, role: MessageRole) -> PromptMessage:
     """Create a text content message with the specified role"""
-    message_class = UserMessage if role == "user" else AssistantMessage
-    return message_class(content=TextContent(type="text", text=text))
+    return PromptMessage(role=role, content=TextContent(type="text", text=text))
 
 
 def create_resource_message(
@@ -107,4 +108,4 @@ def load_prompt(file: Path) -> List[PromptMessage]:
 
 
 def load_prompt_multipart(file: Path) -> List[PromptMessageMultipart]:
-    return PromptMessageMultipart.flatten(load_prompt(file))
+    return PromptMessageMultipart.to_multipart(load_prompt(file))

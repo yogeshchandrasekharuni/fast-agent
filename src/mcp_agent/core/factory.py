@@ -2,11 +2,22 @@
 Factory functions for creating agent and workflow instances.
 """
 
-from typing import Dict, Any, Optional, TypeVar, Callable
+from typing import Any, Callable, Dict, Optional, TypeVar
 
-from mcp_agent.app import MCPApp
 from mcp_agent.agents.agent import Agent
+from mcp_agent.app import MCPApp
 from mcp_agent.core.agent_types import AgentConfig, AgentType
+from mcp_agent.core.agent_utils import get_agent_instances, log_agent_load, unwrap_proxy
+from mcp_agent.core.exceptions import AgentConfigError
+from mcp_agent.core.proxies import (
+    BaseAgentProxy,
+    ChainProxy,
+    LLMAgentProxy,
+    RouterProxy,
+    WorkflowProxy,
+)
+from mcp_agent.core.types import AgentOrWorkflow, ProxyDict
+from mcp_agent.core.validation import get_dependencies
 from mcp_agent.event_progress import ProgressAction
 from mcp_agent.workflows.evaluator_optimizer.evaluator_optimizer import (
     EvaluatorOptimizerLLM,
@@ -17,17 +28,6 @@ from mcp_agent.workflows.llm.model_factory import ModelFactory
 from mcp_agent.workflows.orchestrator.orchestrator import Orchestrator
 from mcp_agent.workflows.parallel.parallel_llm import ParallelLLM
 from mcp_agent.workflows.router.router_llm import LLMRouter
-from mcp_agent.core.exceptions import AgentConfigError
-from mcp_agent.core.proxies import (
-    BaseAgentProxy,
-    LLMAgentProxy,
-    WorkflowProxy,
-    RouterProxy,
-    ChainProxy,
-)
-from mcp_agent.core.types import AgentOrWorkflow, ProxyDict
-from mcp_agent.core.agent_utils import log_agent_load, unwrap_proxy, get_agent_instances
-from mcp_agent.core.validation import get_dependencies
 
 T = TypeVar("T")  # For the wrapper classes
 

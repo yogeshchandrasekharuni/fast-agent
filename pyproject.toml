@@ -112,3 +112,19 @@ mcp_agent = [
     "resources/examples/**/mount-point/*.csv"
 ]
 
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+select = [
+    "E",   # pycodestyle errors
+    "F",   # pyflakes
+    "I",   # isort
+    "ANN", # type annotations
+    "TCH"  # type checking
+]
+
+# More lenient settings for existing code
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["ANN"]  # Don't require type annotations in tests

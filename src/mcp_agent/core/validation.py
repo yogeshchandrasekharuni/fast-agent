@@ -2,14 +2,15 @@
 Validation utilities for FastAgent configuration and dependencies.
 """
 
-from typing import Dict, List, Any
+from typing import Any, Dict, List
+
 from mcp_agent.core.agent_types import AgentType
-from mcp_agent.workflows.llm.augmented_llm import AugmentedLLM
 from mcp_agent.core.exceptions import (
-    ServerConfigError,
     AgentConfigError,
     CircularDependencyError,
+    ServerConfigError,
 )
+from mcp_agent.workflows.llm.augmented_llm import AugmentedLLM
 
 
 def validate_server_references(context, agents: Dict[str, Dict[str, Any]]) -> None:

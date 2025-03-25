@@ -1,36 +1,36 @@
-from typing import List, Union, Sequence, Optional
-
-from mcp.types import (
-    TextContent,
-    ImageContent,
-    EmbeddedResource,
-    CallToolResult,
-    TextResourceContents,
-    BlobResourceContents,
-    PromptMessage,
-)
-from pydantic import AnyUrl
-from mcp_agent.mcp.prompt_message_multipart import PromptMessageMultipart
-from mcp_agent.mcp.mime_utils import (
-    guess_mime_type,
-    is_text_mime_type,
-    is_image_mime_type,
-)
+from typing import List, Optional, Sequence, Union
 
 from anthropic.types import (
-    MessageParam,
-    TextBlockParam,
-    ImageBlockParam,
-    DocumentBlockParam,
     Base64ImageSourceParam,
-    URLImageSourceParam,
     Base64PDFSourceParam,
-    URLPDFSourceParam,
-    PlainTextSourceParam,
-    ToolResultBlockParam,
     ContentBlockParam,
+    DocumentBlockParam,
+    ImageBlockParam,
+    MessageParam,
+    PlainTextSourceParam,
+    TextBlockParam,
+    ToolResultBlockParam,
+    URLImageSourceParam,
+    URLPDFSourceParam,
 )
+from mcp.types import (
+    BlobResourceContents,
+    CallToolResult,
+    EmbeddedResource,
+    ImageContent,
+    PromptMessage,
+    TextContent,
+    TextResourceContents,
+)
+from pydantic import AnyUrl
+
 from mcp_agent.logging.logger import get_logger
+from mcp_agent.mcp.mime_utils import (
+    guess_mime_type,
+    is_image_mime_type,
+    is_text_mime_type,
+)
+from mcp_agent.mcp.prompt_message_multipart import PromptMessageMultipart
 from mcp_agent.mcp.resource_utils import extract_title_from_uri
 
 _logger = get_logger("multipart_converter_anthropic")

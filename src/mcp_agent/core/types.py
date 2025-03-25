@@ -2,14 +2,14 @@
 Type definitions for fast-agent core module.
 """
 
-from typing import Dict, Union, TypeAlias, TYPE_CHECKING
+from typing import TYPE_CHECKING, Dict, TypeAlias, Union
 
 from mcp_agent.agents.agent import Agent
-from mcp_agent.workflows.orchestrator.orchestrator import Orchestrator
-from mcp_agent.workflows.parallel.parallel_llm import ParallelLLM
 from mcp_agent.workflows.evaluator_optimizer.evaluator_optimizer import (
     EvaluatorOptimizerLLM,
 )
+from mcp_agent.workflows.orchestrator.orchestrator import Orchestrator
+from mcp_agent.workflows.parallel.parallel_llm import ParallelLLM
 from mcp_agent.workflows.router.router_llm import LLMRouter
 
 # Avoid circular imports

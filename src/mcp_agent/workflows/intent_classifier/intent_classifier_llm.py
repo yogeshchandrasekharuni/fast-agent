@@ -1,12 +1,13 @@
-from typing import List, Literal, Optional, TYPE_CHECKING
+from typing import TYPE_CHECKING, List, Literal, Optional
+
 from pydantic import BaseModel
 
-from mcp_agent.workflows.llm.augmented_llm import AugmentedLLM
 from mcp_agent.workflows.intent_classifier.intent_classifier_base import (
     Intent,
-    IntentClassifier,
     IntentClassificationResult,
+    IntentClassifier,
 )
+from mcp_agent.workflows.llm.augmented_llm import AugmentedLLM
 
 if TYPE_CHECKING:
     from mcp_agent.context import Context

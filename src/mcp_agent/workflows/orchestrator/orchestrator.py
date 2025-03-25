@@ -3,15 +3,16 @@ Orchestrator implementation for MCP Agent applications.
 """
 
 from typing import (
+    TYPE_CHECKING,
     List,
     Literal,
     Optional,
-    TYPE_CHECKING,
     Type,
 )
 
 from mcp_agent.agents.agent import Agent
 from mcp_agent.event_progress import ProgressAction
+from mcp_agent.logging.logger import get_logger
 from mcp_agent.workflows.llm.augmented_llm import (
     AugmentedLLM,
     MessageParamT,
@@ -20,14 +21,14 @@ from mcp_agent.workflows.llm.augmented_llm import (
     RequestParams,
 )
 from mcp_agent.workflows.orchestrator.orchestrator_models import (
-    format_plan_result,
-    format_step_result_text,
     NextStep,
     Plan,
     PlanResult,
     Step,
     StepResult,
     TaskWithResult,
+    format_plan_result,
+    format_step_result_text,
 )
 from mcp_agent.workflows.orchestrator.orchestrator_prompts import (
     FULL_PLAN_PROMPT_TEMPLATE,
@@ -36,7 +37,6 @@ from mcp_agent.workflows.orchestrator.orchestrator_prompts import (
     SYNTHESIZE_PLAN_PROMPT_TEMPLATE,
     TASK_PROMPT_TEMPLATE,
 )
-from mcp_agent.logging.logger import get_logger
 
 if TYPE_CHECKING:
     from mcp_agent.context import Context

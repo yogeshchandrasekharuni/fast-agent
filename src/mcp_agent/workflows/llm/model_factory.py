@@ -1,15 +1,15 @@
 from dataclasses import dataclass
 from enum import Enum, auto
-from typing import Optional, Type, Dict, Union, Callable
+from typing import Callable, Dict, Optional, Type, Union
 
 from mcp_agent.agents.agent import Agent
 from mcp_agent.core.exceptions import ModelConfigError
 from mcp_agent.core.request_params import RequestParams
+from mcp_agent.mcp.interfaces import AugmentedLLMProtocol
 from mcp_agent.workflows.llm.augmented_llm_anthropic import AnthropicAugmentedLLM
 from mcp_agent.workflows.llm.augmented_llm_openai import OpenAIAugmentedLLM
 from mcp_agent.workflows.llm.augmented_llm_passthrough import PassthroughLLM
 from mcp_agent.workflows.llm.augmented_llm_playback import PlaybackLLM
-
 
 # Type alias for LLM classes
 LLMClass = Union[
@@ -152,7 +152,7 @@ class ModelFactory:
     @classmethod
     def create_factory(
         cls, model_string: str, request_params: Optional[RequestParams] = None
-    ) -> Callable[..., LLMClass]:
+    ) -> Callable[..., AugmentedLLMProtocol]:
         """
         Creates a factory function that follows the attach_llm protocol.
 

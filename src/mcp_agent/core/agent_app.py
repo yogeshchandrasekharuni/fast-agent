@@ -2,25 +2,25 @@
 Main application wrapper for interacting with agents.
 """
 
-from typing import Optional, Dict, Union, TYPE_CHECKING
+from typing import TYPE_CHECKING, Dict, Optional, Union
 
 from mcp_agent.app import MCPApp
-from mcp_agent.mcp.prompt_message_multipart import PromptMessageMultipart
-from mcp_agent.progress_display import progress_display
-from mcp_agent.workflows.orchestrator.orchestrator import Orchestrator
-from mcp_agent.workflows.parallel.parallel_llm import ParallelLLM
-from mcp_agent.workflows.evaluator_optimizer.evaluator_optimizer import (
-    EvaluatorOptimizerLLM,
-)
 
 # Import proxies directly - they handle their own circular imports
 from mcp_agent.core.proxies import (
     BaseAgentProxy,
+    ChainProxy,
     LLMAgentProxy,
     RouterProxy,
-    ChainProxy,
     WorkflowProxy,
 )
+from mcp_agent.mcp.prompt_message_multipart import PromptMessageMultipart
+from mcp_agent.progress_display import progress_display
+from mcp_agent.workflows.evaluator_optimizer.evaluator_optimizer import (
+    EvaluatorOptimizerLLM,
+)
+from mcp_agent.workflows.orchestrator.orchestrator import Orchestrator
+from mcp_agent.workflows.parallel.parallel_llm import ParallelLLM
 
 # Handle possible circular imports with types
 if TYPE_CHECKING:
@@ -269,8 +269,8 @@ class AgentApp:
                         continue
                     elif "select_prompt" in command_result:
                         from rich import print as rich_print
-                        from rich.table import Table
                         from rich.console import Console
+                        from rich.table import Table
 
                         console = Console()
 

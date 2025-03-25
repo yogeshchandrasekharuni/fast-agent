@@ -1,24 +1,22 @@
-from typing import Dict, Any
-
-from openai.types.chat import (
-    ChatCompletionMessage,
-)
+from typing import Any, Dict
 
 from mcp.types import (
     PromptMessage,
 )
-
-from mcp_agent.workflows.llm.sampling_format_converter import (
-    SamplingFormatConverter,
+from openai.types.chat import (
+    ChatCompletionMessage,
 )
 
 from mcp_agent.logging.logger import get_logger
+from mcp_agent.workflows.llm.sampling_format_converter import (
+    ProviderFormatConverter,
+)
 
 _logger = get_logger(__name__)
 
 
 class OpenAISamplingConverter(
-    SamplingFormatConverter[Dict[str, Any], ChatCompletionMessage]
+    ProviderFormatConverter[Dict[str, Any], ChatCompletionMessage]
 ):
     @classmethod
     def from_prompt_message(cls, message: PromptMessage) -> Dict[str, Any]:

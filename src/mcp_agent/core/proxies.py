@@ -6,16 +6,17 @@ FOR COMPATIBILITY WITH LEGACY MCP-AGENT CODE
 
 """
 
-from typing import List, Optional, Dict, Union, TYPE_CHECKING
+from typing import TYPE_CHECKING, Dict, List, Optional, Union
+
+from mcp.types import EmbeddedResource
 
 from mcp_agent.agents.agent import Agent
 from mcp_agent.app import MCPApp
 from mcp_agent.mcp.prompt_message_multipart import PromptMessageMultipart
-from mcp.types import EmbeddedResource
 
 # Handle circular imports
 if TYPE_CHECKING:
-    from mcp_agent.core.types import WorkflowType, ProxyDict
+    from mcp_agent.core.types import ProxyDict, WorkflowType
 else:
     # Define minimal versions for runtime
     from typing import Any

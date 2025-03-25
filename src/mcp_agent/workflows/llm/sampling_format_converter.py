@@ -1,22 +1,22 @@
-from typing import Generic, List, Protocol, TypeVar
+from typing import Generic, Protocol, TypeVar
+
+from mcp.types import PromptMessage
+
+# Define covariant type variables
+MessageParamT_co = TypeVar("MessageParamT_co", covariant=True)
+MessageT_co = TypeVar("MessageT_co", covariant=True)
 
 
-# Define type variables here instead of importing from augmented_llm
-MessageParamT = TypeVar("MessageParamT")
-"""A type representing an input message to an LLM."""
-
-MessageT = TypeVar("MessageT")
-"""A type representing an output message from an LLM."""
-
-
-class SamplingFormatConverter(Protocol, Generic[MessageParamT, MessageT]):
+class ProviderFormatConverter(Protocol, Generic[MessageParamT_co, MessageT_co]):
     """Conversions between LLM provider and MCP types"""
 
     @classmethod
-    def from_prompt_message(cls, message) -> MessageParamT:
+    def from_prompt_message(cls, message: PromptMessage) -> MessageParamT_co:
         """Convert an MCP PromptMessage to a provider-specific message parameter."""
+        ...
 
 
-def typed_dict_extras(d: dict, exclude: List[str]):
-    extras = {k: v for k, v in d.items() if k not in exclude}
-    return extras
+class BasicFormatConverter(ProviderFormatConverter[PromptMessage, PromptMessage]):
+    @classmethod
+    def from_prompt_message(cls, message: PromptMessage) -> PromptMessage:
+        return message

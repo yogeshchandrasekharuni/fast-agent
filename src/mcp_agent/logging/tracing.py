@@ -5,15 +5,13 @@ for the Logger module for MCP Agent
 
 import asyncio
 import functools
-from typing import Any, Dict, Callable, Optional, Tuple, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Callable, Dict, Optional, Tuple
 
 from opentelemetry import trace
 from opentelemetry.context import Context as OtelContext
 from opentelemetry.propagate import extract as otel_extract
-from opentelemetry.trace import set_span_in_context
+from opentelemetry.trace import SpanKind, Status, StatusCode, set_span_in_context
 from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
-
-from opentelemetry.trace import SpanKind, Status, StatusCode
 
 from mcp_agent.context_dependent import ContextDependent
 

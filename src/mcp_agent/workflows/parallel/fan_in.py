@@ -1,5 +1,5 @@
 import contextlib
-from typing import Callable, Dict, List, Optional, Type, TYPE_CHECKING
+from typing import TYPE_CHECKING, Callable, Dict, List, Optional, Type
 
 from mcp_agent.agents.agent import Agent
 from mcp_agent.context_dependent import ContextDependent

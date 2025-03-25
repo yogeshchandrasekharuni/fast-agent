@@ -9,25 +9,25 @@ server initialization.
 
 from contextlib import asynccontextmanager
 from datetime import timedelta
-from typing import Callable, Dict, AsyncGenerator
+from typing import AsyncGenerator, Callable, Dict
 
 from anyio.streams.memory import MemoryObjectReceiveStream, MemoryObjectSendStream
 from mcp import ClientSession
+from mcp.client.sse import sse_client
 from mcp.client.stdio import (
     StdioServerParameters,
     get_default_environment,
 )
-from mcp_agent.mcp.stdio import stdio_client_with_rich_stderr
-from mcp.client.sse import sse_client
 
 from mcp_agent.config import (
-    get_settings,
     MCPServerAuthSettings,
     MCPServerSettings,
     Settings,
+    get_settings,
 )
 from mcp_agent.logging.logger import get_logger
 from mcp_agent.mcp.mcp_connection_manager import MCPConnectionManager
+from mcp_agent.mcp.stdio import stdio_client_with_rich_stderr
 
 logger = get_logger(__name__)
 

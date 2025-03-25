@@ -3,6 +3,7 @@ This demonstrates creating an optimizer and evaluator to iteratively improve con
 """
 
 import asyncio
+
 from mcp_agent.core.fastagent import FastAgent
 
 # Create the application

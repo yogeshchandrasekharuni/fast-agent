@@ -5,10 +5,11 @@ Prompt class for easily creating and working with MCP prompt content.
 from typing import List, Literal
 
 from mcp.types import PromptMessage
+
 from mcp_agent.mcp.prompt_message_multipart import PromptMessageMultipart
 
 # Import our content helper functions
-from .mcp_content import User, Assistant, MCPPrompt
+from .mcp_content import Assistant, MCPPrompt, User
 
 
 class Prompt:
@@ -100,7 +101,7 @@ class Prompt:
         for item in messages:
             if isinstance(item, PromptMessageMultipart):
                 # Convert PromptMessageMultipart to a list of PromptMessages
-                result.extend(item.unflatten())
+                result.extend(item.from_multipart())
             elif isinstance(item, dict) and "role" in item and "content" in item:
                 # Convert a single message dict to PromptMessage
                 result.append(PromptMessage(**item))
@@ -128,5 +129,5 @@ class Prompt:
         """
         result = []
         for mp in multipart:
-            result.extend(mp.unflatten())
+            result.extend(mp.from_multipart())
         return result

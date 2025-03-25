@@ -3,6 +3,7 @@ Agent which demonstrates Human Input tool
 """
 
 import asyncio
+
 from mcp_agent.core.fastagent import FastAgent
 
 # Create the application

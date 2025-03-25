@@ -7,4 +7,8 @@ fA st age NT
 ---ASSISTANT
 fastagent
 ---USER
+m ORE training OK
+---ASSISTANT
+moretrainingok
+---USER
 t ESt ca seOK

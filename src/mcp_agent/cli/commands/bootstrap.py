@@ -2,10 +2,11 @@
 
 import shutil
 from pathlib import Path
+
 import typer
 from rich.console import Console
-from rich.table import Table
 from rich.panel import Panel
+from rich.table import Table
 
 app = typer.Typer(
     help="Create example applications",

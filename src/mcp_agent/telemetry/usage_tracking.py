@@ -1,10 +1,11 @@
 import logging
+
 from mcp_agent.config import get_settings
 
 logger = logging.getLogger(__name__)
 
 
-def send_usage_data():
+def send_usage_data() -> None:
     config = get_settings()
     if not config.usage_telemetry.enabled:
         logger.info("Usage tracking is disabled")

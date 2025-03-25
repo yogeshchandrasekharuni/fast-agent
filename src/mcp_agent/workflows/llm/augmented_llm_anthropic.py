@@ -1,5 +1,5 @@
 import os
-from typing import List, Type, TYPE_CHECKING
+from typing import TYPE_CHECKING, List, Type
 
 from mcp_agent.workflows.llm.providers.multipart_converter_anthropic import (
     AnthropicConverter,
@@ -22,20 +22,19 @@ from anthropic.types import (
     ToolUseBlockParam,
 )
 from mcp.types import (
-    CallToolRequestParams,
     CallToolRequest,
+    CallToolRequestParams,
 )
 from pydantic_core import from_json
+from rich.text import Text
 
+from mcp_agent.core.exceptions import ProviderKeyError
+from mcp_agent.logging.logger import get_logger
 from mcp_agent.workflows.llm.augmented_llm import (
     AugmentedLLM,
     ModelT,
     RequestParams,
 )
-from mcp_agent.core.exceptions import ProviderKeyError
-from rich.text import Text
-
-from mcp_agent.logging.logger import get_logger
 
 DEFAULT_ANTHROPIC_MODEL = "claude-3-7-sonnet-latest"
 
@@ -424,11 +423,11 @@ class AnthropicAugmentedLLM(AugmentedLLM[MessageParam, Message]):
             messages = self.history.get(include_history=True)
 
             # Import required utilities
-            from mcp_agent.workflows.llm.anthropic_utils import (
-                anthropic_message_param_to_prompt_message_multipart,
-            )
             from mcp_agent.mcp.prompt_serialization import (
                 multipart_messages_to_delimited_format,
+            )
+            from mcp_agent.workflows.llm.anthropic_utils import (
+                anthropic_message_param_to_prompt_message_multipart,
             )
 
             # Convert message params to PromptMessageMultipart objects

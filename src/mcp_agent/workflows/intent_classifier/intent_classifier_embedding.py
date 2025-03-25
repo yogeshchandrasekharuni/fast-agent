@@ -1,17 +1,17 @@
-from typing import List, Optional, TYPE_CHECKING
+from typing import TYPE_CHECKING, List, Optional
 
 from numpy import mean
 
 from mcp_agent.workflows.embedding.embedding_base import (
-    FloatArray,
     EmbeddingModel,
+    FloatArray,
     compute_confidence,
     compute_similarity_scores,
 )
 from mcp_agent.workflows.intent_classifier.intent_classifier_base import (
     Intent,
-    IntentClassifier,
     IntentClassificationResult,
+    IntentClassifier,
 )
 
 if TYPE_CHECKING:

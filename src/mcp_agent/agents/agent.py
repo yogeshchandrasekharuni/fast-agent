@@ -1,29 +1,29 @@
 import asyncio
 import uuid
-from typing import Callable, Dict, List, Optional, TypeVar, Union, TYPE_CHECKING
+from typing import TYPE_CHECKING, Callable, Dict, List, Optional, TypeVar, Union
 
 from mcp.server.fastmcp.tools import Tool as FastTool
 from mcp.types import (
     CallToolResult,
+    EmbeddedResource,
     ListToolsResult,
+    ReadResourceResult,
     TextContent,
     Tool,
-    EmbeddedResource,
-    ReadResourceResult,
 )
-from mcp_agent.mcp.prompt_message_multipart import PromptMessageMultipart
 
-from mcp_agent.core.exceptions import PromptExitError
-from mcp_agent.mcp.mcp_aggregator import MCPAggregator
 from mcp_agent.core.agent_types import AgentConfig
+from mcp_agent.core.exceptions import PromptExitError
 from mcp_agent.human_input.types import (
+    HUMAN_INPUT_SIGNAL_NAME,
     HumanInputCallback,
     HumanInputRequest,
     HumanInputResponse,
-    HUMAN_INPUT_SIGNAL_NAME,
 )
-from mcp_agent.workflows.llm.augmented_llm import AugmentedLLM
 from mcp_agent.logging.logger import get_logger
+from mcp_agent.mcp.mcp_aggregator import MCPAggregator
+from mcp_agent.mcp.prompt_message_multipart import PromptMessageMultipart
+from mcp_agent.workflows.llm.augmented_llm import AugmentedLLMProtocol
 
 if TYPE_CHECKING:
     from mcp_agent.context import Context
@@ -32,7 +32,7 @@ import traceback
 logger = get_logger(__name__)
 
 # Define a TypeVar for AugmentedLLM and its subclasses
-LLM = TypeVar("LLM", bound=AugmentedLLM)
+LLM = TypeVar("LLM", bound=AugmentedLLMProtocol)
 
 HUMAN_INPUT_TOOL_NAME = "__human_input__"
 

@@ -1,14 +1,14 @@
 from typing import List, Union
-from pydantic import BaseModel
 
 from mcp.types import (
-    PromptMessage,
-    TextContent,
-    ImageContent,
     EmbeddedResource,
-    Role,
     GetPromptResult,
+    ImageContent,
+    PromptMessage,
+    Role,
+    TextContent,
 )
+from pydantic import BaseModel
 
 
 class PromptMessageMultipart(BaseModel):
@@ -21,7 +21,9 @@ class PromptMessageMultipart(BaseModel):
     content: List[Union[TextContent, ImageContent, EmbeddedResource]]
 
     @classmethod
-    def flatten(cls, messages: List[PromptMessage]) -> List["PromptMessageMultipart"]:
+    def to_multipart(
+        cls, messages: List[PromptMessage]
+    ) -> List["PromptMessageMultipart"]:
         """Convert a sequence of PromptMessages into PromptMessageMultipart objects."""
         if not messages:
             return []
@@ -39,7 +41,8 @@ class PromptMessageMultipart(BaseModel):
                 current_group = cls(role=msg.role, content=[msg.content])
             else:
                 # Same role, add to current message
-                current_group.content.append(msg.content)
+                if current_group is not None:
+                    current_group.content.append(msg.content)
 
         # Add the last group
         if current_group is not None:
@@ -47,7 +50,7 @@ class PromptMessageMultipart(BaseModel):
 
         return result
 
-    def unflatten(self) -> List[PromptMessage]:
+    def from_multipart(self) -> List[PromptMessage]:
         """Convert this PromptMessageMultipart to a sequence of standard PromptMessages."""
         return [
             PromptMessage(role=self.role, content=content_part)
@@ -59,4 +62,4 @@ class PromptMessageMultipart(BaseModel):
         cls, result: GetPromptResult
     ) -> List["PromptMessageMultipart"]:
         """Parse a GetPromptResult into PromptMessageMultipart objects."""
-        return cls.flatten(result.messages)
+        return cls.to_multipart(result.messages)

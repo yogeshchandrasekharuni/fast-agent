@@ -3,7 +3,8 @@ Decorators for FastAgent applications.
 Contains decorator definitions extracted from fastagent.py.
 """
 
-from typing import Callable, Dict, List, Optional, TypeVar, Literal
+from typing import Callable, Dict, List, Literal, Optional, TypeVar
+
 from mcp_agent.core.agent_types import AgentConfig, AgentType
 from mcp_agent.workflows.llm.augmented_llm import RequestParams
 
