@@ -71,9 +71,6 @@ def create_resource_uri(path: str) -> str:
     return f"resource://fast-agent/{Path(path).name}"
 
 
-# Add this to your resource_utils.py module
-
-
 def create_resource_reference(uri: str, mime_type: str) -> "EmbeddedResource":
     """
     Create a reference to a resource without embedding its content directly.

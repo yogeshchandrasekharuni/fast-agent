@@ -64,6 +64,11 @@ prompt_registry: Dict[str, PromptMetadata] = {}
 # Define message role type
 MessageRole = Literal["user", "assistant"]
 
+# Default delimiter values
+DEFAULT_USER_DELIMITER = "---USER"
+DEFAULT_ASSISTANT_DELIMITER = "---ASSISTANT"
+DEFAULT_RESOURCE_DELIMITER = "---RESOURCE"
+
 
 def create_content_message(text: str, role: MessageRole) -> Message:
     """Create a text content message with the specified role"""
@@ -108,6 +113,7 @@ def create_messages_with_resources(
     Returns:
         List of Message objects
     """
+
     messages = []
 
     for section in content_sections:
@@ -164,22 +170,20 @@ def create_prompt_handler(
                 for var in template_vars
                 if var in kwargs and kwargs[var] is not None
             }
+            return PromptTemplateLoader().template_to_prompt_messages(
+                template, prompt_files, context
+            )
 
-            # Apply substitutions to the template
-            content_sections = template.apply_substitutions(context)
-
-            # Convert to MCP Message objects, handling resources properly
-            return create_messages_with_resources(content_sections, prompt_files)
     else:
         # No template variables
         docstring = "Get a prompt with no variable substitution"
 
         async def prompt_handler(**kwargs: Any) -> List[Message]:
             # Get the content sections
-            content_sections = template.content_sections
 
-            # Convert to MCP Message objects, handling resources properly
-            return create_messages_with_resources(content_sections, prompt_files)
+            return PromptTemplateLoader().template_to_prompt_messages(
+                template, prompt_files
+            )
 
     # Set the docstring
     prompt_handler.__doc__ = docstring
@@ -206,12 +210,6 @@ def create_resource_handler(resource_path: Path, mime_type: str) -> ResourceHand
                 return f.read()
 
     return get_resource
-
-
-# Default delimiter values
-DEFAULT_USER_DELIMITER = "---USER"
-DEFAULT_ASSISTANT_DELIMITER = "---ASSISTANT"
-DEFAULT_RESOURCE_DELIMITER = "---RESOURCE"
 
 
 def get_delimiter_config(file_path: Optional[Path] = None) -> Dict[str, Any]:

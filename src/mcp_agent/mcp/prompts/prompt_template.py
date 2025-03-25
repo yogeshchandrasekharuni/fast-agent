@@ -11,7 +11,14 @@ from typing import Dict, List, Set, Any, Optional, Literal
 
 from pydantic import BaseModel, field_validator
 
-from mcp.types import TextContent, EmbeddedResource, TextResourceContents
+from mcp.types import (
+    TextContent,
+    EmbeddedResource,
+    TextResourceContents,
+    PromptMessage,
+    ImageContent,
+)
+from mcp_agent.mcp import mime_utils, resource_utils
 from mcp_agent.mcp.prompt_message_multipart import PromptMessageMultipart
 from mcp_agent.mcp.prompt_serialization import (
     multipart_messages_to_delimited_format,
@@ -467,3 +474,69 @@ class PromptTemplateLoader:
             resource_paths=resource_paths,
             file_path=file_path,
         )
+
+    # New helper function in a common location (maybe resource_utils.py)
+    def template_to_prompt_messages(
+        template: PromptTemplate,
+        prompt_files: List[Path],
+        context: Optional[Dict[str, Any]] = None,
+    ) -> List[PromptMessage]:
+        """
+        Convert a template to a list of PromptMessage objects, handling resources.
+
+        Args:
+            template: The template to convert
+            prompt_files: List of prompt files for resource resolution
+            context: Optional variable substitution context
+
+        Returns:
+            List of PromptMessage objects with resources properly handled
+        """
+        # Apply substitutions if context provided
+        if context:
+            sections = template.apply_substitutions(context)
+        else:
+            sections = template.content_sections
+
+        messages = []
+
+        for section in sections:
+            # Add the text message
+            messages.append(
+                PromptMessage(
+                    role=section.role,
+                    content=TextContent(type="text", text=section.text),
+                )
+            )
+
+            # Add resource messages
+            for resource_path in section.resources:
+                try:
+                    # Load the resource
+                    content, mime_type, is_binary = (
+                        resource_utils.load_resource_content(
+                            resource_path, prompt_files
+                        )
+                    )
+
+                    # Create the appropriate content type
+                    if mime_utils.is_image_mime_type(mime_type):
+                        content_obj = ImageContent(
+                            type="image", data=content, mimeType=mime_type
+                        )
+                    else:
+                        # Create embedded resource
+                        resource_obj = resource_utils.create_embedded_resource(
+                            resource_path, content, mime_type, is_binary
+                        )
+                        content_obj = resource_obj
+
+                    # Add as a message with the same role
+                    messages.append(
+                        PromptMessage(role=section.role, content=content_obj)
+                    )
+                except Exception as e:
+                    # Log the error but continue
+                    print(f"Error loading resource {resource_path}: {e}")
+
+        return messages
