@@ -98,47 +98,44 @@ def create_prompt_handler(
     template: "PromptTemplate", template_vars: List[str], prompt_files: List[Path]
 ) -> PromptHandler:
     """Create a prompt handler function for the given template"""
-    if template_vars:
-        # Create a handler function for templates with variables
-        # Define properly typed annotations for each template variable
-        # This is critical: FastMCP needs explicit type annotations to discover arguments
-        
-        # Create an exec-compatible string with parameters and type annotations
-        params_str = ', '.join([f"{var}: str" for var in template_vars])
-        
-        # Create the dynamic function definition with explicit type annotations
-        function_def = f"""
-async def typed_handler({params_str}) -> List[Message]:
-    # Use all passed template variables
-    context = {{{', '.join([f"'{var}': {var}" for var in template_vars])}}}
     
-    content_sections = template.apply_substitutions(context)
-    prompt_messages = create_messages_with_resources(content_sections, prompt_files)
-    return convert_to_fastmcp_messages(prompt_messages)
-"""
+    # Import the base Prompt class from FastMCP
+    from mcp.server.fastmcp.prompts.base import Prompt, PromptArgument
+    
+    if template_vars:
+        # Create a direct wrapper with proper `arguments` attribute
+        async def handler_function(**kwargs: dict[str, Any]) -> List[Message]:
+            # Extract the variables from the kwargs
+            context = {var: kwargs.get(var) for var in template_vars if var in kwargs}
+            
+            # Make sure all template variables are provided
+            missing_vars = [var for var in template_vars if var not in context]
+            if missing_vars:
+                raise ValueError(f"Missing required template variables: {', '.join(missing_vars)}")
+                
+            # Apply substitutions and process the template
+            content_sections = template.apply_substitutions(context)
+            prompt_messages = create_messages_with_resources(content_sections, prompt_files)
+            return convert_to_fastmcp_messages(prompt_messages)
         
-        # Define the globals needed for exec
-        exec_globals = {
-            'List': List,
-            'Message': Message,
-            'template': template,
-            'create_messages_with_resources': create_messages_with_resources,
-            'convert_to_fastmcp_messages': convert_to_fastmcp_messages,
-            'prompt_files': prompt_files
-        }
-        
-        # Execute the function definition to create the typed handler
-        exec(function_def, exec_globals)
-        
-        # Get the dynamically created function with proper type annotations
-        handler_function = exec_globals['typed_handler']
+        # Create prompt arguments the way FastMCP expects them
+        prompt_args = []
+        for var in template_vars:
+            prompt_args.append(PromptArgument(
+                name=var,
+                description=f"Template variable: {var}",
+                required=True
+            ))
+            
+        # Set the arguments directly on the function
+        handler_function.arguments = prompt_args
         
         # Set a helpful docstring
         handler_function.__doc__ = f"Prompt template with variables: {', '.join(template_vars)}"
         
         return handler_function
     else:
-        # Create a handler function for templates without variables
+        # For templates without variables, create a simple parameterless function
         async def handler_function() -> List[Message]:
             content_sections = template.content_sections
             prompt_messages = create_messages_with_resources(content_sections, prompt_files)
@@ -226,8 +223,44 @@ def register_prompt(file_path: Path) -> None:
 
         # Create and register prompt handler
         template_vars = list(metadata.template_variables)
-        handler = create_prompt_handler(template, template_vars, config_values["prompt_files"])
-        mcp.prompt(name=metadata.name, description=metadata.description)(handler)
+        
+        # For prompts with variables, create arguments list for FastMCP
+        if template_vars:
+            from mcp.server.fastmcp.prompts.base import Prompt, PromptArgument
+            
+            # Create a function with properly typed parameters
+            async def handler(**kwargs):
+                # Extract template variables from kwargs
+                context = {var: kwargs.get(var) for var in template_vars if var in kwargs}
+                
+                # Check for missing variables
+                missing_vars = [var for var in template_vars if var not in context]
+                if missing_vars:
+                    raise ValueError(f"Missing required template variables: {', '.join(missing_vars)}")
+                
+                # Apply template and create messages
+                content_sections = template.apply_substitutions(context)
+                prompt_messages = create_messages_with_resources(content_sections, config_values["prompt_files"])
+                return convert_to_fastmcp_messages(prompt_messages)
+            
+            # Create a Prompt directly
+            arguments = [
+                PromptArgument(name=var, description=f"Template variable: {var}", required=True)
+                for var in template_vars
+            ]
+            
+            # Create and add the prompt directly to the prompt manager
+            prompt = Prompt(
+                name=metadata.name,
+                description=metadata.description,
+                arguments=arguments,
+                fn=handler
+            )
+            mcp._prompt_manager.add_prompt(prompt)
+        else:
+            # For prompts without variables, use the standard approach with decorator
+            handler = create_prompt_handler(template, [], config_values["prompt_files"])
+            mcp.prompt(name=metadata.name, description=metadata.description)(handler)
 
         # Register any referenced resources in the prompt
         for resource_path in metadata.resource_paths:
