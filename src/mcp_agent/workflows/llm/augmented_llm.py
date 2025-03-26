@@ -66,7 +66,9 @@ class AugmentedLLM(ContextDependent, AugmentedLLMProtocol[MessageParamT, Message
         instruction: str | None = None,
         name: str | None = None,
         request_params: RequestParams | None = None,
-        type_converter: Type[ProviderFormatConverter[MessageParamT, MessageT]] = BasicFormatConverter,
+        type_converter: Type[
+            ProviderFormatConverter[MessageParamT, MessageT]
+        ] = BasicFormatConverter,
         context: Optional["Context"] = None,
         **kwargs: dict[str, Any],
     ) -> None:
@@ -82,7 +84,9 @@ class AugmentedLLM(ContextDependent, AugmentedLLMProtocol[MessageParamT, Message
         self.executor = self.context.executor
         self.aggregator = agent if agent is not None else MCPAggregator(server_names or [])
         self.name = name or (agent.name if agent else None)
-        self.instruction = instruction or (agent.instruction if agent and isinstance(agent.instruction, str) else None)
+        self.instruction = instruction or (
+            agent.instruction if agent and isinstance(agent.instruction, str) else None
+        )
         self.history: Memory[MessageParamT] = SimpleMemory[MessageParamT]()
 
         # Initialize the display component
@@ -93,7 +97,9 @@ class AugmentedLLM(ContextDependent, AugmentedLLMProtocol[MessageParamT, Message
 
         # Merge with provided params if any
         if self._init_request_params:
-            self.default_request_params = self._merge_request_params(self.default_request_params, self._init_request_params)
+            self.default_request_params = self._merge_request_params(
+                self.default_request_params, self._init_request_params
+            )
 
         self.type_converter = type_converter
         self.verb = kwargs.get("verb")
@@ -142,7 +148,9 @@ class AugmentedLLM(ContextDependent, AugmentedLLMProtocol[MessageParamT, Message
             use_history=True,
         )
 
-    def _merge_request_params(self, default_params: RequestParams, provided_params: RequestParams) -> RequestParams:
+    def _merge_request_params(
+        self, default_params: RequestParams, provided_params: RequestParams
+    ) -> RequestParams:
         """Merge default and provided request parameters"""
 
         merged = default_params.model_dump()
@@ -176,7 +184,9 @@ class AugmentedLLM(ContextDependent, AugmentedLLMProtocol[MessageParamT, Message
         return default_request_params
 
     @classmethod
-    def convert_message_to_message_param(cls, message: MessageT, **kwargs: dict[str, Any]) -> MessageParamT:
+    def convert_message_to_message_param(
+        cls, message: MessageT, **kwargs: dict[str, Any]
+    ) -> MessageParamT:
         """Convert a response object to an input parameter object to allow LLM calls to be chained."""
         # Many LLM implementations will allow the same type for input and output messages
         return cast("MessageParamT", message)
@@ -225,11 +235,15 @@ class AugmentedLLM(ContextDependent, AugmentedLLMProtocol[MessageParamT, Message
         """Display a user message in a formatted panel."""
         self.display.show_user_message(message, model, chat_turn, name=self.name)
 
-    async def pre_tool_call(self, tool_call_id: str | None, request: CallToolRequest) -> CallToolRequest | bool:
+    async def pre_tool_call(
+        self, tool_call_id: str | None, request: CallToolRequest
+    ) -> CallToolRequest | bool:
         """Called before a tool is executed. Return False to prevent execution."""
         return request
 
-    async def post_tool_call(self, tool_call_id: str | None, request: CallToolRequest, result: CallToolResult) -> CallToolResult:
+    async def post_tool_call(
+        self, tool_call_id: str | None, request: CallToolRequest, result: CallToolResult
+    ) -> CallToolResult:
         """Called after a tool execution. Can modify the result before it's returned."""
         return result
 
@@ -264,7 +278,9 @@ class AugmentedLLM(ContextDependent, AugmentedLLMProtocol[MessageParamT, Message
             tool_args = request.params.arguments
             result = await self.aggregator.call_tool(tool_name, tool_args)
 
-            postprocess = await self.post_tool_call(tool_call_id=tool_call_id, request=request, result=result)
+            postprocess = await self.post_tool_call(
+                tool_call_id=tool_call_id, request=request, result=result
+            )
 
             if isinstance(postprocess, CallToolResult):
                 result = postprocess
@@ -342,7 +358,9 @@ class AugmentedLLM(ContextDependent, AugmentedLLMProtocol[MessageParamT, Message
         # Default fallback
         return str(message)
 
-    def _log_chat_progress(self, chat_turn: Optional[int] = None, model: Optional[str] = None) -> None:
+    def _log_chat_progress(
+        self, chat_turn: Optional[int] = None, model: Optional[str] = None
+    ) -> None:
         """Log a chat progress event"""
         # Determine action type based on verb
         if hasattr(self, "verb") and self.verb:
@@ -454,9 +472,12 @@ class AugmentedLLM(ContextDependent, AugmentedLLMProtocol[MessageParamT, Message
             String representation of the assistant's response
         """
         # Delegate to the provider-specific implementation
-        return await self._apply_prompt_template_provider_specific(multipart_messages, request_params)
+        return await self._apply_prompt_template_provider_specific(
+            multipart_messages, request_params
+        )
 
     # this shouln't need to be very big...
+    @abstractmethod
     async def _apply_prompt_template_provider_specific(
         self,
         multipart_messages: List["PromptMessageMultipart"],
@@ -475,101 +496,121 @@ class AugmentedLLM(ContextDependent, AugmentedLLMProtocol[MessageParamT, Message
             String representation of the assistant's response if generated,
             or the last assistant message in the prompt
         """
-        # Check the last message role
-        last_message = multipart_messages[-1]
+        # # Check the last message role
+        # last_message = multipart_messages[-1]
 
-        if last_message.role == "user":
-            # For user messages: Add all previous messages to history, then generate response to the last one
-            self.logger.debug("Last message in prompt is from user, generating assistant response")
+        # if last_message.role == "user":
+        #     # For user messages: Add all previous messages to history, then generate response to the last one
+        #     self.logger.debug("Last message in prompt is from user, generating assistant response")
 
-            # Add all but the last message to history
-            if len(multipart_messages) > 1:
-                previous_messages = multipart_messages[:-1]
-                converted = []
+        #     # Add all but the last message to history
+        #     if len(multipart_messages) > 1:
+        #         previous_messages = multipart_messages[:-1]
+        #         converted = []
 
-                # Fallback generic method for all LLM types
-                for msg in previous_messages:
-                    # Convert each PromptMessageMultipart to individual PromptMessages
-                    prompt_messages = msg.from_multipart()
-                    for prompt_msg in prompt_messages:
-                        converted.append(self.type_converter.from_prompt_message(prompt_msg))
+        #         # Fallback generic method for all LLM types
+        #         for msg in previous_messages:
+        #             # Convert each PromptMessageMultipart to individual PromptMessages
+        #             prompt_messages = msg.from_multipart()
+        #             for prompt_msg in prompt_messages:
+        #                 converted.append(self.type_converter.from_prompt_message(prompt_msg))
 
-                self.history.extend(converted, is_prompt=True)
+        #         self.history.extend(converted, is_prompt=True)
 
-            # For generic LLMs, extract text and describe non-text content
-            user_text_parts = []
-            for content in last_message.content:
-                if content.type == "text":
-                    user_text_parts.append(content.text)
-                elif content.type == "resource" and getattr(content, "resource", None) is not None:
-                    if hasattr(content.resource, "text"):
-                        user_text_parts.append(content.resource.text)  # type: ignore
-                elif content.type == "image":
-                    # Add a placeholder for images
-                    mime_type = getattr(content, "mimeType", "image/unknown")
-                    user_text_parts.append(f"[Image: {mime_type}]")
+        #     # For generic LLMs, extract text and describe non-text content
+        #     user_text_parts = []
+        #     for content in last_message.content:
+        #         if content.type == "text":
+        #             user_text_parts.append(content.text)
+        #         elif content.type == "resource" and getattr(content, "resource", None) is not None:
+        #             if hasattr(content.resource, "text"):
+        #                 user_text_parts.append(content.resource.text)  # type: ignore
+        #         elif content.type == "image":
+        #             # Add a placeholder for images
+        #             mime_type = getattr(content, "mimeType", "image/unknown")
+        #             user_text_parts.append(f"[Image: {mime_type}]")
 
-            user_text = "\n".join(user_text_parts) if user_text_parts else ""
-            if not user_text:
-                # Fallback to original method if we couldn't extract text
-                user_text = str(last_message.content)
+        #     user_text = "\n".join(user_text_parts) if user_text_parts else ""
+        #     if not user_text:
+        #         # Fallback to original method if we couldn't extract text
+        #         user_text = str(last_message.content)
 
-            return await self.generate_str(user_text)
-        else:
-            # For assistant messages: Add all messages to history and return the last one
-            self.logger.debug("Last message in prompt is from assistant, returning it directly")
+        #     return await self.generate_str(user_text)
+        # else:
+        #     # For assistant messages: Add all messages to history and return the last one
+        #     self.logger.debug("Last message in prompt is from assistant, returning it directly")
 
-            # Convert and add all messages to history
-            converted = []
+        #     # Convert and add all messages to history
+        #     converted = []
 
-            # Fallback to the original method for all LLM types
-            for msg in multipart_messages:
-                # Convert each PromptMessageMultipart to individual PromptMessages
-                prompt_messages = msg.from_multipart()
-                for prompt_msg in prompt_messages:
-                    converted.append(self.type_converter.from_prompt_message(prompt_msg))
+        #     # Fallback to the original method for all LLM types
+        #     for msg in multipart_messages:
+        #         # Convert each PromptMessageMultipart to individual PromptMessages
+        #         prompt_messages = msg.from_multipart()
+        #         for prompt_msg in prompt_messages:
+        #             converted.append(self.type_converter.from_prompt_message(prompt_msg))
 
-            self.history.extend(converted, is_prompt=True)
+        #     self.history.extend(converted, is_prompt=True)
 
-            # Return the assistant's message with proper handling of different content types
-            assistant_text_parts = []
-            has_non_text_content = False
+        #     # Return the assistant's message with proper handling of different content types
+        #     assistant_text_parts = []
+        #     has_non_text_content = False
 
-            for content in last_message.content:
-                if content.type == "text":
-                    assistant_text_parts.append(content.text)
-                elif content.type == "resource" and hasattr(content.resource, "text"):
-                    # Add resource text with metadata
-                    mime_type = getattr(content.resource, "mimeType", "text/plain")
-                    uri = getattr(content.resource, "uri", "")
-                    if uri:
-                        assistant_text_parts.append(
-                            f"[Resource: {uri}, Type: {mime_type}]\n{content.resource.text}"  # ignore # type: ignore
-                        )
-                    else:
-                        assistant_text_parts.append(
-                            f"[Resource Type: {mime_type}]\n{content.resource.text}"  # type ignore # type: ignore
-                        )
-                elif content.type == "image":
-                    # Note the presence of images
-                    mime_type = getattr(content, "mimeType", "image/unknown")
-                    assistant_text_parts.append(f"[Image: {mime_type}]")
-                    has_non_text_content = True
-                else:
-                    # Other content types
-                    assistant_text_parts.append(f"[Content of type: {content.type}]")
-                    has_non_text_content = True
+        #     for content in last_message.content:
+        #         if content.type == "text":
+        #             assistant_text_parts.append(content.text)
+        #         elif content.type == "resource" and hasattr(content.resource, "text"):
+        #             # Add resource text with metadata
+        #             mime_type = getattr(content.resource, "mimeType", "text/plain")
+        #             uri = getattr(content.resource, "uri", "")
+        #             if uri:
+        #                 assistant_text_parts.append(
+        #                     f"[Resource: {uri}, Type: {mime_type}]\n{content.resource.text}"  # ignore # type: ignore
+        #                 )
+        #             else:
+        #                 assistant_text_parts.append(
+        #                     f"[Resource Type: {mime_type}]\n{content.resource.text}"  # type ignore # type: ignore
+        #                 )
+        #         elif content.type == "image":
+        #             # Note the presence of images
+        #             mime_type = getattr(content, "mimeType", "image/unknown")
+        #             assistant_text_parts.append(f"[Image: {mime_type}]")
+        #             has_non_text_content = True
+        #         else:
+        #             # Other content types
+        #             assistant_text_parts.append(f"[Content of type: {content.type}]")
+        #             has_non_text_content = True
 
-            # Join all parts with double newlines for better readability
-            result = "\n\n".join(assistant_text_parts) if assistant_text_parts else str(last_message.content)
+        #     # Join all parts with double newlines for better readability
+        #     result = "\n\n".join(assistant_text_parts) if assistant_text_parts else str(last_message.content)
 
-            # Add a note if non-text content was present
-            if has_non_text_content:
-                result += "\n\n[Note: This message contained non-text content that may not be fully represented in text format]"
+        #     # Add a note if non-text content was present
+        #     if has_non_text_content:
+        #         result += "\n\n[Note: This message contained non-text content that may not be fully represented in text format]"
 
-            return result
+        #     return result
 
+    #####################################
+    ### NEW INTERFACE METHODS BELOW   ###
+    #####################################
 
-#####################################
-### NEW INTERFACE METHODS BELOW   ###
-#####################################
+    # async def apply_prompt(
+    #     self,
+    #     multipart_messages: List[PromptMessageMultipart],
+    #     request_params: RequestParams | None = None,
+    # ) -> PromptMessageMultipart:
+    #     return Prompt.assistant("foo")
+
+    async def structured(
+        self,
+        prompt: List[PromptMessageMultipart],
+        model: Type[ModelT],
+        request_params: RequestParams | None,
+    ) -> ModelT | None:
+        """Apply the prompt and return the result as a Pydantic model, or None if coercion fails"""
+
+        return None
+
+    # async def _provider_completion(self, model: Type[ModelT], List[MessageParamT], request_params: RequstParams) -> ModelT|None:
+
+    # )

@@ -26,6 +26,8 @@ async def test_load_simple_conversation_from_file(fast_agent):
         async with fast.run() as agent:
             loaded: List[PromptMessageMultipart] = load_prompt_multipart(Path("conv1_simple.md"))
             assert 4 == len(loaded)
+            assert "user" == loaded[0].role
+            assert "assistant" == loaded[1].role
             assert "message 2" in await agent.apply_prompt(loaded)
 
     await agent_function()
@@ -61,7 +63,7 @@ async def test_load_conversation_with_attachments(fast_agent):
 
 @pytest.mark.integration
 @pytest.mark.asyncio
-async def test_save_text_file(fast_agent):
+async def test_save_state_to_simple_text_file(fast_agent):
     """Check to see if we can save a conversation to a text file. This functionality
     is extremely simple, and does not support round-tripping. JSON support using MCP
     types will be added in a future release."""

@@ -4,6 +4,7 @@ Orchestrator implementation for MCP Agent applications.
 
 from typing import (
     TYPE_CHECKING,
+    Any,
     List,
     Literal,
     Optional,
@@ -72,7 +73,7 @@ class Orchestrator(AugmentedLLM[MessageParamT, MessageT]):
         available_agents: List[Agent | AugmentedLLM],
         plan_type: Literal["full", "iterative"] = "full",
         context: Optional["Context"] = None,
-        **kwargs,
+        **kwargs: dict[str, Any],
     ) -> None:
         """
         Args:
@@ -168,7 +169,7 @@ class Orchestrator(AugmentedLLM[MessageParamT, MessageT]):
         message: str | MessageParamT | List[MessageParamT],
         response_model: Type[ModelT],
         request_params: RequestParams | None = None,
-    ) -> ModelT:
+    ) -> ModelT | None:
         return None
 
     async def execute(self, objective: str, request_params: RequestParams | None = None) -> PlanResult:

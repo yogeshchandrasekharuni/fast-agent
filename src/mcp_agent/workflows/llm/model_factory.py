@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 from enum import Enum, auto
-from typing import Callable, Dict, Optional, Type, Union
+from typing import Any, Callable, Dict, Optional, Type, Union
 
 from mcp_agent.agents.agent import Agent
 from mcp_agent.core.exceptions import ModelConfigError
@@ -145,10 +145,14 @@ class ModelFactory:
             if provider is None:
                 raise ModelConfigError(f"Unknown model: {model_name}")
 
-        return ModelConfig(provider=provider, model_name=model_name, reasoning_effort=reasoning_effort)
+        return ModelConfig(
+            provider=provider, model_name=model_name, reasoning_effort=reasoning_effort
+        )
 
     @classmethod
-    def create_factory(cls, model_string: str, request_params: Optional[RequestParams] = None) -> Callable[..., AugmentedLLMProtocol]:
+    def create_factory(
+        cls, model_string: str, request_params: Optional[RequestParams] = None
+    ) -> Callable[..., AugmentedLLMProtocol]:
         """
         Creates a factory function that follows the attach_llm protocol.
 
@@ -167,7 +171,7 @@ class ModelFactory:
             llm_class = cls.PROVIDER_CLASSES[config.provider]
 
         # Create a factory function matching the attach_llm protocol
-        def factory(agent: Agent, **kwargs) -> LLMClass:
+        def factory(agent: Agent, **kwargs: dict[str, Any]) -> LLMClass:
             # Create merged params with parsed model name
             factory_params = request_params.model_copy() if request_params else RequestParams()
             factory_params.model = config.model_name  # Use the parsed model name, not the alias
@@ -177,7 +181,9 @@ class ModelFactory:
                 params_dict = factory_params.model_dump()
                 params_dict.update(kwargs["default_request_params"].model_dump(exclude_unset=True))
                 factory_params = RequestParams(**params_dict)
-                factory_params.model = config.model_name  # Ensure parsed model name isn't overwritten
+                factory_params.model = (
+                    config.model_name
+                )  # Ensure parsed model name isn't overwritten
 
             # Forward all keyword arguments to LLM constructor
             llm_args = {

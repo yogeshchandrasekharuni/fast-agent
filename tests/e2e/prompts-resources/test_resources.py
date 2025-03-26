@@ -57,10 +57,11 @@ async def test_using_resource_text(fast_agent, model_name):
     )
     async def agent_function():
         async with fast.run() as agent:
-            assert "white" in await agent.agent.with_resource(
+            answer = await agent.agent.with_resource(
                 "What colour are buttons in this file?",
                 "prompt_server",
                 "resource://fast-agent/style.css",
             )
+            assert "white" in answer.lower()
 
     await agent_function()

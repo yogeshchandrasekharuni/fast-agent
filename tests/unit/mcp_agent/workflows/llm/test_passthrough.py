@@ -8,7 +8,7 @@ from mcp_agent.workflows.llm.augmented_llm_passthrough import PassthroughLLM
 @pytest.fixture
 def passthrough_llm():
     """Create a PassthroughLLM instance for testing."""
-    return PassthroughLLM(name="TestPassthrough")
+    return PassthroughLLM(name="TestPassthrough", context=None)
 
 
 @pytest.fixture

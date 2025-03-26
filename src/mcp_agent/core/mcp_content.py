@@ -140,7 +140,7 @@ def MCPFile(
     }
 
 
-def MCPPrompt(*content_items, role: Literal["user", "assistant"] = "user") -> List[dict]:
+def MCPPrompt(*content_items: Union[dict, str, Path, bytes], role: Literal["user", "assistant"] = "user") -> List[dict]:
     """
     Create one or more prompt messages with various content types.
 

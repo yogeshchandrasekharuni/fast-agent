@@ -8,6 +8,7 @@ from typing import (
     Any,
     AsyncContextManager,
     Callable,
+    Dict,
     Generic,
     List,
     Optional,
@@ -96,55 +97,85 @@ MessageT_co = TypeVar("MessageT_co")
 class AugmentedLLMProtocol(Protocol, Generic[MessageParamT_co, MessageT_co]):
     """Protocol defining the interface for augmented LLMs"""
 
-    async def generate(
-        self,
-        message: Union[str, MessageParamT_co, List[MessageParamT_co]],
-        request_params: RequestParams | None = None,
-    ) -> List[MessageT_co]:
-        """Request an LLM generation, which may run multiple iterations, and return the result"""
-        ...
+    # async def generate(
+    #     self,
+    #     message: Union[str, MessageParamT_co, List[MessageParamT_co]],
+    #     request_params: RequestParams | None = None,
+    # ) -> List[MessageT_co]:
+    #     """Request an LLM generation, which may run multiple iterations, and return the result"""
+    #     ...
 
-    async def generate_str(
-        self,
-        message: Union[str, MessageParamT_co, List[MessageParamT_co]],
-        request_params: RequestParams | None = None,
-    ) -> str:
-        """Request an LLM generation and return the string representation of the result"""
-        ...
+    # async def generate_str(
+    #     self,
+    #     message: Union[str, MessageParamT_co, List[MessageParamT_co]],
+    #     request_params: RequestParams | None = None,
+    # ) -> str:
+    #     """Request an LLM generation and return the string representation of the result"""
+    #     ...
 
     async def structured(
         self,
-        prompt: Union[str, PromptMessage, PromptMessageMultipart, List[str]],
+        prompt: List[PromptMessageMultipart],
         model: Type[ModelT],
         request_params: RequestParams | None,
-    ) -> ModelT:
+    ) -> ModelT | None:
         """Apply the prompt and return the result as a Pydantic model, or None if coercion fails"""
         ...
 
-    async def generate_prompt(
-        self,
-        prompt: Union[str, PromptMessage, PromptMessageMultipart, List[str]],
-        request_params: RequestParams | None,
-    ) -> str:
-        """Request an LLM generation and return a string representation of the result"""
-        ...
+    # async def generate_prompt(
+    #     self,
+    #     prompt: Union[str, PromptMessage, PromptMessageMultipart, List[str]],
+    #     request_params: RequestParams | None,
+    # ) -> str:
+    #     """Request an LLM generation and return a string representation of the result"""
+    #     ...
 
     async def apply_prompt(
         self,
-        multipart_messages: List["PromptMessageMultipart"],
+        multipart_messages: List[PromptMessageMultipart],
         request_params: RequestParams | None = None,
-    ) -> str:
+    ) -> PromptMessageMultipart:
         """
         Apply a list of PromptMessageMultipart messages directly to the LLM.
-        This is a cleaner interface to _apply_prompt_template_provider_specific.
+
 
         Args:
             multipart_messages: List of PromptMessageMultipart objects
             request_params: Optional parameters to configure the LLM request
 
         Returns:
-            String representation of the assistant's response
+            A PromptMessageMultipart containing the Assistant response, including Tool Content
         """
+        ...
+
+
+class AgentProtocol(Protocol):
+    """Protocol defining the standard agent interface"""
+
+    name: str
+
+    async def send(self, message: Union[str, PromptMessageMultipart]) -> str:
+        """Send a message to the agent and get a response"""
+        ...
+
+    async def prompt(self, default_prompt: str = "") -> str:
+        """Start an interactive prompt session with the agent"""
+        ...
+
+    async def apply_prompt(self, prompt_name: str, arguments: Optional[Dict[str, str]] = None) -> str:
+        """Apply a prompt template by name"""
+        ...
+
+    async def with_resource(self, prompt_content: Union[str, PromptMessageMultipart], server_name: str, resource_name: str) -> str:
+        """Send a message with an attached resource"""
+        ...
+
+    async def initialize(self) -> None:
+        """Initialize the agent and connect to MCP servers"""
+        ...
+
+    async def shutdown(self) -> None:
+        """Shut down the agent and close connections"""
         ...
 
 
@@ -155,9 +186,7 @@ class ModelFactoryClassProtocol(Protocol):
     """
 
     @classmethod
-    def create_factory(
-        cls, model_string: str, request_params: Optional[RequestParams] = None
-    ) -> Callable[..., AugmentedLLMProtocol[Any, Any]]:
+    def create_factory(cls, model_string: str, request_params: Optional[RequestParams] = None) -> Callable[..., AugmentedLLMProtocol[Any, Any]]:
         """
         Creates a factory function that can be used to construct an LLM instance.
 

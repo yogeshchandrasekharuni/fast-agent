@@ -15,15 +15,19 @@ from typing import Any, Awaitable, Callable, Dict, List, Optional
 
 from mcp.server.fastmcp import FastMCP
 from mcp.server.fastmcp.prompts.base import (
+    AssistantMessage,
     Message,
+    UserMessage,
 )
 from mcp.server.fastmcp.resources import FileResource
+from mcp.types import PromptMessage
 from pydantic import AnyUrl
 
 from mcp_agent.mcp import mime_utils, resource_utils
 from mcp_agent.mcp.prompts.prompt_load import create_messages_with_resources
 from mcp_agent.mcp.prompts.prompt_template import (
     PromptMetadata,
+    PromptContent,
     PromptTemplate,
     PromptTemplateLoader,
 )
@@ -34,6 +38,31 @@ logger = logging.getLogger("prompt_server")
 
 # Create FastMCP server
 mcp = FastMCP("Prompt Server")
+
+
+def convert_to_fastmcp_messages(prompt_messages: List[PromptMessage]) -> List[Message]:
+    """
+    Convert PromptMessage objects from prompt_load to FastMCP Message objects.
+    This adapter prevents double-wrapping of messages.
+    
+    Args:
+        prompt_messages: List of PromptMessage objects from prompt_load
+        
+    Returns:
+        List of FastMCP Message objects
+    """
+    result = []
+    
+    for msg in prompt_messages:
+        if msg.role == "user":
+            result.append(UserMessage(content=msg.content))
+        elif msg.role == "assistant":
+            result.append(AssistantMessage(content=msg.content))
+        else:
+            logger.warning(f"Unknown message role: {msg.role}, defaulting to user")
+            result.append(UserMessage(content=msg.content))
+            
+    return result
 
 
 class PromptConfig(PromptMetadata):
@@ -65,34 +94,60 @@ DEFAULT_RESOURCE_DELIMITER = "---RESOURCE"
 PromptHandler = Callable[..., Awaitable[List[Message]]]
 
 
-def create_prompt_handler(template: "PromptTemplate", template_vars: List[str], prompt_files: List[Path]) -> PromptHandler:
+def create_prompt_handler(
+    template: "PromptTemplate", template_vars: List[str], prompt_files: List[Path]
+) -> PromptHandler:
     """Create a prompt handler function for the given template"""
     if template_vars:
-        # With template variables
-        docstring = f"Prompt with template variables: {', '.join(template_vars)}"
-
-        async def prompt_handler(**kwargs: Any) -> List[Message]:
-            # Build context from parameters
-            context = {var: kwargs.get(var) for var in template_vars if var in kwargs and kwargs[var] is not None}
-
-            content_sections = template.apply_substitutions(context)
-
-            # Convert to MCP Message objects, handling resources properly
-            return create_messages_with_resources(content_sections, prompt_files)
-
+        # Create a handler function for templates with variables
+        # Define properly typed annotations for each template variable
+        # This is critical: FastMCP needs explicit type annotations to discover arguments
+        
+        # Create an exec-compatible string with parameters and type annotations
+        params_str = ', '.join([f"{var}: str" for var in template_vars])
+        
+        # Create the dynamic function definition with explicit type annotations
+        function_def = f"""
+async def typed_handler({params_str}) -> List[Message]:
+    # Use all passed template variables
+    context = {{{', '.join([f"'{var}': {var}" for var in template_vars])}}}
+    
+    content_sections = template.apply_substitutions(context)
+    prompt_messages = create_messages_with_resources(content_sections, prompt_files)
+    return convert_to_fastmcp_messages(prompt_messages)
+"""
+        
+        # Define the globals needed for exec
+        exec_globals = {
+            'List': List,
+            'Message': Message,
+            'template': template,
+            'create_messages_with_resources': create_messages_with_resources,
+            'convert_to_fastmcp_messages': convert_to_fastmcp_messages,
+            'prompt_files': prompt_files
+        }
+        
+        # Execute the function definition to create the typed handler
+        exec(function_def, exec_globals)
+        
+        # Get the dynamically created function with proper type annotations
+        handler_function = exec_globals['typed_handler']
+        
+        # Set a helpful docstring
+        handler_function.__doc__ = f"Prompt template with variables: {', '.join(template_vars)}"
+        
+        return handler_function
     else:
-        # No template variables
-        docstring = "Get a prompt with no variable substitution"
-
-        async def prompt_handler(**kwargs: Any) -> List[Message]:
+        # Create a handler function for templates without variables
+        async def handler_function() -> List[Message]:
             content_sections = template.content_sections
-
-            # Convert to MCP Message objects, handling resources properly
-            return create_messages_with_resources(content_sections, prompt_files)
-
-    # Set the docstring
-    prompt_handler.__doc__ = docstring
-    return prompt_handler
+            prompt_messages = create_messages_with_resources(content_sections, prompt_files)
+            return convert_to_fastmcp_messages(prompt_messages)
+        
+        # Set a helpful docstring
+        handler_function.__doc__ = "Prompt without template variables"
+        
+        return handler_function
 
 
 # Type for resource handler
@@ -242,7 +297,9 @@ def parse_args():
         default=8000,
         help="Port to use for SSE transport (default: 8000)",
     )
-    parser.add_argument("--test", type=str, help="Test a specific prompt without starting the server")
+    parser.add_argument(
+        "--test", type=str, help="Test a specific prompt without starting the server"
+    )
 
     return parser.parse_args()
 
@@ -373,7 +430,9 @@ async def async_main():
     logger.info("Starting prompt server")
     logger.info(f"Registered {len(prompt_registry)} prompts")
     logger.info(f"Registered {len(exposed_resources)} resources")
-    logger.info(f"Using delimiters: {config.user_delimiter}, {config.assistant_delimiter}, {config.resource_delimiter}")
+    logger.info(
+        f"Using delimiters: {config.user_delimiter}, {config.assistant_delimiter}, {config.resource_delimiter}"
+    )
 
     # If a test prompt was specified, print it and exit
     if args.test:

@@ -4,6 +4,8 @@ import pytest
 from mcp import GetPromptResult
 from mcp.types import PromptMessage, TextContent
 
+from mcp_agent.agents.agent import Agent
+from mcp_agent.core.agent_types import AgentConfig
 from mcp_agent.workflows.llm.augmented_llm_playback import PlaybackLLM
 from mcp_agent.workflows.llm.model_factory import ModelFactory
 
@@ -248,11 +250,13 @@ async def test_model_factory_creates_playback():
     # Verify the factory is callable
     assert callable(factory)
 
-    # Create a mock agent
-    mock_agent = MagicMock()
-
     # Create an instance using the factory
-    instance = factory(mock_agent)
+    instance = factory(
+        Agent(
+            AgentConfig(name="playback_agent", instruction="Helpful AI Agent", servers=[]),
+            context=None,
+        )
+    )
 
     # Verify the instance is a PlaybackLLM
     assert isinstance(instance, PlaybackLLM)

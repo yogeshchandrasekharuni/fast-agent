@@ -33,7 +33,4 @@ mcp:
   servers:
     prompts:
       command: "prompt-server"
-      args: ["sizing.md", "resource.md"]
-    hfspace:
-      command: "npx"
-      args: ["@llmindset/mcp-hfspace"]
+      args: ["playback.md"]

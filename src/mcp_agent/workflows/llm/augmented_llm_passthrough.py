@@ -25,8 +25,8 @@ class PassthroughLLM(AugmentedLLM):
     parallel workflow where no fan-in aggregation is needed.
     """
 
-    def __init__(self, name: str = "Passthrough", context=None, **kwargs) -> None:
-        super().__init__(name=name, context=context, **kwargs)
+    def __init__(self, name: str = "Passthrough", **kwargs: dict[str, Any]) -> None:
+        super().__init__(name=name, **kwargs)
         self.provider = "fast-agent"
         # Initialize logger - keep it simple without name reference
         self.logger = get_logger(__name__)
@@ -148,7 +148,7 @@ class PassthroughLLM(AugmentedLLM):
         message: Union[str, MessageParamT, List[MessageParamT]],
         response_model: Type[ModelT],
         request_params: Optional[RequestParams] = None,
-    ) -> ModelT:
+    ) -> ModelT | None:
         """
         Return the input message as the requested model type.
         This is a best-effort implementation - it may fail if the
@@ -161,9 +161,15 @@ class PassthroughLLM(AugmentedLLM):
         elif isinstance(message, str):
             return response_model.model_validate(from_json(message, allow_partial=True))
 
-    async def generate_prompt(self, prompt: "PromptMessageMultipart", request_params: RequestParams | None) -> str:
+    async def generate_prompt(
+        self, prompt: "PromptMessageMultipart", request_params: RequestParams | None
+    ) -> str:
         # Check if this prompt contains a tool call command
-        if prompt.content and prompt.content[0].text and prompt.content[0].text.startswith("***CALL_TOOL "):
+        if (
+            prompt.content
+            and prompt.content[0].text
+            and prompt.content[0].text.startswith("***CALL_TOOL ")
+        ):
             return await self._call_tool_and_return_result(prompt.content[0].text)
 
         # Process all parts of the PromptMessageMultipart
@@ -232,3 +238,10 @@ class PassthroughLLM(AugmentedLLM):
 
         # Use apply_prompt to handle the multipart messages
         return await self.apply_prompt(multipart_messages)
+
+    async def _apply_prompt_template_provider_specific(
+        self,
+        multipart_messages: List["PromptMessageMultipart"],
+        request_params: RequestParams | None = None,
+    ) -> str:
+        return await self.apply_prompt(multipart_messages, None)
