@@ -3,14 +3,12 @@ This simplified implementation directly converts between MCP types and PromptMes
 """
 
 from mcp import ClientSession
-from mcp.types import (
-    CreateMessageRequestParams,
-    CreateMessageResult,
-)
+from mcp.types import CreateMessageRequestParams, CreateMessageResult, TextContent
 
 from mcp_agent.core.agent_types import AgentConfig
 from mcp_agent.logging.logger import get_logger
 from mcp_agent.mcp.interfaces import AugmentedLLMProtocol
+from mcp_agent.mcp.prompt_message_multipart import PromptMessageMultipart
 from mcp_agent.workflows.llm.sampling_converter import SamplingConverter
 
 logger = get_logger(__name__)
@@ -102,12 +100,15 @@ async def sample(mcp_ctx: ClientSession, params: CreateMessageRequestParams) -> 
         # Extract request parameters using our converter
         request_params = SamplingConverter.extract_request_params(params)
 
-        # Use the new public apply_prompt method which is cleaner than calling the protected method
-        llm_response = await llm.apply_prompt(conversation, request_params)
-        logger.info(f"Complete sampling request : {llm_response[:50]}...")
+        llm_response: PromptMessageMultipart = await llm.apply_prompt(conversation, request_params)
+        logger.info(f"Complete sampling request : {llm_response.first_text()[:50]}...")
 
-        # Create result using our converter
-        return SamplingConverter.create_message_result(response=llm_response, model=model)
+        return CreateMessageResult(
+            role=llm_response.role,
+            content=TextContent(type="text", text=llm_response.first_text()),
+            model=model,
+            stopReason="endTurn",
+        )
     except Exception as e:
         logger.error(f"Error in sampling: {str(e)}")
         return SamplingConverter.error_result(

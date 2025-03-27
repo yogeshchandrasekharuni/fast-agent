@@ -92,6 +92,24 @@ class PromptMessageMultipart(BaseModel):
 
         return "<no text>"
 
+    def all_text(self) -> str:
+        """
+        Get all the text available.
+
+        Args:
+            message: A PromptMessage or PromptMessageMultipart
+
+        Returns:
+            First text content or None if no text content exists
+        """
+        result = []
+        for content in self.content:
+            text = get_text(content)
+            if text is not None:
+                result.append(text)
+
+        return "\n".join(result)
+
     @classmethod
     def parse_get_prompt_result(cls, result: GetPromptResult) -> List["PromptMessageMultipart"]:
         """Parse a GetPromptResult into PromptMessageMultipart objects."""

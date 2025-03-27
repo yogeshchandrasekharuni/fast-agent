@@ -109,7 +109,8 @@ class LLMAgentProxy(BaseAgentProxy):
 
     async def send_prompt(self, prompt: PromptMessageMultipart) -> str:
         """Send a message to the agent and return the response"""
-        return await self._agent._llm.generate_prompt(prompt, None)
+        result: PromptMessageMultipart = await self._agent._llm.apply_prompt([prompt])
+        return result.first_text()
 
     async def apply_prompt(self, prompt_name: str = None, arguments: dict[str, str] = None) -> str:
         """

@@ -172,7 +172,7 @@ def MCPPrompt(
         if isinstance(item, dict) and "role" in item and "content" in item:
             # Already a fully formed message
             result.append(item)
-        elif isinstance(item, str) and not Path(item).exists():
+        elif isinstance(item, str):
             # Simple text content (that's not a file path)
             result.append(MCPText(item, role=role))
         elif isinstance(item, Path) or isinstance(item, str):

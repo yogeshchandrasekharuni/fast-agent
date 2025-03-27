@@ -1,6 +1,8 @@
 import os
 from typing import TYPE_CHECKING, List, Type
 
+from mcp_agent.core.prompt import Prompt
+from mcp_agent.mcp.prompt_message_multipart import PromptMessageMultipart
 from mcp_agent.workflows.llm.providers.multipart_converter_anthropic import (
     AnthropicConverter,
 )
@@ -10,8 +12,6 @@ from mcp_agent.workflows.llm.providers.sampling_converter_anthropic import (
 
 if TYPE_CHECKING:
     from mcp import ListToolsResult
-
-    from mcp_agent.mcp.prompt_message_multipart import PromptMessageMultipart
 
 
 from anthropic import Anthropic, AuthenticationError
@@ -348,7 +348,7 @@ class AnthropicAugmentedLLM(AugmentedLLM[MessageParam, Message]):
         self,
         multipart_messages: List["PromptMessageMultipart"],
         request_params: RequestParams | None = None,
-    ) -> str:
+    ) -> PromptMessageMultipart:
         """
         Anthropic-specific implementation of apply_prompt_template that handles
         multimodal content natively.
@@ -376,11 +376,11 @@ class AnthropicAugmentedLLM(AugmentedLLM[MessageParam, Message]):
             # For user messages: Generate response to the last one
             self.logger.debug("Last message in prompt is from user, generating assistant response")
             message_param = AnthropicConverter.convert_to_anthropic(last_message)
-            return await self.generate_str(message_param, request_params)
+            return Prompt.assistant(await self.generate_str(message_param, request_params))
         else:
             # For assistant messages: Return the last message content as text
             self.logger.debug("Last message in prompt is from assistant, returning it directly")
-            return str(last_message)
+            return last_message
 
     async def _save_history_to_file(self, command: str) -> str:
         """

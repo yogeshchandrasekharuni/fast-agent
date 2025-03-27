@@ -3,13 +3,12 @@ from typing import TYPE_CHECKING, List, Type
 
 from pydantic_core import from_json
 
+from mcp_agent.core.prompt import Prompt
+from mcp_agent.mcp.prompt_message_multipart import PromptMessageMultipart
 from mcp_agent.workflows.llm.providers.multipart_converter_openai import OpenAIConverter
 from mcp_agent.workflows.llm.providers.sampling_converter_openai import (
     OpenAISamplingConverter,
 )
-
-if TYPE_CHECKING:
-    from mcp_agent.mcp.prompt_message_multipart import PromptMessageMultipart
 from mcp.types import (
     CallToolRequest,
     CallToolRequestParams,
@@ -372,7 +371,7 @@ class OpenAIAugmentedLLM(AugmentedLLM[ChatCompletionMessageParam, ChatCompletion
         self,
         multipart_messages: List["PromptMessageMultipart"],
         request_params: RequestParams | None = None,
-    ) -> str:
+    ) -> PromptMessageMultipart:
         """
         OpenAI-specific implementation of apply_prompt_template that handles
         multimodal content natively.
@@ -403,11 +402,11 @@ class OpenAIAugmentedLLM(AugmentedLLM[ChatCompletionMessageParam, ChatCompletion
             # For user messages: Generate response to the last one
             self.logger.debug("Last message in prompt is from user, generating assistant response")
             message_param = OpenAIConverter.convert_to_openai(last_message)
-            return await self.generate_str(message_param, request_params)
+            return Prompt.assistant(await self.generate_str(message_param, request_params))
         else:
             # For assistant messages: Return the last message content as text
             self.logger.debug("Last message in prompt is from assistant, returning it directly")
-            return str(last_message)
+            return last_message
 
     async def _save_history_to_file(self, command: str) -> str:
         """

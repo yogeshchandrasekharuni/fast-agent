@@ -1,10 +1,10 @@
 import json  # Import at the module level
 from typing import Any, List, Optional, Type, Union
 
-from mcp import GetPromptResult
 from mcp.types import PromptMessage
 from pydantic_core import from_json
 
+from mcp_agent.core.prompt import Prompt
 from mcp_agent.logging.logger import get_logger
 from mcp_agent.mcp.prompt_message_multipart import PromptMessageMultipart
 from mcp_agent.workflows.llm.augmented_llm import (
@@ -14,6 +14,8 @@ from mcp_agent.workflows.llm.augmented_llm import (
     ModelT,
     RequestParams,
 )
+
+CALL_TOOL_INDICATOR = "***CALL_TOOL"
 
 
 class PassthroughLLM(AugmentedLLM):
@@ -160,87 +162,19 @@ class PassthroughLLM(AugmentedLLM):
         elif isinstance(message, str):
             return response_model.model_validate(from_json(message, allow_partial=True))
 
-    async def generate_prompt(
-        self, prompt: "PromptMessageMultipart", request_params: RequestParams | None
-    ) -> str:
-        # Check if this prompt contains a tool call command
-        if (
-            prompt.content
-            and prompt.content[0].text
-            and prompt.content[0].text.startswith("***CALL_TOOL ")
-        ):
-            return await self._call_tool_and_return_result(prompt.content[0].text)
-
-        # Process all parts of the PromptMessageMultipart
-        parts_text = []
-        for part in prompt.content:
-            parts_text.append(str(part))
-
-        # If no parts found, return empty string
-        if not parts_text:
-            return ""
-
-        # Join all parts and process with generate_str
-        return await self.generate_str("\n".join(parts_text), request_params)
-
-    async def apply_template(
-        self,
-        multipart_messages: List["PromptMessageMultipart"],
-        request_params: Optional[RequestParams] = None,
-    ) -> str:
-        """
-        Apply a list of PromptMessageMultipart messages directly to the LLM.
-        In PassthroughLLM, this returns a concatenated string of all message content.
-
-        Args:
-            multipart_messages: List of PromptMessageMultipart objects
-            request_params: Optional parameters to configure the LLM request
-
-        Returns:
-            String representation of all message content concatenated together
-        """
-        # Generate and concatenate result from all messages
-        result = ""
-        for prompt in multipart_messages:
-            result += await self.generate_prompt(prompt, request_params) + "\n"
-
-        return result
-
-    async def apply_prompt_template(self, prompt_result: GetPromptResult, prompt_name: str) -> str:
-        """
-        Apply a prompt template by adding it to the conversation history.
-        For PassthroughLLM, this returns all content concatenated together.
-
-        Args:
-            prompt_result: The GetPromptResult containing prompt messages
-            prompt_name: The name of the prompt being applied
-
-        Returns:
-            String representation of all message content concatenated together
-        """
-        prompt_messages: List[PromptMessage] = prompt_result.messages
-
-        # Extract arguments if they were stored in the result
-        arguments = getattr(prompt_result, "arguments", None)
-
-        # Display information about the loaded prompt
-        await self.show_prompt_loaded(
-            prompt_name=prompt_name,
-            description=prompt_result.description,
-            message_count=len(prompt_messages),
-            arguments=arguments,
-        )
-        self._messages = prompt_messages
-
-        # Convert prompt messages to multipart format
-        multipart_messages = PromptMessageMultipart.to_multipart(prompt_messages)
-
-        # Use apply_prompt to handle the multipart messages
-        return await self.apply_prompt(multipart_messages)
-
     async def _apply_prompt_template_provider_specific(
         self,
         multipart_messages: List["PromptMessageMultipart"],
         request_params: RequestParams | None = None,
-    ) -> str:
-        return await self.apply_template(multipart_messages, None)
+    ) -> PromptMessageMultipart:
+        last_message = multipart_messages[-1]
+
+        # TODO -- improve when we support Audio/Multimodal gen
+        if self.is_tool_call(last_message):
+            return Prompt.assistant(await self.generate_str(last_message.first_text()))
+
+        concatenated: str = "\n".join(message.all_text() for message in multipart_messages)
+        return Prompt.assistant(concatenated)
+
+    def is_tool_call(self, message: PromptMessageMultipart) -> bool:
+        return message.first_text().startswith(CALL_TOOL_INDICATOR)

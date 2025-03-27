@@ -461,7 +461,8 @@ class AugmentedLLM(ContextDependent, AugmentedLLMProtocol[MessageParamT, Message
         multipart_messages = PromptMessageMultipart.parse_get_prompt_result(prompt_result)
 
         # Delegate to the provider-specific implementation
-        return await self._apply_prompt_template_provider_specific(multipart_messages, None)
+        result = await self._apply_prompt_template_provider_specific(multipart_messages, None)
+        return result.first_text()
 
     async def apply_prompt(
         self,
@@ -483,7 +484,7 @@ class AugmentedLLM(ContextDependent, AugmentedLLMProtocol[MessageParamT, Message
             raise ValueError("History Call received")
 
         self.message_history.extend(multipart_messages)
-        assistant_response: PromptMessageMultipart = Prompt.assistant(
+        assistant_response: PromptMessageMultipart = (
             await self._apply_prompt_template_provider_specific(multipart_messages, request_params)
         )
 
@@ -496,7 +497,7 @@ class AugmentedLLM(ContextDependent, AugmentedLLMProtocol[MessageParamT, Message
         self,
         multipart_messages: List["PromptMessageMultipart"],
         request_params: RequestParams | None = None,
-    ) -> str:
+    ) -> PromptMessageMultipart:
         """
         Provider-specific implementation of apply_prompt_template.
         This default implementation handles basic text content for any LLM type.
@@ -510,6 +511,7 @@ class AugmentedLLM(ContextDependent, AugmentedLLMProtocol[MessageParamT, Message
             String representation of the assistant's response if generated,
             or the last assistant message in the prompt
         """
+
         # # Check the last message role
         # last_message = multipart_messages[-1]
 

@@ -63,26 +63,6 @@ class SamplingConverter:
         )
 
     @staticmethod
-    def create_message_result(response: str, model: str, stop_reason: StopReason = "endTurn") -> CreateMessageResult:
-        """
-        Create a CreateMessageResult from an LLM response.
-
-        Args:
-            response: Text response from the LLM
-            model: Model identifier
-            stop_reason: Reason generation stopped
-
-        Returns:
-            CreateMessageResult suitable for returning to MCP
-        """
-        return CreateMessageResult(
-            role="assistant",
-            content=TextContent(type="text", text=response),
-            model=model,
-            stopReason=stop_reason,
-        )
-
-    @staticmethod
     def error_result(error_message: str, model: Optional[str] = None) -> CreateMessageResult:
         """
         Create an error result.

@@ -163,7 +163,9 @@ class Agent(MCPAggregator):
                     payload={"exit_requested": True, "error": str(e)},
                 )
             except Exception as e:
-                await self.executor.signal(request_id, payload=f"Error getting human input: {str(e)}")
+                await self.executor.signal(
+                    request_id, payload=f"Error getting human input: {str(e)}"
+                )
 
         asyncio.create_task(call_callback_and_signal())
 
@@ -252,9 +254,13 @@ class Agent(MCPAggregator):
             result = await self.request_human_input(request=request)
 
             # Use response attribute if available, otherwise use the result directly
-            response_text = result.response if isinstance(result, HumanInputResponse) else str(result)
+            response_text = (
+                result.response if isinstance(result, HumanInputResponse) else str(result)
+            )
 
-            return CallToolResult(content=[TextContent(type="text", text=f"Human response: {response_text}")])
+            return CallToolResult(
+                content=[TextContent(type="text", text=f"Human response: {response_text}")]
+            )
 
         except PromptExitError:
             raise
@@ -339,10 +345,16 @@ class Agent(MCPAggregator):
             resource_result = await server.get_resource(resource_name)
             return resource_result
         except Exception as e:
-            self.logger.error(f"Error retrieving resource '{resource_name}' from server '{server_name}': {str(e)}")
-            raise ValueError(f"Failed to retrieve resource '{resource_name}' from server '{server_name}': {str(e)}")
+            self.logger.error(
+                f"Error retrieving resource '{resource_name}' from server '{server_name}': {str(e)}"
+            )
+            raise ValueError(
+                f"Failed to retrieve resource '{resource_name}' from server '{server_name}': {str(e)}"
+            )
 
-    async def get_embedded_resources(self, server_name: str, resource_name: str) -> List[EmbeddedResource]:
+    async def get_embedded_resources(
+        self, server_name: str, resource_name: str
+    ) -> List[EmbeddedResource]:
         """
         Get a resource from an MCP server and return it as a list of embedded resources ready for use in prompts.
 
@@ -362,12 +374,16 @@ class Agent(MCPAggregator):
         # Convert each resource content to an EmbeddedResource
         embedded_resources: List[EmbeddedResource] = []
         for resource_content in result.contents:
-            embedded_resource = EmbeddedResource(type="resource", resource=resource_content, annotations=None)
+            embedded_resource = EmbeddedResource(
+                type="resource", resource=resource_content, annotations=None
+            )
             embedded_resources.append(embedded_resource)
 
         return embedded_resources
 
-    async def apply_prompt_messages(self, prompts: List[PromptMessageMultipart], request_params: RequestParams | None) -> str:
+    async def apply_prompt_messages(
+        self, prompts: List[PromptMessageMultipart], request_params: RequestParams | None
+    ) -> str:
         return self._llm.apply_prompt_messages(prompts, request_params)
 
     async def with_resource(
@@ -388,7 +404,9 @@ class Agent(MCPAggregator):
             The agent's response as a string
         """
         # Get the embedded resources
-        embedded_resources: List[EmbeddedResource] = await self.get_embedded_resources(server_name, resource_name)
+        embedded_resources: List[EmbeddedResource] = await self.get_embedded_resources(
+            server_name, resource_name
+        )
 
         # Create or update the prompt message
         prompt: PromptMessageMultipart
@@ -405,4 +423,5 @@ class Agent(MCPAggregator):
             raise TypeError("prompt_content must be a string or PromptMessageMultipart")
 
         # Send the prompt to the agent and return the response
-        return await self._llm.generate_prompt(prompt, None)
+        response: PromptMessageMultipart = await self._llm.apply_prompt([prompt], None)
+        return response.first_text()

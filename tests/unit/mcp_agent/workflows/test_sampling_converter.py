@@ -30,7 +30,9 @@ class TestSamplingConverter:
     def test_sampling_message_to_prompt_message_image(self):
         """Test converting an image SamplingMessage to PromptMessageMultipart"""
         # Create a SamplingMessage with image content
-        image_content = ImageContent(type="image", data="base64_encoded_image_data", mimeType="image/png")
+        image_content = ImageContent(
+            type="image", data="base64_encoded_image_data", mimeType="image/png"
+        )
         sampling_message = SamplingMessage(role="user", content=image_content)
 
         # Convert using our converter
@@ -78,7 +80,9 @@ class TestSamplingConverter:
             ),
             SamplingMessage(
                 role="user",
-                content=ImageContent(type="image", data="base64_encoded_image_data", mimeType="image/png"),
+                content=ImageContent(
+                    type="image", data="base64_encoded_image_data", mimeType="image/png"
+                ),
             ),
         ]
 
@@ -138,23 +142,6 @@ class TestSamplingConverter:
         assert llm_params.temperature is None
         assert llm_params.stopSequences is None
         assert llm_params.modelPreferences is None
-
-    def test_create_message_result(self):
-        """Test creating a CreateMessageResult from an LLM response"""
-        # LLM response and model
-        response = "I'm an AI assistant. How can I help you?"
-        model = "claude-3-opus-20240229"
-
-        # Create result using our converter
-        result = SamplingConverter.create_message_result(response=response, model=model, stop_reason="endTurn")
-
-        # Verify result
-        assert isinstance(result, CreateMessageResult)
-        assert result.role == "assistant"
-        assert result.content.type == "text"
-        assert result.content.text == "I'm an AI assistant. How can I help you?"
-        assert result.model == model
-        assert result.stopReason == "endTurn"
 
     def test_error_result(self):
         """Test creating an error result"""
