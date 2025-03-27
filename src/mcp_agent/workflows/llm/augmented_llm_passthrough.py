@@ -184,7 +184,7 @@ class PassthroughLLM(AugmentedLLM):
         # Join all parts and process with generate_str
         return await self.generate_str("\n".join(parts_text), request_params)
 
-    async def apply_prompt(
+    async def apply_template(
         self,
         multipart_messages: List["PromptMessageMultipart"],
         request_params: Optional[RequestParams] = None,
@@ -244,4 +244,4 @@ class PassthroughLLM(AugmentedLLM):
         multipart_messages: List["PromptMessageMultipart"],
         request_params: RequestParams | None = None,
     ) -> str:
-        return await self.apply_prompt(multipart_messages, None)
+        return await self.apply_template(multipart_messages, None)

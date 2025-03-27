@@ -12,6 +12,7 @@ from mcp.types import EmbeddedResource
 
 from mcp_agent.agents.agent import Agent
 from mcp_agent.app import MCPApp
+from mcp_agent.core.prompt import Prompt
 from mcp_agent.core.request_params import RequestParams
 from mcp_agent.mcp.prompt_message_multipart import PromptMessageMultipart
 
@@ -60,7 +61,7 @@ class BaseAgentProxy:
             return await self.send_prompt(message)
 
         # For string messages, use generate_str (traditional behavior)
-        return await self.generate_str(message)
+        return await self.send_prompt(Prompt.user(message))
 
     async def prompt(self, default_prompt: str = "") -> str:
         """Allow: agent.researcher.prompt()"""
@@ -80,8 +81,7 @@ class BaseAgentProxy:
         return "ERROR: Cannot prompt() - AgentApp not found"
 
     async def generate_str(self, message: str) -> str:
-        """Generate response for a message - must be implemented by subclasses"""
-        raise NotImplementedError("Subclasses must implement generate_str")
+        return await self.send_prompt(Prompt.user(message))
 
     async def send_prompt(self, prompt: PromptMessageMultipart) -> str:
         """Send a message to the agent and return the response"""
@@ -107,10 +107,6 @@ class LLMAgentProxy(BaseAgentProxy):
         super().__init__(app, name)
         self._agent = agent
 
-    async def generate_str(self, message: str, **kwargs) -> str:
-        """Forward message and all kwargs to the agent's LLM"""
-        return await self._agent._llm.generate_str(message, **kwargs)
-
     async def send_prompt(self, prompt: PromptMessageMultipart) -> str:
         """Send a message to the agent and return the response"""
         return await self._agent._llm.generate_prompt(prompt, None)
@@ -130,7 +126,9 @@ class LLMAgentProxy(BaseAgentProxy):
         return await self._agent.apply_prompt(prompt_name, arguments)
 
     # Add the new methods
-    async def get_embedded_resources(self, server_name: str, resource_name: str) -> List[EmbeddedResource]:
+    async def get_embedded_resources(
+        self, server_name: str, resource_name: str
+    ) -> List[EmbeddedResource]:
         """
         Get a resource from an MCP server and return it as a list of embedded resources ready for use in prompts.
 
@@ -179,7 +177,9 @@ class LLMAgentProxy(BaseAgentProxy):
             String representation of the assistant's response
         """
         # Delegate to the provider-specific implementation
-        return await self._agent._llm._apply_prompt_template_provider_specific(multipart_messages, request_params)
+        return await self._agent._llm._apply_prompt_template_provider_specific(
+            multipart_messages, request_params
+        )
 
 
 class WorkflowProxy(BaseAgentProxy):
@@ -191,7 +191,7 @@ class WorkflowProxy(BaseAgentProxy):
 
     async def generate_str(self, message: str, **kwargs) -> str:
         """Forward message and all kwargs to the underlying workflow"""
-        return await self._workflow.generate_str(message, **kwargs)
+        return await self._workflow.generate_prompt(Prompt.user(message), **kwargs)
 
 
 class RouterProxy(BaseAgentProxy):
@@ -226,7 +226,9 @@ class RouterProxy(BaseAgentProxy):
 class ChainProxy(BaseAgentProxy):
     """Proxy for chained agent operations"""
 
-    def __init__(self, app: MCPApp, name: str, sequence: List[str], agent_proxies: ProxyDict) -> None:
+    def __init__(
+        self, app: MCPApp, name: str, sequence: List[str], agent_proxies: ProxyDict
+    ) -> None:
         super().__init__(app, name)
         self._sequence = sequence
         self._agent_proxies = agent_proxies

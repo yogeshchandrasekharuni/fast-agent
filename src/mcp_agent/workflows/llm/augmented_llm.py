@@ -8,6 +8,7 @@ from typing import (
     cast,
 )
 
+from mcp_agent.core.prompt import Prompt
 from mcp_agent.logging.logger import get_logger
 from mcp_agent.mcp.interfaces import (
     AugmentedLLMProtocol,
@@ -42,6 +43,7 @@ from mcp_agent.core.exceptions import ModelConfigError, PromptExitError
 from mcp_agent.core.request_params import RequestParams
 from mcp_agent.event_progress import ProgressAction
 from mcp_agent.mcp.mcp_aggregator import MCPAggregator
+from mcp_agent.mcp.prompts.prompt_helpers import MessageContent
 from mcp_agent.ui.console_display import ConsoleDisplay
 from mcp_agent.workflows.llm.memory import Memory, SimpleMemory
 
@@ -87,7 +89,11 @@ class AugmentedLLM(ContextDependent, AugmentedLLMProtocol[MessageParamT, Message
         self.instruction = instruction or (
             agent.instruction if agent and isinstance(agent.instruction, str) else None
         )
+
+        # memory contains provider specific API types.
         self.history: Memory[MessageParamT] = SimpleMemory[MessageParamT]()
+
+        self.message_history: List[PromptMessageMultipart] = []
 
         # Initialize the display component
         self.display = ConsoleDisplay(config=self.context.config)
@@ -457,9 +463,9 @@ class AugmentedLLM(ContextDependent, AugmentedLLMProtocol[MessageParamT, Message
 
     async def apply_prompt(
         self,
-        multipart_messages: List["PromptMessageMultipart"],
+        multipart_messages: List[PromptMessageMultipart],
         request_params: RequestParams | None = None,
-    ) -> str:
+    ) -> PromptMessageMultipart:
         """
         Apply a list of PromptMessageMultipart messages directly to the LLM.
         This is a cleaner interface to _apply_prompt_template_provider_specific.
@@ -471,10 +477,16 @@ class AugmentedLLM(ContextDependent, AugmentedLLMProtocol[MessageParamT, Message
         Returns:
             String representation of the assistant's response
         """
-        # Delegate to the provider-specific implementation
-        return await self._apply_prompt_template_provider_specific(
-            multipart_messages, request_params
+        if MessageContent.get_first_text(multipart_messages[-1]) == "***SAVE_HISTORY simple.txt":
+            raise ValueError("HA HA HA")
+
+        self.message_history.extend(multipart_messages)
+        assistant_response: PromptMessageMultipart = Prompt.assistant(
+            await self._apply_prompt_template_provider_specific(multipart_messages, request_params)
         )
+
+        self.message_history.append(assistant_response)
+        return assistant_response
 
     # this shouln't need to be very big...
     @abstractmethod

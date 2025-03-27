@@ -3,6 +3,8 @@ from typing import Any, List, Optional, Union
 from mcp import GetPromptResult
 from mcp.types import PromptMessage
 
+from mcp_agent.mcp.prompt_message_multipart import PromptMessageMultipart
+from mcp_agent.mcp.prompts.prompt_helpers import MessageContent
 from mcp_agent.workflows.llm.augmented_llm import MessageParamT, RequestParams
 from mcp_agent.workflows.llm.augmented_llm_passthrough import PassthroughLLM
 
@@ -23,13 +25,12 @@ class PlaybackLLM(PassthroughLLM):
 
     def __init__(self, name: str = "Playback", **kwargs: dict[str, Any]) -> None:
         super().__init__(name=name, **kwargs)
-        self._messages: List[PromptMessage] = []
-        self._current_index = 0
+        self._messages: List[PromptMessageMultipart] = []
+        self._current_index = -1
 
-    async def generate_str(
+    async def generate_str2(
         self,
-        message: Union[str, MessageParamT, List[MessageParamT]],
-        request_params: Optional[RequestParams] = None,
+        message: str | None,
     ) -> str:
         """
         Return the next ASSISTANT message in the loaded messages list.
@@ -71,6 +72,18 @@ class PlaybackLLM(PassthroughLLM):
 
         # If we get here, we've run out of assistant messages
         return f"MESSAGES EXHAUSTED (list size {len(self._messages)})"
+
+    async def apply_prompt(
+        self,
+        multipart_messages: List[PromptMessageMultipart],
+        request_params: RequestParams | None = None,
+    ) -> PromptMessageMultipart:
+        if -1 == self._current_index:
+            self._messages = multipart_messages
+            self._current_index = 0
+            return "HISTORY LOADED"
+
+        return await self.generate_str2(MessageContent.get_first_text(multipart_messages[-1]))
 
     async def apply_prompt_template(self, prompt_result: GetPromptResult, prompt_name: str) -> str:
         """

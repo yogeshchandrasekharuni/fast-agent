@@ -6,6 +6,8 @@ from mcp.types import PromptMessage, TextContent
 
 from mcp_agent.agents.agent import Agent
 from mcp_agent.core.agent_types import AgentConfig
+from mcp_agent.core.prompt import Prompt
+from mcp_agent.mcp.interfaces import AugmentedLLMProtocol
 from mcp_agent.workflows.llm.augmented_llm_playback import PlaybackLLM
 from mcp_agent.workflows.llm.model_factory import ModelFactory
 
@@ -260,3 +262,26 @@ async def test_model_factory_creates_playback():
 
     # Verify the instance is a PlaybackLLM
     assert isinstance(instance, PlaybackLLM)
+
+
+@pytest.mark.asyncio
+async def test_basic_playback_no_mock():
+    """Test that ModelFactory correctly creates a PlaybackLLM instance"""
+
+    llm: AugmentedLLMProtocol = PlaybackLLM()
+    assert "HISTORY LOADED" in await llm.apply_prompt([Prompt.user("hello, world!")])
+
+
+@pytest.mark.asyncio
+async def test_simple_playback_functionality():
+    llm: AugmentedLLMProtocol = PlaybackLLM()
+    await llm.apply_prompt(
+        [
+            Prompt.user("message 1"),
+            Prompt.assistant("response 1"),
+            Prompt.user("message 2"),
+            Prompt.assistant("response 2"),
+        ],
+    )
+    assert "response 1" == await llm.apply_prompt([Prompt.user("anything")])
+    assert "response 2" == await llm.apply_prompt([Prompt.user("anything")])

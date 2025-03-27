@@ -162,11 +162,18 @@ class AgentProtocol(Protocol):
         """Start an interactive prompt session with the agent"""
         ...
 
-    async def apply_prompt(self, prompt_name: str, arguments: Optional[Dict[str, str]] = None) -> str:
+    async def apply_prompt(
+        self, prompt_name: str, arguments: Optional[Dict[str, str]] = None
+    ) -> str:
         """Apply a prompt template by name"""
         ...
 
-    async def with_resource(self, prompt_content: Union[str, PromptMessageMultipart], server_name: str, resource_name: str) -> str:
+    async def with_resource(
+        self,
+        prompt_content: Union[str, PromptMessageMultipart],
+        server_name: str,
+        resource_name: str,
+    ) -> str:
         """Send a message with an attached resource"""
         ...
 
@@ -186,7 +193,9 @@ class ModelFactoryClassProtocol(Protocol):
     """
 
     @classmethod
-    def create_factory(cls, model_string: str, request_params: Optional[RequestParams] = None) -> Callable[..., AugmentedLLMProtocol[Any, Any]]:
+    def create_factory(
+        cls, model_string: str, request_params: Optional[RequestParams] = None
+    ) -> Callable[..., AugmentedLLMProtocol[Any, Any]]:
         """
         Creates a factory function that can be used to construct an LLM instance.
 

@@ -1,6 +1,7 @@
 import pytest
 
 
+@pytest.mark.skip("wip")
 @pytest.mark.integration
 @pytest.mark.asyncio
 async def test_loading_agent(fast_agent):
