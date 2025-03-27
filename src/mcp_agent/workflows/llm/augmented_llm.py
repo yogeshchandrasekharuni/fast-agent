@@ -224,10 +224,12 @@ class AugmentedLLM(ContextDependent, AugmentedLLMProtocol[MessageParamT, Message
 
     async def show_assistant_message(
         self,
-        message_text: str | Text,
+        message_text: str | Text | None,
         highlight_namespaced_tool: str = "",
         title: str = "ASSISTANT",
     ) -> None:
+        if message_text is None:
+            message_text = Text("No content to display", style="dim green italic")
         """Display an assistant message in a formatted panel."""
         await self.display.show_assistant_message(
             message_text,
@@ -478,7 +480,7 @@ class AugmentedLLM(ContextDependent, AugmentedLLMProtocol[MessageParamT, Message
             String representation of the assistant's response
         """
         if MessageContent.get_first_text(multipart_messages[-1]) == "***SAVE_HISTORY simple.txt":
-            raise ValueError("HA HA HA")
+            raise ValueError("History Call received")
 
         self.message_history.extend(multipart_messages)
         assistant_response: PromptMessageMultipart = Prompt.assistant(

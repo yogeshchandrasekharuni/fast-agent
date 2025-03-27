@@ -63,7 +63,9 @@ class ParallelLLM(AugmentedLLM[MessageParamT, MessageT]):
         fan_in_llm = await self.ensure_llm(self.fan_in_agent)
 
         # Run fan-out operations in parallel
-        responses = await asyncio.gather(*[llm.generate(message, request_params) for llm in fan_out_llms])
+        responses = await asyncio.gather(
+            *[llm.generate(message, request_params) for llm in fan_out_llms]
+        )
 
         # Get message string for inclusion in formatted output
         message_str = str(message) if isinstance(message, (str, MessageParamT)) else None
@@ -91,7 +93,9 @@ class ParallelLLM(AugmentedLLM[MessageParamT, MessageT]):
         fan_in_llm = await self.ensure_llm(self.fan_in_agent)
 
         # Run fan-out operations in parallel
-        responses = await asyncio.gather(*[llm.generate_str(message, request_params) for llm in fan_out_llms])
+        responses = await asyncio.gather(
+            *[llm.generate_str(message, request_params) for llm in fan_out_llms]
+        )
 
         # Get message string for inclusion in formatted output
         message_str = str(message) if isinstance(message, (str, MessageParamT)) else None
@@ -120,7 +124,12 @@ class ParallelLLM(AugmentedLLM[MessageParamT, MessageT]):
         fan_in_llm = await self.ensure_llm(self.fan_in_agent)
 
         # Run fan-out operations in parallel
-        responses = await asyncio.gather(*[llm.generate_structured(message, response_model, request_params) for llm in fan_out_llms])
+        responses = await asyncio.gather(
+            *[
+                llm.generate_structured(message, response_model, request_params)
+                for llm in fan_out_llms
+            ]
+        )
 
         # Get message string for inclusion in formatted output
         message_str = str(message) if isinstance(message, (str, MessageParamT)) else None
@@ -145,5 +154,7 @@ class ParallelLLM(AugmentedLLM[MessageParamT, MessageT]):
 
         for i, response in enumerate(responses):
             agent_name = self.fan_out_agents[i].name
-            formatted.append(f'<fastagent:response agent="{agent_name}">\n{response}\n</fastagent:response>')
+            formatted.append(
+                f'<fastagent:response agent="{agent_name}">\n{response}\n</fastagent:response>'
+            )
         return "\n\n".join(formatted)

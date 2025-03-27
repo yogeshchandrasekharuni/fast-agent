@@ -133,7 +133,9 @@ class FanIn(ContextDependent):
                 request_params=request_params,
             )
 
-    async def aggregate_messages(self, messages: FanInInput) -> str | MessageParamT | List[MessageParamT]:
+    async def aggregate_messages(
+        self, messages: FanInInput
+    ) -> str | MessageParamT | List[MessageParamT]:
         """
         Aggregate messages from multiple sources/agents into a single message to
         use with the aggregator agent generation.
@@ -205,10 +207,14 @@ class FanIn(ContextDependent):
                 raise ValueError("List items must be either lists of messages or strings")
 
         else:
-            raise ValueError("Input must be either a dictionary of agent messages or a list of messages")
+            raise ValueError(
+                "Input must be either a dictionary of agent messages or a list of messages"
+            )
 
     # Helper methods for processing different types of inputs
-    async def aggregate_agent_messages(self, messages: Dict[str, List[MessageT] | List[MessageParamT]]) -> str | MessageParamT | List[MessageParamT]:
+    async def aggregate_agent_messages(
+        self, messages: Dict[str, List[MessageT] | List[MessageParamT]]
+    ) -> str | MessageParamT | List[MessageParamT]:
         """
         Aggregate message lists with agent names.
 
@@ -259,14 +265,18 @@ class FanIn(ContextDependent):
             return ""
 
         # Format each agent's message with agent attribution
-        aggregated_messages = [f"Agent {agent_name}: {message}" for agent_name, message in messages.items()]
+        aggregated_messages = [
+            f"Agent {agent_name}: {message}" for agent_name, message in messages.items()
+        ]
 
         # Combine all messages with clear separation
         final_message = "\n\n".join(aggregated_messages)
         final_message = f"Aggregated responses from multiple Agents:\n\n{final_message}"
         return final_message
 
-    async def aggregate_message_lists(self, messages: List[List[MessageT] | List[MessageParamT]]) -> str | MessageParamT | List[MessageParamT]:
+    async def aggregate_message_lists(
+        self, messages: List[List[MessageT] | List[MessageParamT]]
+    ) -> str | MessageParamT | List[MessageParamT]:
         """
         Aggregate message lists without agent names.
 

@@ -1,11 +1,12 @@
-from typing import Any, List, Optional, Union
+from typing import Any, List
 
 from mcp import GetPromptResult
 from mcp.types import PromptMessage
 
+from mcp_agent.core.prompt import Prompt
 from mcp_agent.mcp.prompt_message_multipart import PromptMessageMultipart
 from mcp_agent.mcp.prompts.prompt_helpers import MessageContent
-from mcp_agent.workflows.llm.augmented_llm import MessageParamT, RequestParams
+from mcp_agent.workflows.llm.augmented_llm import RequestParams
 from mcp_agent.workflows.llm.augmented_llm_passthrough import PassthroughLLM
 
 
@@ -27,11 +28,12 @@ class PlaybackLLM(PassthroughLLM):
         super().__init__(name=name, **kwargs)
         self._messages: List[PromptMessageMultipart] = []
         self._current_index = -1
+        self._overage = -1
 
     async def generate_str2(
         self,
         message: str | None,
-    ) -> str:
+    ) -> PromptMessageMultipart:
         """
         Return the next ASSISTANT message in the loaded messages list.
         If no messages are available or all have been played back,
@@ -41,16 +43,14 @@ class PlaybackLLM(PassthroughLLM):
         """
         self.show_user_message(message, model="fastagent-playback", chat_turn=0)
 
-        if not self._messages or self._current_index >= len(self._messages):
-            size = len(self._messages) if self._messages else 0
-            response = f"MESSAGES EXHAUSTED (list size {size})"
-        else:
-            response = self._get_next_assistant_message()
+        response = self._get_next_assistant_message()
 
-        await self.show_assistant_message(response, title="ASSISTANT/PLAYBACK")
+        await self.show_assistant_message(
+            message_text=MessageContent.get_first_text(response), title="ASSISTANT/PLAYBACK"
+        )
         return response
 
-    def _get_next_assistant_message(self) -> str:
+    def _get_next_assistant_message(self) -> PromptMessageMultipart:
         """
         Get the next assistant message from the loaded messages.
         Increments the current message index and skips user messages.
@@ -59,19 +59,15 @@ class PlaybackLLM(PassthroughLLM):
         while self._current_index < len(self._messages):
             message = self._messages[self._current_index]
             self._current_index += 1
-
-            # Skip non-assistant messages
-            if getattr(message, "role", None) != "assistant":
+            if "assistant" != message.role:
                 continue
 
-            # Get content as string
-            content = message.content
-            if hasattr(content, "text"):
-                return content.text
-            return str(content)
+            return message
 
-        # If we get here, we've run out of assistant messages
-        return f"MESSAGES EXHAUSTED (list size {len(self._messages)})"
+        self._overage += 1
+        return Prompt.assistant(
+            f"MESSAGES EXHAUSTED (list size {len(self._messages)}) ({self._overage} overage)"
+        )
 
     async def apply_prompt(
         self,
@@ -81,7 +77,7 @@ class PlaybackLLM(PassthroughLLM):
         if -1 == self._current_index:
             self._messages = multipart_messages
             self._current_index = 0
-            return "HISTORY LOADED"
+            return Prompt.assistant("HISTORY LOADED")
 
         return await self.generate_str2(MessageContent.get_first_text(multipart_messages[-1]))
 
@@ -109,11 +105,10 @@ class PlaybackLLM(PassthroughLLM):
             arguments=arguments,
         )
 
-        # Add new messages to the end of the existing messages list
-        self._messages.extend(prompt_messages)
-
         if not prompt_messages:
             return "Prompt contains no messages"
+
+        self._messages.extend(PromptMessageMultipart.to_multipart(prompt_messages))
 
         # Reset current index if this is the first time loading messages
         if len(self._messages) == len(prompt_messages):

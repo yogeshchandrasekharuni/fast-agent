@@ -28,7 +28,6 @@ class PassthroughLLM(AugmentedLLM):
     def __init__(self, name: str = "Passthrough", **kwargs: dict[str, Any]) -> None:
         super().__init__(name=name, **kwargs)
         self.provider = "fast-agent"
-        # Initialize logger - keep it simple without name reference
         self.logger = get_logger(__name__)
         self._messages = [PromptMessage]
 

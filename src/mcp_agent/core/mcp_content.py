@@ -10,12 +10,14 @@ from pathlib import Path
 from typing import Any, List, Literal, Optional, Union
 
 from mcp.types import (
+    Annotations,
     BlobResourceContents,
     EmbeddedResource,
     ImageContent,
     TextContent,
     TextResourceContents,
 )
+from pydantic import AnyUrl
 
 from mcp_agent.mcp.mime_utils import (
     guess_mime_type,
@@ -27,7 +29,7 @@ from mcp_agent.mcp.mime_utils import (
 def MCPText(
     text: str,
     role: Literal["user", "assistant"] = "user",
-    annotations: Optional[dict] = None,
+    annotations: Annotations = None,
 ) -> dict:
     """
     Create a message with text content.
@@ -47,11 +49,11 @@ def MCPText(
 
 
 def MCPImage(
-    path: Union[str, Path] = None,
-    data: bytes = None,
+    path: str | Path | None = None,
+    data: bytes | None = None,
     mime_type: Optional[str] = None,
     role: Literal["user", "assistant"] = "user",
-    annotations: Optional[dict] = None,
+    annotations: Annotations | None = None,
 ) -> dict:
     """
     Create a message with image content.
@@ -86,7 +88,9 @@ def MCPImage(
 
     return {
         "role": role,
-        "content": ImageContent(type="image", data=b64_data, mimeType=mime_type, annotations=annotations),
+        "content": ImageContent(
+            type="image", data=b64_data, mimeType=mime_type, annotations=annotations
+        ),
     }
 
 
@@ -94,7 +98,7 @@ def MCPFile(
     path: Union[str, Path],
     mime_type: Optional[str] = None,
     role: Literal["user", "assistant"] = "user",
-    annotations: Optional[dict] = None,
+    annotations: Annotations | None = None,
 ) -> dict:
     """
     Create a message with an embedded resource from a file.
@@ -122,17 +126,19 @@ def MCPFile(
         binary_data = path.read_bytes()
         b64_data = base64.b64encode(binary_data).decode("ascii")
 
-        resource = BlobResourceContents(uri=uri, blob=b64_data, mimeType=mime_type)
+        resource = BlobResourceContents(uri=AnyUrl(uri), blob=b64_data, mimeType=mime_type)
     else:
         # Read as text
         try:
             text_data = path.read_text(encoding="utf-8")
-            resource = TextResourceContents(uri=uri, text=text_data, mimeType=mime_type)
+            resource = TextResourceContents(uri=AnyUrl(uri), text=text_data, mimeType=mime_type)
         except UnicodeDecodeError:
             # Fallback to binary if text read fails
             binary_data = path.read_bytes()
             b64_data = base64.b64encode(binary_data).decode("ascii")
-            resource = BlobResourceContents(uri=uri, blob=b64_data, mimeType=mime_type or "application/octet-stream")
+            resource = BlobResourceContents(
+                uri=AnyUrl(uri), blob=b64_data, mimeType=mime_type or "application/octet-stream"
+            )
 
     return {
         "role": role,
@@ -140,7 +146,9 @@ def MCPFile(
     }
 
 
-def MCPPrompt(*content_items: Union[dict, str, Path, bytes], role: Literal["user", "assistant"] = "user") -> List[dict]:
+def MCPPrompt(
+    *content_items: Union[dict, str, Path, bytes], role: Literal["user", "assistant"] = "user"
+) -> List[dict]:
     """
     Create one or more prompt messages with various content types.
 
