@@ -36,7 +36,6 @@ from mcp_agent.mcp.prompts.prompt_constants import (
 from mcp_agent.mcp.prompts.prompt_load import create_messages_with_resources
 from mcp_agent.mcp.prompts.prompt_template import (
     PromptMetadata,
-    PromptTemplate,
     PromptTemplateLoader,
 )
 
@@ -92,57 +91,6 @@ prompt_registry: Dict[str, PromptMetadata] = {}
 
 # Define a single type for prompt handlers to avoid mypy issues
 PromptHandler = Callable[..., Awaitable[List[Message]]]
-
-
-def create_prompt_handler(
-    template: "PromptTemplate", template_vars: List[str], prompt_files: List[Path]
-) -> PromptHandler:
-    """Create a prompt handler function for the given template"""
-
-    # Import the base Prompt class from FastMCP
-    from mcp.server.fastmcp.prompts.base import Prompt, PromptArgument
-
-    if template_vars:
-        # Create a direct wrapper with proper `arguments` attribute
-        async def handler_with_vars(**kwargs: dict[str, Any]) -> List[Message]:
-            # Extract the variables from the kwargs
-            context = {var: kwargs.get(var) for var in template_vars if var in kwargs}
-
-            # Make sure all template variables are provided
-            missing_vars = [var for var in template_vars if var not in context]
-            if missing_vars:
-                raise ValueError(f"Missing required template variables: {', '.join(missing_vars)}")
-
-            # Apply substitutions and process the template
-            content_sections = template.apply_substitutions(context)
-            prompt_messages = create_messages_with_resources(content_sections, prompt_files)
-            return convert_to_fastmcp_messages(prompt_messages)
-
-        # Create prompt arguments the way FastMCP expects them
-        prompt_args = []
-        for var in template_vars:
-            prompt_args.append(
-                PromptArgument(name=var, description=f"Template variable: {var}", required=True)
-            )
-
-        # Set the arguments directly on the function
-        setattr(handler_with_vars, "arguments", prompt_args)  # Using setattr to avoid mypy error
-
-        # Set a helpful docstring
-        handler_with_vars.__doc__ = f"Prompt template with variables: {', '.join(template_vars)}"
-
-        return handler_with_vars
-    else:
-        # For templates without variables, create a simple parameterless function
-        async def handler_without_vars() -> List[Message]:
-            content_sections = template.content_sections
-            prompt_messages = create_messages_with_resources(content_sections, prompt_files)
-            return convert_to_fastmcp_messages(prompt_messages)
-
-        # Set a helpful docstring
-        handler_without_vars.__doc__ = "Prompt without template variables"
-
-        return handler_without_vars
 
 
 # Type for resource handler
@@ -224,12 +172,12 @@ def register_prompt(file_path: Path, config: Optional[PromptConfig] = None) -> N
         # Create and register prompt handler
         template_vars = list(metadata.template_variables)
 
+        from mcp.server.fastmcp.prompts.base import Prompt, PromptArgument
+
         # For prompts with variables, create arguments list for FastMCP
         if template_vars:
-            from mcp.server.fastmcp.prompts.base import Prompt, PromptArgument
-
             # Create a function with properly typed parameters
-            async def handler(**kwargs):
+            async def template_handler_with_vars(**kwargs):
                 # Extract template variables from kwargs
                 context = {var: kwargs.get(var) for var in template_vars if var in kwargs}
 
@@ -258,12 +206,26 @@ def register_prompt(file_path: Path, config: Optional[PromptConfig] = None) -> N
                 name=metadata.name,
                 description=metadata.description,
                 arguments=arguments,
-                fn=handler,
+                fn=template_handler_with_vars,
             )
             mcp._prompt_manager.add_prompt(prompt)
         else:
-            handler = create_prompt_handler(template, [], config_values["prompt_files"])
-            mcp.prompt(name=metadata.name, description=metadata.description)(handler)
+            # Create a simple prompt without variables
+            async def template_handler_without_vars() -> list[Message]:
+                content_sections = template.content_sections
+                prompt_messages = create_messages_with_resources(
+                    content_sections, config_values["prompt_files"]
+                )
+                return convert_to_fastmcp_messages(prompt_messages)
+
+            # Create a Prompt object directly instead of using the decorator
+            prompt = Prompt(
+                name=metadata.name,
+                description=metadata.description,
+                arguments=[],
+                fn=template_handler_without_vars,
+            )
+            mcp._prompt_manager.add_prompt(prompt)
 
         # Register any referenced resources in the prompt
         for resource_path in metadata.resource_paths:
