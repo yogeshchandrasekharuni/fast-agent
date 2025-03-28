@@ -16,6 +16,7 @@ from mcp_agent.workflows.llm.augmented_llm import (
 )
 
 CALL_TOOL_INDICATOR = "***CALL_TOOL"
+FIXED_RESPONSE_INDICATOR = "***FIXED_RESPONSE"
 
 
 class PassthroughLLM(AugmentedLLM):
@@ -32,6 +33,7 @@ class PassthroughLLM(AugmentedLLM):
         self.provider = "fast-agent"
         self.logger = get_logger(__name__)
         self._messages = [PromptMessage]
+        self._fixed_response: str | None = None
 
     async def generate(
         self,
@@ -173,8 +175,16 @@ class PassthroughLLM(AugmentedLLM):
         if self.is_tool_call(last_message):
             return Prompt.assistant(await self.generate_str(last_message.first_text()))
 
-        concatenated: str = "\n".join(message.all_text() for message in multipart_messages)
-        return Prompt.assistant(concatenated)
+        if last_message.first_text().startswith(FIXED_RESPONSE_INDICATOR):
+            self._fixed_response = (
+                last_message.first_text().split(FIXED_RESPONSE_INDICATOR, 1)[1].strip()
+            )
+
+        if self._fixed_response:
+            return Prompt.assistant(self._fixed_response)
+        else:
+            concatenated: str = "\n".join(message.all_text() for message in multipart_messages)
+            return Prompt.assistant(concatenated)
 
     def is_tool_call(self, message: PromptMessageMultipart) -> bool:
         return message.first_text().startswith(CALL_TOOL_INDICATOR)

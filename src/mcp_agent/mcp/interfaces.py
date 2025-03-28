@@ -130,9 +130,7 @@ class AgentProtocol(AugmentedLLMProtocol, Protocol):
         """Start an interactive prompt session with the agent"""
         ...
 
-    async def apply_prompt(
-        self, prompt_name: str, arguments: Optional[Dict[str, str]] = None
-    ) -> str:
+    async def apply_prompt(self, prompt_name: str, arguments: Dict[str, str] | None = None) -> str:
         """Apply a prompt template by name"""
         ...
 

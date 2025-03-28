@@ -16,6 +16,7 @@ from mcp_agent.core.prompt import Prompt
 from mcp_agent.core.request_params import RequestParams
 from mcp_agent.mcp.interfaces import AgentProtocol
 from mcp_agent.mcp.prompt_message_multipart import PromptMessageMultipart
+from mcp_agent.mcp.prompts.prompt_helpers import MessageContent
 
 # Handle circular imports
 if TYPE_CHECKING:
@@ -46,8 +47,6 @@ class BaseAgentProxy(AgentProtocol):
     async def send(self, message: Optional[Union[str, PromptMessageMultipart]] = None) -> str:
         """
         Allow: agent.researcher.send('message') or agent.researcher.send(Prompt.user('message'))
-
-        Args:
             message: Either a string message or a PromptMessageMultipart object
 
         Returns:
@@ -57,11 +56,9 @@ class BaseAgentProxy(AgentProtocol):
             # For consistency with agent(), use prompt() to open the interactive interface
             return await self.prompt()
 
-        # If a PromptMessageMultipart is passed, use send_prompt
         if isinstance(message, PromptMessageMultipart):
             return await self.send_prompt(message)
 
-        # For string messages, use generate_str (traditional behavior)
         return await self.send_prompt(Prompt.user(message))
 
     async def prompt(self, default_prompt: str = "") -> str:
@@ -81,14 +78,11 @@ class BaseAgentProxy(AgentProtocol):
         # If we can't find an AgentApp, return an error message
         return "ERROR: Cannot prompt() - AgentApp not found"
 
-    async def generate_str(self, message: str) -> str:
-        return await self.send_prompt(Prompt.user(message))
-
     async def send_prompt(self, prompt: PromptMessageMultipart) -> str:
         """Send a message to the agent and return the response"""
         raise NotImplementedError("Subclasses must implement send(prompt)")
 
-    async def apply_prompt(self, prompt_name: str = None, arguments: dict[str, str] = None) -> str:
+    async def apply_prompt(self, prompt_name: str, arguments: dict[str, str] | None = None) -> str:
         """
         Apply a Prompt from an MCP Server - implemented by subclasses.
         This is the preferred method for applying prompts.
@@ -113,7 +107,7 @@ class LLMAgentProxy(BaseAgentProxy):
         result: PromptMessageMultipart = await self._agent.generate_x([prompt])
         return result.first_text()
 
-    async def apply_prompt(self, prompt_name: str = None, arguments: dict[str, str] = None) -> str:
+    async def apply_prompt(self, prompt_name: str, arguments: dict[str, str] | None = None) -> str:
         """
         Apply a prompt from an MCP server.
         This is the preferred method for applying prompts.
@@ -182,6 +176,13 @@ class LLMAgentProxy(BaseAgentProxy):
             multipart_messages, request_params
         )
 
+    async def generate_x(
+        self,
+        multipart_messages: List[PromptMessageMultipart],
+        request_params: RequestParams | None = None,
+    ) -> PromptMessageMultipart:
+        return await self._agent.generate_x(multipart_messages, request_params)
+
 
 class WorkflowProxy(LLMAgentProxy):
     """Proxy for workflow types that implement generate_str() directly"""
@@ -236,46 +237,51 @@ class ChainProxy(BaseAgentProxy):
         self._continue_with_final = True  # Default behavior
         self._cumulative = False  # Default to sequential chaining
 
-    async def generate_str(self, message: str, **kwargs) -> str:
+    async def send_prompt(self, prompt: PromptMessageMultipart) -> str:
         """Chain message through a sequence of agents.
 
         For the first agent in the chain, pass all kwargs to maintain transparency.
 
         Two modes of operation:
         1. Sequential (default): Each agent receives only the output of the previous agent
-        2. Cumulative: Each agent receives all previous agent responses concatenated
+        2. Cumulative: Each agent receives the original prompt plus all previous agent responses
         """
-        if not self._sequence:
-            return message
 
-        # Process the first agent (same for both modes)
-        first_agent = self._sequence[0]
-        first_proxy = self._agent_proxies[first_agent]
-        first_response = await first_proxy.generate_str(message, **kwargs)
+        # Initialize the message chain
+        message_chain: list[PromptMessageMultipart] = [prompt]
 
-        if len(self._sequence) == 1:
-            return first_response
+        # Process each agent in the sequence
+        final_results = []
+        current_result = None
 
+        for i, agent_name in enumerate(self._sequence):
+            proxy = self._agent_proxies[agent_name]
+
+            if self._cumulative:
+                # In cumulative mode, each agent sees original prompt + all previous responses
+                agent_prompt = message_chain
+            else:
+                # In sequential mode, agent only sees the most recent message
+                agent_prompt = [message_chain[-1]]
+
+            # Get response from the current agent
+            current_result = await proxy.generate_x(agent_prompt)
+
+            # Store the agent's response with attribution for later reference
+            attributed_response = f"<fastagent:response agent='{agent_name}'>{current_result.all_text()}</fastagent:response>"
+            final_results.append(attributed_response)
+
+            # Don't add after the last agent
+            if i < len(self._sequence) - 1:
+                # Add this response as a user message for the next agent
+                message_chain.append(
+                    Prompt.user(
+                        attributed_response if self._cumulative else current_result.all_text()
+                    )
+                )
+
+        # Return the appropriate result based on mode
         if self._cumulative:
-            # Cumulative mode: each agent gets all previous responses
-            cumulative_response = f'<fastagent:response agent="{first_agent}">\n{first_response}\n</fastagent:response>'
-
-            # Process subsequent agents with cumulative results
-            for agent_name in self._sequence[1:]:
-                proxy = self._agent_proxies[agent_name]
-                # Pass all previous responses to next agent
-                agent_response = await proxy.generate_str(cumulative_response)
-                # Add this agent's response to the cumulative result
-                cumulative_response += f'\n\n<fastagent:response agent="{agent_name}">\n{agent_response}\n</fastagent:response>'
-
-            return cumulative_response
+            return "\n\n".join(final_results)
         else:
-            # Sequential chaining (original behavior)
-            current_message = first_response
-
-            # For subsequent agents, just pass the message from previous agent
-            for agent_name in self._sequence[1:]:
-                proxy = self._agent_proxies[agent_name]
-                current_message = await proxy.generate_str(current_message)
-
-            return current_message
+            return f"{prompt.all_text()}\n{current_result.all_text()}"

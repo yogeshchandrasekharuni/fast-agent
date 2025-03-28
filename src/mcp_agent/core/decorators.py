@@ -6,6 +6,7 @@ Contains decorator definitions extracted from fastagent.py.
 from typing import Callable, Dict, List, Literal, Optional, TypeVar
 
 from mcp_agent.core.agent_types import AgentConfig, AgentType
+from mcp_agent.core.exceptions import AgentConfigError
 from mcp_agent.workflows.llm.augmented_llm import RequestParams
 
 T = TypeVar("T")  # For the wrapper classes
@@ -47,7 +48,11 @@ def _create_decorator(
         # Create base request params
         def decorator(func: Callable) -> Callable:
             # Create base request params
-            if request_params is not None or model is not None or use_history != default_use_history:
+            if (
+                request_params is not None
+                or model is not None
+                or use_history != default_use_history
+            ):
                 max_tokens = 4096 if agent_type == AgentType.BASIC else None
                 params_dict = {"use_history": use_history, "model": model}
                 if max_tokens:
@@ -393,7 +398,10 @@ def chain(
     # Support both parameter names
     agent_sequence = sequence or agents
     if agent_sequence is None:
-        raise ValueError("Either 'sequence' or 'agents' parameter must be provided")
+        raise AgentConfigError(
+            "Either 'sequence' or 'agents' parameter must be provided for chain",
+            details=f"Agent name : {name}",
+        )
 
     # Auto-generate instruction if not provided
     if instruction is None:
