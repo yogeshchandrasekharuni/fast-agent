@@ -32,7 +32,9 @@ from mcp_agent.workflows.router.router_llm import LLMRouter
 T = TypeVar("T")  # For the wrapper classes
 
 
-def create_proxy(app: MCPApp, name: str, instance: AgentOrWorkflow, agent_type: str) -> BaseAgentProxy:
+def create_proxy(
+    app: MCPApp, name: str, instance: AgentOrWorkflow, agent_type: str
+) -> BaseAgentProxy:
     """Create appropriate proxy type based on agent type and validate instance type
 
     Args:
@@ -64,10 +66,12 @@ def create_proxy(app: MCPApp, name: str, instance: AgentOrWorkflow, agent_type: 
     elif agent_type == AgentType.PARALLEL.value:
         if not isinstance(instance, ParallelLLM):
             raise TypeError(f"Expected ParallelLLM instance for {name}, got {type(instance)}")
-        return WorkflowProxy(app, name, instance)
+        return LLMAgentProxy(app, name, instance)
     elif agent_type == AgentType.EVALUATOR_OPTIMIZER.value:
         if not isinstance(instance, EvaluatorOptimizerLLM):
-            raise TypeError(f"Expected EvaluatorOptimizerLLM instance for {name}, got {type(instance)}")
+            raise TypeError(
+                f"Expected EvaluatorOptimizerLLM instance for {name}, got {type(instance)}"
+            )
         return WorkflowProxy(app, name, instance)
     elif agent_type == AgentType.ROUTER.value:
         if not isinstance(instance, LLMRouter):
@@ -171,13 +175,17 @@ async def create_agents_by_type(
                     model=config.model,
                     request_params=config.default_request_params,
                 )
-                agent._llm = await agent.attach_llm(llm_factory)
+                await agent.attach_llm(llm_factory)
                 # Store the agent
                 instance = agent
 
             elif agent_type == AgentType.ORCHESTRATOR:
                 # Get base params configured with model settings
-                base_params = config.default_request_params.model_copy() if config.default_request_params else RequestParams()
+                base_params = (
+                    config.default_request_params.model_copy()
+                    if config.default_request_params
+                    else RequestParams()
+                )
                 base_params.use_history = False  # Force no history for orchestrator
 
                 # Get the child agents - need to unwrap proxies and validate LLM config
@@ -216,17 +224,16 @@ async def create_agents_by_type(
                     request_params=config.default_request_params,
                 )
 
-                planner = await planner_agent.attach_llm(planner_factory)
                 # Create the orchestrator with pre-configured planner
                 instance = Orchestrator(
                     name=config.name,
-                    planner=planner,  # Pass pre-configured planner
                     available_agents=child_agents,
                     context=app_instance.context,
                     request_params=planner.default_request_params,  # Base params already include model settings
                     plan_type=agent_data.get("plan_type", "full"),  # Get plan_type from agent_data
                     verb=ProgressAction.PLANNING,
                 )
+                await planner_agent.attach_llm(planner_factory)
 
             elif agent_type == AgentType.EVALUATOR_OPTIMIZER:
                 # Get the referenced agents - unwrap from proxies
@@ -234,7 +241,9 @@ async def create_agents_by_type(
                 evaluator = unwrap_proxy(active_agents[agent_data["evaluator"]])
 
                 if not generator or not evaluator:
-                    raise ValueError(f"Missing agents for workflow {name}: generator={agent_data['generator']}, evaluator={agent_data['evaluator']}")
+                    raise ValueError(
+                        f"Missing agents for workflow {name}: generator={agent_data['generator']}, evaluator={agent_data['evaluator']}"
+                    )
 
                 # Get model from generator if it's an Agent, or from config otherwise
                 optimizer_model = None
@@ -305,8 +314,14 @@ async def create_agents_by_type(
 
                     # Generate a better description
                     if agent_names:
-                        server_part = f" with access to servers: {', '.join(sorted(all_servers))}" if all_servers else ""
-                        config.instruction = f"Sequence of agents: {', '.join(agent_names)}{server_part}."
+                        server_part = (
+                            f" with access to servers: {', '.join(sorted(all_servers))}"
+                            if all_servers
+                            else ""
+                        )
+                        config.instruction = (
+                            f"Sequence of agents: {', '.join(agent_names)}{server_part}."
+                        )
 
                 # Create a ChainProxy without needing a new instance
                 # Just pass the agent proxies and sequence
@@ -329,9 +344,6 @@ async def create_agents_by_type(
                     instruction=config.instruction,
                     fan_out_agents=fan_out_agents,
                     fan_in_agent=fan_in_agent,
-                    context=app_instance.context,
-                    llm_factory=llm_factory,
-                    default_request_params=config.default_request_params,
                     include_request=agent_data.get("include_request", True),
                 )
 
@@ -393,7 +405,9 @@ async def create_agents_in_dependency_order(
     visited = set()
 
     # Get all agents of the specified type
-    agent_names = [name for name, agent_data in agents_dict.items() if agent_data["type"] == agent_type.value]
+    agent_names = [
+        name for name, agent_data in agents_dict.items() if agent_data["type"] == agent_type.value
+    ]
 
     # Create agents in dependency order
     for name in agent_names:

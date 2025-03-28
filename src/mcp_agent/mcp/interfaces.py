@@ -21,7 +21,6 @@ from typing import (
 
 from anyio.streams.memory import MemoryObjectReceiveStream, MemoryObjectSendStream
 from mcp import ClientSession
-from mcp.types import PromptMessage
 
 from mcp_agent.core.request_params import RequestParams
 from mcp_agent.mcp.prompt_message_multipart import PromptMessageMultipart
@@ -84,34 +83,11 @@ class ServerConnection(Protocol):
     def session(self) -> ClientSession: ...
 
 
-# Regular invariant type variables
-MessageParamT = TypeVar("MessageParamT")
-MessageT = TypeVar("MessageT")
 ModelT = TypeVar("ModelT")
 
-# Variance-annotated type variables
-MessageParamT_co = TypeVar("MessageParamT_co", contravariant=True)
-MessageT_co = TypeVar("MessageT_co")
 
-
-class AugmentedLLMProtocol(Protocol, Generic[MessageParamT_co, MessageT_co]):
+class AugmentedLLMProtocol(Protocol):
     """Protocol defining the interface for augmented LLMs"""
-
-    # async def generate(
-    #     self,
-    #     message: Union[str, MessageParamT_co, List[MessageParamT_co]],
-    #     request_params: RequestParams | None = None,
-    # ) -> List[MessageT_co]:
-    #     """Request an LLM generation, which may run multiple iterations, and return the result"""
-    #     ...
-
-    # async def generate_str(
-    #     self,
-    #     message: Union[str, MessageParamT_co, List[MessageParamT_co]],
-    #     request_params: RequestParams | None = None,
-    # ) -> str:
-    #     """Request an LLM generation and return the string representation of the result"""
-    #     ...
 
     async def structured(
         self,
@@ -122,15 +98,7 @@ class AugmentedLLMProtocol(Protocol, Generic[MessageParamT_co, MessageT_co]):
         """Apply the prompt and return the result as a Pydantic model, or None if coercion fails"""
         ...
 
-    # async def generate_prompt(
-    #     self,
-    #     prompt: Union[str, PromptMessage, PromptMessageMultipart, List[str]],
-    #     request_params: RequestParams | None,
-    # ) -> str:
-    #     """Request an LLM generation and return a string representation of the result"""
-    #     ...
-
-    async def apply_prompt(
+    async def generate_x(
         self,
         multipart_messages: List[PromptMessageMultipart],
         request_params: RequestParams | None = None,
@@ -149,7 +117,7 @@ class AugmentedLLMProtocol(Protocol, Generic[MessageParamT_co, MessageT_co]):
         ...
 
 
-class AgentProtocol(Protocol):
+class AgentProtocol(AugmentedLLMProtocol, Protocol):
     """Protocol defining the standard agent interface"""
 
     name: str
@@ -195,7 +163,7 @@ class ModelFactoryClassProtocol(Protocol):
     @classmethod
     def create_factory(
         cls, model_string: str, request_params: Optional[RequestParams] = None
-    ) -> Callable[..., AugmentedLLMProtocol[Any, Any]]:
+    ) -> Callable[..., Any]:
         """
         Creates a factory function that can be used to construct an LLM instance.
 

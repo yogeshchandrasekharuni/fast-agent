@@ -13,7 +13,7 @@ if TYPE_CHECKING:
 @pytest.mark.asyncio
 async def test_simple_return():
     llm: AugmentedLLMProtocol = PassthroughLLM()
-    response = await llm.apply_prompt(multipart_messages=[Prompt.user("playback message")])
+    response = await llm.generate_x(multipart_messages=[Prompt.user("playback message")])
     assert "assistant" == response.role
     assert "playback message" == response.first_text()
 
@@ -21,7 +21,7 @@ async def test_simple_return():
 @pytest.mark.asyncio
 async def test_concatenates_text_for_multiple_parts():
     llm: AugmentedLLMProtocol = PassthroughLLM()
-    response = await llm.apply_prompt(
+    response = await llm.generate_x(
         multipart_messages=[
             Prompt.user("123abc"),
             Prompt.assistant("456def"),

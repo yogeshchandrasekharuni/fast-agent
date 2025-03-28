@@ -70,7 +70,7 @@ class PlaybackLLM(PassthroughLLM):
             f"MESSAGES EXHAUSTED (list size {len(self._messages)}) ({self._overage} overage)"
         )
 
-    async def apply_prompt(
+    async def generate_x(
         self,
         multipart_messages: List[PromptMessageMultipart],
         request_params: RequestParams | None = None,

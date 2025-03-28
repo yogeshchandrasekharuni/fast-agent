@@ -14,6 +14,7 @@ from mcp_agent.agents.agent import Agent
 from mcp_agent.app import MCPApp
 from mcp_agent.core.prompt import Prompt
 from mcp_agent.core.request_params import RequestParams
+from mcp_agent.mcp.interfaces import AgentProtocol
 from mcp_agent.mcp.prompt_message_multipart import PromptMessageMultipart
 
 # Handle circular imports
@@ -28,7 +29,7 @@ else:
     ProxyDict = Dict[str, "BaseAgentProxy"]
 
 
-class BaseAgentProxy:
+class BaseAgentProxy(AgentProtocol):
     """Base class for all proxy types"""
 
     def __init__(self, app: MCPApp, name: str) -> None:
@@ -109,7 +110,7 @@ class LLMAgentProxy(BaseAgentProxy):
 
     async def send_prompt(self, prompt: PromptMessageMultipart) -> str:
         """Send a message to the agent and return the response"""
-        result: PromptMessageMultipart = await self._agent._llm.apply_prompt([prompt])
+        result: PromptMessageMultipart = await self._agent.generate_x([prompt])
         return result.first_text()
 
     async def apply_prompt(self, prompt_name: str = None, arguments: dict[str, str] = None) -> str:
@@ -126,7 +127,6 @@ class LLMAgentProxy(BaseAgentProxy):
         """
         return await self._agent.apply_prompt(prompt_name, arguments)
 
-    # Add the new methods
     async def get_embedded_resources(
         self, server_name: str, resource_name: str
     ) -> List[EmbeddedResource]:
@@ -183,7 +183,7 @@ class LLMAgentProxy(BaseAgentProxy):
         )
 
 
-class WorkflowProxy(BaseAgentProxy):
+class WorkflowProxy(LLMAgentProxy):
     """Proxy for workflow types that implement generate_str() directly"""
 
     def __init__(self, app: MCPApp, name: str, workflow: WorkflowType) -> None:

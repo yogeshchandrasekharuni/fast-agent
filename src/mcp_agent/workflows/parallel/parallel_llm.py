@@ -1,20 +1,16 @@
 import asyncio
-from typing import TYPE_CHECKING, Any, Callable, List, Optional, Type, Union
+from typing import Any, Dict, List
 
 from mcp_agent.agents.agent import Agent
+from mcp_agent.core.prompt import Prompt
+from mcp_agent.mcp.interfaces import AgentProtocol, ModelT
+from mcp_agent.mcp.prompt_message_multipart import PromptMessageMultipart
 from mcp_agent.workflows.llm.augmented_llm import (
-    AugmentedLLM,
-    MessageParamT,
-    MessageT,
-    ModelT,
     RequestParams,
 )
 
-if TYPE_CHECKING:
-    from mcp_agent.context import Context
 
-
-class ParallelLLM(AugmentedLLM[MessageParamT, MessageT]):
+class ParallelLLM(AgentProtocol):
     """
     LLMs can sometimes work simultaneously on a task (fan-out)
     and have their outputs aggregated programmatically (fan-in).
@@ -24,126 +20,44 @@ class ParallelLLM(AugmentedLLM[MessageParamT, MessageT]):
 
     def __init__(
         self,
-        fan_in_agent: Agent | AugmentedLLM,
-        fan_out_agents: List[Agent | AugmentedLLM],
-        llm_factory: Callable[[Agent], AugmentedLLM] = None,
-        context: Optional["Context"] = None,
+        name: str,
+        instruction: str,
+        fan_in_agent: Agent,
+        fan_out_agents: List[Agent],
         include_request: bool = True,
-        **kwargs,
     ) -> None:
-        super().__init__(context=context, **kwargs)
+        self.name = name
         self.fan_in_agent = fan_in_agent
         self.fan_out_agents = fan_out_agents
-        self.llm_factory = llm_factory
         self.include_request = include_request
-        self.history = None  # History tracking is complex in this workflow
 
-    async def ensure_llm(self, agent: Union[Agent, AugmentedLLM]) -> AugmentedLLM:
-        """Ensure an agent has an LLM attached, using existing or creating new."""
-        if isinstance(agent, AugmentedLLM):
-            return agent
-
-        if not hasattr(agent, "_llm") or agent._llm is None:
-            return await agent.attach_llm(self.llm_factory)
-
-        return agent._llm
-
-    async def generate(
+    async def generate_x(
         self,
-        message: str | MessageParamT | List[MessageParamT],
+        multipart_messages: List[PromptMessageMultipart],
         request_params: RequestParams | None = None,
-    ) -> List[MessageT] | Any:
-        """Generate responses using parallel fan-out and fan-in."""
-        # Ensure all agents have LLMs
-        fan_out_llms = []
-        for agent in self.fan_out_agents:
-            llm = await self.ensure_llm(agent)
-            fan_out_llms.append(llm)
+    ) -> PromptMessageMultipart:
+        responses: list[PromptMessageMultipart] = []
 
-        fan_in_llm = await self.ensure_llm(self.fan_in_agent)
-
-        # Run fan-out operations in parallel
-        responses = await asyncio.gather(
-            *[llm.generate(message, request_params) for llm in fan_out_llms]
+        responses: list[PromptMessageMultipart] = await asyncio.gather(
+            *[agent.generate_x(multipart_messages, request_params) for agent in self.fan_out_agents]
         )
 
-        # Get message string for inclusion in formatted output
-        message_str = str(message) if isinstance(message, (str, MessageParamT)) else None
+        # TODO - we'll just use strings for now, and use multiparts as we add agent-transfer functionality
 
-        # Run fan-in to aggregate results
-        result = await fan_in_llm.generate(
-            self._format_responses(responses, message_str),
-            request_params=request_params,
+        received_message: str | None = (
+            multipart_messages[-1].all_text() if multipart_messages else None
         )
 
-        return result
+        string_responses = []
+        for response in responses:
+            string_responses.append(response.all_text())
 
-    async def generate_str(
-        self,
-        message: str | MessageParamT | List[MessageParamT],
-        request_params: RequestParams | None = None,
-    ) -> str:
-        """Generate string responses using parallel fan-out and fan-in."""
-        # Ensure all agents have LLMs
-        fan_out_llms = []
-        for agent in self.fan_out_agents:
-            llm = await self.ensure_llm(agent)
-            fan_out_llms.append(llm)
-
-        fan_in_llm = await self.ensure_llm(self.fan_in_agent)
-
-        # Run fan-out operations in parallel
-        responses = await asyncio.gather(
-            *[llm.generate_str(message, request_params) for llm in fan_out_llms]
+        return await self.fan_in_agent.generate_x(
+            [Prompt.user(self._format_responses(string_responses, received_message))],
+            request_params,
         )
 
-        # Get message string for inclusion in formatted output
-        message_str = str(message) if isinstance(message, (str, MessageParamT)) else None
-
-        # Run fan-in to aggregate results
-        result = await fan_in_llm.generate_str(
-            self._format_responses(responses, message_str),
-            request_params=request_params,
-        )
-
-        return result
-
-    async def generate_structured(
-        self,
-        message: str | MessageParamT | List[MessageParamT],
-        response_model: Type[ModelT],
-        request_params: RequestParams | None = None,
-    ) -> ModelT:
-        """Generate structured responses using parallel fan-out and fan-in."""
-        # Ensure all agents have LLMs
-        fan_out_llms = []
-        for agent in self.fan_out_agents:
-            llm = await self.ensure_llm(agent)
-            fan_out_llms.append(llm)
-
-        fan_in_llm = await self.ensure_llm(self.fan_in_agent)
-
-        # Run fan-out operations in parallel
-        responses = await asyncio.gather(
-            *[
-                llm.generate_structured(message, response_model, request_params)
-                for llm in fan_out_llms
-            ]
-        )
-
-        # Get message string for inclusion in formatted output
-        message_str = str(message) if isinstance(message, (str, MessageParamT)) else None
-
-        # Run fan-in to aggregate results
-        result = await fan_in_llm.generate_structured(
-            self._format_responses(responses, message_str),
-            response_model=response_model,
-            request_params=request_params,
-        )
-
-        return result
-
-    def _format_responses(self, responses: List[Any], message: str = None) -> str:
+    def _format_responses(self, responses: List[Any], message: str | None = None) -> str:
         """Format a list of responses for the fan-in agent."""
         formatted = []
 
@@ -158,3 +72,31 @@ class ParallelLLM(AugmentedLLM[MessageParamT, MessageT]):
                 f'<fastagent:response agent="{agent_name}">\n{response}\n</fastagent:response>'
             )
         return "\n\n".join(formatted)
+
+    async def structured(
+        self,
+        prompt: List[PromptMessageMultipart],
+        model: type[ModelT],
+        request_params: RequestParams | None,
+    ) -> ModelT | None:
+        raise NotImplementedError
+
+    async def send(self, message: str | PromptMessageMultipart) -> str:
+        raise NotImplementedError
+
+    async def prompt(self, default_prompt: str = "") -> str:
+        raise NotImplementedError
+
+    async def apply_prompt(self, prompt_name: str, arguments: Dict[str, str] | None = None) -> str:
+        raise NotImplementedError
+
+    async def with_resource(
+        self, prompt_content: str | PromptMessageMultipart, server_name: str, resource_name: str
+    ) -> str:
+        raise NotImplementedError
+
+    async def initialize(self) -> None:
+        raise NotImplementedError
+
+    async def shutdown(self) -> None:
+        raise NotImplementedError

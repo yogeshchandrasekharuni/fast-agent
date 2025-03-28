@@ -38,7 +38,10 @@ LLM = TypeVar("LLM", bound=AugmentedLLMProtocol)
 HUMAN_INPUT_TOOL_NAME = "__human_input__"
 
 
-class Agent(MCPAggregator):
+class Agent(
+    MCPAggregator,
+    AugmentedLLMProtocol,
+):
     """
     An Agent is an entity that has access to a set of MCP servers and can interact with them.
     Each agent should have a purpose defined by its instruction.
@@ -72,7 +75,7 @@ class Agent(MCPAggregator):
             name=self.config.name,
             **kwargs,
         )
-
+        self._context = context
         self.name = self.config.name
         self.instruction = self.config.instruction
         self.functions = functions or []
@@ -100,11 +103,11 @@ class Agent(MCPAggregator):
         """
         await self.__aenter__()  # This initializes the connection manager and loads the servers
 
-        for function in self.functions:
-            tool: FastTool = FastTool.from_function(function)
-            self._function_tool_map[tool.name] = tool
+        # for function in self.functions:
+        #     tool: FastTool = FastTool.from_function(function)
+        #     self._function_tool_map[tool.name] = tool
 
-    async def attach_llm(self, llm_factory: Callable[..., LLM]) -> LLM:
+    async def attach_llm(self, llm_factory: Callable[..., LLM]) -> None:
         """
         Create an LLM instance for the agent.
 
@@ -116,7 +119,7 @@ class Agent(MCPAggregator):
         Returns:
             An instance of AugmentedLLM or one of its subclasses.
         """
-        return llm_factory(agent=self, default_request_params=self._default_request_params)
+        self._llm = llm_factory(agent=self, default_request_params=self._default_request_params)
 
     async def shutdown(self) -> None:
         """
@@ -192,19 +195,7 @@ class Agent(MCPAggregator):
 
         result = await super().list_tools()
 
-        # Add function tools
-        for tool in self._function_tool_map.values():
-            result.tools.append(
-                Tool(
-                    name=tool.name,
-                    description=tool.description,
-                    inputSchema=tool.parameters,
-                )
-            )
-
-        # Add a human_input_callback as a tool
         if not self.human_input_callback:
-            self.logger.debug("Human input callback not set")
             return result
 
         # Add a human_input_callback as a tool
@@ -224,11 +215,6 @@ class Agent(MCPAggregator):
         if name == HUMAN_INPUT_TOOL_NAME:
             # Call the human input tool
             return await self._call_human_input_tool(arguments)
-        elif name in self._function_tool_map:
-            # Call local function and return the result as a text response
-            tool = self._function_tool_map[name]
-            result = await tool.run(arguments)
-            return CallToolResult(content=[TextContent(type="text", text=str(result))])
         else:
             return await super().call_tool(name, arguments)
 
@@ -423,5 +409,15 @@ class Agent(MCPAggregator):
             raise TypeError("prompt_content must be a string or PromptMessageMultipart")
 
         # Send the prompt to the agent and return the response
-        response: PromptMessageMultipart = await self._llm.apply_prompt([prompt], None)
+        response: PromptMessageMultipart = await self._llm.generate_x([prompt], None)
         return response.first_text()
+
+    async def generate_x(
+        self,
+        multipart_messages: List[PromptMessageMultipart],
+        request_params: RequestParams | None = None,
+    ) -> PromptMessageMultipart:
+        """
+        Create a completion with the LLM using the provided messages.
+        """
+        return await self._llm.generate_x(multipart_messages, request_params)

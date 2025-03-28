@@ -2,33 +2,13 @@ from abc import abstractmethod
 from typing import (
     TYPE_CHECKING,
     Any,
+    Generic,
     List,
     Optional,
     Type,
+    TypeVar,
     cast,
 )
-
-from mcp_agent.core.prompt import Prompt
-from mcp_agent.logging.logger import get_logger
-from mcp_agent.mcp.interfaces import (
-    AugmentedLLMProtocol,
-    MessageParamT,
-    MessageT,
-    ModelT,
-)
-from mcp_agent.mcp.prompt_message_multipart import PromptMessageMultipart
-from mcp_agent.mcp.prompt_serialization import multipart_messages_to_delimited_format
-from mcp_agent.workflows.llm.sampling_format_converter import (
-    BasicFormatConverter,
-    ProviderFormatConverter,
-)
-
-# Forward reference for type annotations
-if TYPE_CHECKING:
-    from mcp_agent.agents.agent import Agent
-    from mcp_agent.context import Context
-    from mcp_agent.mcp.prompt_message_multipart import PromptMessageMultipart
-
 
 from mcp.types import (
     CallToolRequest,
@@ -41,18 +21,39 @@ from rich.text import Text
 
 from mcp_agent.context_dependent import ContextDependent
 from mcp_agent.core.exceptions import ModelConfigError, PromptExitError
+from mcp_agent.core.prompt import Prompt
 from mcp_agent.core.request_params import RequestParams
 from mcp_agent.event_progress import ProgressAction
+from mcp_agent.logging.logger import get_logger
+from mcp_agent.mcp.interfaces import (
+    AugmentedLLMProtocol,
+    ModelT,
+)
 from mcp_agent.mcp.mcp_aggregator import MCPAggregator
-from mcp_agent.mcp.prompts.prompt_helpers import MessageContent
+from mcp_agent.mcp.prompt_message_multipart import PromptMessageMultipart
+from mcp_agent.mcp.prompt_serialization import multipart_messages_to_delimited_format
 from mcp_agent.ui.console_display import ConsoleDisplay
 from mcp_agent.workflows.llm.memory import Memory, SimpleMemory
+from mcp_agent.workflows.llm.sampling_format_converter import (
+    BasicFormatConverter,
+    ProviderFormatConverter,
+)
+
+# Define type variables locally
+MessageParamT = TypeVar("MessageParamT")
+MessageT = TypeVar("MessageT")
+
+# Forward reference for type annotations
+if TYPE_CHECKING:
+    from mcp_agent.agents.agent import Agent
+    from mcp_agent.context import Context
+
 
 # TODO -- move this to a constant
 HUMAN_INPUT_TOOL_NAME = "__human_input__"
 
 
-class AugmentedLLM(ContextDependent, AugmentedLLMProtocol[MessageParamT, MessageT]):
+class AugmentedLLM(ContextDependent, AugmentedLLMProtocol, Generic[MessageParamT, MessageT]):
     """
     The basic building block of agentic systems is an LLM enhanced with augmentations
     such as retrieval, tools, and memory provided from a collection of MCP servers.
@@ -465,39 +466,6 @@ class AugmentedLLM(ContextDependent, AugmentedLLMProtocol[MessageParamT, Message
         result = await self._apply_prompt_template_provider_specific(multipart_messages, None)
         return result.first_text()
 
-    async def apply_prompt(
-        self,
-        multipart_messages: List[PromptMessageMultipart],
-        request_params: RequestParams | None = None,
-    ) -> PromptMessageMultipart:
-        """
-        Apply a list of PromptMessageMultipart messages directly to the LLM.
-        This is a cleaner interface to _apply_prompt_template_provider_specific.
-
-        Args:
-            multipart_messages: List of PromptMessageMultipart objects
-            request_params: Optional parameters to configure the LLM request
-
-        Returns:
-            String representation of the assistant's response
-        """
-        if multipart_messages[-1].first_text().startswith("***SAVE_HISTORY"):
-            # If we have a save history command, extract the filename and save messages
-            parts: list[str] = multipart_messages[-1].first_text().split(" ", 1)
-            filename: str = (
-                parts[1].strip() if len(parts) > 1 else f"{self.name or 'assistant'}_prompts.txt"
-            )
-            await self._save_history(filename)
-            return Prompt.assistant(f"History saved to {filename}")
-
-        self.message_history.extend(multipart_messages)
-        assistant_response: PromptMessageMultipart = (
-            await self._apply_prompt_template_provider_specific(multipart_messages, request_params)
-        )
-
-        self.message_history.append(assistant_response)
-        return assistant_response
-
     async def _save_history(self, filename: str) -> None:
         """
         Save the Message History to a file in a simple delimeted format.
@@ -532,110 +500,9 @@ class AugmentedLLM(ContextDependent, AugmentedLLMProtocol[MessageParamT, Message
             or the last assistant message in the prompt
         """
 
-        # # Check the last message role
-        # last_message = multipart_messages[-1]
-
-        # if last_message.role == "user":
-        #     # For user messages: Add all previous messages to history, then generate response to the last one
-        #     self.logger.debug("Last message in prompt is from user, generating assistant response")
-
-        #     # Add all but the last message to history
-        #     if len(multipart_messages) > 1:
-        #         previous_messages = multipart_messages[:-1]
-        #         converted = []
-
-        #         # Fallback generic method for all LLM types
-        #         for msg in previous_messages:
-        #             # Convert each PromptMessageMultipart to individual PromptMessages
-        #             prompt_messages = msg.from_multipart()
-        #             for prompt_msg in prompt_messages:
-        #                 converted.append(self.type_converter.from_prompt_message(prompt_msg))
-
-        #         self.history.extend(converted, is_prompt=True)
-
-        #     # For generic LLMs, extract text and describe non-text content
-        #     user_text_parts = []
-        #     for content in last_message.content:
-        #         if content.type == "text":
-        #             user_text_parts.append(content.text)
-        #         elif content.type == "resource" and getattr(content, "resource", None) is not None:
-        #             if hasattr(content.resource, "text"):
-        #                 user_text_parts.append(content.resource.text)  # type: ignore
-        #         elif content.type == "image":
-        #             # Add a placeholder for images
-        #             mime_type = getattr(content, "mimeType", "image/unknown")
-        #             user_text_parts.append(f"[Image: {mime_type}]")
-
-        #     user_text = "\n".join(user_text_parts) if user_text_parts else ""
-        #     if not user_text:
-        #         # Fallback to original method if we couldn't extract text
-        #         user_text = str(last_message.content)
-
-        #     return await self.generate_str(user_text)
-        # else:
-        #     # For assistant messages: Add all messages to history and return the last one
-        #     self.logger.debug("Last message in prompt is from assistant, returning it directly")
-
-        #     # Convert and add all messages to history
-        #     converted = []
-
-        #     # Fallback to the original method for all LLM types
-        #     for msg in multipart_messages:
-        #         # Convert each PromptMessageMultipart to individual PromptMessages
-        #         prompt_messages = msg.from_multipart()
-        #         for prompt_msg in prompt_messages:
-        #             converted.append(self.type_converter.from_prompt_message(prompt_msg))
-
-        #     self.history.extend(converted, is_prompt=True)
-
-        #     # Return the assistant's message with proper handling of different content types
-        #     assistant_text_parts = []
-        #     has_non_text_content = False
-
-        #     for content in last_message.content:
-        #         if content.type == "text":
-        #             assistant_text_parts.append(content.text)
-        #         elif content.type == "resource" and hasattr(content.resource, "text"):
-        #             # Add resource text with metadata
-        #             mime_type = getattr(content.resource, "mimeType", "text/plain")
-        #             uri = getattr(content.resource, "uri", "")
-        #             if uri:
-        #                 assistant_text_parts.append(
-        #                     f"[Resource: {uri}, Type: {mime_type}]\n{content.resource.text}"  # ignore # type: ignore
-        #                 )
-        #             else:
-        #                 assistant_text_parts.append(
-        #                     f"[Resource Type: {mime_type}]\n{content.resource.text}"  # type ignore # type: ignore
-        #                 )
-        #         elif content.type == "image":
-        #             # Note the presence of images
-        #             mime_type = getattr(content, "mimeType", "image/unknown")
-        #             assistant_text_parts.append(f"[Image: {mime_type}]")
-        #             has_non_text_content = True
-        #         else:
-        #             # Other content types
-        #             assistant_text_parts.append(f"[Content of type: {content.type}]")
-        #             has_non_text_content = True
-
-        #     # Join all parts with double newlines for better readability
-        #     result = "\n\n".join(assistant_text_parts) if assistant_text_parts else str(last_message.content)
-
-        #     # Add a note if non-text content was present
-        #     if has_non_text_content:
-        #         result += "\n\n[Note: This message contained non-text content that may not be fully represented in text format]"
-
-        #     return result
-
     #####################################
     ### NEW INTERFACE METHODS BELOW   ###
     #####################################
-
-    # async def apply_prompt(
-    #     self,
-    #     multipart_messages: List[PromptMessageMultipart],
-    #     request_params: RequestParams | None = None,
-    # ) -> PromptMessageMultipart:
-    #     return Prompt.assistant("foo")
 
     async def structured(
         self,
@@ -647,6 +514,33 @@ class AugmentedLLM(ContextDependent, AugmentedLLMProtocol[MessageParamT, Message
 
         return None
 
-    # async def _provider_completion(self, model: Type[ModelT], List[MessageParamT], request_params: RequstParams) -> ModelT|None:
+    async def apply_prompt(
+        self,
+        multipart_messages: List[PromptMessageMultipart],
+        request_params: RequestParams | None = None,
+    ) -> PromptMessageMultipart:
+        return await self.generate_x(multipart_messages, request_params)
 
-    # )
+    async def generate_x(
+        self,
+        multipart_messages: List[PromptMessageMultipart],
+        request_params: RequestParams | None = None,
+    ) -> PromptMessageMultipart:
+        """
+        Create a completion with the LLM using the provided messages.
+        """
+        if multipart_messages[-1].first_text().startswith("***SAVE_HISTORY"):
+            parts: list[str] = multipart_messages[-1].first_text().split(" ", 1)
+            filename: str = (
+                parts[1].strip() if len(parts) > 1 else f"{self.name or 'assistant'}_prompts.txt"
+            )
+            await self._save_history(filename)
+            return Prompt.assistant(f"History saved to {filename}")
+
+        self.message_history.extend(multipart_messages)
+        assistant_response: PromptMessageMultipart = (
+            await self._apply_prompt_template_provider_specific(multipart_messages, request_params)
+        )
+
+        self.message_history.append(assistant_response)
+        return assistant_response

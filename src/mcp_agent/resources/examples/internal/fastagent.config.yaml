@@ -47,9 +47,11 @@ mcp:
     sizing_setup:
       command: "uv"
       args: ["run", "prompt_sizing1.py"]
+
     category:
-      command: "uv"
-      args: ["run", "prompt_category.py"]
+      command: "prompt-server"
+      args: ["simple.txt"]
+
     mcp_hfspace:
       command: "npx"
       args: ["@llmindset/mcp-hfspace"]

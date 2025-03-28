@@ -34,14 +34,14 @@ async def test_basic_playback_no_mock():
     """Test that ModelFactory correctly creates a PlaybackLLM instance"""
 
     llm: AugmentedLLMProtocol = PlaybackLLM()
-    result = await llm.apply_prompt([Prompt.user("hello, world!")])
+    result = await llm.generate_x([Prompt.user("hello, world!")])
     assert "HISTORY LOADED" == result.first_text()
 
 
 @pytest.mark.asyncio
 async def test_simple_playback_functionality():
     llm: AugmentedLLMProtocol = PlaybackLLM()
-    await llm.apply_prompt(
+    await llm.generate_x(
         [
             Prompt.user("message 1"),
             Prompt.assistant("response 1"),
@@ -49,8 +49,8 @@ async def test_simple_playback_functionality():
             Prompt.assistant("response 2"),
         ],
     )
-    response1 = await llm.apply_prompt([Prompt.user("evalstate")])
-    response2 = await llm.apply_prompt([Prompt.user("llmindset")])
+    response1 = await llm.generate_x([Prompt.user("evalstate")])
+    response2 = await llm.generate_x([Prompt.user("llmindset")])
     assert "response 1" == response1.first_text()
     assert "response 2" == response2.first_text()
 
@@ -58,18 +58,18 @@ async def test_simple_playback_functionality():
 @pytest.mark.asyncio
 async def test_exhaustion_behaviour():
     llm: AugmentedLLMProtocol = PlaybackLLM()
-    await llm.apply_prompt(
+    await llm.generate_x(
         [
             Prompt.user("message 1"),
             Prompt.assistant("response 1"),
         ],
     )
-    response1 = await llm.apply_prompt([Prompt.user("evalstate")])
-    response2 = await llm.apply_prompt([Prompt.user("llmindset")])
+    response1 = await llm.generate_x([Prompt.user("evalstate")])
+    response2 = await llm.generate_x([Prompt.user("llmindset")])
     assert "response 1" == response1.first_text()
     assert "MESSAGES EXHAUSTED" in response2.first_text()
     assert "(0 overage)" in response2.first_text()
 
     for _ in range(3):
-        overage = await llm.apply_prompt([Prompt.user("overage?")])
+        overage = await llm.generate_x([Prompt.user("overage?")])
         assert f"({_ + 1} overage)" in overage.first_text()
