@@ -1,0 +1,5 @@
+{"level":"ERROR","timestamp":"2025-03-28T10:50:16.944622","namespace":"mcp_agent.mcp.mcp_agent_client_session","message":"send_request failed: Unknown prompt: multi"}
+{"level":"ERROR","timestamp":"2025-03-28T10:50:16.944639","namespace":"mcp_agent.mcp.mcp_aggregator.test","message":"Failed to get_prompt 'multi' on server 'prompts': Unknown prompt: multi"}
+{"level":"ERROR","timestamp":"2025-03-28T10:51:24.094190","namespace":"mcp_agent.mcp.mcp_agent_client_session","message":"send_request failed: Unknown prompt: multi"}
+{"level":"ERROR","timestamp":"2025-03-28T10:56:36.884816","namespace":"mcp_agent.mcp.mcp_agent_client_session","message":"send_request failed: Error rendering prompt multi_sub: register_prompt.<locals>.template_handler_without_vars() got an unexpected keyword argument 'user_name'"}
+{"level":"ERROR","timestamp":"2025-03-28T10:56:36.884829","namespace":"mcp_agent.mcp.mcp_aggregator.test","message":"Failed to get_prompt 'multi_sub' on server 'prompts': Error rendering prompt multi_sub: register_prompt.<locals>.template_handler_without_vars() got an unexpected keyword argument 'user_name'"}
