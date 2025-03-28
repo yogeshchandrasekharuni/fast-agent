@@ -22,6 +22,11 @@ from typing import List
 from mcp.types import EmbeddedResource, ImageContent, TextContent, TextResourceContents
 
 from mcp_agent.mcp.prompt_message_multipart import PromptMessageMultipart
+from mcp_agent.mcp.prompts.prompt_constants import (
+    ASSISTANT_DELIMITER,
+    RESOURCE_DELIMITER,
+    USER_DELIMITER,
+)
 
 # -------------------------------------------------------------------------
 # JSON Serialization Functions
@@ -110,9 +115,9 @@ def load_messages_from_json_file(file_path: str) -> List[PromptMessageMultipart]
 
 def multipart_messages_to_delimited_format(
     messages: List[PromptMessageMultipart],
-    user_delimiter: str = "---USER",
-    assistant_delimiter: str = "---ASSISTANT",
-    resource_delimiter: str = "---RESOURCE",
+    user_delimiter: str = USER_DELIMITER,
+    assistant_delimiter: str = ASSISTANT_DELIMITER,
+    resource_delimiter: str = RESOURCE_DELIMITER,
     combine_text: bool = True,  # Set to False to maintain backward compatibility
 ) -> List[str]:
     """
@@ -189,9 +194,9 @@ def multipart_messages_to_delimited_format(
 
 def delimited_format_to_multipart_messages(
     content: str,
-    user_delimiter: str = "---USER",
-    assistant_delimiter: str = "---ASSISTANT",
-    resource_delimiter: str = "---RESOURCE",
+    user_delimiter: str = USER_DELIMITER,
+    assistant_delimiter: str = ASSISTANT_DELIMITER,
+    resource_delimiter: str = RESOURCE_DELIMITER,
 ) -> List[PromptMessageMultipart]:
     """
     Parse hybrid delimited format into PromptMessageMultipart objects:
@@ -365,9 +370,9 @@ def delimited_format_to_multipart_messages(
 def save_messages_to_delimited_file(
     messages: List[PromptMessageMultipart],
     file_path: str,
-    user_delimiter: str = "---USER",
-    assistant_delimiter: str = "---ASSISTANT",
-    resource_delimiter: str = "---RESOURCE",
+    user_delimiter: str = USER_DELIMITER,
+    assistant_delimiter: str = ASSISTANT_DELIMITER,
+    resource_delimiter: str = RESOURCE_DELIMITER,
     combine_text: bool = True,
 ) -> None:
     """
@@ -395,9 +400,9 @@ def save_messages_to_delimited_file(
 
 def load_messages_from_delimited_file(
     file_path: str,
-    user_delimiter: str = "---USER",
-    assistant_delimiter: str = "---ASSISTANT",
-    resource_delimiter: str = "---RESOURCE",
+    user_delimiter: str = USER_DELIMITER,
+    assistant_delimiter: str = ASSISTANT_DELIMITER,
+    resource_delimiter: str = RESOURCE_DELIMITER,
 ) -> List[PromptMessageMultipart]:
     """
     Load PromptMessageMultipart objects from a file in hybrid delimited format.

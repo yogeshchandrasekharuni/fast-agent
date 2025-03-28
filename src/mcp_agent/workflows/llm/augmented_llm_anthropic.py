@@ -305,13 +305,7 @@ class AnthropicAugmentedLLM(AugmentedLLM[MessageParam, Message]):
         The default implementation uses Claude as the LLM.
         Override this method to use a different LLM.
 
-        Special commands:
-        - "***SAVE_HISTORY <filename.md>" - Saves the conversation history to the specified file
-          in MCP prompt format with user/assistant delimiters.
         """
-        # Check if this is a special command to save history
-        if isinstance(message, str) and message.startswith("***SAVE_HISTORY "):
-            return await self._save_history_to_file(message)
 
         responses: List[Message] = await self.generate(
             message=message,
@@ -381,58 +375,6 @@ class AnthropicAugmentedLLM(AugmentedLLM[MessageParam, Message]):
             # For assistant messages: Return the last message content as text
             self.logger.debug("Last message in prompt is from assistant, returning it directly")
             return last_message
-
-    async def _save_history_to_file(self, command: str) -> str:
-        """
-        Save the conversation history to a file in MCP prompt format.
-
-        Args:
-            command: The command string, expected format: "***SAVE_HISTORY <filename.md>"
-
-        Returns:
-            Success or error message
-        """
-        try:
-            # Extract the filename from the command
-            parts = command.split(" ", 1)
-            if len(parts) != 2 or not parts[1].strip():
-                return "Error: Invalid format. Expected '***SAVE_HISTORY <filename.md>'"
-
-            filename = parts[1].strip()
-
-            # Get all messages from history
-            messages = self.history.get(include_history=True)
-
-            # Import required utilities
-            from mcp_agent.mcp.prompt_serialization import (
-                multipart_messages_to_delimited_format,
-            )
-            from mcp_agent.workflows.llm.anthropic_utils import (
-                anthropic_message_param_to_prompt_message_multipart,
-            )
-
-            # Convert message params to PromptMessageMultipart objects
-            multipart_messages = []
-            for msg in messages:
-                multipart_messages.append(anthropic_message_param_to_prompt_message_multipart(msg))
-
-            # Convert to delimited format
-            delimited_content = multipart_messages_to_delimited_format(
-                multipart_messages,
-                user_delimiter="---USER",
-                assistant_delimiter="---ASSISTANT",
-            )
-
-            # Write to file
-            with open(filename, "w", encoding="utf-8") as f:
-                f.write("\n\n".join(delimited_content))
-
-            self.logger.info(f"Saved conversation history to {filename}")
-            return f"Done. Saved conversation history to {filename}"
-
-        except Exception as e:
-            self.logger.error(f"Error saving history: {str(e)}")
-            return f"Error saving history: {str(e)}"
 
     async def generate_structured(
         self,

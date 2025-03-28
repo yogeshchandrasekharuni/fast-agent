@@ -7,7 +7,7 @@ fast = FastAgent("FastAgent Example")
 
 
 # Define the agent
-@fast.agent(servers=["fetch", "mcp_hfspace"])
+@fast.agent(servers=["fetch", "mcp_hfspace","category"])
 async def main() -> None:
     # use the --model command line switch or agent arguments to change model
     async with fast.run() as agent:

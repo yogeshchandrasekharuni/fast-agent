@@ -47,7 +47,11 @@ def anthropic_message_param_to_prompt_message_multipart(
                 text = block.get("text", "")
 
                 # Check if this is a resource marker
-                if text and (text.startswith("[Resource:") or text.startswith("[Binary Resource:")) and "\n" in text:
+                if (
+                    text
+                    and (text.startswith("[Resource:") or text.startswith("[Binary Resource:"))
+                    and "\n" in text
+                ):
                     header, content_text = text.split("\n", 1)
                     if "MIME:" in header:
                         mime_match = header.split("MIME:", 1)[1].split("]")[0].strip()

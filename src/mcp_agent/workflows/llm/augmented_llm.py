@@ -17,6 +17,7 @@ from mcp_agent.mcp.interfaces import (
     ModelT,
 )
 from mcp_agent.mcp.prompt_message_multipart import PromptMessageMultipart
+from mcp_agent.mcp.prompt_serialization import multipart_messages_to_delimited_format
 from mcp_agent.workflows.llm.sampling_format_converter import (
     BasicFormatConverter,
     ProviderFormatConverter,
@@ -480,8 +481,14 @@ class AugmentedLLM(ContextDependent, AugmentedLLMProtocol[MessageParamT, Message
         Returns:
             String representation of the assistant's response
         """
-        if MessageContent.get_first_text(multipart_messages[-1]) == "***SAVE_HISTORY simple.txt":
-            raise ValueError("History Call received")
+        if multipart_messages[-1].first_text().startswith("***SAVE_HISTORY"):
+            # If we have a save history command, extract the filename and save messages
+            parts: list[str] = multipart_messages[-1].first_text().split(" ", 1)
+            filename: str = (
+                parts[1].strip() if len(parts) > 1 else f"{self.name or 'assistant'}_prompts.txt"
+            )
+            await self._save_history(filename)
+            return Prompt.assistant(f"History saved to {filename}")
 
         self.message_history.extend(multipart_messages)
         assistant_response: PromptMessageMultipart = (
@@ -490,6 +497,19 @@ class AugmentedLLM(ContextDependent, AugmentedLLMProtocol[MessageParamT, Message
 
         self.message_history.append(assistant_response)
         return assistant_response
+
+    async def _save_history(self, filename: str) -> None:
+        """
+        Save the Message History to a file in a simple delimeted format.
+        """
+        # Convert to delimited format
+        delimited_content = multipart_messages_to_delimited_format(
+            self.message_history,
+        )
+
+        # Write to file
+        with open(filename, "w", encoding="utf-8") as f:
+            f.write("\n\n".join(delimited_content))
 
     # this shouln't need to be very big...
     @abstractmethod
