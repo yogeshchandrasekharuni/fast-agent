@@ -5,14 +5,9 @@ Tests for using PromptMessageMultipart in augmented LLMs.
 import os
 import tempfile
 from pathlib import Path
-from unittest.mock import AsyncMock, MagicMock
-
-import pytest
-from mcp.types import GetPromptResult, PromptMessage, TextContent
 
 from mcp_agent.mcp.prompts.prompt_load import create_messages_with_resources, load_prompt
-from mcp_agent.mcp.prompts.prompt_template import PromptContent, PromptTemplateLoader
-from mcp_agent.workflows.llm.augmented_llm import AugmentedLLM
+from mcp_agent.mcp.prompts.prompt_template import PromptTemplateLoader
 
 
 def test_create_messages_with_resources_alternating_roles():

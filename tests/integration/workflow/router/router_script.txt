@@ -1,0 +1,18 @@
+---USER
+routing 1
+---ASSISTANT
+{
+  "agent_name": "target1",
+  "confidence": "high",
+  "reasoning": "This agent has skills in code review and generation",
+  "score": null
+}
+---USER
+routing 2
+---ASSISTANT
+{
+  "agent_name": "target2",
+  "confidence": "high",
+  "reasoning": "This agent has skills in code review and generation",
+  "score": null
+}

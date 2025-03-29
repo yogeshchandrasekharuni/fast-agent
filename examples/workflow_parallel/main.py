@@ -1,11 +1,12 @@
 import asyncio
 
-from mcp_agent.app import MCPApp
+from rich import print
+
 from mcp_agent.agents.agent import Agent, AgentConfig
+from mcp_agent.app import MCPApp
 from mcp_agent.workflows.llm.augmented_llm_anthropic import AnthropicAugmentedLLM  # noqa: F401
 from mcp_agent.workflows.llm.augmented_llm_openai import OpenAIAugmentedLLM  # noqa: F401
 from mcp_agent.workflows.parallel.parallel_llm import ParallelLLM
-from rich import print
 
 # To illustrate a parallel workflow, we will build a student assignment grader,
 # which will use a fan-out agent to grade the assignment in parallel using multiple agents,

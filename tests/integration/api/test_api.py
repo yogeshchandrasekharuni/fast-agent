@@ -1,6 +1,4 @@
 import pytest
-from mcp import GetPromptResult
-from mcp.server.fastmcp.prompts.base import AssistantMessage, UserMessage
 
 from mcp_agent.core.prompt import Prompt
 

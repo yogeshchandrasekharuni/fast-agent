@@ -25,7 +25,7 @@ fast = FastAgent("Agent Chaining")
 async def main() -> None:
     async with fast.run() as agent:
         # using chain workflow
-        await agent.post_writer.prompt()
+        await agent.post_writer.send("https://llmindset.co.uk")
 
         # calling directly
         # await agent.url_fetcher("http://llmindset.co.uk/resources/mcp-hfspace/")

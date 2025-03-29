@@ -108,16 +108,6 @@ class AnthropicSettings(BaseModel):
     model_config = ConfigDict(extra="allow", arbitrary_types_allowed=True)
 
 
-class CohereSettings(BaseModel):
-    """
-    Settings for using Cohere models in the MCP Agent application.
-    """
-
-    api_key: str | None = None
-
-    model_config = ConfigDict(extra="allow", arbitrary_types_allowed=True)
-
-
 class OpenAISettings(BaseModel):
     """
     Settings for using OpenAI models in the MCP Agent application.
@@ -140,19 +130,6 @@ class TemporalSettings(BaseModel):
     namespace: str = "default"
     task_queue: str
     api_key: str | None = None
-
-
-class UsageTelemetrySettings(BaseModel):
-    """
-    Settings for usage telemetry in the MCP Agent application.
-    Anonymized usage metrics are sent to a telemetry server to help improve the product.
-    """
-
-    enabled: bool = True
-    """Enable usage telemetry in the MCP Agent application."""
-
-    enable_detailed_telemetry: bool = False
-    """If enabled, detailed telemetry data, including prompts and agents, will be sent to the telemetry server."""
 
 
 class OpenTelemetrySettings(BaseModel):
@@ -249,9 +226,6 @@ class Settings(BaseSettings):
     anthropic: AnthropicSettings | None = None
     """Settings for using Anthropic models in the MCP Agent application"""
 
-    cohere: CohereSettings | None = None
-    """Settings for using Cohere models in the MCP Agent application"""
-
     openai: OpenAISettings | None = None
     """Settings for using OpenAI models in the MCP Agent application"""
 
@@ -260,9 +234,6 @@ class Settings(BaseSettings):
 
     logger: LoggerSettings | None = LoggerSettings()
     """Logger settings for the MCP Agent application"""
-
-    usage_telemetry: UsageTelemetrySettings | None = UsageTelemetrySettings()
-    """Usage tracking settings for the MCP Agent application"""
 
     @classmethod
     def find_config(cls) -> Path | None:

@@ -9,7 +9,6 @@ from mcp.types import (
     CreateMessageRequestParams,
     CreateMessageResult,
     SamplingMessage,
-    StopReason,
     TextContent,
 )
 

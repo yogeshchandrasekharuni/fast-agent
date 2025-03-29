@@ -22,6 +22,7 @@ from mcp_agent.human_input.types import (
     HumanInputResponse,
 )
 from mcp_agent.logging.logger import get_logger
+from mcp_agent.mcp.interfaces import AgentProtocol
 from mcp_agent.mcp.mcp_aggregator import MCPAggregator
 from mcp_agent.mcp.prompt_message_multipart import PromptMessageMultipart
 from mcp_agent.workflows.llm.augmented_llm import AugmentedLLMProtocol
@@ -40,6 +41,7 @@ HUMAN_INPUT_TOOL_NAME = "__human_input__"
 
 class Agent(
     MCPAggregator,
+    AgentProtocol,
     AugmentedLLMProtocol,
 ):
     """

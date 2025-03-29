@@ -27,6 +27,7 @@ from mcp_agent.workflows.llm.augmented_llm import RequestParams
 from mcp_agent.workflows.llm.model_factory import ModelFactory
 from mcp_agent.workflows.orchestrator.orchestrator import Orchestrator
 from mcp_agent.workflows.parallel.parallel_llm import ParallelLLM
+from mcp_agent.workflows.router.agent_router import AgentRouter
 from mcp_agent.workflows.router.router_llm import LLMRouter
 
 T = TypeVar("T")  # For the wrapper classes
@@ -273,16 +274,15 @@ async def create_agents_by_type(
                     model=config.model,
                     request_params=config.default_request_params,
                 )
-
-                instance = LLMRouter(
-                    name=config.name,
-                    llm_factory=llm_factory,
+                instance = AgentRouter(
+                    config=config,
                     agents=router_agents,
                     server_names=config.servers,
                     context=app_instance.context,
                     default_request_params=config.default_request_params,
-                    verb=ProgressAction.ROUTING,  # Set verb for progress display
                 )
+                await instance.attach_llm(llm_factory)
+                await instance.initialize()
 
             elif agent_type == AgentType.CHAIN:
                 # Get the sequence from either parameter

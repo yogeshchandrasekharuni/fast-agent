@@ -1,7 +1,4 @@
 import pytest
-from mcp.types import GetPromptResult
-
-from mcp_agent.mcp.prompt_message_multipart import PromptMessageMultipart
 
 
 @pytest.mark.integration

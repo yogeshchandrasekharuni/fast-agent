@@ -1,10 +1,12 @@
-from mcp.server.models import InitializationOptions
+import asyncio
+
+import mcp.server.stdio
 import mcp.types as types
 from mcp.server import NotificationOptions, Server
-import mcp.server.stdio
-import asyncio
-from mcp_agent.app import MCPApp
+from mcp.server.models import InitializationOptions
+
 from mcp_agent.agents.agent import Agent
+from mcp_agent.app import MCPApp
 from mcp_agent.workflows.llm.augmented_llm_openai import OpenAIAugmentedLLM
 from mcp_agent.workflows.orchestrator.orchestrator import Orchestrator
 from mcp_agent.workflows.parallel.parallel_llm import ParallelLLM

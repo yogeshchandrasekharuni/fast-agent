@@ -40,7 +40,7 @@ from mcp_agent.mcp.prompts.prompt_template import (
 )
 
 # Configure logging
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(level=logging.ERROR)
 logger = logging.getLogger("prompt_server")
 
 # Create FastMCP server

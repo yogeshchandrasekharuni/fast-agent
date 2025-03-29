@@ -4,12 +4,11 @@ This module provides type-safe decorators for creating agents without the proxy 
 """
 
 from functools import wraps
-from typing import Any, Callable, Dict, List, Literal, Optional, TypeVar, Union, cast
+from typing import Any, Callable, Dict, List, Literal, Optional, TypeVar, cast
 
-from mcp_agent.agents.agent import Agent, AgentConfig
+from mcp_agent.agents.agent import AgentConfig
 from mcp_agent.core.agent_types import AgentType
 from mcp_agent.core.request_params import RequestParams
-from mcp_agent.mcp.interfaces import AgentProtocol, AugmentedLLMProtocol
 
 # Type variable for the decorated function
 F = TypeVar('F', bound=Callable[..., Any])
@@ -73,7 +72,7 @@ def agent(
         ))
         
         # Return the wrapped function
-        return cast(F, wrapper)
+        return cast('F', wrapper)
     
     return decorator
 
@@ -151,7 +150,7 @@ def orchestrator(
         setattr(wrapper, "_plan_type", plan_type)
         
         # Return the wrapped function
-        return cast(F, wrapper)
+        return cast('F', wrapper)
     
     return decorator
 

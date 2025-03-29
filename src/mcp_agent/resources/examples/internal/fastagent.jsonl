@@ -15,3 +15,4 @@
 {"level":"ERROR","timestamp":"2025-03-10T16:51:18.275385","namespace":"mcp_agent.mcp.mcp_agent_client_session","message":"send_request failed: Unknown prompt: sizing_agent_setup"}
 {"level":"ERROR","timestamp":"2025-03-10T16:51:18.275396","namespace":"mcp_agent.mcp.mcp_aggregator","message":"Failed to get_prompt 'sizing_agent_setup' on server 'sizing_setup': Unknown prompt: sizing_agent_setup"}
 {"level":"WARNING","timestamp":"2025-03-10T16:51:18.275419","namespace":"mcp_agent.agents.agent.haiku_sizer","message":"Prompt 'sizing_agent_setup' could not be found or contains no messages"}
+{"level":"ERROR","timestamp":"2025-03-29T08:12:16.570903","namespace":"mcp_agent.mcp.mcp_connection_manager","message":"category: Lifecycle task encountered an error: fileno","data":{"exc_info":true,"data":{"progress_action":"Error","server_name":"category"}}}

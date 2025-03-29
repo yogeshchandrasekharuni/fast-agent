@@ -1,11 +1,9 @@
 import asyncio
 from pathlib import Path
-from typing import List
 
 from mcp_agent.core.fastagent import FastAgent
 from mcp_agent.mcp.prompt_message_multipart import PromptMessageMultipart
 from mcp_agent.mcp.prompts.prompt_load import load_prompt_multipart
-from mcp_agent.mcp.prompts.prompt_template import PromptTemplateLoader
 from mcp_agent.workflows.llm.augmented_llm import RequestParams
 
 # Create the application

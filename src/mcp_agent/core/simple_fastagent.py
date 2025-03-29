@@ -4,13 +4,12 @@ This module provides a more straightforward API for creating agent applications.
 """
 
 import argparse
-import asyncio
 from contextlib import asynccontextmanager
-from typing import Any, Callable, Dict, List, Optional, Set, Type, TypeVar, cast
+from typing import Callable, Dict, Optional, Set, Type, TypeVar
 
 import yaml
 
-from mcp_agent.agents.agent import Agent, AgentConfig
+from mcp_agent.agents.agent import Agent
 from mcp_agent.app import MCPApp
 from mcp_agent.config import Settings
 from mcp_agent.context import Context
@@ -27,7 +26,7 @@ from mcp_agent.core.exceptions import (
 )
 from mcp_agent.core.simple_decorators import agent, orchestrator
 from mcp_agent.logging.logger import get_logger
-from mcp_agent.mcp.interfaces import AgentProtocol, AugmentedLLMProtocol
+from mcp_agent.mcp.interfaces import AugmentedLLMProtocol
 from mcp_agent.workflows.llm.augmented_llm_anthropic import AnthropicAugmentedLLM
 from mcp_agent.workflows.llm.augmented_llm_openai import OpenAIAugmentedLLM
 

@@ -1,11 +1,13 @@
 import asyncio
+
+import streamlit as st
+from agent_state import get_agent_state
 from qdrant_client import QdrantClient
-from mcp_agent.app import MCPApp
+
 from mcp_agent.agents.agent import Agent
+from mcp_agent.app import MCPApp
 from mcp_agent.workflows.llm.augmented_llm import RequestParams
 from mcp_agent.workflows.llm.augmented_llm_openai import OpenAIAugmentedLLM
-from agent_state import get_agent_state
-import streamlit as st
 
 SAMPLE_TEXTS = [
     "Today, we're open-sourcing the Model Context Protocol (MCP), a new standard for connecting AI assistants to the systems where data lives, including content repositories, business tools, and development environments",

@@ -1,5 +1,6 @@
-import typer
 from typing import NoReturn
+
+import typer
 
 app = typer.Typer()
 

@@ -218,10 +218,10 @@ class MessageContent:
             return None
 
         if isinstance(message, PromptMessage):
-            return cast(TextContent, message.content).text
+            return cast("TextContent", message.content).text
 
         # Safe to cast since we've verified the first item is TextContent
-        return cast(TextContent, message.content[0]).text
+        return cast("TextContent", message.content[0]).text
 
     @staticmethod
     def get_all_images(message: Union[PromptMessage, PromptMessageMultipart]) -> List[str]:

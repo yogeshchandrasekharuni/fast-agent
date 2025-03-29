@@ -9,7 +9,6 @@ from typing import (
     AsyncContextManager,
     Callable,
     Dict,
-    Generic,
     List,
     Optional,
     Protocol,
@@ -93,7 +92,7 @@ class AugmentedLLMProtocol(Protocol):
         self,
         prompt: List[PromptMessageMultipart],
         model: Type[ModelT],
-        request_params: RequestParams | None,
+        request_params: RequestParams | None = None,
     ) -> ModelT | None:
         """Apply the prompt and return the result as a Pydantic model, or None if coercion fails"""
         ...

@@ -3,10 +3,11 @@ from typing import TYPE_CHECKING, Callable, List, Literal, Optional
 from pydantic import BaseModel
 
 from mcp_agent.agents.agent import Agent
-from mcp_agent.event_progress import ProgressAction
+from mcp_agent.core.agent_types import AgentConfig
 from mcp_agent.logging.logger import get_logger
-from mcp_agent.workflows.llm.augmented_llm import AugmentedLLM, RequestParams
-from mcp_agent.workflows.router.router_base import ResultT, Router, RouterResult
+from mcp_agent.mcp.prompt_message_multipart import PromptMessageMultipart
+from mcp_agent.workflows.llm.augmented_llm import RequestParams
+from mcp_agent.workflows.router.router_base import ResultT, RouterResult
 
 if TYPE_CHECKING:
     from mcp_agent.context import Context
@@ -93,68 +94,30 @@ class LLMRouterResult(RouterResult[ResultT], ConfidenceRating):
     pass
 
 
-class LLMRouter(Router):
+class LLMRouter(Agent):
     """
     A router that uses an LLM to route an input to a specific category.
     """
 
     def __init__(
         self,
-        llm_factory: Callable[..., AugmentedLLM],
-        name: str = "LLM Router",
+        config: AgentConfig,
         server_names: List[str] | None = None,
         agents: List[Agent] | None = None,
         functions: List[Callable] | None = None,
         routing_instruction: str | None = None,
         context: Optional["Context"] = None,
         default_request_params: Optional[RequestParams] = None,
-        **kwargs,
     ) -> None:
-        # Extract verb from kwargs to avoid passing it up the inheritance chain
-        self._llm_verb = kwargs.pop("verb", None)
-
         super().__init__(
+            config=config,
             server_names=server_names,
-            agents=agents,
             functions=functions,
             routing_instruction=routing_instruction,
             context=context,
-            **kwargs,
         )
-
-        self.name = name
-        self.llm_factory = llm_factory
+        self.agents = agents
         self.default_request_params = default_request_params or RequestParams()
-        self.llm = None  # Will be initialized in create()
-
-    @classmethod
-    async def create(
-        cls,
-        llm_factory: Callable[..., AugmentedLLM],
-        name: str = "LLM Router",
-        server_names: List[str] | None = None,
-        agents: List[Agent] | None = None,
-        functions: List[Callable] | None = None,
-        routing_instruction: str | None = None,
-        context: Optional["Context"] = None,
-        default_request_params: Optional[RequestParams] = None,
-    ) -> "LLMRouter":
-        """
-        Factory method to create and initialize a router.
-        Use this instead of constructor since we need async initialization.
-        """
-        instance = cls(
-            llm_factory=llm_factory,
-            name=name,
-            server_names=server_names,
-            agents=agents,
-            functions=functions,
-            routing_instruction=DEFAULT_ROUTING_INSTRUCTION,
-            context=context,
-            default_request_params=default_request_params,
-        )
-        await instance.initialize()
-        return instance
 
     async def initialize(self) -> None:
         """Initialize the router and create the LLM instance."""
@@ -162,7 +125,7 @@ class LLMRouter(Router):
             await super().initialize()
             router_params = RequestParams(
                 systemPrompt=ROUTING_SYSTEM_INSTRUCTION,
-                use_history=False,  # Router should be stateless :)
+                use_history=False,
             )
 
             # Merge with any provided default params
@@ -170,20 +133,20 @@ class LLMRouter(Router):
                 params_dict = router_params.model_dump()
                 params_dict.update(self.default_request_params.model_dump(exclude_unset=True))
                 router_params = RequestParams(**params_dict)
-            # Set up router-specific request params with routing instruction
             router_params.use_history = False
-            # Use the stored verb if available, otherwise default to ROUTING
-            verb_param = self._llm_verb if hasattr(self, "_llm_verb") and self._llm_verb else ProgressAction.ROUTING
 
-            self.llm = self.llm_factory(
-                agent=None,  # Router doesn't need an agent context
-                name=self.name,  # Use the name provided during initialization
-                default_request_params=router_params,
-                verb=verb_param,  # Use stored verb parameter or default to ROUTING
-            )
             self.initialized = True
 
-    async def route(self, request: str, top_k: int = 1) -> List[LLMRouterResult[str | Agent | Callable]]:
+    async def generate_x(
+        self,
+        multipart_messages: List[PromptMessageMultipart],
+        request_params: RequestParams | None = None,
+    ) -> PromptMessageMultipart:
+        return await self._llm.generate_x(multipart_messages, request_params)
+
+    async def route(
+        self, request: str, top_k: int = 1
+    ) -> List[LLMRouterResult[str | Agent | Callable]]:
         if not self.initialized:
             await self.initialize()
 
@@ -211,18 +174,6 @@ class LLMRouter(Router):
             include_servers=False,
             include_agents=True,
             include_functions=False,
-        )
-
-    async def route_to_function(self, request: str, top_k: int = 1) -> List[LLMRouterResult[Callable]]:
-        if not self.initialized:
-            await self.initialize()
-
-        return await self._route_with_llm(
-            request,
-            top_k,
-            include_servers=False,
-            include_agents=False,
-            include_functions=True,
         )
 
     async def _route_with_llm(

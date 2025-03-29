@@ -17,6 +17,7 @@ from mcp.types import (
     PromptMessage,
     TextContent,
 )
+from pydantic_core import from_json
 from rich.text import Text
 
 from mcp_agent.context_dependent import ContextDependent
@@ -508,11 +509,19 @@ class AugmentedLLM(ContextDependent, AugmentedLLMProtocol, Generic[MessageParamT
         self,
         prompt: List[PromptMessageMultipart],
         model: Type[ModelT],
-        request_params: RequestParams | None,
+        request_params: RequestParams | None = None,
     ) -> ModelT | None:
         """Apply the prompt and return the result as a Pydantic model, or None if coercion fails"""
-
-        return None
+        try:
+            result: PromptMessageMultipart = await self.generate_x(prompt, request_params)
+            json_data = from_json(result.first_text(), allow_partial=True)
+            # Ensure we return a properly typed instance of ModelT
+            validated_model = model.model_validate(json_data)
+            return cast("ModelT", validated_model)
+        except Exception as e:
+            logger = get_logger(__name__)
+            logger.error(f"Failed to parse structured response: {str(e)}")
+            return None
 
     async def apply_prompt(
         self,

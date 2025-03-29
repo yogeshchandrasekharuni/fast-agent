@@ -16,7 +16,6 @@ from mcp_agent.core.prompt import Prompt
 from mcp_agent.core.request_params import RequestParams
 from mcp_agent.mcp.interfaces import AgentProtocol
 from mcp_agent.mcp.prompt_message_multipart import PromptMessageMultipart
-from mcp_agent.mcp.prompts.prompt_helpers import MessageContent
 
 # Handle circular imports
 if TYPE_CHECKING:
@@ -101,6 +100,14 @@ class LLMAgentProxy(BaseAgentProxy):
     def __init__(self, app: MCPApp, name: str, agent: Agent) -> None:
         super().__init__(app, name)
         self._agent = agent
+
+    async def initialize(self) -> None:
+        """Initialize the agent and connect to MCP servers"""
+        await self._agent.initialize()
+
+    async def shutdown(self) -> None:
+        """Shut down the agent and close connections"""
+        await self._agent.shutdown()
 
     async def send_prompt(self, prompt: PromptMessageMultipart) -> str:
         """Send a message to the agent and return the response"""
@@ -223,6 +230,17 @@ class RouterProxy(BaseAgentProxy):
             return "Tool call requested by router - not yet supported"
 
         return f"Routed to: {top_result.result} ({top_result.confidence}): {top_result.reasoning}"
+
+    async def send_prompt(self, prompt: PromptMessageMultipart) -> str:
+        result = await self.generate_x([prompt])
+        return result.first_text()
+
+    async def generate_x(
+        self,
+        multipart_messages: List[PromptMessageMultipart],
+        request_params: RequestParams | None = None,
+    ) -> PromptMessageMultipart:
+        return await self._workflow.generate_x(multipart_messages, request_params)
 
 
 class ChainProxy(BaseAgentProxy):
