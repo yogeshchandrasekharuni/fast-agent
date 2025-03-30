@@ -8,11 +8,7 @@ import argparse
 import asyncio
 import os
 from contextlib import asynccontextmanager
-
-# Import decorator functions
-# This would typically be done from a separate module
-from functools import wraps
-from typing import Any, Callable, Dict, List, Optional, TypeVar
+from typing import Any, Callable, Dict, List, Optional, TypeVar, Union
 
 import yaml
 
@@ -22,6 +18,13 @@ from mcp_agent.config import Settings
 from mcp_agent.context import Context
 from mcp_agent.core.agent_types import AgentType
 from mcp_agent.core.direct_agent_app import DirectAgentApp
+from mcp_agent.core.direct_decorators import (
+    agent as agent_decorator,
+    chain as chain_decorator,
+    orchestrator as orchestrator_decorator,
+    parallel as parallel_decorator,
+    router as router_decorator,
+)
 from mcp_agent.core.direct_factory import (
     create_agents_in_dependency_order,
     get_model_factory,
@@ -44,77 +47,6 @@ from mcp_agent.logging.logger import get_logger
 
 F = TypeVar("F", bound=Callable[..., Any])  # For decorated functions
 logger = get_logger(__name__)
-
-# Decorator implementations would go here or be imported
-
-
-def _decorator_impl(
-    self,
-    agent_type: AgentType,
-    name: str,
-    instruction: str,
-    *,
-    servers: List[str] = [],
-    model: Optional[str] = None,
-    use_history: bool = True,
-    request_params: Optional[Dict[str, Any]] = None,
-    human_input: bool = False,
-    **extra_kwargs,
-) -> Callable[[F], F]:
-    """
-    Core implementation for agent decorators with common behavior.
-
-    Args:
-        agent_type: Type of agent to create
-        name: Name of the agent
-        instruction: Base instruction for the agent
-        servers: List of server names the agent should connect to
-        model: Model specification string
-        use_history: Whether to maintain conversation history
-        request_params: Additional request parameters for the LLM
-        human_input: Whether to enable human input capabilities
-        **extra_kwargs: Additional agent/workflow-specific parameters
-    """
-
-    def decorator(func: F) -> F:
-        @wraps(func)
-        async def wrapper(*args, **kwargs):
-            # Call the original function
-            return await func(*args, **kwargs)
-
-        # Create agent configuration
-        config = AgentConfig(
-            name=name,
-            instruction=instruction,
-            servers=servers,
-            model=model,
-            use_history=use_history,
-            human_input=human_input,
-        )
-
-        # Update request params if provided
-        if request_params:
-            from mcp_agent.core.request_params import RequestParams
-
-            config.default_request_params = RequestParams(**request_params)
-
-        # Store metadata on the wrapper function
-        agent_data = {
-            "config": config,
-            "type": agent_type.value,
-            "func": func,
-        }
-
-        # Add extra parameters specific to this agent type
-        for key, value in extra_kwargs.items():
-            agent_data[key] = value
-
-        # Store the configuration in the FastAgent instance
-        self.agents[name] = agent_data
-
-        return wrapper
-
-    return decorator
 
 
 class DirectFastAgent:
@@ -193,228 +125,12 @@ class DirectFastAgent:
         """Access the application context"""
         return self.app.context
 
-    # Decorator methods
-
-    def agent(
-        self,
-        name: str = "default",
-        instruction_or_kwarg: Optional[str] = None,
-        *,
-        instruction: str = "You are a helpful agent.",
-        servers: List[str] = [],
-        model: Optional[str] = None,
-        use_history: bool = True,
-        request_params: Optional[Dict[str, Any]] = None,
-        human_input: bool = False,
-    ) -> Callable[[F], F]:
-        """
-        Decorator to create and register a standard agent.
-
-        Args:
-            name: Name of the agent
-            instruction_or_kwarg: Optional positional parameter for instruction
-            instruction: Base instruction for the agent (keyword arg)
-            servers: List of server names the agent should connect to
-            model: Model specification string
-            use_history: Whether to maintain conversation history
-            request_params: Additional request parameters for the LLM
-            human_input: Whether to enable human input capabilities
-
-        Returns:
-            A decorator that registers the agent
-        """
-        final_instruction = (
-            instruction_or_kwarg if instruction_or_kwarg is not None else instruction
-        )
-
-        return _decorator_impl(
-            self,
-            AgentType.BASIC,
-            name=name,
-            instruction=final_instruction,
-            servers=servers,
-            model=model,
-            use_history=use_history,
-            request_params=request_params,
-            human_input=human_input,
-        )
-
-    def orchestrator(
-        self,
-        name: str,
-        *,
-        agents: List[str],
-        instruction: Optional[str] = None,
-        model: Optional[str] = None,
-        use_history: bool = False,
-        request_params: Optional[Dict[str, Any]] = None,
-        human_input: bool = False,
-        plan_type: str = "full",
-        max_iterations: int = 30,
-    ) -> Callable[[F], F]:
-        """
-        Decorator to create and register an orchestrator agent.
-
-        Args:
-            name: Name of the orchestrator
-            agents: List of agent names this orchestrator can use
-            instruction: Base instruction for the orchestrator
-            model: Model specification string
-            use_history: Whether to maintain conversation history
-            request_params: Additional request parameters for the LLM
-            human_input: Whether to enable human input capabilities
-            plan_type: Planning approach - "full" or "iterative"
-            max_iterations: Maximum number of planning iterations
-
-        Returns:
-            A decorator that registers the orchestrator
-        """
-        default_instruction = """
-        You are an expert planner. Given an objective task and a list of Agents 
-        (which are collections of capabilities), your job is to break down the objective 
-        into a series of steps, which can be performed by these agents.
-        """
-
-        # Create final request params with max_iterations
-        final_request_params = request_params or {}
-        final_request_params["max_iterations"] = max_iterations
-
-        return _decorator_impl(
-            self,
-            AgentType.ORCHESTRATOR,
-            name=name,
-            instruction=instruction or default_instruction,
-            servers=[],  # Orchestrators don't connect to servers directly
-            model=model,
-            use_history=use_history,
-            request_params=final_request_params,
-            human_input=human_input,
-            child_agents=agents,
-            plan_type=plan_type,
-        )
-
-    def router(
-        self,
-        name: str,
-        *,
-        agents: List[str],
-        instruction: Optional[str] = None,
-        model: Optional[str] = None,
-        use_history: bool = False,
-        request_params: Optional[Dict[str, Any]] = None,
-        human_input: bool = False,
-        router_type: str = "llm",
-    ) -> Callable[[F], F]:
-        """
-        Decorator to create and register a router agent.
-
-        Args:
-            name: Name of the router
-            agents: List of agent names this router can route to
-            instruction: Base instruction for the router
-            model: Model specification string
-            use_history: Whether to maintain conversation history
-            request_params: Additional request parameters for the LLM
-            human_input: Whether to enable human input capabilities
-            router_type: Type of router - "llm" or "embedding"
-
-        Returns:
-            A decorator that registers the router
-        """
-        default_instruction = """
-        You are a router that determines which specialized agent should handle a given query.
-        Analyze the query and select the most appropriate agent to handle it.
-        """
-
-        return _decorator_impl(
-            self,
-            AgentType.ROUTER,
-            name=name,
-            instruction=instruction or default_instruction,
-            servers=[],  # Routers don't connect to servers directly
-            model=model,
-            use_history=use_history,
-            request_params=request_params,
-            human_input=human_input,
-            router_agents=agents,
-            router_type=router_type,
-        )
-
-    def chain(
-        self,
-        name: str,
-        *,
-        sequence: List[str],
-        instruction: Optional[str] = None,
-        cumulative: bool = False,
-    ) -> Callable[[F], F]:
-        """
-        Decorator to create and register a chain agent.
-
-        Args:
-            name: Name of the chain
-            agents: List of agent names in the chain, executed in sequence
-            instruction: Base instruction for the chain
-            model: Model specification string
-            use_history: Whether to maintain conversation history
-            request_params: Additional request parameters for the LLM
-            human_input: Whether to enable human input capabilities
-            cumulative: Whether to use cumulative mode (each agent sees all previous responses)
-
-        Returns:
-            A decorator that registers the chain
-        """
-        default_instruction = """
-        You are a chain that processes requests through a series of specialized agents in sequence.
-        Pass the output of each agent to the next agent in the chain.
-        """
-
-        return _decorator_impl(
-            self,
-            AgentType.CHAIN,
-            name=name,
-            instruction=instruction or default_instruction,
-            chain_agents=sequence,
-            cumulative=cumulative,
-        )
-
-    def parallel(
-        self,
-        name: str,
-        *,
-        fan_out: List[str],
-        fan_in: str,
-        instruction: Optional[str] = None,
-        include_request: bool = True,
-    ) -> Callable[[F], F]:
-        """
-        Decorator to create and register a parallel agent.
-
-        Args:
-            name: Name of the parallel agent
-            instruction: Base instruction for the parallel agent
-            model: Model specification string
-            use_history: Whether to maintain conversation history
-            request_params: Additional request parameters for the LLM
-            human_input: Whether to enable human input capabilities
-
-        Returns:
-            A decorator that registers the parallel agent
-        """
-        default_instruction = """
-        You are a parallel processor that executes multiple agents simultaneously 
-        and aggregates their results.
-        """
-
-        return _decorator_impl(
-            self,
-            AgentType.PARALLEL,
-            name=name,
-            instruction=instruction or default_instruction,
-            servers=[],  # Parallel agents don't connect to servers directly
-            fan_in=fan_in,
-            fan_out=fan_out,
-        )
+    # Decorator methods with type-safe implementations
+    agent = agent_decorator
+    orchestrator = orchestrator_decorator
+    router = router_decorator 
+    chain = chain_decorator
+    parallel = parallel_decorator
 
     @asynccontextmanager
     async def run(self):

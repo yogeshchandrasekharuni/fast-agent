@@ -11,6 +11,7 @@ from mcp.types import TextContent
 
 from mcp_agent.agents.agent import Agent, AgentConfig
 from mcp_agent.core.base_agent import BaseAgent
+from mcp_agent.core.prompt import Prompt
 from mcp_agent.core.request_params import RequestParams
 from mcp_agent.mcp.interfaces import ModelT
 from mcp_agent.mcp.prompt_message_multipart import PromptMessageMultipart
@@ -79,14 +80,23 @@ class ChainAgent(BaseAgent):
         # Initialize messages with the input
         current_messages = multipart_messages
 
-        # Track all responses in the chain for cumulative mode
+        # Track all responses in the chain
         all_responses: List[PromptMessageMultipart] = []
-
+        
+        # For cumulative mode with proper XML tagging
+        if self.cumulative:
+            # Initialize list for storing formatted results
+            final_results: List[str] = []
+            
+            # Add the original request with XML tag
+            request_text = f"<fastagent:request>{user_message.all_text()}</fastagent:request>"
+            final_results.append(request_text)
+            
         # Process through each agent in sequence
         for i, agent in enumerate(self.agents):
-            # In cumulative mode, include the original message and all previous responses
+            # Determine what to send to this agent
             if self.cumulative and all_responses:
-                # Create a list with original messages, then all previous responses
+                # In cumulative mode, include the original message and all previous responses
                 chain_messages = multipart_messages.copy()
                 chain_messages.extend(all_responses)
                 current_response = await agent.generate_x(chain_messages, request_params)
@@ -96,14 +106,34 @@ class ChainAgent(BaseAgent):
 
             # Store the response
             all_responses.append(current_response)
+            
+            # In cumulative mode, format with XML tags
+            if self.cumulative:
+                agent_name = getattr(agent, "name", f"agent{i}")
+                response_text = current_response.all_text()
+                attributed_response = f"<fastagent:response agent='{agent_name}'>{response_text}</fastagent:response>"
+                final_results.append(attributed_response)
 
-            # Prepare for the next agent
-            # We create a new context with the user's message followed by the current response
+            # Prepare for the next agent (in sequential mode)
             if i < len(self.agents) - 1:
-                current_messages = [user_message, current_response]
+                # In sequential mode, we only pass the output of the previous agent
+                # to the next agent in the chain, without the original message
+                current_messages = [current_response]
 
-        # Return the final response
-        return all_responses[-1]
+        # Return the appropriate response format
+        if self.cumulative:
+            # For cumulative mode, return the properly formatted output with XML tags
+            response_text = "\n\n".join(final_results)
+            return PromptMessageMultipart(
+                role="assistant",
+                content=[TextContent(type="text", text=response_text)],
+            )
+        else:
+            # For non-cumulative mode, just return the final agent's response directly
+            return all_responses[-1] if all_responses else PromptMessageMultipart(
+                role="assistant",
+                content=[TextContent(type="text", text="")],
+            )
 
     async def structured(
         self,

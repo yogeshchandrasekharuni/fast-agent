@@ -1,8 +1,9 @@
 """
 Direct factory functions for creating agent and workflow instances without proxies.
+Implements type-safe factories with improved error handling.
 """
 
-from typing import Any, Callable, Dict, List, Optional, TypeVar, Union
+from typing import Any, Callable, Dict, List, Literal, Optional, Protocol, TypeVar, Union
 
 from mcp_agent.agents.agent import Agent
 from mcp_agent.app import MCPApp
@@ -16,13 +17,32 @@ from mcp_agent.workflows.evaluator_optimizer.evaluator_optimizer import (
 from mcp_agent.workflows.llm.augmented_llm import RequestParams
 from mcp_agent.workflows.llm.model_factory import ModelFactory
 from mcp_agent.workflows.orchestrator.orchestrator import Orchestrator
-from mcp_agent.workflows.parallel.parallel_llm import ParallelLLM
+from mcp_agent.workflows.parallel.parallel_agent import ParallelAgent
 from mcp_agent.workflows.router.agent_router import AgentRouter
 from mcp_agent.workflows.router.router_llm import LLMRouter
 from mcp_agent.workflows.swarm.swarm import Swarm
 
+# Type aliases for improved readability and IDE support
 AgentDict = Dict[str, Agent]
-T = TypeVar("T")  # For the wrapper classes
+AgentConfigDict = Dict[str, Dict[str, Any]]
+T = TypeVar("T")  # For generic types
+
+# Type for model factory functions
+ModelFactoryFn = Callable[[Optional[str], Optional[RequestParams]], Callable[[], Any]]
+
+
+class AgentCreatorProtocol(Protocol):
+    """Protocol for agent creator functions."""
+
+    async def __call__(
+        self,
+        app_instance: MCPApp,
+        agents_dict: AgentConfigDict,
+        agent_type: AgentType,
+        active_agents: Optional[AgentDict] = None,
+        model_factory_func: Optional[ModelFactoryFn] = None,
+        **kwargs: Any,
+    ) -> AgentDict: ...
 
 
 def get_model_factory(
@@ -69,11 +89,11 @@ def get_model_factory(
 
 async def create_agents_by_type(
     app_instance: MCPApp,
-    agents_dict: Dict[str, Dict[str, Any]],
+    agents_dict: AgentConfigDict,
     agent_type: AgentType,
-    active_agents: AgentDict = None,
-    model_factory_func: Callable = None,
-    **kwargs,
+    active_agents: Optional[AgentDict] = None,
+    model_factory_func: Optional[ModelFactoryFn] = None,
+    **kwargs: Any,
 ) -> AgentDict:
     """
     Generic method to create agents of a specific type without using proxies.
@@ -92,8 +112,12 @@ async def create_agents_by_type(
     if active_agents is None:
         active_agents = {}
 
+    if model_factory_func is None:
+        # Default factory that just returns the inputs - should be overridden
+        model_factory_func = lambda model=None, request_params=None: (lambda: None)
+
     # Create a dictionary to store the initialized agents
-    result_agents = {}
+    result_agents: AgentDict = {}
 
     # Get all agents of the specified type
     for name, agent_data in agents_dict.items():
@@ -170,7 +194,7 @@ async def create_agents_by_type(
                     fan_out_agents.append(active_agents[agent_name])
 
                 # Create the parallel agent
-                parallel = ParallelLLM(
+                parallel = ParallelAgent(
                     config=config,
                     context=app_instance.context,
                     fan_in_agent=fan_in_agent,
@@ -207,19 +231,26 @@ async def create_agents_by_type(
             elif agent_type == AgentType.CHAIN:
                 # Get the chained agents
                 chain_agents = []
-                for agent_name in agent_data["chain_agents"]:
+
+                agent_names = agent_data["sequence"]
+                if 0 == len(agent_names):
+                    raise AgentConfigError("No agents in the chain")
+
+                for agent_name in agent_data["sequence"]:
                     if agent_name not in active_agents:
                         raise AgentConfigError(f"Chain agent {agent_name} not found")
                     chain_agents.append(active_agents[agent_name])
 
-                # Note: This would be replaced with a dedicated Chain class that implements
-                # AgentProtocol directly instead of using ChainProxy
                 from mcp_agent.workflows.chain.chain_agent import ChainAgent
+
+                # Get the cumulative parameter
+                cumulative = agent_data.get("cumulative", False)
 
                 chain = ChainAgent(
                     config=config,
                     context=app_instance.context,
                     agents=chain_agents,
+                    cumulative=cumulative,
                 )
                 await chain.initialize()
                 result_agents[name] = chain
@@ -257,8 +288,8 @@ async def create_agents_by_type(
 
 async def create_agents_in_dependency_order(
     app_instance: MCPApp,
-    agents_dict: Dict[str, Dict[str, Any]],
-    model_factory_func: Callable,
+    agents_dict: AgentConfigDict,
+    model_factory_func: ModelFactoryFn,
     allow_cycles: bool = False,
 ) -> AgentDict:
     """

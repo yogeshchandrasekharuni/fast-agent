@@ -69,7 +69,7 @@ and whispers of a hidden agenda linger among the villagers.
 async def main() -> None:
     # Use the app's context manager
     async with fast.run() as agent:
-        await agent.parallel(f"student short story submission: {SHORT_STORY}")
+        await agent.parallel.send(f"student short story submission: {SHORT_STORY}")
 
         # follow-on prompt to task agent
         await agent.style_enforcer.prompt(default_prompt="STOP")

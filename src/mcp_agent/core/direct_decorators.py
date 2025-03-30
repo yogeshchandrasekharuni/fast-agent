@@ -1,7 +1,7 @@
 """
-Enhanced type-safe decorator system for FastAgent applications.
-This module provides type-safe decorators for creating agents with improved type annotations
-while preserving backward compatibility with the existing API.
+Type-safe decorators for DirectFastAgent applications.
+These decorators provide type-safe function signatures and IDE support
+for creating agents in the DirectFastAgent framework.
 """
 
 import inspect
@@ -16,7 +16,6 @@ from typing import (
     Optional,
     ParamSpec,
     Protocol,
-    TypedDict,
     TypeVar,
     Union,
     cast,
@@ -29,9 +28,8 @@ from mcp_agent.core.request_params import RequestParams
 # Type variables for the decorated function
 P = ParamSpec("P")  # Parameters
 R = TypeVar("R")  # Return type
-T = TypeVar("T")  # Generic type parameter
 
-# Type for agent function - can be async or sync
+# Type for agent functions - can be either async or sync
 AgentCallable = Callable[P, Union[Awaitable[R], R]]
 
 
@@ -45,7 +43,7 @@ class DecoratedAgentProtocol(Protocol[P, R]):
     def __call__(self, *args: P.args, **kwargs: P.kwargs) -> Union[Awaitable[R], R]: ...
 
 
-# Protocol for orchestrator functions with additional metadata
+# Protocol for orchestrator functions
 class DecoratedOrchestratorProtocol(DecoratedAgentProtocol[P, R], Protocol):
     """Protocol for decorated orchestrator functions with additional metadata."""
 
@@ -72,29 +70,12 @@ class DecoratedChainProtocol(DecoratedAgentProtocol[P, R], Protocol):
 class DecoratedParallelProtocol(DecoratedAgentProtocol[P, R], Protocol):
     """Protocol for decorated parallel functions with additional metadata."""
 
-    _parallel_agents: List[str]
+    _fan_out: List[str]
+    _fan_in: str
 
 
-# Type-safe request parameters dictionary
-class RequestParamsDict(TypedDict, total=False):
-    """Type-safe dictionary for request parameters."""
-
-    temperature: float
-    maxTokens: int
-    topP: float
-    topK: int
-    frequencyPenalty: float
-    presencePenalty: float
-    stopSequences: List[str]
-    systemPrompt: str
-    model: Optional[str]
-    use_history: bool
-    max_iterations: int
-    parallel_tool_calls: bool
-
-
-# Base decorator implementation
-def _create_agent_decorator(
+def _decorator_impl(
+    self,
     agent_type: AgentType,
     name: str,
     instruction: str,
@@ -102,12 +83,12 @@ def _create_agent_decorator(
     servers: List[str] = [],
     model: Optional[str] = None,
     use_history: bool = True,
-    request_params: Optional[Union[RequestParams, RequestParamsDict]] = None,
+    request_params: Optional[Dict[str, Any]] = None,
     human_input: bool = False,
-    **additional_metadata: Any,
+    **extra_kwargs,
 ) -> Callable[[AgentCallable[P, R]], DecoratedAgentProtocol[P, R]]:
     """
-    Base implementation for agent decorators.
+    Core implementation for agent decorators with common behavior and type safety.
 
     Args:
         agent_type: Type of agent to create
@@ -118,10 +99,7 @@ def _create_agent_decorator(
         use_history: Whether to maintain conversation history
         request_params: Additional request parameters for the LLM
         human_input: Whether to enable human input capabilities
-        additional_metadata: Additional metadata to attach to the agent
-
-    Returns:
-        A decorator that registers the agent with appropriate metadata
+        **extra_kwargs: Additional agent/workflow-specific parameters
     """
 
     def decorator(func: AgentCallable[P, R]) -> DecoratedAgentProtocol[P, R]:
@@ -132,91 +110,73 @@ def _create_agent_decorator(
 
             @wraps(func)
             async def wrapper(*args: P.args, **kwargs: P.kwargs) -> R:
-                # Create the agent configuration
-                config = AgentConfig(
-                    name=name,
-                    instruction=instruction,
-                    servers=servers,
-                    model=model,
-                    use_history=use_history,
-                    human_input=human_input,
-                )
-
-                # Handle request params
-                if request_params:
-                    if isinstance(request_params, RequestParams):
-                        config.default_request_params = request_params
-                    else:
-                        config.default_request_params = RequestParams(**request_params)
-
-                # Execute the original function
+                # Call the original function
                 return await func(*args, **kwargs)
         else:
 
             @wraps(func)
             def wrapper(*args: P.args, **kwargs: P.kwargs) -> R:
-                # Create the agent configuration
-                config = AgentConfig(
-                    name=name,
-                    instruction=instruction,
-                    servers=servers,
-                    model=model,
-                    use_history=use_history,
-                    human_input=human_input,
-                )
-
-                # Handle request params
-                if request_params:
-                    if isinstance(request_params, RequestParams):
-                        config.default_request_params = request_params
-                    else:
-                        config.default_request_params = RequestParams(**request_params)
-
-                # Execute the original function
+                # Call the original function
                 return func(*args, **kwargs)
 
-        # Store metadata on the wrapper function
-        setattr(wrapper, "_agent_type", agent_type)
-        setattr(
-            wrapper,
-            "_agent_config",
-            AgentConfig(
-                name=name,
-                instruction=instruction,
-                servers=servers,
-                model=model,
-                use_history=use_history,
-                human_input=human_input,
-            ),
+        # Create agent configuration
+        config = AgentConfig(
+            name=name,
+            instruction=instruction,
+            servers=servers,
+            model=model,
+            use_history=use_history,
+            human_input=human_input,
         )
 
-        # Add additional metadata
-        for key, value in additional_metadata.items():
-            setattr(wrapper, key, value)
+        # Update request params if provided
+        if request_params:
+            config.default_request_params = RequestParams(**request_params)
 
-        # Return the wrapped function with proper type annotation
+        # Store metadata on the wrapper function
+        agent_data = {
+            "config": config,
+            "type": agent_type.value,
+            "func": func,
+        }
+
+        # Add extra parameters specific to this agent type
+        for key, value in extra_kwargs.items():
+            agent_data[key] = value
+
+        # Store the configuration in the FastAgent instance
+        self.agents[name] = agent_data
+
+        # Store type information for IDE support
+        setattr(wrapper, "_agent_type", agent_type)
+        setattr(wrapper, "_agent_config", config)
+        for key, value in extra_kwargs.items():
+            setattr(wrapper, f"_{key}", value)
+
         return cast(DecoratedAgentProtocol[P, R], wrapper)
 
     return decorator
 
 
-# Enhanced agent decorator with proper typing
 def agent(
-    name: str,
-    instruction: str,
+    self,
+    name: str = "default",
+    instruction_or_kwarg: Optional[str] = None,
     *,
+    instruction: str = "You are a helpful agent.",
     servers: List[str] = [],
     model: Optional[str] = None,
     use_history: bool = True,
-    request_params: Optional[Union[RequestParams, RequestParamsDict]] = None,
+    request_params: Optional[Dict[str, Any]] = None,
     human_input: bool = False,
 ) -> Callable[[AgentCallable[P, R]], DecoratedAgentProtocol[P, R]]:
     """
-    Decorator to create and register a standard agent.
+    Decorator to create and register a standard agent with type-safe signature.
 
     Args:
         name: Name of the agent
-        instruction: Base instruction for the agent
+        instruction_or_kwarg: Optional positional parameter for instruction
+        instruction: Base instruction for the agent (keyword arg)
         servers: List of server names the agent should connect to
         model: Model specification string
         use_history: Whether to maintain conversation history
@@ -226,10 +186,13 @@ def agent(
     Returns:
         A decorator that registers the agent with proper type annotations
     """
-    return _create_agent_decorator(
+    final_instruction = instruction_or_kwarg if instruction_or_kwarg is not None else instruction
+
+    return _decorator_impl(
+        self,
         AgentType.BASIC,
         name=name,
-        instruction=instruction,
+        instruction=final_instruction,
         servers=servers,
         model=model,
         use_history=use_history,
@@ -238,21 +201,21 @@ def agent(
     )
 
 
-# Enhanced orchestrator decorator with proper typing
 def orchestrator(
+    self,
     name: str,
     *,
     agents: List[str],
     instruction: Optional[str] = None,
     model: Optional[str] = None,
     use_history: bool = False,
-    request_params: Optional[Union[RequestParams, RequestParamsDict]] = None,
+    request_params: Optional[Dict[str, Any]] = None,
     human_input: bool = False,
     plan_type: Literal["full", "iterative"] = "full",
     max_iterations: int = 30,
 ) -> Callable[[AgentCallable[P, R]], DecoratedOrchestratorProtocol[P, R]]:
     """
-    Decorator to create and register an orchestrator agent.
+    Decorator to create and register an orchestrator agent with type-safe signature.
 
     Args:
         name: Name of the orchestrator
@@ -274,46 +237,42 @@ def orchestrator(
     into a series of steps, which can be performed by these agents.
     """
 
-    final_request_params: Dict[str, Any] = {}
-    if request_params:
-        if isinstance(request_params, RequestParams):
-            final_request_params = request_params.model_dump()
-        else:
-            final_request_params = dict(request_params)
-
+    # Create final request params with max_iterations
+    final_request_params = request_params or {}
     final_request_params["max_iterations"] = max_iterations
 
     return cast(
         Callable[[AgentCallable[P, R]], DecoratedOrchestratorProtocol[P, R]],
-        _create_agent_decorator(
+        _decorator_impl(
+            self,
             AgentType.ORCHESTRATOR,
             name=name,
             instruction=instruction or default_instruction,
-            servers=[],  # Orchestrators don't directly connect to servers
+            servers=[],  # Orchestrators don't connect to servers directly
             model=model,
             use_history=use_history,
             request_params=final_request_params,
             human_input=human_input,
-            _child_agents=agents,
-            _plan_type=plan_type,
+            child_agents=agents,
+            plan_type=plan_type,
         ),
     )
 
 
-# Enhanced router decorator with proper typing
 def router(
+    self,
     name: str,
     *,
     agents: List[str],
     instruction: Optional[str] = None,
     model: Optional[str] = None,
     use_history: bool = False,
-    request_params: Optional[Union[RequestParams, RequestParamsDict]] = None,
+    request_params: Optional[Dict[str, Any]] = None,
     human_input: bool = False,
     router_type: Literal["llm", "embedding"] = "llm",
 ) -> Callable[[AgentCallable[P, R]], DecoratedRouterProtocol[P, R]]:
     """
-    Decorator to create and register a router agent.
+    Decorator to create and register a router agent with type-safe signature.
 
     Args:
         name: Name of the router
@@ -323,7 +282,7 @@ def router(
         use_history: Whether to maintain conversation history
         request_params: Additional request parameters for the LLM
         human_input: Whether to enable human input capabilities
-        router_type: Routing approach - "llm" or "embedding"
+        router_type: Type of router - "llm" or "embedding"
 
     Returns:
         A decorator that registers the router with proper type annotations
@@ -335,47 +294,47 @@ def router(
 
     return cast(
         Callable[[AgentCallable[P, R]], DecoratedRouterProtocol[P, R]],
-        _create_agent_decorator(
+        _decorator_impl(
+            self,
             AgentType.ROUTER,
             name=name,
             instruction=instruction or default_instruction,
-            servers=[],  # Routers don't directly connect to servers
+            servers=[],  # Routers don't connect to servers directly
             model=model,
             use_history=use_history,
             request_params=request_params,
             human_input=human_input,
-            _router_agents=agents,
-            _router_type=router_type,
+            router_agents=agents,
+            router_type=router_type,
         ),
     )
 
 
-# Enhanced chain decorator with proper typing
 def chain(
+    self,
     name: str,
     *,
-    agents: List[str],
+    sequence: List[str],
     instruction: Optional[str] = None,
-    model: Optional[str] = None,
-    use_history: bool = False,
-    request_params: Optional[Union[RequestParams, RequestParamsDict]] = None,
-    human_input: bool = False,
+    cumulative: bool = False,
 ) -> Callable[[AgentCallable[P, R]], DecoratedChainProtocol[P, R]]:
     """
-    Decorator to create and register a chain agent.
+    Decorator to create and register a chain agent with type-safe signature.
 
     Args:
         name: Name of the chain
-        agents: List of agent names in the chain, executed in sequence
+        sequence: List of agent names in the chain, executed in sequence
         instruction: Base instruction for the chain
-        model: Model specification string
-        use_history: Whether to maintain conversation history
-        request_params: Additional request parameters for the LLM
-        human_input: Whether to enable human input capabilities
+        cumulative: Whether to use cumulative mode (each agent sees all previous responses)
 
     Returns:
         A decorator that registers the chain with proper type annotations
     """
+    # Validate sequence is not empty
+    if not sequence:
+        from mcp_agent.core.exceptions import AgentConfigError
+        raise AgentConfigError(f"Chain '{name}' requires at least one agent in the sequence")
+        
     default_instruction = """
     You are a chain that processes requests through a series of specialized agents in sequence.
     Pass the output of each agent to the next agent in the chain.
@@ -383,42 +342,35 @@ def chain(
 
     return cast(
         Callable[[AgentCallable[P, R]], DecoratedChainProtocol[P, R]],
-        _create_agent_decorator(
+        _decorator_impl(
+            self,
             AgentType.CHAIN,
             name=name,
             instruction=instruction or default_instruction,
-            servers=[],  # Chains don't directly connect to servers
-            model=model,
-            use_history=use_history,
-            request_params=request_params,
-            human_input=human_input,
-            _chain_agents=agents,
+            sequence=sequence,
+            cumulative=cumulative,
         ),
     )
 
 
-# Enhanced parallel decorator with proper typing
 def parallel(
+    self,
     name: str,
     *,
-    agents: List[str],
+    fan_out: List[str],
+    fan_in: str,
     instruction: Optional[str] = None,
-    model: Optional[str] = None,
-    use_history: bool = False,
-    request_params: Optional[Union[RequestParams, RequestParamsDict]] = None,
-    human_input: bool = False,
+    include_request: bool = True,
 ) -> Callable[[AgentCallable[P, R]], DecoratedParallelProtocol[P, R]]:
     """
-    Decorator to create and register a parallel agent.
+    Decorator to create and register a parallel agent with type-safe signature.
 
     Args:
         name: Name of the parallel agent
-        agents: List of agent names to execute in parallel
+        fan_out: List of agents to execute in parallel
+        fan_in: Agent to aggregate results
         instruction: Base instruction for the parallel agent
-        model: Model specification string
-        use_history: Whether to maintain conversation history
-        request_params: Additional request parameters for the LLM
-        human_input: Whether to enable human input capabilities
+        include_request: Whether to include the original request when aggregating
 
     Returns:
         A decorator that registers the parallel agent with proper type annotations
@@ -430,71 +382,14 @@ def parallel(
 
     return cast(
         Callable[[AgentCallable[P, R]], DecoratedParallelProtocol[P, R]],
-        _create_agent_decorator(
+        _decorator_impl(
+            self,
             AgentType.PARALLEL,
             name=name,
             instruction=instruction or default_instruction,
-            servers=[],  # Parallel agents don't directly connect to servers
-            model=model,
-            use_history=use_history,
-            request_params=request_params,
-            human_input=human_input,
-            _parallel_agents=agents,
+            servers=[],  # Parallel agents don't connect to servers directly
+            fan_in=fan_in,
+            fan_out=fan_out,
+            include_request=include_request,
         ),
-    )
-
-
-# Enhanced evaluator_optimizer decorator with proper typing
-def evaluator_optimizer(
-    name: str,
-    *,
-    agents: List[str],
-    instruction: Optional[str] = None,
-    model: Optional[str] = None,
-    use_history: bool = False,
-    request_params: Optional[Union[RequestParams, RequestParamsDict]] = None,
-    human_input: bool = False,
-    optimization_rounds: int = 3,
-) -> Callable[[AgentCallable[P, R]], DecoratedAgentProtocol[P, R]]:
-    """
-    Decorator to create and register an evaluator-optimizer agent.
-
-    Args:
-        name: Name of the evaluator-optimizer
-        agents: List of agent names this evaluator-optimizer will evaluate/optimize
-        instruction: Base instruction for the evaluator-optimizer
-        model: Model specification string
-        use_history: Whether to maintain conversation history
-        request_params: Additional request parameters for the LLM
-        human_input: Whether to enable human input capabilities
-        optimization_rounds: Number of optimization iterations to perform
-
-    Returns:
-        A decorator that registers the evaluator-optimizer with proper type annotations
-    """
-    default_instruction = """
-    You are an evaluator and optimizer. Your job is to evaluate the outputs 
-    from other agents and suggest improvements to optimize their performance.
-    """
-
-    final_request_params: Dict[str, Any] = {}
-    if request_params:
-        if isinstance(request_params, RequestParams):
-            final_request_params = request_params.model_dump()
-        else:
-            final_request_params = dict(request_params)
-
-    final_request_params["optimization_rounds"] = optimization_rounds
-
-    return _create_agent_decorator(
-        AgentType.EVALUATOR_OPTIMIZER,
-        name=name,
-        instruction=instruction or default_instruction,
-        servers=[],
-        model=model,
-        use_history=use_history,
-        request_params=final_request_params,
-        human_input=human_input,
-        _eval_optimizer_agents=agents,
-        _optimization_rounds=optimization_rounds,
     )

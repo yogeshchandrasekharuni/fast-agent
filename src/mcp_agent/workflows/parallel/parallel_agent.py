@@ -1,16 +1,16 @@
 import asyncio
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, List, Optional, Union
 
 from mcp.types import TextContent
+
 from mcp_agent.agents.agent import Agent, AgentConfig
 from mcp_agent.core.base_agent import BaseAgent
-from mcp_agent.core.prompt import Prompt
 from mcp_agent.core.request_params import RequestParams
 from mcp_agent.mcp.interfaces import ModelT
 from mcp_agent.mcp.prompt_message_multipart import PromptMessageMultipart
 
 
-class ParallelLLM(BaseAgent):
+class ParallelAgent(BaseAgent):
     """
     LLMs can sometimes work simultaneously on a task (fan-out)
     and have their outputs aggregated programmatically (fan-in).
@@ -28,7 +28,7 @@ class ParallelLLM(BaseAgent):
     ) -> None:
         """
         Initialize a ParallelLLM agent.
-        
+
         Args:
             config: Agent configuration or name
             fan_in_agent: Agent that aggregates results from fan-out agents
@@ -48,11 +48,11 @@ class ParallelLLM(BaseAgent):
     ) -> PromptMessageMultipart:
         """
         Execute fan-out agents in parallel and aggregate their results with the fan-in agent.
-        
+
         Args:
             multipart_messages: List of messages to send to the fan-out agents
             request_params: Optional parameters to configure the request
-            
+
         Returns:
             The aggregated response from the fan-in agent
         """
@@ -73,24 +73,23 @@ class ParallelLLM(BaseAgent):
 
         # Format the responses and send to the fan-in agent
         aggregated_prompt = self._format_responses(string_responses, received_message)
-        
+
         # Create a new multipart message with the formatted responses
         formatted_prompt = PromptMessageMultipart(
-            role="user", 
-            content=[TextContent(type="text", text=aggregated_prompt)]
+            role="user", content=[TextContent(type="text", text=aggregated_prompt)]
         )
-        
+
         # Use the fan-in agent to aggregate the responses
         return await self.fan_in_agent.generate_x([formatted_prompt], request_params)
 
     def _format_responses(self, responses: List[Any], message: Optional[str] = None) -> str:
         """
         Format a list of responses for the fan-in agent.
-        
+
         Args:
             responses: List of responses from fan-out agents
             message: Optional original message that was sent to the agents
-            
+
         Returns:
             Formatted string with responses
         """
@@ -117,14 +116,14 @@ class ParallelLLM(BaseAgent):
     ) -> Optional[ModelT]:
         """
         Apply the prompt and return the result as a Pydantic model.
-        
+
         This implementation delegates to the fan-in agent's structured method.
-        
+
         Args:
             prompt: List of PromptMessageMultipart objects
             model: The Pydantic model class to parse the result into
             request_params: Optional parameters to configure the LLM request
-            
+
         Returns:
             An instance of the specified model, or None if coercion fails
         """
@@ -132,22 +131,21 @@ class ParallelLLM(BaseAgent):
         responses: List[PromptMessageMultipart] = await asyncio.gather(
             *[agent.generate_x(prompt, request_params) for agent in self.fan_out_agents]
         )
-        
+
         # Extract the received message
         received_message: Optional[str] = prompt[-1].all_text() if prompt else None
-        
+
         # Convert responses to strings
         string_responses = [response.all_text() for response in responses]
-        
+
         # Format the responses for the fan-in agent
         aggregated_prompt = self._format_responses(string_responses, received_message)
-        
+
         # Create a multipart message
         formatted_prompt = PromptMessageMultipart(
-            role="user", 
-            content=[TextContent(type="text", text=aggregated_prompt)]
+            role="user", content=[TextContent(type="text", text=aggregated_prompt)]
         )
-        
+
         # Use the fan-in agent to parse the structured output
         return await self.fan_in_agent.structured([formatted_prompt], model, request_params)
 
@@ -156,11 +154,11 @@ class ParallelLLM(BaseAgent):
         Initialize the agent and its fan-in and fan-out agents.
         """
         await super().initialize()
-        
+
         # Initialize fan-in and fan-out agents if not already initialized
         if not getattr(self.fan_in_agent, "initialized", False):
             await self.fan_in_agent.initialize()
-            
+
         for agent in self.fan_out_agents:
             if not getattr(agent, "initialized", False):
                 await agent.initialize()
@@ -170,13 +168,13 @@ class ParallelLLM(BaseAgent):
         Shutdown the agent and its fan-in and fan-out agents.
         """
         await super().shutdown()
-        
+
         # Shutdown fan-in and fan-out agents
         try:
             await self.fan_in_agent.shutdown()
         except Exception as e:
             self.logger.warning(f"Error shutting down fan-in agent: {str(e)}")
-            
+
         for agent in self.fan_out_agents:
             try:
                 await agent.shutdown()

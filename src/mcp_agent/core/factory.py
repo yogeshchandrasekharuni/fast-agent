@@ -26,7 +26,7 @@ from mcp_agent.workflows.evaluator_optimizer.evaluator_optimizer import (
 from mcp_agent.workflows.llm.augmented_llm import RequestParams
 from mcp_agent.workflows.llm.model_factory import ModelFactory
 from mcp_agent.workflows.orchestrator.orchestrator import Orchestrator
-from mcp_agent.workflows.parallel.parallel_llm import ParallelLLM
+from mcp_agent.workflows.parallel.parallel_agent import ParallelAgent
 from mcp_agent.workflows.router.agent_router import AgentRouter
 from mcp_agent.workflows.router.router_llm import LLMRouter
 
@@ -65,7 +65,7 @@ def create_proxy(
             raise TypeError(f"Expected Orchestrator instance for {name}, got {type(instance)}")
         return WorkflowProxy(app, name, instance)
     elif agent_type == AgentType.PARALLEL.value:
-        if not isinstance(instance, ParallelLLM):
+        if not isinstance(instance, ParallelAgent):
             raise TypeError(f"Expected ParallelLLM instance for {name}, got {type(instance)}")
         return LLMAgentProxy(app, name, instance)
     elif agent_type == AgentType.EVALUATOR_OPTIMIZER.value:
@@ -339,7 +339,7 @@ async def create_agents_by_type(
 
                 # Create the parallel workflow
                 llm_factory = model_factory_func(config.model)
-                instance = ParallelLLM(
+                instance = ParallelAgent(
                     name=config.name,
                     instruction=config.instruction,
                     fan_out_agents=fan_out_agents,
