@@ -120,8 +120,7 @@ class ChainAgent(BaseAgent):
 
             # Prepare for the next agent (in sequential mode)
             if i < len(self.agents) - 1:
-                # TODO -- probably better to recreate.
-                current_response.role = "user"
+                current_messages = [Prompt.user(current_response.all_text())]
 
         # Return the appropriate response format
         if self.cumulative:

@@ -21,20 +21,12 @@ fast = FastAgent("Agent Chaining")
 @fast.chain(
     name="post_writer",
     sequence=["url_fetcher", "social_media"],
+    cumulative=True,
 )
 async def main() -> None:
     async with fast.run() as agent:
         # using chain workflow
         await agent.post_writer.send("https://llmindset.co.uk")
-
-        # calling directly
-        # await agent.url_fetcher("http://llmindset.co.uk/resources/mcp-hfspace/")
-        # await agent.social_media(
-        #     await agent.url_fetcher("http://llmindset.co.uk/resources/mcp-hfspace/")
-        # )
-
-        # agents can also be accessed like dictionaries:
-        # awwait agent["post_writer"].prompt()
 
 
 # alternative syntax for above is result = agent["post_writer"].send(message)
