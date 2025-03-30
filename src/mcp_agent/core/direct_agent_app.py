@@ -2,9 +2,10 @@
 Direct AgentApp implementation for interacting with agents without proxies.
 """
 
-from typing import Dict, Optional
+from typing import Dict, Optional, Union
 
 from mcp_agent.agents.agent import Agent
+from mcp_agent.mcp.prompt_message_multipart import PromptMessageMultipart
 
 
 class DirectAgentApp:
@@ -40,7 +41,11 @@ class DirectAgentApp:
             return self._agents[name]
         raise AttributeError(f"Agent '{name}' not found")
 
-    async def __call__(self, message: str, agent_name: Optional[str] = None) -> str:
+    async def __call__(
+        self,
+        message: Union[str, PromptMessageMultipart] | None = None,
+        agent_name: str | None = None,
+    ) -> str:
         """
         Make the object callable to send messages.
         This mirrors the FastAgent implementation that allowed agent("message").
@@ -52,7 +57,10 @@ class DirectAgentApp:
         Returns:
             The agent's response as a string
         """
-        return await self.send(message, agent_name)
+        if message:
+            return await self._agent(agent_name).send(message)
+
+        return await self._agent(agent_name).prompt()
 
     async def send(self, message: str, agent_name: Optional[str] = None) -> str:
         """
@@ -76,7 +84,10 @@ class DirectAgentApp:
         return next(iter(self.agents.values()))
 
     async def apply_prompt(
-        self, prompt_name: str, agent_name: str | None, arguments: Dict[str, str] | None = None
+        self,
+        prompt_name: str,
+        arguments: Dict[str, str] | None = None,
+        agent_name: str | None = None,
     ) -> str:
         """
         Apply a prompt template to an agent (default agent if not specified).

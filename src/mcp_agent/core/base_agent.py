@@ -144,6 +144,11 @@ class BaseAgent(MCPAggregator, AgentProtocol):
         """
         await super().close()
 
+    async def __call__(self, message: Union[str, PromptMessageMultipart] | None = None) -> str:
+        if message:
+            return await self.send(message)
+        return await self.prompt()
+
     async def send(self, message: Union[str, PromptMessageMultipart]) -> str:
         """
         Send a message to the agent and get a response.

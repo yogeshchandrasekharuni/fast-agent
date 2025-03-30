@@ -66,3 +66,26 @@ async def test_agent_api_with_basic_playback(fast_agent):
             assert "assistant1" in await agent.agent1.send("ignored")
 
     await agent_function()
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_agent_api_with_default_calls(fast_agent):
+    """Test that the agent can process a multipart prompts using directory-specific config."""
+    # Use the FastAgent instance from the test directory fixture
+    fast = fast_agent
+
+    # Define the agent
+    @fast.agent(
+        "agent1",
+        instruction="You are a helpful AI Agent",
+        model="passthrough",
+    )
+    async def agent_function():
+        async with fast.run() as agent:
+            assert "message 1" == await agent("message 1")
+            assert "message 2" == await agent["agent1"]("message 2")
+
+        # assert "assistant1" in await agent.agent1.send("ignored")
+
+    await agent_function()

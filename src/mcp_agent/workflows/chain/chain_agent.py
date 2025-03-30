@@ -60,6 +60,8 @@ class ChainAgent(BaseAgent):
         Returns:
             The response from the final agent in the chain
         """
+
+        # TODO -- make use of PromptMessageMultipart for agent->agent transfer
         if not self.agents:
             # If no agents in the chain, return an empty response
             return PromptMessageMultipart(
@@ -82,16 +84,16 @@ class ChainAgent(BaseAgent):
 
         # Track all responses in the chain
         all_responses: List[PromptMessageMultipart] = []
-        
+
         # For cumulative mode with proper XML tagging
         if self.cumulative:
             # Initialize list for storing formatted results
             final_results: List[str] = []
-            
+
             # Add the original request with XML tag
             request_text = f"<fastagent:request>{user_message.all_text()}</fastagent:request>"
             final_results.append(request_text)
-            
+
         # Process through each agent in sequence
         for i, agent in enumerate(self.agents):
             # Determine what to send to this agent
@@ -106,19 +108,20 @@ class ChainAgent(BaseAgent):
 
             # Store the response
             all_responses.append(current_response)
-            
+
             # In cumulative mode, format with XML tags
             if self.cumulative:
                 agent_name = getattr(agent, "name", f"agent{i}")
                 response_text = current_response.all_text()
-                attributed_response = f"<fastagent:response agent='{agent_name}'>{response_text}</fastagent:response>"
+                attributed_response = (
+                    f"<fastagent:response agent='{agent_name}'>{response_text}</fastagent:response>"
+                )
                 final_results.append(attributed_response)
 
             # Prepare for the next agent (in sequential mode)
             if i < len(self.agents) - 1:
-                # In sequential mode, we only pass the output of the previous agent
-                # to the next agent in the chain, without the original message
-                current_messages = [current_response]
+                # TODO -- probably better to recreate.
+                current_response.role = "user"
 
         # Return the appropriate response format
         if self.cumulative:
@@ -130,9 +133,13 @@ class ChainAgent(BaseAgent):
             )
         else:
             # For non-cumulative mode, just return the final agent's response directly
-            return all_responses[-1] if all_responses else PromptMessageMultipart(
-                role="assistant",
-                content=[TextContent(type="text", text="")],
+            return (
+                all_responses[-1]
+                if all_responses
+                else PromptMessageMultipart(
+                    role="assistant",
+                    content=[TextContent(type="text", text="")],
+                )
             )
 
     async def structured(

@@ -1,0 +1,5 @@
+{"level":"WARNING","timestamp":"2025-03-30T16:34:56.621623","namespace":"multipart_converter_anthropic","message":"Removing non-text block from assistant message: image"}
+{"level":"WARNING","timestamp":"2025-03-30T16:34:56.651003","namespace":"multipart_converter_anthropic","message":"Removing non-text block from assistant message: document"}
+{"level":"WARNING","timestamp":"2025-03-30T16:34:56.654828","namespace":"multipart_converter_anthropic","message":"Removing non-text block from assistant message: image"}
+{"level":"ERROR","timestamp":"2025-03-30T16:34:56.717299","namespace":"mcp_agent.workflows.llm.augmented_llm","message":"Failed to parse structured response: trailing comma at line 6 column 13"}
+{"level":"ERROR","timestamp":"2025-03-30T16:58:40.592253","namespace":"mcp_agent.workflows.llm.augmented_llm","message":"Failed to parse structured response: trailing comma at line 6 column 13"}

@@ -20,9 +20,17 @@ from mcp_agent.core.agent_types import AgentType
 from mcp_agent.core.direct_agent_app import DirectAgentApp
 from mcp_agent.core.direct_decorators import (
     agent as agent_decorator,
+)
+from mcp_agent.core.direct_decorators import (
     chain as chain_decorator,
+)
+from mcp_agent.core.direct_decorators import (
     orchestrator as orchestrator_decorator,
+)
+from mcp_agent.core.direct_decorators import (
     parallel as parallel_decorator,
+)
+from mcp_agent.core.direct_decorators import (
     router as router_decorator,
 )
 from mcp_agent.core.direct_factory import (
@@ -128,7 +136,7 @@ class DirectFastAgent:
     # Decorator methods with type-safe implementations
     agent = agent_decorator
     orchestrator = orchestrator_decorator
-    router = router_decorator 
+    router = router_decorator
     chain = chain_decorator
     parallel = parallel_decorator
 
