@@ -1,0 +1,374 @@
+"""
+Direct factory functions for creating agent and workflow instances without proxies.
+"""
+
+from typing import Any, Callable, Dict, List, Optional, TypeVar, Union
+
+from mcp_agent.agents.agent import Agent
+from mcp_agent.app import MCPApp
+from mcp_agent.core.agent_types import AgentConfig, AgentType
+from mcp_agent.core.exceptions import AgentConfigError, CircularDependencyError
+from mcp_agent.core.validation import get_dependencies_groups
+from mcp_agent.event_progress import ProgressAction
+from mcp_agent.workflows.evaluator_optimizer.evaluator_optimizer import (
+    EvaluatorOptimizerLLM,
+)
+from mcp_agent.workflows.llm.augmented_llm import RequestParams
+from mcp_agent.workflows.llm.model_factory import ModelFactory
+from mcp_agent.workflows.orchestrator.orchestrator import Orchestrator
+from mcp_agent.workflows.parallel.parallel_llm import ParallelLLM
+from mcp_agent.workflows.router.agent_router import AgentRouter
+from mcp_agent.workflows.router.router_llm import LLMRouter
+from mcp_agent.workflows.swarm.swarm import Swarm
+
+AgentDict = Dict[str, Agent]
+T = TypeVar("T")  # For the wrapper classes
+
+
+def get_model_factory(
+    context,
+    model: Optional[str] = None,
+    request_params: Optional[RequestParams] = None,
+    default_model: Optional[str] = None,
+    cli_model: Optional[str] = None,
+) -> Callable:
+    """
+    Get model factory using specified or default model.
+    Model string is parsed by ModelFactory to determine provider and reasoning effort.
+
+    Args:
+        context: Application context
+        model: Optional model specification string (highest precedence)
+        request_params: Optional RequestParams to configure LLM behavior
+        default_model: Default model from configuration
+        cli_model: Model specified via command line
+
+    Returns:
+        ModelFactory instance for the specified or default model
+    """
+    # Config has lowest precedence
+    model_spec = default_model or context.config.default_model
+
+    # Command line override has next precedence
+    if cli_model:
+        model_spec = cli_model
+
+    # Model from decorator has highest precedence
+    if model:
+        model_spec = model
+
+    # Update or create request_params with the final model choice
+    if request_params:
+        request_params = request_params.model_copy(update={"model": model_spec})
+    else:
+        request_params = RequestParams(model=model_spec)
+
+    # Let model factory handle the model string parsing and setup
+    return ModelFactory.create_factory(model_spec, request_params=request_params)
+
+
+async def create_agents_by_type(
+    app_instance: MCPApp,
+    agents_dict: Dict[str, Dict[str, Any]],
+    agent_type: AgentType,
+    active_agents: AgentDict = None,
+    model_factory_func: Callable = None,
+    **kwargs,
+) -> AgentDict:
+    """
+    Generic method to create agents of a specific type without using proxies.
+
+    Args:
+        app_instance: The main application instance
+        agents_dict: Dictionary of agent configurations
+        agent_type: Type of agents to create
+        active_agents: Dictionary of already created agents (for dependencies)
+        model_factory_func: Function for creating model factories
+        **kwargs: Additional type-specific parameters
+
+    Returns:
+        Dictionary of initialized agent instances
+    """
+    if active_agents is None:
+        active_agents = {}
+
+    # Create a dictionary to store the initialized agents
+    result_agents = {}
+
+    # Get all agents of the specified type
+    for name, agent_data in agents_dict.items():
+        if agent_data["type"] == agent_type.value:
+            # Get common configuration
+            config = agent_data["config"]
+
+            # Type-specific initialization
+            if agent_type == AgentType.BASIC:
+                # Create a basic agent
+                agent = Agent(
+                    config=config,
+                    context=app_instance.context,
+                )
+                await agent.initialize()
+
+                # Attach LLM to the agent
+                llm_factory = model_factory_func(
+                    model=config.model,
+                    request_params=config.default_request_params,
+                )
+                await agent.attach_llm(llm_factory)
+                result_agents[name] = agent
+
+            elif agent_type == AgentType.ORCHESTRATOR:
+                # Get base params configured with model settings
+                base_params = (
+                    config.default_request_params.model_copy()
+                    if config.default_request_params
+                    else RequestParams()
+                )
+                base_params.use_history = False  # Force no history for orchestrator
+
+                # Get the child agents
+                child_agents = []
+                for agent_name in agent_data["child_agents"]:
+                    if agent_name not in active_agents:
+                        raise AgentConfigError(f"Agent {agent_name} not found")
+                    agent = active_agents[agent_name]
+                    child_agents.append(agent)
+
+                # Create the orchestrator
+                orchestrator = Orchestrator(
+                    config=config,
+                    context=app_instance.context,
+                    child_agents=child_agents,
+                    plan_type=agent_data.get("plan_type", "full"),
+                )
+                await orchestrator.initialize()
+
+                # Attach LLM to the orchestrator
+                llm_factory = model_factory_func(
+                    model=config.model,
+                    request_params=base_params,
+                )
+                await orchestrator.attach_llm(llm_factory)
+                result_agents[name] = orchestrator
+
+            elif agent_type == AgentType.PARALLEL:
+                # Get the fan-out and fan-in agents
+                fan_in_name = agent_data["fan_in"]
+                fan_out_names = agent_data["fan_out"]
+
+                # Get the fan-in agent
+                if fan_in_name not in active_agents:
+                    raise AgentConfigError(f"Fan-in agent {fan_in_name} not found")
+                fan_in_agent = active_agents[fan_in_name]
+
+                # Get the fan-out agents
+                fan_out_agents = []
+                for agent_name in fan_out_names:
+                    if agent_name not in active_agents:
+                        raise AgentConfigError(f"Fan-out agent {agent_name} not found")
+                    fan_out_agents.append(active_agents[agent_name])
+
+                # Create the parallel agent
+                parallel = ParallelLLM(
+                    config=config,
+                    context=app_instance.context,
+                    fan_in_agent=fan_in_agent,
+                    fan_out_agents=fan_out_agents,
+                )
+                await parallel.initialize()
+                result_agents[name] = parallel
+
+            elif agent_type == AgentType.ROUTER:
+                # Get the router agents
+                router_agents = []
+                for agent_name in agent_data["router_agents"]:
+                    if agent_name not in active_agents:
+                        raise AgentConfigError(f"Router agent {agent_name} not found")
+                    router_agents.append(active_agents[agent_name])
+
+                # Create the router agent
+                router = LLMRouter(
+                    config=config,
+                    context=app_instance.context,
+                    agents=router_agents,
+                    routing_instruction=agent_data.get("routing_instruction"),
+                )
+                await router.initialize()
+
+                # Attach LLM to the router
+                llm_factory = model_factory_func(
+                    model=config.model,
+                    request_params=config.default_request_params,
+                )
+                await router.attach_llm(llm_factory)
+                result_agents[name] = router
+
+            elif agent_type == AgentType.CHAIN:
+                # Get the chained agents
+                chain_agents = []
+                for agent_name in agent_data["chain_agents"]:
+                    if agent_name not in active_agents:
+                        raise AgentConfigError(f"Chain agent {agent_name} not found")
+                    chain_agents.append(active_agents[agent_name])
+
+                # Note: This would be replaced with a dedicated Chain class that implements
+                # AgentProtocol directly instead of using ChainProxy
+                from mcp_agent.workflows.chain.chain_agent import ChainAgent
+
+                chain = ChainAgent(
+                    config=config,
+                    context=app_instance.context,
+                    agents=chain_agents,
+                )
+                await chain.initialize()
+                result_agents[name] = chain
+
+            elif agent_type == AgentType.EVALUATOR_OPTIMIZER:
+                # Get the agents to optimize
+                eval_agents = []
+                for agent_name in agent_data["eval_optimizer_agents"]:
+                    if agent_name not in active_agents:
+                        raise AgentConfigError(f"Evaluation agent {agent_name} not found")
+                    eval_agents.append(active_agents[agent_name])
+
+                # Create the evaluator-optimizer
+                evaluator = EvaluatorOptimizerLLM(
+                    config=config,
+                    context=app_instance.context,
+                    agents=eval_agents,
+                    optimization_rounds=agent_data.get("optimization_rounds", 3),
+                )
+                await evaluator.initialize()
+
+                # Attach LLM to the evaluator
+                llm_factory = model_factory_func(
+                    model=config.model,
+                    request_params=config.default_request_params,
+                )
+                await evaluator.attach_llm(llm_factory)
+                result_agents[name] = evaluator
+
+            else:
+                raise ValueError(f"Unknown agent type: {agent_type}")
+
+    return result_agents
+
+
+async def create_agents_in_dependency_order(
+    app_instance: MCPApp,
+    agents_dict: Dict[str, Dict[str, Any]],
+    model_factory_func: Callable,
+    allow_cycles: bool = False,
+) -> AgentDict:
+    """
+    Create agent instances in dependency order without proxies.
+
+    Args:
+        app_instance: The main application instance
+        agents_dict: Dictionary of agent configurations
+        model_factory_func: Function for creating model factories
+        allow_cycles: Whether to allow cyclic dependencies
+
+    Returns:
+        Dictionary of initialized agent instances
+    """
+    # Get the dependencies between agents
+    dependencies = get_dependencies_groups(agents_dict, allow_cycles)
+
+    # Create a dictionary to store all active agents/workflows
+    active_agents: AgentDict = {}
+
+    # Create agent proxies for each group in dependency order
+    for group in dependencies:
+        # Create basic agents first
+        if AgentType.BASIC.value in [agents_dict[name]["type"] for name in group]:
+            basic_agents = await create_agents_by_type(
+                app_instance,
+                {
+                    name: agents_dict[name]
+                    for name in group
+                    if agents_dict[name]["type"] == AgentType.BASIC.value
+                },
+                AgentType.BASIC,
+                active_agents,
+                model_factory_func,
+            )
+            active_agents.update(basic_agents)
+
+        # Create parallel agents
+        if AgentType.PARALLEL.value in [agents_dict[name]["type"] for name in group]:
+            parallel_agents = await create_agents_by_type(
+                app_instance,
+                {
+                    name: agents_dict[name]
+                    for name in group
+                    if agents_dict[name]["type"] == AgentType.PARALLEL.value
+                },
+                AgentType.PARALLEL,
+                active_agents,
+                model_factory_func,
+            )
+            active_agents.update(parallel_agents)
+
+        # Create router agents
+        if AgentType.ROUTER.value in [agents_dict[name]["type"] for name in group]:
+            router_agents = await create_agents_by_type(
+                app_instance,
+                {
+                    name: agents_dict[name]
+                    for name in group
+                    if agents_dict[name]["type"] == AgentType.ROUTER.value
+                },
+                AgentType.ROUTER,
+                active_agents,
+                model_factory_func,
+            )
+            active_agents.update(router_agents)
+
+        # Create chain agents
+        if AgentType.CHAIN.value in [agents_dict[name]["type"] for name in group]:
+            chain_agents = await create_agents_by_type(
+                app_instance,
+                {
+                    name: agents_dict[name]
+                    for name in group
+                    if agents_dict[name]["type"] == AgentType.CHAIN.value
+                },
+                AgentType.CHAIN,
+                active_agents,
+                model_factory_func,
+            )
+            active_agents.update(chain_agents)
+
+        # Create evaluator-optimizer agents
+        if AgentType.EVALUATOR_OPTIMIZER.value in [agents_dict[name]["type"] for name in group]:
+            evaluator_agents = await create_agents_by_type(
+                app_instance,
+                {
+                    name: agents_dict[name]
+                    for name in group
+                    if agents_dict[name]["type"] == AgentType.EVALUATOR_OPTIMIZER.value
+                },
+                AgentType.EVALUATOR_OPTIMIZER,
+                active_agents,
+                model_factory_func,
+            )
+            active_agents.update(evaluator_agents)
+
+        # Create orchestrator agents last since they might depend on other agents
+        if AgentType.ORCHESTRATOR.value in [agents_dict[name]["type"] for name in group]:
+            orchestrator_agents = await create_agents_by_type(
+                app_instance,
+                {
+                    name: agents_dict[name]
+                    for name in group
+                    if agents_dict[name]["type"] == AgentType.ORCHESTRATOR.value
+                },
+                AgentType.ORCHESTRATOR,
+                active_agents,
+                model_factory_func,
+            )
+            active_agents.update(orchestrator_agents)
+
+    return active_agents

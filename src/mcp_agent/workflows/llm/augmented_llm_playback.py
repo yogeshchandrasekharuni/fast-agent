@@ -75,44 +75,30 @@ class PlaybackLLM(PassthroughLLM):
         multipart_messages: List[PromptMessageMultipart],
         request_params: RequestParams | None = None,
     ) -> PromptMessageMultipart:
-        if -1 == self._current_index:
-            self._messages = multipart_messages
+        """
+        Handle playback of messages in two modes:
+        1. First call: store messages for playback and return "HISTORY LOADED"
+        2. Subsequent calls: return the next assistant message
+        """
+        # If this is the first call (initialization) or we're loading a prompt template
+        # with multiple messages (comes from apply_prompt)
+        if -1 == self._current_index or len(multipart_messages) > 1:
+            # Store the messages for playback
+            # For a prompt template with multiple messages, use those directly
+            # Otherwise extend our existing message list
+            if len(multipart_messages) > 1:
+                self._messages = multipart_messages
+            else:
+                self._messages.extend(multipart_messages)
+                
+            # Reset the index to the beginning for proper playback
             self._current_index = 0
+            
+            # In PlaybackLLM, we always return "HISTORY LOADED" on initialization,
+            # regardless of the prompt content. The next call will return messages.
             return Prompt.assistant("HISTORY LOADED")
+        
+        # This is a subsequent call, return the next assistant message
+        return self._get_next_assistant_message()
 
-        return await self.generate_str2(MessageContent.get_first_text(multipart_messages[-1]))
-
-    async def apply_prompt_template(self, prompt_result: GetPromptResult, prompt_name: str) -> str:
-        """
-        Apply a prompt template by adding its messages to the playback queue.
-
-        Args:
-            prompt_result: The GetPromptResult containing prompt messages
-            prompt_name: The name of the prompt being applied
-
-        Returns:
-            String representation of the first message or an indication that no messages were added
-        """
-        prompt_messages: List[PromptMessage] = prompt_result.messages
-
-        # Extract arguments if they were stored in the result
-        arguments = getattr(prompt_result, "arguments", None)
-
-        # Display information about the loaded prompt
-        await self.show_prompt_loaded(
-            prompt_name=prompt_name,
-            description=prompt_result.description,
-            message_count=len(prompt_messages),
-            arguments=arguments,
-        )
-
-        if not prompt_messages:
-            return "Prompt contains no messages"
-
-        self._messages.extend(PromptMessageMultipart.to_multipart(prompt_messages))
-
-        # Reset current index if this is the first time loading messages
-        if len(self._messages) == len(prompt_messages):
-            self._current_index = 0
-
-        return f"Added {len(prompt_messages)} messages to playback queue"
+    # apply_prompt_template removed as redundant - functionality merged into generate_x

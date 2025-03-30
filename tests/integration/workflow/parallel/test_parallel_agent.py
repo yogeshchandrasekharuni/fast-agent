@@ -17,6 +17,8 @@ async def test_parallel_run(fast_agent):
         async with fast.run() as agent:
             expected: str = """The following request was sent to the agents:
 
+    
+
 <fastagent:request>
 foo
 </fastagent:request>

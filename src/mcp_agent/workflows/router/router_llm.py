@@ -1,12 +1,14 @@
-from typing import TYPE_CHECKING, Callable, List, Literal, Optional
+from typing import TYPE_CHECKING, Any, Callable, Dict, List, Literal, Optional, Union
 
 from pydantic import BaseModel
 
+from mcp.types import TextContent
 from mcp_agent.agents.agent import Agent
 from mcp_agent.core.agent_types import AgentConfig
+from mcp_agent.core.base_agent import BaseAgent
 from mcp_agent.logging.logger import get_logger
 from mcp_agent.mcp.prompt_message_multipart import PromptMessageMultipart
-from mcp_agent.workflows.llm.augmented_llm import RequestParams
+from mcp_agent.core.request_params import RequestParams
 from mcp_agent.workflows.router.router_base import ResultT, RouterResult
 
 if TYPE_CHECKING:
@@ -94,65 +96,110 @@ class LLMRouterResult(RouterResult[ResultT], ConfidenceRating):
     pass
 
 
-class LLMRouter(Agent):
+class LLMRouter(BaseAgent):
     """
-    A router that uses an LLM to route an input to a specific category.
+    A router that uses an LLM to determine the best destination for a request.
     """
 
     def __init__(
         self,
-        config: AgentConfig,
+        config: Union[AgentConfig, str],
         server_names: List[str] | None = None,
         agents: List[Agent] | None = None,
         functions: List[Callable] | None = None,
         routing_instruction: str | None = None,
         context: Optional["Context"] = None,
         default_request_params: Optional[RequestParams] = None,
+        **kwargs
     ) -> None:
+        """
+        Initialize an LLMRouter.
+        
+        Args:
+            config: Agent configuration or name
+            server_names: Optional list of server names to route to
+            agents: Optional list of agents to route to
+            functions: Optional list of functions to route to
+            routing_instruction: Optional custom routing instruction
+            context: Optional application context
+            default_request_params: Optional default request parameters
+            **kwargs: Additional keyword arguments to pass to BaseAgent
+        """
         super().__init__(
             config=config,
             server_names=server_names,
             functions=functions,
-            routing_instruction=routing_instruction,
             context=context,
+            **kwargs
         )
-        self.agents = agents
-        self.default_request_params = default_request_params or RequestParams()
+        self.agents = agents or []
+        self.routing_instruction = routing_instruction
+        
+        # Override default request params with router-specific params
+        router_params = RequestParams(
+            systemPrompt=ROUTING_SYSTEM_INSTRUCTION,
+            use_history=False,
+        )
+        
+        # Merge with any provided default params
+        if default_request_params:
+            params_dict = router_params.model_dump()
+            params_dict.update(default_request_params.model_dump(exclude_unset=True))
+            router_params = RequestParams(**params_dict)
+            
+        self._default_request_params = router_params
+        
+        # Initialize category storage
+        self.server_categories = {}
+        self.agent_categories = {}
+        self.function_categories = {}
+        self.categories = {}
 
     async def initialize(self) -> None:
         """Initialize the router and create the LLM instance."""
         if not self.initialized:
             await super().initialize()
-            router_params = RequestParams(
-                systemPrompt=ROUTING_SYSTEM_INSTRUCTION,
-                use_history=False,
-            )
-
-            # Merge with any provided default params
-            if self.default_request_params:
-                params_dict = router_params.model_dump()
-                params_dict.update(self.default_request_params.model_dump(exclude_unset=True))
-                router_params = RequestParams(**params_dict)
-            router_params.use_history = False
-
+            
+            # Initialize categories
+            await self._initialize_categories()
+            
             self.initialized = True
-
-    async def generate_x(
-        self,
-        multipart_messages: List[PromptMessageMultipart],
-        request_params: RequestParams | None = None,
-    ) -> PromptMessageMultipart:
-        return await self._llm.generate_x(multipart_messages, request_params)
+    
+    async def _initialize_categories(self) -> None:
+        """Initialize the categories for routing."""
+        # Implementation would populate self.server_categories, self.agent_categories,
+        # self.function_categories and self.categories from server_names, agents, and functions
+        pass
 
     async def route(
         self, request: str, top_k: int = 1
     ) -> List[LLMRouterResult[str | Agent | Callable]]:
+        """
+        Route a request to the most appropriate destination.
+        
+        Args:
+            request: The request to route
+            top_k: Maximum number of results to return
+            
+        Returns:
+            List of routing results with confidence ratings
+        """
         if not self.initialized:
             await self.initialize()
 
         return await self._route_with_llm(request, top_k)
 
     async def route_to_server(self, request: str, top_k: int = 1) -> List[LLMRouterResult[str]]:
+        """
+        Route a request to a server.
+        
+        Args:
+            request: The request to route
+            top_k: Maximum number of results to return
+            
+        Returns:
+            List of routing results with confidence ratings
+        """
         if not self.initialized:
             await self.initialize()
 
@@ -165,6 +212,16 @@ class LLMRouter(Agent):
         )
 
     async def route_to_agent(self, request: str, top_k: int = 1) -> List[LLMRouterResult[Agent]]:
+        """
+        Route a request to an agent.
+        
+        Args:
+            request: The request to route
+            top_k: Maximum number of results to return
+            
+        Returns:
+            List of routing results with confidence ratings
+        """
         if not self.initialized:
             await self.initialize()
 
@@ -184,6 +241,19 @@ class LLMRouter(Agent):
         include_agents: bool = True,
         include_functions: bool = True,
     ) -> List[LLMRouterResult]:
+        """
+        Route a request using the LLM.
+        
+        Args:
+            request: The request to route
+            top_k: Maximum number of results to return
+            include_servers: Whether to include servers in routing
+            include_agents: Whether to include agents in routing
+            include_functions: Whether to include functions in routing
+            
+        Returns:
+            List of routing results with confidence ratings
+        """
         if not self.initialized:
             await self.initialize()
 
@@ -197,11 +267,19 @@ class LLMRouter(Agent):
         )
 
         # Format the prompt with all the necessary information
-        prompt = routing_instruction.format(context=context, request=request, top_k=top_k)
+        prompt_text = routing_instruction.format(context=context, request=request, top_k=top_k)
+        
+        # Create multipart message
+        prompt = PromptMessageMultipart(
+            role="user",
+            content=[TextContent(type="text", text=prompt_text)]
+        )
 
-        response = await self.llm.generate_structured(
-            message=prompt,
-            response_model=StructuredResponse,
+        # Get structured response from LLM
+        response = await self.structured(
+            [prompt],
+            StructuredResponse,
+            None
         )
 
         # Construct the result
@@ -231,8 +309,17 @@ class LLMRouter(Agent):
         include_agents: bool = True,
         include_functions: bool = True,
     ) -> str:
-        """Generate a formatted context list of categories."""
-
+        """
+        Generate a formatted context list of categories.
+        
+        Args:
+            include_servers: Whether to include servers in the context
+            include_agents: Whether to include agents in the context
+            include_functions: Whether to include functions in the context
+            
+        Returns:
+            Formatted context string for the LLM prompt
+        """
         context_list = []
         idx = 1
 
@@ -253,3 +340,18 @@ class LLMRouter(Agent):
                 idx += 1
 
         return "\n\n".join(context_list)
+    
+    def format_category(self, category: Any, idx: int) -> str:
+        """
+        Format a category for inclusion in the prompt.
+        
+        Args:
+            category: The category to format
+            idx: The index of the category
+            
+        Returns:
+            Formatted category string
+        """
+        # Implementation would format a category for inclusion in the prompt
+        # This is a placeholder for the actual implementation
+        return f"{idx}. Category: {category.name} - {category.description}"

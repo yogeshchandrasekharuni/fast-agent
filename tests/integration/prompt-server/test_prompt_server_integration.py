@@ -16,7 +16,7 @@ async def test_no_delimiters(fast_agent):
     @fast.agent(name="test", servers=["prompts"])
     async def agent_function():
         async with fast.run() as agent:
-            x: GetPromptResult = await agent["test"]._agent.get_prompt("simple", None)
+            x: GetPromptResult = await agent["test"].get_prompt("simple", None)
             y: list[PromptMessageMultipart] = PromptMessageMultipart.to_multipart(x.messages)
             assert "simple, no delimiters" == y[0].first_text()
             assert "user" == y[0].role
@@ -36,7 +36,7 @@ async def test_no_delimiters_with_variables(fast_agent):
     @fast.agent(name="test", servers=["prompts"])
     async def agent_function():
         async with fast.run() as agent:
-            x: GetPromptResult = await agent["test"]._agent.get_prompt(
+            x: GetPromptResult = await agent["test"].get_prompt(
                 "simple_sub", {"product": "fast-agent", "company": "llmindset"}
             )
             y: list[PromptMessageMultipart] = PromptMessageMultipart.to_multipart(x.messages)
@@ -58,7 +58,7 @@ async def test_multiturn(fast_agent):
     @fast.agent(name="test", servers=["prompts"])
     async def agent_function():
         async with fast.run() as agent:
-            x: GetPromptResult = await agent["test"]._agent.get_prompt("multi", None)
+            x: GetPromptResult = await agent["test"].get_prompt("multi", None)
             y: list[PromptMessageMultipart] = PromptMessageMultipart.to_multipart(x.messages)
             assert "good morning" == y[0].first_text()
             assert "user" == y[0].role
@@ -80,7 +80,7 @@ async def test_multiturn_with_subsitition(fast_agent):
     @fast.agent(name="test", servers=["prompts"])
     async def agent_function():
         async with fast.run() as agent:
-            x: GetPromptResult = await agent["test"]._agent.get_prompt(
+            x: GetPromptResult = await agent["test"].get_prompt(
                 "multi_sub", {"user_name": "evalstate", "assistant_name": "HAL9000"}
             )
             y: list[PromptMessageMultipart] = PromptMessageMultipart.to_multipart(x.messages)

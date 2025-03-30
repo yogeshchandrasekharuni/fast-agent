@@ -28,7 +28,10 @@ async def test_load_simple_conversation_from_file(fast_agent):
             assert 4 == len(loaded)
             assert "user" == loaded[0].role
             assert "assistant" == loaded[1].role
-            assert "message 2" in await agent.apply_prompt(loaded)
+            
+            # Use the "default" agent directly
+            response = await agent.default.generate_x(loaded)
+            assert "message 2" in response.first_text()
 
     await agent_function()
 

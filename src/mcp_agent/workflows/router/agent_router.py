@@ -1,5 +1,5 @@
 from typing import List, Literal, Optional, Dict, Any, Type
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 
 from mcp_agent.agents.agent import Agent
 from mcp_agent.core.agent_types import AgentConfig
@@ -60,8 +60,8 @@ class AgentCategory(BaseModel):
     # Reference to the actual agent kept separately
     _agent: Optional[Agent] = None
 
-    class Config:
-        arbitrary_types_allowed = True
+    # Pydantic v2 style configuration
+    model_config = ConfigDict(arbitrary_types_allowed=True)
 
 
 class AgentRoutingResult(BaseModel):

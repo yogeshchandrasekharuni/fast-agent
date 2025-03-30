@@ -219,3 +219,99 @@ def get_parallel_dependencies(
         CircularDependencyError: If circular dependency detected
     """
     return get_dependencies(name, agents, visited, path, AgentType.PARALLEL)
+
+
+def get_dependencies_groups(
+    agents_dict: Dict[str, Dict[str, Any]],
+    allow_cycles: bool = False
+) -> List[List[str]]:
+    """
+    Get dependencies between agents and group them into dependency layers.
+    Each layer can be initialized in parallel.
+
+    Args:
+        agents_dict: Dictionary of agent configurations
+        allow_cycles: Whether to allow cyclic dependencies
+
+    Returns:
+        List of lists, where each inner list is a group of agents that can be initialized together
+
+    Raises:
+        CircularDependencyError: If circular dependency detected and allow_cycles is False
+    """
+    # Get all agent names
+    agent_names = list(agents_dict.keys())
+    
+    # Dictionary to store dependencies for each agent
+    dependencies = {name: set() for name in agent_names}
+    
+    # Build the dependency graph
+    for name, agent_data in agents_dict.items():
+        agent_type = agent_data["type"]
+        
+        if agent_type == AgentType.PARALLEL.value:
+            # Parallel agents depend on their fan-out and fan-in agents
+            dependencies[name].update(agent_data.get("parallel_agents", []))
+        elif agent_type == AgentType.CHAIN.value:
+            # Chain agents depend on the agents in their sequence
+            dependencies[name].update(agent_data.get("chain_agents", []))
+        elif agent_type == AgentType.ROUTER.value:
+            # Router agents depend on the agents they route to
+            dependencies[name].update(agent_data.get("router_agents", []))
+        elif agent_type == AgentType.ORCHESTRATOR.value:
+            # Orchestrator agents depend on their child agents
+            dependencies[name].update(agent_data.get("child_agents", []))
+        elif agent_type == AgentType.EVALUATOR_OPTIMIZER.value:
+            # Evaluator-Optimizer agents depend on their evaluation and optimization agents
+            dependencies[name].update(agent_data.get("eval_optimizer_agents", []))
+    
+    # Check for cycles if not allowed
+    if not allow_cycles:
+        visited = set()
+        path = set()
+        
+        def visit(node):
+            if node in path:
+                path_str = " -> ".join(path) + " -> " + node
+                raise CircularDependencyError(f"Circular dependency detected: {path_str}")
+            if node in visited:
+                return
+                
+            path.add(node)
+            for dep in dependencies[node]:
+                if dep in agent_names:  # Skip dependencies to non-existent agents
+                    visit(dep)
+            path.remove(node)
+            visited.add(node)
+            
+        # Check each node
+        for name in agent_names:
+            if name not in visited:
+                visit(name)
+                
+    # Group agents by dependency level
+    result = []
+    remaining = set(agent_names)
+    
+    while remaining:
+        # Find all agents that have no remaining dependencies
+        current_level = set()
+        for name in remaining:
+            if not dependencies[name] & remaining:  # If no dependencies in remaining agents
+                current_level.add(name)
+                
+        if not current_level:
+            if allow_cycles:
+                # If cycles are allowed, just add one remaining node to break the cycle
+                current_level.add(next(iter(remaining)))
+            else:
+                # This should not happen if we checked for cycles
+                raise CircularDependencyError("Unresolvable dependency cycle detected")
+                
+        # Add the current level to the result
+        result.append(list(current_level))
+        
+        # Remove current level from remaining
+        remaining -= current_level
+        
+    return result
