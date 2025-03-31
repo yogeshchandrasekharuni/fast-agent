@@ -71,6 +71,14 @@ class DecoratedParallelProtocol(DecoratedAgentProtocol[P, R], Protocol):
 
     _fan_out: List[str]
     _fan_in: str
+    
+    
+# Protocol for evaluator-optimizer functions
+class DecoratedEvaluatorOptimizerProtocol(DecoratedAgentProtocol[P, R], Protocol):
+    """Protocol for decorated evaluator-optimizer functions with additional metadata."""
+    
+    _generator: str
+    _evaluator: str
 
 
 def _decorator_impl(
@@ -388,5 +396,51 @@ def parallel(
             fan_in=fan_in,
             fan_out=fan_out,
             include_request=include_request,
+        ),
+    )
+    
+    
+def evaluator_optimizer(
+    self,
+    name: str,
+    *,
+    generator: str,
+    evaluator: str,
+    instruction: Optional[str] = None,
+    min_rating: str = "GOOD",
+    max_refinements: int = 3,
+) -> Callable[[AgentCallable[P, R]], DecoratedEvaluatorOptimizerProtocol[P, R]]:
+    """
+    Decorator to create and register an evaluator-optimizer agent with type-safe signature.
+    
+    Args:
+        name: Name of the evaluator-optimizer agent
+        generator: Name of the agent that generates responses
+        evaluator: Name of the agent that evaluates responses
+        instruction: Base instruction for the evaluator-optimizer
+        min_rating: Minimum acceptable quality rating (EXCELLENT, GOOD, FAIR, POOR)
+        max_refinements: Maximum number of refinement iterations
+        
+    Returns:
+        A decorator that registers the evaluator-optimizer with proper type annotations
+    """
+    default_instruction = """
+    You implement an iterative refinement process where content is generated,
+    evaluated for quality, and then refined based on specific feedback until
+    it reaches an acceptable quality standard.
+    """
+    
+    return cast(
+        Callable[[AgentCallable[P, R]], DecoratedEvaluatorOptimizerProtocol[P, R]],
+        _decorator_impl(
+            self,
+            AgentType.EVALUATOR_OPTIMIZER,
+            name=name,
+            instruction=instruction or default_instruction,
+            servers=[],  # Evaluator-optimizer doesn't connect to servers directly
+            generator=generator,
+            evaluator=evaluator,
+            min_rating=min_rating,
+            max_refinements=max_refinements,
         ),
     )

@@ -18,7 +18,7 @@ from mcp_agent.core.types import AgentOrWorkflow, ProxyDict
 from mcp_agent.core.validation import get_dependencies
 from mcp_agent.event_progress import ProgressAction
 from mcp_agent.workflows.evaluator_optimizer.evaluator_optimizer import (
-    EvaluatorOptimizerLLM,
+    EvaluatorOptimizerAgent,
     QualityRating,
 )
 from mcp_agent.workflows.llm.augmented_llm import RequestParams

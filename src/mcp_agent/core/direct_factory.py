@@ -12,7 +12,8 @@ from mcp_agent.core.exceptions import AgentConfigError, CircularDependencyError
 from mcp_agent.core.validation import get_dependencies_groups
 from mcp_agent.event_progress import ProgressAction
 from mcp_agent.workflows.evaluator_optimizer.evaluator_optimizer import (
-    EvaluatorOptimizerLLM,
+    EvaluatorOptimizerAgent,
+    QualityRating,
 )
 from mcp_agent.workflows.llm.augmented_llm import RequestParams
 from mcp_agent.workflows.llm.model_factory import ModelFactory
@@ -255,29 +256,37 @@ async def create_agents_by_type(
                 result_agents[name] = chain
 
             elif agent_type == AgentType.EVALUATOR_OPTIMIZER:
-                # Get the agents to optimize
-                eval_agents = []
-                for agent_name in agent_data["eval_optimizer_agents"]:
-                    if agent_name not in active_agents:
-                        raise AgentConfigError(f"Evaluation agent {agent_name} not found")
-                    eval_agents.append(active_agents[agent_name])
-
-                # Create the evaluator-optimizer
-                evaluator = EvaluatorOptimizerLLM(
+                # Get the generator and evaluator agents
+                generator_name = agent_data["generator"]
+                evaluator_name = agent_data["evaluator"]
+                
+                if generator_name not in active_agents:
+                    raise AgentConfigError(f"Generator agent {generator_name} not found")
+                
+                if evaluator_name not in active_agents:
+                    raise AgentConfigError(f"Evaluator agent {evaluator_name} not found")
+                
+                generator_agent = active_agents[generator_name]
+                evaluator_agent = active_agents[evaluator_name]
+                
+                # Get min_rating and max_refinements from agent_data
+                min_rating_str = agent_data.get("min_rating", "GOOD")
+                min_rating = QualityRating(min_rating_str)
+                max_refinements = agent_data.get("max_refinements", 3)
+                
+                # Create the evaluator-optimizer agent
+                evaluator_optimizer = EvaluatorOptimizerAgent(
                     config=config,
                     context=app_instance.context,
-                    agents=eval_agents,
-                    optimization_rounds=agent_data.get("optimization_rounds", 3),
+                    generator_agent=generator_agent,
+                    evaluator_agent=evaluator_agent,
+                    min_rating=min_rating,
+                    max_refinements=max_refinements,
                 )
-                await evaluator.initialize()
-
-                # Attach LLM to the evaluator
-                llm_factory = model_factory_func(
-                    model=config.model,
-                    request_params=config.default_request_params,
-                )
-                await evaluator.attach_llm(llm_factory)
-                result_agents[name] = evaluator
+                
+                # Initialize the agent
+                await evaluator_optimizer.initialize()
+                result_agents[name] = evaluator_optimizer
 
             else:
                 raise ValueError(f"Unknown agent type: {agent_type}")

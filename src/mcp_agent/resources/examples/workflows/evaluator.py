@@ -72,8 +72,6 @@ async def main() -> None:
             f"Company information: {company_information}",
         )
 
-        await agent()
-
 
 if __name__ == "__main__":
     asyncio.run(main())

@@ -111,19 +111,20 @@ class RouterAgent(BaseAgent):
         self.routing_instruction = routing_instruction
         self.agent_map = {agent.name: agent for agent in agents}
 
-        # Set up router-specific request parameters
-        router_params = RequestParams(
-            systemPrompt=ROUTING_SYSTEM_INSTRUCTION,
-            use_history=False,
-        )
-
-        # Merge with any provided default params
+        # Set up base router request parameters
+        base_params = {
+            "systemPrompt": ROUTING_SYSTEM_INSTRUCTION,
+            "use_history": False
+        }
+        
+        # Merge with provided defaults if any
         if default_request_params:
-            params_dict = router_params.model_dump()
-            params_dict.update(default_request_params.model_dump(exclude_unset=True))
-            router_params = RequestParams(**params_dict)
-
-        self._default_request_params = router_params
+            # Start with defaults and override with router-specific settings
+            merged_params = default_request_params.model_copy(update=base_params)
+        else:
+            merged_params = RequestParams(**base_params)
+            
+        self._default_request_params = merged_params
 
     async def initialize(self) -> None:
         """Initialize the router and all agents."""
@@ -148,6 +149,33 @@ class RouterAgent(BaseAgent):
             except Exception as e:
                 logger.warning(f"Error shutting down agent: {str(e)}")
 
+    async def _get_routing_result(
+        self,
+        messages: List[PromptMessageMultipart],
+    ) -> Optional[RouterResult]:
+        """
+        Common method to extract request and get routing result.
+        
+        Args:
+            messages: The messages to extract request from
+            
+        Returns:
+            RouterResult containing the selected agent, or None if no suitable agent found
+        """
+        if not self.initialized:
+            await self.initialize()
+            
+        # Extract the request text from the last message
+        request = messages[-1].all_text() if messages else ""
+        
+        # Determine which agent to route to
+        routing_result = await self._route_request(request)
+        
+        if not routing_result:
+            logger.warning("Could not determine appropriate agent for this request")
+            
+        return routing_result
+
     async def generate_x(
         self,
         multipart_messages: List[PromptMessageMultipart],
@@ -163,14 +191,7 @@ class RouterAgent(BaseAgent):
         Returns:
             The response from the selected agent
         """
-        if not self.initialized:
-            await self.initialize()
-
-        # Extract the request text from the last message
-        request = multipart_messages[-1].all_text() if multipart_messages else ""
-        
-        # Determine which agent to route to
-        routing_result = await self._route_request(request)
+        routing_result = await self._get_routing_result(multipart_messages)
         
         if not routing_result:
             return PromptMessageMultipart(
@@ -204,17 +225,9 @@ class RouterAgent(BaseAgent):
         Returns:
             The parsed response from the selected agent, or None if parsing fails
         """
-        if not self.initialized:
-            await self.initialize()
-
-        # Extract the request text from the last message
-        request = prompt[-1].all_text() if prompt else ""
-        
-        # Determine which agent to route to
-        routing_result = await self._route_request(request)
+        routing_result = await self._get_routing_result(prompt)
         
         if not routing_result:
-            logger.warning("Could not determine appropriate agent for this request")
             return None
         
         # Get the selected agent
@@ -236,9 +249,6 @@ class RouterAgent(BaseAgent):
         Returns:
             RouterResult containing the selected agent, or None if no suitable agent was found
         """
-        if not self.initialized:
-            await self.initialize()
-            
         if not self.agents:
             logger.warning("No agents available for routing")
             return None

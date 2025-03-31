@@ -21,6 +21,7 @@ from mcp.types import (
 from mcp_agent.agents.agent import AgentConfig
 from mcp_agent.core.agent_types import AgentType
 from mcp_agent.core.exceptions import PromptExitError
+from mcp_agent.core.prompt import Prompt
 from mcp_agent.core.request_params import RequestParams
 from mcp_agent.human_input.types import (
     HUMAN_INPUT_SIGNAL_NAME,
@@ -162,9 +163,7 @@ class BaseAgent(MCPAggregator, AgentProtocol):
 
         # Create a PromptMessageMultipart if we received a string
         if isinstance(message, str):
-            prompt = PromptMessageMultipart(
-                role="user", content=[TextContent(type="text", text=message)]
-            )
+            prompt = Prompt.user(message)
         else:
             prompt = message
 

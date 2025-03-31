@@ -1,38 +1,52 @@
-import contextlib
-from enum import Enum
-from typing import TYPE_CHECKING, Callable, List, Optional, Type
+"""
+Evaluator-Optimizer workflow implementation using the BaseAgent adapter pattern.
 
+This workflow provides a mechanism for iterative refinement of responses through
+evaluation and feedback cycles. It uses one agent to generate responses and another
+to evaluate and provide feedback, continuing until a quality threshold is reached
+or a maximum number of refinements is attempted.
+"""
+
+from enum import Enum
+from typing import Any, List, Optional, Type, Union
+
+from mcp.types import TextContent
 from pydantic import BaseModel, Field
 
 from mcp_agent.agents.agent import Agent
-from mcp_agent.core.agent_types import AgentConfig
+from mcp_agent.core.base_agent import BaseAgent
+from mcp_agent.core.exceptions import AgentConfigError
+from mcp_agent.core.prompt import Prompt
+from mcp_agent.core.request_params import RequestParams
 from mcp_agent.logging.logger import get_logger
-from mcp_agent.workflows.llm.augmented_llm import (
-    AugmentedLLM,
-    MessageParamT,
-    MessageT,
-    ModelT,
-    RequestParams,
-)
-from mcp_agent.workflows.llm.augmented_llm_passthrough import PassthroughLLM
-
-if TYPE_CHECKING:
-    from mcp_agent.context import Context
+from mcp_agent.mcp.interfaces import ModelT
+from mcp_agent.mcp.prompt_message_multipart import PromptMessageMultipart
 
 logger = get_logger(__name__)
 
 
 class QualityRating(str, Enum):
-    """Enum for evaluation quality ratings"""
+    """Enum for evaluation quality ratings."""
 
-    POOR = 0  # Major improvements needed
-    FAIR = 1  # Several improvements needed
-    GOOD = 2  # Minor improvements possible
-    EXCELLENT = 3  # No improvements needed
+    POOR = "POOR"  # Major improvements needed
+    FAIR = "FAIR"  # Several improvements needed
+    GOOD = "GOOD"  # Minor improvements possible
+    EXCELLENT = "EXCELLENT"  # No improvements needed
+
+    # Map string values to integer values for comparisons
+    @property
+    def value(self) -> int:
+        """Convert string enum values to integers for comparison."""
+        return {
+            "POOR": 0,
+            "FAIR": 1,
+            "GOOD": 2,
+            "EXCELLENT": 3,
+        }[self._value_]
 
 
 class EvaluationResult(BaseModel):
-    """Model representing the evaluation result from the evaluator LLM"""
+    """Model representing the evaluation result from the evaluator agent."""
 
     rating: QualityRating = Field(description="Quality rating of the response")
     feedback: str = Field(description="Specific feedback and suggestions for improvement")
@@ -42,295 +56,212 @@ class EvaluationResult(BaseModel):
     )
 
 
-class EvaluatorOptimizerLLM(AugmentedLLM[MessageParamT, MessageT]):
+class EvaluatorOptimizerAgent(BaseAgent):
     """
-    Implementation of the evaluator-optimizer workflow where one LLM generates responses
-    while another provides evaluation and feedback in a refinement loop.
-
-    This can be used either:
-    1. As a standalone workflow with its own optimizer agent
-    2. As a wrapper around another workflow (Orchestrator, Router, ParallelLLM) to add
-       evaluation and refinement capabilities
-
-    When to use this workflow:
-    - When you have clear evaluation criteria and iterative refinement provides value
-    - When LLM responses improve with articulated feedback
-    - When the task benefits from focused iteration on specific aspects
-
-    Examples:
-    - Literary translation with "expert" refinement
-    - Complex search tasks needing multiple rounds
-    - Document writing requiring multiple revisions
+    An agent that implements the evaluator-optimizer workflow pattern.
+    
+    Uses one agent to generate responses and another to evaluate and provide feedback
+    for refinement, continuing until a quality threshold is reached or a maximum
+    number of refinement cycles is completed.
     """
-
-    def _initialize_default_params(self, kwargs: dict) -> RequestParams:
-        """Initialize default parameters using the workflow's settings."""
-        return RequestParams(
-            systemPrompt=self.instruction,
-            parallel_tool_calls=True,
-            max_iterations=10,
-            use_history=self.generator_use_history,  # Use generator's history setting
-        )
-
-    def _init_request_params(self) -> None:
-        """Initialize request parameters for both generator and evaluator components."""
-        # Set up workflow's default params based on generator's history setting
-        self.default_request_params = self._initialize_default_params({})
-
-        # Ensure evaluator's request params have history disabled
-        if hasattr(self.evaluator_llm, "default_request_params"):
-            self.evaluator_llm.default_request_params.use_history = False
 
     def __init__(
         self,
-        generator: Agent | AugmentedLLM,
-        evaluator: str | Agent | AugmentedLLM,
+        config: Union[Agent, str],
+        generator_agent: Agent,
+        evaluator_agent: Agent,
         min_rating: QualityRating = QualityRating.GOOD,
         max_refinements: int = 3,
-        llm_factory: Callable[[Agent], AugmentedLLM] | None = None,
-        context: Optional["Context"] = None,
-        name: Optional[str] = None,
-        instruction: Optional[str] = None,
+        context: Optional[Any] = None,
+        **kwargs,
     ) -> None:
         """
-        Initialize the evaluator-optimizer workflow.
-
+        Initialize the evaluator-optimizer agent.
+        
         Args:
-            generator: The agent/LLM/workflow that generates responses
-            evaluator: The evaluator (string instruction, Agent or AugmentedLLM)
-            min_rating: Minimum acceptable quality rating
-            max_refinements: Maximum refinement iterations
-            llm_factory: Factory to create LLMs from agents when needed
-            name: Optional name for the workflow (defaults to generator's name)
-            instruction: Optional instruction (defaults to generator's instruction)
+            config: Agent configuration or name
+            generator_agent: Agent that generates the initial and refined responses
+            evaluator_agent: Agent that evaluates responses and provides feedback
+            min_rating: Minimum acceptable quality rating to stop refinement
+            max_refinements: Maximum number of refinement cycles to attempt
+            context: Optional context object
+            **kwargs: Additional keyword arguments to pass to BaseAgent
         """
-        # Set initial attributes
-        self.name = name or getattr(generator, "name", "EvaluatorOptimizer")
-        self.llm_factory = llm_factory
-        self.generator = generator
-        self.evaluator = evaluator
+        super().__init__(config, context=context, **kwargs)
+        
+        if not generator_agent:
+            raise AgentConfigError("Generator agent must be provided")
+            
+        if not evaluator_agent:
+            raise AgentConfigError("Evaluator agent must be provided")
+            
+        self.generator_agent = generator_agent
+        self.evaluator_agent = evaluator_agent
         self.min_rating = min_rating
         self.max_refinements = max_refinements
-
-        # Determine generator's history setting directly based on type
-        self.generator_use_history = False
-        if isinstance(generator, Agent):
-            self.generator_use_history = generator.config.use_history
-        elif isinstance(generator, AugmentedLLM):
-            if hasattr(generator, "aggregator") and isinstance(generator.aggregator, Agent):
-                self.generator_use_history = generator.aggregator.config.use_history
-            elif hasattr(generator, "default_request_params"):
-                self.generator_use_history = getattr(
-                    generator.default_request_params, "use_history", False
-                )
-        # All other types default to False
-
-        # Initialize parent class
-        super().__init__(context=context, name=name or getattr(generator, "name", None))
-
-        # Create a PassthroughLLM as _llm property
-        # TODO -- remove this when we fix/remove the inheritance hierarchy
-        self._llm = PassthroughLLM(name=f"{self.name}_passthrough", context=context)
-
-        # Set up the generator based on type
-        if isinstance(generator, Agent):
-            if not llm_factory:
-                raise ValueError("llm_factory is required when using an Agent generator")
-
-            # Use existing LLM if available, otherwise create new one
-            self.generator_llm = getattr(generator, "_llm", None) or llm_factory(agent=generator)
-            self.aggregator = generator
-            self.instruction = instruction or (
-                generator.instruction if isinstance(generator.instruction, str) else None
-            )
-        elif isinstance(generator, AugmentedLLM):
-            self.generator_llm = generator
-            self.aggregator = getattr(generator, "aggregator", None)
-            self.instruction = instruction or generator.instruction
-        else:
-            # ChainProxy-like object
-            self.generator_llm = generator
-            self.aggregator = None
-            self.instruction = instruction or f"Chain of agents: {', '.join(generator._sequence)}"
-
-        # Set up the evaluator - always disable history
-        if isinstance(evaluator, str):
-            if not llm_factory:
-                raise ValueError("llm_factory is required when using a string evaluator")
-
-            evaluator_agent = Agent(
-                name="Evaluator",
-                instruction=evaluator,
-                config=AgentConfig(
-                    name="Evaluator",
-                    instruction=evaluator,
-                    servers=[],
-                    use_history=False,
-                ),
-            )
-            self.evaluator_llm = llm_factory(agent=evaluator_agent)
-        elif isinstance(evaluator, Agent):
-            if not llm_factory:
-                raise ValueError("llm_factory is required when using an Agent evaluator")
-
-            # Disable history and use/create LLM
-            evaluator.config.use_history = False
-            self.evaluator_llm = getattr(evaluator, "_llm", None) or llm_factory(agent=evaluator)
-        elif isinstance(evaluator, AugmentedLLM):
-            self.evaluator_llm = evaluator
-            # Ensure history is disabled
-            if hasattr(self.evaluator_llm, "default_request_params"):
-                self.evaluator_llm.default_request_params.use_history = False
-        else:
-            raise ValueError(f"Unsupported evaluator type: {type(evaluator)}")
-
-        # Track iteration history
         self.refinement_history = []
 
-        # Set up workflow's default params
-        self.default_request_params = self._initialize_default_params({})
-
-        # Ensure evaluator's request params have history disabled
-        if hasattr(self.evaluator_llm, "default_request_params"):
-            self.evaluator_llm.default_request_params.use_history = False
-
-    async def generate(
+    async def generate_x(
         self,
-        message: str | MessageParamT | List[MessageParamT],
-        request_params: RequestParams | None = None,
-    ) -> List[MessageT]:
-        """Generate an optimized response through evaluation-guided refinement"""
+        multipart_messages: List[PromptMessageMultipart],
+        request_params: Optional[RequestParams] = None,
+    ) -> PromptMessageMultipart:
+        """
+        Generate a response through evaluation-guided refinement.
+        
+        Args:
+            multipart_messages: Messages to process
+            request_params: Optional request parameters
+            
+        Returns:
+            The optimized response after evaluation and refinement
+        """
+        # Initialize tracking variables
         refinement_count = 0
-        response = None
         best_response = None
         best_rating = QualityRating.POOR
         self.refinement_history = []
-
-        # Get request params with proper use_history setting
-        params = self.get_request_params(request_params)
-
-        # Use a single AsyncExitStack for the entire method to maintain connections
-        async with contextlib.AsyncExitStack() as stack:
-            # Enter all agent contexts once at the beginning
-            if isinstance(self.generator, Agent):
-                await stack.enter_async_context(self.generator)
-            if isinstance(self.evaluator, Agent):
-                await stack.enter_async_context(self.evaluator)
-
-            # Initial generation - pass parameters to any type of generator
-            response = await self.generator_llm.generate_str(
-                message=message,
-                request_params=params,  # Pass params which may override use_history
+        
+        # Extract the user request
+        request = multipart_messages[-1].all_text() if multipart_messages else ""
+        
+        # Initial generation
+        response = await self.generator_agent.generate_x(multipart_messages, request_params)
+        best_response = response
+        
+        # Refinement loop
+        while refinement_count < self.max_refinements:
+            logger.debug(f"Evaluating response (iteration {refinement_count + 1})")
+            
+            # Evaluate current response
+            eval_prompt = self._build_eval_prompt(
+                request=request, 
+                response=response.all_text(), 
+                iteration=refinement_count
             )
-
-            best_response = response
-
-            while refinement_count < self.max_refinements:
-                logger.debug("Generator result:", data=response)
-
-                # Evaluate current response
-                eval_prompt = self._build_eval_prompt(
-                    original_request=str(message),
-                    current_response=response,  # response is already a string
-                    iteration=refinement_count,
+            
+            # Create evaluation message and get structured evaluation result
+            eval_message = Prompt.user(eval_prompt)
+            evaluation_result = await self.evaluator_agent.structured(
+                [eval_message], EvaluationResult, request_params
+            )
+            
+            # If structured parsing failed, use default evaluation
+            if evaluation_result is None:
+                logger.warning("Structured parsing failed, using default evaluation")
+                evaluation_result = EvaluationResult(
+                    rating=QualityRating.POOR,
+                    feedback="Failed to parse evaluation",
+                    needs_improvement=True,
+                    focus_areas=["Improve overall quality"],
                 )
+            
+            # Track iteration
+            self.refinement_history.append({
+                "attempt": refinement_count + 1,
+                "response": response.all_text(),
+                "evaluation": evaluation_result.model_dump(),
+            })
+            
+            logger.debug(f"Evaluation result: {evaluation_result.rating}")
+            
+            # Track best response based on rating
+            if evaluation_result.rating.value > best_rating.value:
+                best_rating = evaluation_result.rating
+                best_response = response
+                logger.debug(f"New best response (rating: {best_rating})")
+            
+            # Check if we've reached acceptable quality
+            if not evaluation_result.needs_improvement:
+                logger.debug("Improvement not needed, stopping refinement")
+                # When evaluator says no improvement needed, use the current response
+                best_response = response
+                break
+                
+            if evaluation_result.rating.value >= self.min_rating.value:
+                logger.debug(f"Acceptable quality reached ({evaluation_result.rating})")
+                break
+                
+            # Generate refined response
+            refinement_prompt = self._build_refinement_prompt(
+                request=request,
+                response=response.all_text(),
+                feedback=evaluation_result,
+                iteration=refinement_count,
+            )
+            
+            # Create refinement message and get refined response
+            refinement_message = Prompt.user(refinement_prompt)
+            response = await self.generator_agent.generate_x([refinement_message], request_params)
+            
+            refinement_count += 1
+            
+        return best_response
 
-                # No need for nested AsyncExitStack here - using the outer one
-                evaluation_result = await self.evaluator_llm.generate_structured(
-                    message=eval_prompt,
-                    response_model=EvaluationResult,
-                    request_params=request_params,
-                )
-
-                # Track iteration
-                self.refinement_history.append(
-                    {
-                        "attempt": refinement_count + 1,
-                        "response": response,
-                        "evaluation_result": evaluation_result,
-                    }
-                )
-
-                logger.debug("Evaluator result:", data=evaluation_result)
-
-                # Track best response (using enum ordering)
-                if evaluation_result.rating.value > best_rating.value:
-                    best_rating = evaluation_result.rating
-                    best_response = response
-                    logger.debug(
-                        "New best response:",
-                        data={"rating": best_rating, "response": best_response},
-                    )
-
-                # Check if we've reached acceptable quality
-                if (
-                    evaluation_result.rating.value >= self.min_rating.value
-                    or not evaluation_result.needs_improvement
-                ):
-                    logger.debug(
-                        f"Acceptable quality {evaluation_result.rating.value} reached",
-                        data={
-                            "rating": evaluation_result.rating.value,
-                            "needs_improvement": evaluation_result.needs_improvement,
-                            "min_rating": self.min_rating.value,
-                        },
-                    )
-                    break
-
-                # Generate refined response
-                refinement_prompt = self._build_refinement_prompt(
-                    original_request=str(message),
-                    current_response=response,
-                    feedback=evaluation_result,
-                    iteration=refinement_count,
-                    use_history=self.generator_use_history,  # Use the generator's history setting
-                )
-
-                # Pass parameters to any type of generator
-                response = await self.generator_llm.generate_str(
-                    message=refinement_prompt,
-                    request_params=params,  # Pass params which may override use_history
-                )
-
-                refinement_count += 1
-
-            # Return the best response as a list with a single string element
-            # This makes it consistent with other AugmentedLLM implementations
-            # that return List[MessageT]
-            return [best_response]
-
-    async def generate_str(
+    async def structured(
         self,
-        message: str | MessageParamT | List[MessageParamT],
-        request_params: RequestParams | None = None,
-    ) -> str:
-        """Generate an optimized response and return it as a string"""
-        response = await self.generate(
-            message=message,
-            request_params=request_params,
-        )
-        # Since generate now returns [best_response], just return the first element
-        return str(response[0])
+        prompt: List[PromptMessageMultipart],
+        model: Type[ModelT],
+        request_params: Optional[RequestParams] = None,
+    ) -> Optional[ModelT]:
+        """
+        Generate an optimized response and parse it into a structured format.
+        
+        Args:
+            prompt: List of messages to process
+            model: Pydantic model to parse the response into
+            request_params: Optional request parameters
+            
+        Returns:
+            The parsed response, or None if parsing fails
+        """
+        # Generate optimized response
+        response = await self.generate_x(prompt, request_params)
+        
+        # Delegate structured parsing to the generator agent
+        structured_prompt = Prompt.user(response.all_text())
+        return await self.generator_agent.structured([structured_prompt], model, request_params)
 
-    async def generate_structured(
-        self,
-        message: str | MessageParamT | List[MessageParamT],
-        response_model: Type[ModelT],
-        request_params: RequestParams | None = None,
-    ) -> ModelT:
-        """Generate an optimized structured response"""
-        response_str = await self.generate_str(message=message, request_params=request_params)
+    async def initialize(self) -> None:
+        """Initialize the agent and its generator and evaluator agents."""
+        await super().initialize()
+        
+        # Initialize generator and evaluator agents if not already initialized
+        if not getattr(self.generator_agent, "initialized", False):
+            await self.generator_agent.initialize()
+            
+        if not getattr(self.evaluator_agent, "initialized", False):
+            await self.evaluator_agent.initialize()
+            
+        self.initialized = True
 
-        return await self.generator.generate_structured(
-            message=response_str,
-            response_model=response_model,
-            request_params=request_params,
-        )
+    async def shutdown(self) -> None:
+        """Shutdown the agent and its generator and evaluator agents."""
+        await super().shutdown()
+        
+        # Shutdown generator and evaluator agents
+        try:
+            await self.generator_agent.shutdown()
+        except Exception as e:
+            logger.warning(f"Error shutting down generator agent: {str(e)}")
+            
+        try:
+            await self.evaluator_agent.shutdown()
+        except Exception as e:
+            logger.warning(f"Error shutting down evaluator agent: {str(e)}")
 
-    def _build_eval_prompt(
-        self, original_request: str, current_response: str, iteration: int
-    ) -> str:
-        """Build the evaluation prompt for the evaluator"""
+    def _build_eval_prompt(self, request: str, response: str, iteration: int) -> str:
+        """
+        Build the evaluation prompt for the evaluator agent.
+        
+        Args:
+            request: The original user request
+            response: The current response to evaluate
+            iteration: The current iteration number
+            
+        Returns:
+            Formatted evaluation prompt
+        """
         return f"""
 You are an expert evaluator for content quality. Your task is to evaluate a response against the user's original request.
 
@@ -338,98 +269,88 @@ Evaluate the response for iteration {iteration + 1} and provide structured feedb
 
 <fastagent:data>
 <fastagent:request>
-{original_request}
+{request}
 </fastagent:request>
 
 <fastagent:response>
-{current_response}
+{response}
 </fastagent:response>
-
-<fastagent:evaluation-criteria>
-{self.evaluator.instruction}
-</fastagent:evaluation-criteria>
 </fastagent:data>
 
 <fastagent:instruction>
-Provide a structured evaluation with the following components:
+Your response MUST be valid JSON matching this exact format (no other text, markdown, or explanation):
 
-<rating>
-Choose one: EXCELLENT, GOOD, FAIR, or POOR
-- EXCELLENT: No improvements needed
-- GOOD: Only minor improvements possible
-- FAIR: Several improvements needed
-- POOR: Major improvements needed
-</rating>
+{{
+  "rating": "RATING",
+  "feedback": "DETAILED FEEDBACK",
+  "needs_improvement": BOOLEAN,
+  "focus_areas": ["FOCUS_AREA_1", "FOCUS_AREA_2", "FOCUS_AREA_3"]
+}}
 
-<details>
-Provide specific, actionable feedback and suggestions for improvement.
-Be precise about what works well and what could be improved.
-</details>
+Where:
+- RATING: Must be one of: "EXCELLENT", "GOOD", "FAIR", or "POOR"
+  - EXCELLENT: No improvements needed
+  - GOOD: Only minor improvements possible
+  - FAIR: Several improvements needed
+  - POOR: Major improvements needed
+- DETAILED FEEDBACK: Specific, actionable feedback (as a single string)
+- BOOLEAN: true or false (lowercase, no quotes) indicating if further improvement is needed
+- FOCUS_AREAS: Array of 1-3 specific areas to focus on (empty array if no improvement needed)
 
-<needs_improvement>
-Indicate true/false whether further improvement is needed.
-</needs_improvement>
+Example of valid response (DO NOT include the triple backticks in your response):
+{{
+  "rating": "GOOD",
+  "feedback": "The response is clear but could use more supporting evidence.",
+  "needs_improvement": true,
+  "focus_areas": ["Add more examples", "Include data points"]
+}}
 
-<focus-areas>
-List 1-3 specific areas to focus on in the next iteration.
-Be concrete and actionable in your recommendations.
-</focus-areas>
+IMPORTANT: Your response should be ONLY the JSON object without any code fences, explanations, or other text.
 </fastagent:instruction>
 """
 
     def _build_refinement_prompt(
         self,
-        original_request: str,
-        current_response: str,
+        request: str,
+        response: str,
         feedback: EvaluationResult,
         iteration: int,
-        use_history: bool = None,
     ) -> str:
-        """Build the refinement prompt for the optimizer"""
-        # Get the correct history setting - use param if provided, otherwise class default
-        if use_history is None:
-            use_history = self.generator_use_history  # Use generator's setting as default
-
-        # Start with clear non-delimited instructions
-        prompt = f"""
+        """
+        Build the refinement prompt for the generator agent.
+        
+        Args:
+            request: The original user request
+            response: The current response to refine
+            feedback: The evaluation feedback
+            iteration: The current iteration number
+            
+        Returns:
+            Formatted refinement prompt
+        """
+        focus_areas = ", ".join(feedback.focus_areas) if feedback.focus_areas else "None specified"
+        
+        return f"""
 You are tasked with improving a response based on expert feedback. This is iteration {iteration + 1} of the refinement process.
 
 Your goal is to address all feedback points while maintaining accuracy and relevance to the original request.
-"""
 
-        # Add data section with all relevant information
-        prompt += """
 <fastagent:data>
-"""
-
-        # Add request
-        prompt += f"""
 <fastagent:request>
-{original_request}
+{request}
 </fastagent:request>
-"""
 
-        # Only include previous response if history is not enabled
-        if not use_history:
-            prompt += f"""
 <fastagent:previous-response>
-{current_response}
+{response}
 </fastagent:previous-response>
-"""
 
-        # Always include the feedback
-        prompt += f"""
 <fastagent:feedback>
 <rating>{feedback.rating}</rating>
 <details>{feedback.feedback}</details>
-<focus-areas>{", ".join(feedback.focus_areas) if feedback.focus_areas else "None specified"}</focus-areas>
+<focus-areas>{focus_areas}</focus-areas>
 </fastagent:feedback>
 </fastagent:data>
-"""
 
-        # Customize instruction based on history availability
-        if not use_history:
-            prompt += """
 <fastagent:instruction>
 Create an improved version of the response that:
 1. Directly addresses each point in the feedback
@@ -440,19 +361,3 @@ Create an improved version of the response that:
 Provide your complete improved response without explanations or commentary.
 </fastagent:instruction>
 """
-        else:
-            prompt += """
-<fastagent:instruction>
-Your previous response is available in your conversation history.
-
-Create an improved version that:
-1. Directly addresses each point in the feedback
-2. Focuses on the specific areas mentioned for improvement
-3. Maintains all the strengths of your original response
-4. Remains accurate and relevant to the original request
-
-Provide your complete improved response without explanations or commentary.
-</fastagent:instruction>
-"""
-
-        return prompt
