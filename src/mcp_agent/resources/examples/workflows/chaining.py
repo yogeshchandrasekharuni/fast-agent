@@ -21,7 +21,6 @@ fast = FastAgent("Agent Chaining")
 @fast.chain(
     name="post_writer",
     sequence=["url_fetcher", "social_media"],
-    cumulative=True,
 )
 async def main() -> None:
     async with fast.run() as agent:

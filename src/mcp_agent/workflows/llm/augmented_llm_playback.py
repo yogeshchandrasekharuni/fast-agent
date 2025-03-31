@@ -31,26 +31,6 @@ class PlaybackLLM(PassthroughLLM):
         self._current_index = -1
         self._overage = -1
 
-    async def generate_str2(
-        self,
-        message: str | None,
-    ) -> PromptMessageMultipart:
-        """
-        Return the next ASSISTANT message in the loaded messages list.
-        If no messages are available or all have been played back,
-        returns a message indicating messages are exhausted.
-
-        Note: Only assistant messages are returned; user messages are skipped.
-        """
-        self.show_user_message(message, model="fastagent-playback", chat_turn=0)
-
-        response = self._get_next_assistant_message()
-
-        await self.show_assistant_message(
-            message_text=MessageContent.get_first_text(response), title="ASSISTANT/PLAYBACK"
-        )
-        return response
-
     def _get_next_assistant_message(self) -> PromptMessageMultipart:
         """
         Get the next assistant message from the loaded messages.
@@ -82,7 +62,7 @@ class PlaybackLLM(PassthroughLLM):
         """
         # If this is the first call (initialization) or we're loading a prompt template
         # with multiple messages (comes from apply_prompt)
-        if -1 == self._current_index or len(multipart_messages) > 1:
+        if -1 == self._current_index:
             # Store the messages for playback
             # For a prompt template with multiple messages, use those directly
             # Otherwise extend our existing message list
@@ -90,15 +70,17 @@ class PlaybackLLM(PassthroughLLM):
                 self._messages = multipart_messages
             else:
                 self._messages.extend(multipart_messages)
-                
+
             # Reset the index to the beginning for proper playback
             self._current_index = 0
-            
+
             # In PlaybackLLM, we always return "HISTORY LOADED" on initialization,
             # regardless of the prompt content. The next call will return messages.
             return Prompt.assistant("HISTORY LOADED")
-        
-        # This is a subsequent call, return the next assistant message
-        return self._get_next_assistant_message()
 
-    # apply_prompt_template removed as redundant - functionality merged into generate_x
+        response = self._get_next_assistant_message()
+        await self.show_assistant_message(
+            message_text=MessageContent.get_first_text(response), title="ASSISTANT/PLAYBACK"
+        )
+
+        return response

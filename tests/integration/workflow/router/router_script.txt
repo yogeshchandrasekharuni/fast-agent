@@ -1,18 +1,17 @@
 ---USER
 routing 1
 ---ASSISTANT
-{
-  "agent_name": "target1",
-  "confidence": "high",
-  "reasoning": "This agent has skills in code review and generation",
-  "score": null
+{     
+    "agent": "target1", 
+    "confidence": "high",
+    "reasoning": "Request is asking for weather information"                                                
 }
+
 ---USER
 routing 2
 ---ASSISTANT
-{
-  "agent_name": "target2",
-  "confidence": "high",
-  "reasoning": "This agent has skills in code review and generation",
-  "score": null
+{     
+    "agent": "target2", 
+    "confidence": "high",
+    "reasoning": "Request is asking for weather information"                                                
 }

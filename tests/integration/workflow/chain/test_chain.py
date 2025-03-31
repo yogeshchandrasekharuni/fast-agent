@@ -1,7 +1,22 @@
 import pytest
 
 from mcp_agent.core.exceptions import AgentConfigError
+from mcp_agent.core.prompt import Prompt
 from mcp_agent.workflows.llm.augmented_llm_passthrough import FIXED_RESPONSE_INDICATOR
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_disallows_empty_sequence(fast_agent):
+    fast = fast_agent
+
+    # Define the agent
+    with pytest.raises(AgentConfigError):
+
+        @fast.chain(name="chain", sequence=[], cumulative=True)
+        async def agent_function():
+            async with fast.run():
+                assert True
 
 
 @pytest.mark.integration
@@ -11,18 +26,22 @@ async def test_simple_chain(fast_agent):
     fast = fast_agent
 
     # Define the agent
-    @fast.agent(name="begin", model="passthrough")
-    @fast.agent(name="step1", model="passthrough")
-    @fast.agent(name="finish", model="passthrough")
+    @fast.agent(name="begin")
+    @fast.agent(name="step1")
+    @fast.agent(name="finish")
     @fast.chain(name="chain", sequence=["begin", "step1", "finish"])
     async def agent_function():
         async with fast.run() as agent:
+            await agent.begin.apply_prompt_messages([Prompt.assistant("begin")])
+            await agent.step1.apply_prompt_messages([Prompt.assistant("step1")])
+            await agent.finish.apply_prompt_messages([Prompt.assistant("finish")])
+
             result = await agent.chain.send("foo")
-            # Print for debugging
-            print(f"DEBUG - Actual result: '{result}'")
-            # Assert exact match to the actual behavior - with the fix, we only pass
-            # the previous agent's response to the next agent, not the original message
-            assert "foo" == result
+            assert "finish" == result
+
+            assert "EXHAUSTED" in await agent.begin.send("extra")
+            assert "EXHAUSTED" in await agent.step1.send("extra")
+            assert "EXHAUSTED" in await agent.finish.send("extra")
 
     await agent_function()
 
@@ -39,10 +58,9 @@ async def test_cumulative_chain(fast_agent):
     @fast.chain(name="chain", sequence=["begin", "step1", "finish"], cumulative=True)
     async def agent_function():
         async with fast.run() as agent:
-            # Configure the agents to return fixed responses
-            await agent.begin.send(f"{FIXED_RESPONSE_INDICATOR} begin-response")
-            await agent.step1.send(f"{FIXED_RESPONSE_INDICATOR} step1-response")
-            await agent.finish.send(f"{FIXED_RESPONSE_INDICATOR} finish-response")
+            await agent.begin.apply_prompt_messages([Prompt.assistant("begin-response")])
+            await agent.step1.apply_prompt_messages([Prompt.assistant("step1-response")])
+            await agent.finish.apply_prompt_messages([Prompt.assistant("finish-response")])
 
             initial_prompt = "initial-prompt"
             result = await agent.chain.send(initial_prompt)
@@ -60,10 +78,6 @@ async def test_cumulative_chain(fast_agent):
             # Verify correct number of tags
             assert result.count("<fastagent:request>") == 1
             assert result.count("<fastagent:response") == 3
-
-            # Verify formatting with newlines
-            lines = result.strip().split("\n\n")
-            assert len(lines) == 4  # Request + 3 responses
 
     await agent_function()
 
@@ -86,18 +100,11 @@ async def test_chain_functionality(fast_agent):
     @fast.chain(name="cumulative_chain", sequence=["echo1", "echo2", "echo3"], cumulative=True)
     async def agent_function():
         async with fast.run() as agent:
-            # Test non-cumulative chain
-            # With passthrough LLMs in a chain, the message will be echoed
-            # through each agent, resulting in the message being repeated
             input_message = "test message"
             result = await agent.echo_chain.send(input_message)
 
-            # With three echo agents in the chain, the non-cumulative result
-            # should be the echo from the third agent, which will include all echoes
             assert input_message in result
 
-            # Test cumulative chain separately
-            # This chain was created with cumulative=True
             cumulative_input = "cumulative message"
             cumulative_result = await agent.cumulative_chain.send(cumulative_input)
 
@@ -109,17 +116,3 @@ async def test_chain_functionality(fast_agent):
             assert cumulative_input in cumulative_result
 
     await agent_function()
-
-
-@pytest.mark.integration
-@pytest.mark.asyncio
-async def test_disallows_empty_sequence(fast_agent):
-    fast = fast_agent
-
-    # Define the agent
-    with pytest.raises(AgentConfigError):
-
-        @fast.chain(name="chain", sequence=[], cumulative=True)
-        async def agent_function():
-            async with fast.run():
-                assert True

@@ -56,7 +56,6 @@ class DecoratedRouterProtocol(DecoratedAgentProtocol[P, R], Protocol):
     """Protocol for decorated router functions with additional metadata."""
 
     _router_agents: List[str]
-    _router_type: Literal["llm", "embedding"]
 
 
 # Protocol for chain functions
@@ -269,7 +268,6 @@ def router(
     use_history: bool = False,
     request_params: Optional[Dict[str, Any]] = None,
     human_input: bool = False,
-    router_type: Literal["llm", "embedding"] = "llm",
 ) -> Callable[[AgentCallable[P, R]], DecoratedRouterProtocol[P, R]]:
     """
     Decorator to create and register a router agent with type-safe signature.
@@ -282,7 +280,6 @@ def router(
         use_history: Whether to maintain conversation history
         request_params: Additional request parameters for the LLM
         human_input: Whether to enable human input capabilities
-        router_type: Type of router - "llm" or "embedding"
 
     Returns:
         A decorator that registers the router with proper type annotations
@@ -305,7 +302,6 @@ def router(
             request_params=request_params,
             human_input=human_input,
             router_agents=agents,
-            router_type=router_type,
         ),
     )
 
@@ -333,8 +329,9 @@ def chain(
     # Validate sequence is not empty
     if not sequence:
         from mcp_agent.core.exceptions import AgentConfigError
+
         raise AgentConfigError(f"Chain '{name}' requires at least one agent in the sequence")
-        
+
     default_instruction = """
     You are a chain that processes requests through a series of specialized agents in sequence.
     Pass the output of each agent to the next agent in the chain.

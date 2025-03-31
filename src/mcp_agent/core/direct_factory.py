@@ -18,8 +18,7 @@ from mcp_agent.workflows.llm.augmented_llm import RequestParams
 from mcp_agent.workflows.llm.model_factory import ModelFactory
 from mcp_agent.workflows.orchestrator.orchestrator import Orchestrator
 from mcp_agent.workflows.parallel.parallel_agent import ParallelAgent
-from mcp_agent.workflows.router.agent_router import AgentRouter
-from mcp_agent.workflows.router.router_llm import LLMRouter
+from mcp_agent.workflows.router.router_agent import RouterAgent
 from mcp_agent.workflows.swarm.swarm import Swarm
 
 # Type aliases for improved readability and IDE support
@@ -212,7 +211,7 @@ async def create_agents_by_type(
                     router_agents.append(active_agents[agent_name])
 
                 # Create the router agent
-                router = LLMRouter(
+                router = RouterAgent(
                     config=config,
                     context=app_instance.context,
                     agents=router_agents,

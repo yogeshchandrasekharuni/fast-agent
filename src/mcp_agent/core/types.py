@@ -10,13 +10,13 @@ from mcp_agent.workflows.evaluator_optimizer.evaluator_optimizer import (
 )
 from mcp_agent.workflows.orchestrator.orchestrator import Orchestrator
 from mcp_agent.workflows.parallel.parallel_agent import ParallelAgent
-from mcp_agent.workflows.router.router_llm import LLMRouter
+from mcp_agent.workflows.router.router_agent import RouterAgent
 
 # Avoid circular imports
 if TYPE_CHECKING:
     from mcp_agent.core.proxies import BaseAgentProxy
 
 # Type aliases for better readability
-WorkflowType: TypeAlias = Union[Orchestrator, ParallelAgent, EvaluatorOptimizerLLM, LLMRouter]
+WorkflowType: TypeAlias = Union[Orchestrator, ParallelAgent, EvaluatorOptimizerLLM, RouterAgent]
 AgentOrWorkflow: TypeAlias = Union[Agent, WorkflowType]
 ProxyDict: TypeAlias = Dict[str, "BaseAgentProxy"]  # Forward reference as string

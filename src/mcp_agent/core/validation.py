@@ -106,7 +106,7 @@ def validate_workflow_references(agents: Dict[str, Dict[str, Any]]) -> None:
 
         elif agent_type == AgentType.ROUTER.value:
             # Check all referenced agents exist
-            router_agents = agent_data["agents"]
+            router_agents = agent_data["router_agents"]
             missing = [a for a in router_agents if a not in available_components]
             if missing:
                 raise AgentConfigError(
@@ -187,7 +187,7 @@ def get_dependencies(
             deps.extend(get_dependencies(fan_out, agents, visited, path, agent_type))
     elif config["type"] == AgentType.CHAIN.value:
         # Get dependencies from sequence agents
-        sequence = config.get("sequence", config.get("agents", []))
+        sequence = config.get("sequence", config.get("router_agents", []))
         for agent_name in sequence:
             deps.extend(get_dependencies(agent_name, agents, visited, path, agent_type))
 
@@ -222,8 +222,7 @@ def get_parallel_dependencies(
 
 
 def get_dependencies_groups(
-    agents_dict: Dict[str, Dict[str, Any]],
-    allow_cycles: bool = False
+    agents_dict: Dict[str, Dict[str, Any]], allow_cycles: bool = False
 ) -> List[List[str]]:
     """
     Get dependencies between agents and group them into dependency layers.
@@ -241,14 +240,14 @@ def get_dependencies_groups(
     """
     # Get all agent names
     agent_names = list(agents_dict.keys())
-    
+
     # Dictionary to store dependencies for each agent
     dependencies = {name: set() for name in agent_names}
-    
+
     # Build the dependency graph
     for name, agent_data in agents_dict.items():
         agent_type = agent_data["type"]
-        
+
         if agent_type == AgentType.PARALLEL.value:
             # Parallel agents depend on their fan-out and fan-in agents
             dependencies[name].update(agent_data.get("parallel_agents", []))
@@ -264,42 +263,42 @@ def get_dependencies_groups(
         elif agent_type == AgentType.EVALUATOR_OPTIMIZER.value:
             # Evaluator-Optimizer agents depend on their evaluation and optimization agents
             dependencies[name].update(agent_data.get("eval_optimizer_agents", []))
-    
+
     # Check for cycles if not allowed
     if not allow_cycles:
         visited = set()
         path = set()
-        
+
         def visit(node):
             if node in path:
                 path_str = " -> ".join(path) + " -> " + node
                 raise CircularDependencyError(f"Circular dependency detected: {path_str}")
             if node in visited:
                 return
-                
+
             path.add(node)
             for dep in dependencies[node]:
                 if dep in agent_names:  # Skip dependencies to non-existent agents
                     visit(dep)
             path.remove(node)
             visited.add(node)
-            
+
         # Check each node
         for name in agent_names:
             if name not in visited:
                 visit(name)
-                
+
     # Group agents by dependency level
     result = []
     remaining = set(agent_names)
-    
+
     while remaining:
         # Find all agents that have no remaining dependencies
         current_level = set()
         for name in remaining:
             if not dependencies[name] & remaining:  # If no dependencies in remaining agents
                 current_level.add(name)
-                
+
         if not current_level:
             if allow_cycles:
                 # If cycles are allowed, just add one remaining node to break the cycle
@@ -307,11 +306,11 @@ def get_dependencies_groups(
             else:
                 # This should not happen if we checked for cycles
                 raise CircularDependencyError("Unresolvable dependency cycle detected")
-                
+
         # Add the current level to the result
         result.append(list(current_level))
-        
+
         # Remove current level from remaining
         remaining -= current_level
-        
+
     return result

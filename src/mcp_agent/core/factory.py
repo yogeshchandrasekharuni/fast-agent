@@ -11,9 +11,7 @@ from mcp_agent.core.agent_utils import get_agent_instances, log_agent_load, unwr
 from mcp_agent.core.exceptions import AgentConfigError
 from mcp_agent.core.proxies import (
     BaseAgentProxy,
-    ChainProxy,
     LLMAgentProxy,
-    RouterProxy,
     WorkflowProxy,
 )
 from mcp_agent.core.types import AgentOrWorkflow, ProxyDict
@@ -27,8 +25,7 @@ from mcp_agent.workflows.llm.augmented_llm import RequestParams
 from mcp_agent.workflows.llm.model_factory import ModelFactory
 from mcp_agent.workflows.orchestrator.orchestrator import Orchestrator
 from mcp_agent.workflows.parallel.parallel_agent import ParallelAgent
-from mcp_agent.workflows.router.agent_router import AgentRouter
-from mcp_agent.workflows.router.router_llm import LLMRouter
+from mcp_agent.workflows.router.router_agent import RouterAgent
 
 T = TypeVar("T")  # For the wrapper classes
 
@@ -75,7 +72,7 @@ def create_proxy(
             )
         return WorkflowProxy(app, name, instance)
     elif agent_type == AgentType.ROUTER.value:
-        if not isinstance(instance, LLMRouter):
+        if not isinstance(instance, RouterAgent):
             raise TypeError(f"Expected LLMRouter instance for {name}, got {type(instance)}")
         return RouterProxy(app, name, instance)
     elif agent_type == AgentType.CHAIN.value:
@@ -263,88 +260,6 @@ async def create_agents_by_type(
                     llm_factory=model_factory_func(model=optimizer_model),
                     context=app_instance.context,
                     instruction=config.instruction,  # Pass any custom instruction
-                )
-
-            elif agent_type == AgentType.ROUTER:
-                # Get the router's agents - unwrap proxies
-                router_agents = get_agent_instances(agent_data["agents"], active_agents)
-
-                # Create the router with proper configuration
-                llm_factory = model_factory_func(
-                    model=config.model,
-                    request_params=config.default_request_params,
-                )
-                instance = AgentRouter(
-                    config=config,
-                    agents=router_agents,
-                    server_names=config.servers,
-                    context=app_instance.context,
-                    default_request_params=config.default_request_params,
-                )
-                await instance.attach_llm(llm_factory)
-                await instance.initialize()
-
-            elif agent_type == AgentType.CHAIN:
-                # Get the sequence from either parameter
-                sequence = agent_data.get("sequence", agent_data.get("agents", []))
-
-                # Auto-generate instruction if not provided or if it's just the default
-                default_instruction = f"Chain of agents: {', '.join(sequence)}"
-
-                # If user provided a custom instruction, use that
-                # Otherwise, generate a description based on the sequence and their servers
-                if config.instruction == default_instruction:
-                    # Get all agent names in the sequence
-                    agent_names = []
-                    all_servers = set()
-
-                    # Collect information about the agents and their servers
-                    for agent_name in sequence:
-                        if agent_name in active_agents:
-                            agent_proxy = active_agents[agent_name]
-                            if hasattr(agent_proxy, "_agent"):
-                                # For LLMAgentProxy
-                                agent_instance = agent_proxy._agent
-                                agent_names.append(agent_name)
-                                if hasattr(agent_instance, "server_names"):
-                                    all_servers.update(agent_instance.server_names)
-                            elif hasattr(agent_proxy, "_workflow"):
-                                # For WorkflowProxy
-                                agent_names.append(agent_name)
-
-                    # Generate a better description
-                    if agent_names:
-                        server_part = (
-                            f" with access to servers: {', '.join(sorted(all_servers))}"
-                            if all_servers
-                            else ""
-                        )
-                        config.instruction = (
-                            f"Sequence of agents: {', '.join(agent_names)}{server_part}."
-                        )
-
-                # Create a ChainProxy without needing a new instance
-                # Just pass the agent proxies and sequence
-                instance = ChainProxy(app_instance, name, sequence, active_agents)
-                # Set continue_with_final behavior from configuration
-                instance._continue_with_final = agent_data.get("continue_with_final", True)
-                # Set cumulative behavior from configuration
-                instance._cumulative = agent_data.get("cumulative", False)
-
-            elif agent_type == AgentType.PARALLEL:
-                fan_out_agents = get_agent_instances(agent_data["fan_out"], active_agents)
-
-                # Get fan-in agent - unwrap proxy
-                fan_in_agent = unwrap_proxy(active_agents[agent_data["fan_in"]])
-
-                # Create the parallel workflow
-                llm_factory = model_factory_func(config.model)
-                instance = ParallelAgent(
-                    name=config.name,
-                    instruction=config.instruction,
-                    fan_out_agents=fan_out_agents,
-                    fan_in_agent=fan_in_agent,
-                    include_request=agent_data.get("include_request", True),
                 )
 
             else:

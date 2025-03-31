@@ -3,6 +3,7 @@ Type definitions for agents and agent configurations.
 """
 
 from dataclasses import dataclass
+import dataclasses
 from enum import Enum
 from typing import Callable, Dict, List, Optional, Union
 
@@ -27,13 +28,13 @@ class AgentConfig:
 
     name: str
     instruction: Union[str, Callable[[Dict], str]]
-    servers: List[str]
+    servers: List[str] = dataclasses.field(default_factory=list)
     model: Optional[str] = None
     use_history: bool = True
     default_request_params: Optional[RequestParams] = None
     human_input: bool = False
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         """Ensure default_request_params exists with proper history setting"""
 
         if self.default_request_params is None:
