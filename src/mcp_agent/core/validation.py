@@ -199,28 +199,6 @@ def get_dependencies(
     return deps
 
 
-def get_parallel_dependencies(
-    name: str, agents: Dict[str, Dict[str, Any]], visited: set, path: set
-) -> List[str]:
-    """
-    Get dependencies for a parallel agent in topological order.
-    Legacy function that calls the more general get_dependencies.
-
-    Args:
-        name: Name of the parallel agent
-        agents: Dictionary of agent configurations
-        visited: Set of already visited agents
-        path: Current path for cycle detection
-
-    Returns:
-        List of agent names in dependency order
-
-    Raises:
-        CircularDependencyError: If circular dependency detected
-    """
-    return get_dependencies(name, agents, visited, path, AgentType.PARALLEL)
-
-
 def get_dependencies_groups(
     agents_dict: Dict[str, Dict[str, Any]], allow_cycles: bool = False
 ) -> List[List[str]]:

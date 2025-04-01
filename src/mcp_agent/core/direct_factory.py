@@ -3,14 +3,15 @@ Direct factory functions for creating agent and workflow instances without proxi
 Implements type-safe factories with improved error handling.
 """
 
-from typing import Any, Callable, Dict, List, Literal, Optional, Protocol, TypeVar, Union
+from typing import Any, Callable, Dict, Optional, Protocol, TypeVar
 
 from mcp_agent.agents.agent import Agent
 from mcp_agent.app import MCPApp
-from mcp_agent.core.agent_types import AgentConfig, AgentType
-from mcp_agent.core.exceptions import AgentConfigError, CircularDependencyError
+from mcp_agent.core.agent_types import AgentType
+from mcp_agent.core.exceptions import AgentConfigError
 from mcp_agent.core.validation import get_dependencies_groups
 from mcp_agent.event_progress import ProgressAction
+from mcp_agent.logging.logger import get_logger
 from mcp_agent.workflows.evaluator_optimizer.evaluator_optimizer import (
     EvaluatorOptimizerAgent,
     QualityRating,
@@ -28,6 +29,9 @@ T = TypeVar("T")  # For generic types
 
 # Type for model factory functions
 ModelFactoryFn = Callable[[Optional[str], Optional[RequestParams]], Callable[[], Any]]
+
+
+logger = get_logger(__name__)
 
 
 class AgentCreatorProtocol(Protocol):
@@ -120,6 +124,14 @@ async def create_agents_by_type(
 
     # Get all agents of the specified type
     for name, agent_data in agents_dict.items():
+        logger.info(
+            f"Loaded {name}",
+            data={
+                "progress_action": ProgressAction.LOADED,
+                "agent_name": name,
+            },
+        )
+
         if agent_data["type"] == agent_type.value:
             # Get common configuration
             config = agent_data["config"]
@@ -165,17 +177,17 @@ async def create_agents_by_type(
                     agents=child_agents,
                     plan_type=agent_data.get("plan_type", "full"),
                 )
-                
+
                 # Initialize the orchestrator
                 await orchestrator.initialize()
-                
+
                 # Attach LLM to the orchestrator
                 llm_factory = model_factory_func(
                     model=config.model,
                     request_params=config.default_request_params,
                 )
                 await orchestrator.attach_llm(llm_factory)
-                
+
                 result_agents[name] = orchestrator
 
             elif agent_type == AgentType.PARALLEL:

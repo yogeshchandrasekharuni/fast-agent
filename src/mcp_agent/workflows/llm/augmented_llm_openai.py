@@ -234,8 +234,6 @@ class OpenAIAugmentedLLM(AugmentedLLM[ChatCompletionMessageParam, ChatCompletion
                 # No response from the model, we're done
                 break
 
-            # TODO: saqadri - handle multiple choices for more complex interactions.
-            # Keeping it simple for now because multiple choices will also complicate memory management
             choice = response.choices[0]
             message = choice.message
             responses.append(message)
@@ -509,30 +507,3 @@ class OpenAIAugmentedLLM(AugmentedLLM[ChatCompletionMessageParam, ChatCompletion
         self, tool_call_id: str | None, request: CallToolRequest, result: CallToolResult
     ):
         return result
-
-    def message_param_str(self, message: ChatCompletionMessageParam) -> str:
-        """Convert an input message to a string representation."""
-        if message.get("content"):
-            content = message["content"]
-            if isinstance(content, str):
-                return content
-            else:  # content is a list
-                final_text: List[str] = []
-                for part in content:
-                    text_part = part.get("text")
-                    if text_part:
-                        final_text.append(str(text_part))
-                    else:
-                        final_text.append(str(part))
-
-                return "\n".join(final_text)
-
-        return str(message)
-
-    def message_str(self, message: ChatCompletionMessage) -> str:
-        """Convert an output message to a string representation."""
-        content = message.content
-        if content:
-            return content
-
-        return str(message)
