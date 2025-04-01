@@ -363,7 +363,7 @@ class OpenAIAugmentedLLM(AugmentedLLM[ChatCompletionMessageParam, ChatCompletion
 
         return "\n".join(final_text)
 
-    async def _apply_prompt_template_provider_specific(
+    async def _apply_prompt_provider_specific(
         self,
         multipart_messages: List["PromptMessageMultipart"],
         request_params: RequestParams | None = None,
@@ -410,6 +410,17 @@ class OpenAIAugmentedLLM(AugmentedLLM[ChatCompletionMessageParam, ChatCompletion
         response_model: Type[ModelT],
         request_params: RequestParams | None = None,
     ) -> ModelT:
+        """
+        Generate a structured response using OpenAI's beta.chat.completions.parse feature.
+
+        Args:
+            message: The input message(s)
+            response_model: Pydantic model to parse the response into
+            request_params: Optional request parameters
+
+        Returns:
+            Parsed structured response matching the Pydantic model
+        """
         responses = await self.generate(
             message=message,
             request_params=request_params,
@@ -417,11 +428,79 @@ class OpenAIAugmentedLLM(AugmentedLLM[ChatCompletionMessageParam, ChatCompletion
         )
         return responses[0].parsed
 
-    async def generate_prompt(
-        self, prompt: "PromptMessageMultipart", request_params: RequestParams | None
-    ) -> str:
-        converted_prompt = OpenAIConverter.convert_to_openai(prompt)
-        return await self.generate_str(converted_prompt, request_params)
+    async def structured(
+        self,
+        prompt: List[PromptMessageMultipart],
+        model: Type[ModelT],
+        request_params: RequestParams | None = None,
+    ) -> ModelT | None:
+        """
+        Apply the prompt and return the result as a Pydantic model.
+
+        Uses OpenAI's beta parse feature when compatible, falling back to standard
+        JSON parsing if the beta feature fails or is unavailable.
+
+        Args:
+            prompt: List of messages to process
+            model: Pydantic model to parse the response into
+            request_params: Optional request parameters
+
+        Returns:
+            The parsed response as a Pydantic model, or None if parsing fails
+        """
+        logger = get_logger(__name__)
+
+        # First try to use OpenAI's beta.chat.completions.parse feature
+        try:
+            # Convert the multipart messages to OpenAI format
+            messages = []
+            for msg in prompt:
+                messages.append(OpenAIConverter.convert_to_openai(msg))
+
+            # Add system prompt if available and not already present
+            if self.instruction and not any(m.get("role") == "system" for m in messages):
+                system_msg = ChatCompletionSystemMessageParam(
+                    role="system", content=self.instruction
+                )
+                messages.insert(0, system_msg)
+
+            # Get merged request parameters
+            params = self.get_request_params(request_params)
+
+            # Use the beta parse feature
+            try:
+                openai_client = OpenAI(api_key=self._api_key(), base_url=self._base_url())
+                model_name = await self.select_model(params)
+
+                logger.debug(
+                    f"Using OpenAI beta parse with model {model_name} for structured output"
+                )
+                response = await self.executor.execute(
+                    openai_client.beta.chat.completions.parse,
+                    model=model_name or "gpt-4o",
+                    messages=messages,
+                    response_format=model,
+                )
+
+                if response and isinstance(response[0], BaseException):
+                    raise response[0]
+
+                parsed_result = response[0].choices[0].message
+                logger.debug("Successfully used OpenAI beta parse feature for structured output")
+                #                return cast("ModelT", parsed_result)
+                return parsed_result.parsed
+
+            except (ImportError, AttributeError, NotImplementedError) as e:
+                # Beta feature not available, log and continue to fallback
+                logger.debug(f"OpenAI beta parse feature not available: {str(e)}")
+                # Continue to fallback
+
+        except Exception as e:
+            logger.debug(f"OpenAI beta parse failed: {str(e)}, falling back to standard method")
+            # Continue to standard method as fallback
+
+        # Fallback to standard method (inheriting from base class)
+        return await super().structured(prompt, model, request_params)
 
     async def pre_tool_call(self, tool_call_id: str | None, request: CallToolRequest):
         return request

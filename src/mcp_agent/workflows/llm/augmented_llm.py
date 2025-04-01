@@ -464,7 +464,7 @@ class AugmentedLLM(ContextDependent, AugmentedLLMProtocol, Generic[MessageParamT
         multipart_messages = PromptMessageMultipart.parse_get_prompt_result(prompt_result)
 
         # Delegate to the provider-specific implementation
-        result = await self._apply_prompt_template_provider_specific(multipart_messages, None)
+        result = await self._apply_prompt_provider_specific(multipart_messages, None)
         return result.first_text()
 
     async def _save_history(self, filename: str) -> None:
@@ -482,7 +482,7 @@ class AugmentedLLM(ContextDependent, AugmentedLLMProtocol, Generic[MessageParamT
 
     # this shouln't need to be very big...
     @abstractmethod
-    async def _apply_prompt_template_provider_specific(
+    async def _apply_prompt_provider_specific(
         self,
         multipart_messages: List["PromptMessageMultipart"],
         request_params: RequestParams | None = None,
@@ -547,8 +547,8 @@ class AugmentedLLM(ContextDependent, AugmentedLLMProtocol, Generic[MessageParamT
             return Prompt.assistant(f"History saved to {filename}")
 
         self.message_history.extend(multipart_messages)
-        assistant_response: PromptMessageMultipart = (
-            await self._apply_prompt_template_provider_specific(multipart_messages, request_params)
+        assistant_response: PromptMessageMultipart = await self._apply_prompt_provider_specific(
+            multipart_messages, request_params
         )
 
         self.message_history.append(assistant_response)

@@ -338,7 +338,7 @@ class AnthropicAugmentedLLM(AugmentedLLM[MessageParam, Message]):
             AnthropicConverter.convert_to_anthropic(prompt), request_params
         )
 
-    async def _apply_prompt_template_provider_specific(
+    async def _apply_prompt_provider_specific(
         self,
         multipart_messages: List["PromptMessageMultipart"],
         request_params: RequestParams | None = None,

@@ -8,7 +8,7 @@ from mcp_agent.cli.commands import bootstrap, setup
 from mcp_agent.cli.terminal import Application
 
 app = typer.Typer(
-    help="MCP Agent CLI - Build effective agents using Model Context Protocol",
+    help="FastAgent CLI - Build effective agents using Model Context Protocol",
     add_completion=False,  # We'll add this later when we have more commands
 )
 

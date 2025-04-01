@@ -20,7 +20,6 @@ from mcp_agent.workflows.llm.model_factory import ModelFactory
 from mcp_agent.workflows.orchestrator.orchestrator import Orchestrator
 from mcp_agent.workflows.parallel.parallel_agent import ParallelAgent
 from mcp_agent.workflows.router.router_agent import RouterAgent
-from mcp_agent.workflows.swarm.swarm import Swarm
 
 # Type aliases for improved readability and IDE support
 AgentDict = Dict[str, Agent]
@@ -259,21 +258,21 @@ async def create_agents_by_type(
                 # Get the generator and evaluator agents
                 generator_name = agent_data["generator"]
                 evaluator_name = agent_data["evaluator"]
-                
+
                 if generator_name not in active_agents:
                     raise AgentConfigError(f"Generator agent {generator_name} not found")
-                
+
                 if evaluator_name not in active_agents:
                     raise AgentConfigError(f"Evaluator agent {evaluator_name} not found")
-                
+
                 generator_agent = active_agents[generator_name]
                 evaluator_agent = active_agents[evaluator_name]
-                
+
                 # Get min_rating and max_refinements from agent_data
                 min_rating_str = agent_data.get("min_rating", "GOOD")
                 min_rating = QualityRating(min_rating_str)
                 max_refinements = agent_data.get("max_refinements", 3)
-                
+
                 # Create the evaluator-optimizer agent
                 evaluator_optimizer = EvaluatorOptimizerAgent(
                     config=config,
@@ -283,7 +282,7 @@ async def create_agents_by_type(
                     min_rating=min_rating,
                     max_refinements=max_refinements,
                 )
-                
+
                 # Initialize the agent
                 await evaluator_optimizer.initialize()
                 result_agents[name] = evaluator_optimizer

@@ -478,7 +478,7 @@ class BaseAgent(MCPAggregator, AgentProtocol):
         Returns:
             The LLM's response as a PromptMessageMultipart
         """
-
+        assert self._llm
         return await self._llm.generate_x(multipart_messages, request_params)
 
     async def structured(
@@ -499,7 +499,7 @@ class BaseAgent(MCPAggregator, AgentProtocol):
         Returns:
             An instance of the specified model, or None if coercion fails
         """
-
+        assert self._llm
         return await self._llm.structured(prompt, model, request_params)
 
     async def apply_prompt_messages(

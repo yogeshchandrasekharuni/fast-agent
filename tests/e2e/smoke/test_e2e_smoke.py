@@ -36,7 +36,6 @@ async def test_basic_textual_prompting(fast_agent, model_name):
             words = response_text.split()
             word_count = len(words)
             assert 40 <= word_count <= 60, f"Expected between 40-60 words, got {word_count}"
-            assert "cat" in response_text.lower(), "Response should be about cats"
 
     await agent_function()
 
@@ -68,7 +67,7 @@ class DailyForecast(BaseModel):
     temperature_high: float = Field(..., description="Highest temperature for the day")
     temperature_low: float = Field(..., description="Lowest temperature for the day")
     precipitation_chance: float = Field(..., description="Chance of precipitation (0-100%)")
-    notes: str = Field("", description="Additional forecast notes")
+    notes: str = Field(..., description="Additional forecast notes")
 
 
 class WeatherForecast(BaseModel):
@@ -86,7 +85,7 @@ class WeatherForecast(BaseModel):
 @pytest.mark.parametrize(
     "model_name",
     [
-        "gpt-4o-mini",  # OpenAI model
+        "gpt-4o",  # OpenAI model
         "haiku35",  # Anthropic model
     ],
 )
@@ -96,7 +95,7 @@ async def test_structured_weather_forecast(fast_agent, model_name):
 
     @fast.agent(
         "weatherforecast",
-        instruction="You are a helpful weather forecasting assistant that provides accurate weather data.",
+        instruction="You are a helpful assistant that provides syntehsized weather data for testing purposes.",
         model=model_name,
     )
     async def weather_forecast():

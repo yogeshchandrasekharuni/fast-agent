@@ -164,7 +164,7 @@ class PassthroughLLM(AugmentedLLM):
         elif isinstance(message, str):
             return response_model.model_validate(from_json(message, allow_partial=True))
 
-    async def _apply_prompt_template_provider_specific(
+    async def _apply_prompt_provider_specific(
         self,
         multipart_messages: List["PromptMessageMultipart"],
         request_params: RequestParams | None = None,
