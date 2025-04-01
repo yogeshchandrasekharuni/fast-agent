@@ -14,21 +14,19 @@ from mcp_agent.workflows.llm.augmented_llm_passthrough import (
 )
 from mcp_agent.workflows.router.router_agent import RouterAgent, RouterResult, RoutingResponse
 
-
 # Model tests
+
 
 def test_routing_response_model():
     """Test the RoutingResponse model validation."""
     # Valid creation
     response = RoutingResponse(
-        agent="test_agent",
-        confidence="high",
-        reasoning="This is the best agent for the job"
+        agent="test_agent", confidence="high", reasoning="This is the best agent for the job"
     )
     assert response.agent == "test_agent"
     assert response.confidence == "high"
     assert response.reasoning == "This is the best agent for the job"
-    
+
     # Optional field
     response = RoutingResponse(agent="test_agent", confidence="medium")
     assert response.agent == "test_agent"
@@ -39,22 +37,18 @@ def test_routing_response_model():
 def test_router_result_model():
     """Test the RouterResult model creation."""
     # Create an agent for testing
-    agent = Agent(
-        config=AgentConfig(name="test_agent", instruction="Test agent description")
-    )
-    
+    agent = Agent(config=AgentConfig(name="test_agent", instruction="Test agent description"))
+
     # Create a router result
     result = RouterResult(
-        result=agent,
-        confidence="high",
-        reasoning="Perfect match for this request"
+        result=agent, confidence="high", reasoning="Perfect match for this request"
     )
-    
+
     # Check values
     assert result.result.name == "test_agent"
     assert result.confidence == "high"
     assert result.reasoning == "Perfect match for this request"
-    
+
     # Optional field
     result = RouterResult(result=agent, confidence="low")
     assert result.result.name == "test_agent"
@@ -64,12 +58,13 @@ def test_router_result_model():
 
 # Router functionality tests
 
+
 @pytest.mark.asyncio
 async def test_disallows_empty_agents():
     """Test that RouterAgent raises AgentConfigError when no agents are provided."""
     # Attempt to create a router with no agents
     with pytest.raises(AgentConfigError):
-        router = RouterAgent(config="test_router", agents=[])
+        RouterAgent(config="test_router", agents=[])
 
 
 @pytest.mark.asyncio

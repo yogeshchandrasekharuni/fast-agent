@@ -1,11 +1,15 @@
+from typing import TYPE_CHECKING
+
 import pytest
 
 from mcp_agent.agents.agent import Agent
 from mcp_agent.core.agent_types import AgentConfig
 from mcp_agent.core.prompt import Prompt
-from mcp_agent.mcp.interfaces import AugmentedLLMProtocol
 from mcp_agent.workflows.llm.augmented_llm_playback import PlaybackLLM
 from mcp_agent.workflows.llm.model_factory import ModelFactory
+
+if TYPE_CHECKING:
+    from mcp_agent.mcp.interfaces import AugmentedLLMProtocol
 
 
 @pytest.mark.asyncio
