@@ -17,7 +17,7 @@ from mcp_agent.workflows.evaluator_optimizer.evaluator_optimizer import (
 )
 from mcp_agent.workflows.llm.augmented_llm import RequestParams
 from mcp_agent.workflows.llm.model_factory import ModelFactory
-from mcp_agent.workflows.orchestrator.orchestrator import Orchestrator
+from mcp_agent.workflows.orchestrator.orchestrator_agent import OrchestratorAgent
 from mcp_agent.workflows.parallel.parallel_agent import ParallelAgent
 from mcp_agent.workflows.router.router_agent import RouterAgent
 
@@ -159,20 +159,23 @@ async def create_agents_by_type(
                     child_agents.append(agent)
 
                 # Create the orchestrator
-                orchestrator = Orchestrator(
+                orchestrator = OrchestratorAgent(
                     config=config,
                     context=app_instance.context,
-                    child_agents=child_agents,
+                    agents=child_agents,
                     plan_type=agent_data.get("plan_type", "full"),
                 )
+                
+                # Initialize the orchestrator
                 await orchestrator.initialize()
-
+                
                 # Attach LLM to the orchestrator
                 llm_factory = model_factory_func(
                     model=config.model,
-                    request_params=base_params,
+                    request_params=config.default_request_params,
                 )
                 await orchestrator.attach_llm(llm_factory)
+                
                 result_agents[name] = orchestrator
 
             elif agent_type == AgentType.PARALLEL:
