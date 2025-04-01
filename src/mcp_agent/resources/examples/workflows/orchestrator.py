@@ -56,16 +56,14 @@ async def main() -> None:
         )
 
         # The orchestrator can be used just like any other agent
-        task = (
-            """Load the student's short story from short_story.md, 
+        task = """Load the student's short story from short_story.md, 
         and generate a report with feedback across proofreading, 
         factuality/logical consistency and style adherence. Use the style rules from 
         https://apastyle.apa.org/learn/quick-guide-on-formatting and 
         https://apastyle.apa.org/learn/quick-guide-on-references.
-        Write the graded report to graded_report.md in the same directory as short_story.md""",
-        )
+        Write the graded report to graded_report.md in the same directory as short_story.md"""
 
-        await agent.orchestrate.send(Prompt.user(task))
+        await agent.orchestrate(task)
 
 
 if __name__ == "__main__":
