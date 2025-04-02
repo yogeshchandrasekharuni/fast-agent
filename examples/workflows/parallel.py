@@ -72,7 +72,7 @@ async def main() -> None:
         await agent.parallel.send(f"student short story submission: {SHORT_STORY}")
 
         # follow-on prompt to task agent
-        await agent.style_enforcer.prompt(default_prompt="STOP")
+        await agent.style_enforcer.prompt(default="STOP")
 
 
 if __name__ == "__main__":
