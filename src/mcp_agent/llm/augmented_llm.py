@@ -88,7 +88,7 @@ class AugmentedLLM(ContextDependent, AugmentedLLMProtocol, Generic[MessageParamT
         self.logger = get_logger(__name__)
         self.executor = self.context.executor
         self.aggregator = agent if agent is not None else MCPAggregator(server_names or [])
-        self.name = name
+        self.name = agent.name if agent else name
         self.instruction = agent.instruction if agent else instruction
 
         # memory contains provider specific API types.
