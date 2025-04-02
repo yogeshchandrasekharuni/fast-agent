@@ -5,7 +5,7 @@ Type definitions for agents and agent configurations.
 import dataclasses
 from dataclasses import dataclass
 from enum import Enum
-from typing import Callable, Dict, List, Union
+from typing import List
 
 # Forward imports to avoid circular dependencies
 from mcp_agent.core.request_params import RequestParams

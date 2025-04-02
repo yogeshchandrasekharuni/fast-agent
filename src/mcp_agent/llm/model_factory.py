@@ -5,11 +5,13 @@ from typing import Callable, Dict, Optional, Type, Union
 from mcp_agent.agents.agent import Agent
 from mcp_agent.core.exceptions import ModelConfigError
 from mcp_agent.core.request_params import RequestParams
-from mcp_agent.mcp.interfaces import AugmentedLLMProtocol
-from mcp_agent.llm.augmented_llm_anthropic import AnthropicAugmentedLLM
-from mcp_agent.llm.augmented_llm_openai import OpenAIAugmentedLLM
+from mcp_agent.llm.providers.augmented_llm_anthropic import AnthropicAugmentedLLM
+from mcp_agent.llm.providers.augmented_llm_openai import OpenAIAugmentedLLM
 from mcp_agent.llm.augmented_llm_passthrough import PassthroughLLM
 from mcp_agent.llm.augmented_llm_playback import PlaybackLLM
+from mcp_agent.llm.providers.augmented_llm_deepseek import DeepSeekAugmentedLLM
+from mcp_agent.mcp.interfaces import AugmentedLLMProtocol
+
 # from mcp_agent.workflows.llm.augmented_llm_deepseek import DeekSeekAugmentedLLM
 
 # Type alias for LLM classes
@@ -18,7 +20,7 @@ LLMClass = Union[
     Type[OpenAIAugmentedLLM],
     Type[PassthroughLLM],
     Type[PlaybackLLM],
-    #  Type[DeekSeekAugmentedLLM],
+    Type[DeepSeekAugmentedLLM],
 ]
 
 
@@ -104,7 +106,7 @@ class ModelFactory:
         "opus": "claude-3-opus-latest",
         "opus3": "claude-3-opus-latest",
         "deepseekv3": "deepseek-chat",
-        #        "deepseekR1": "deepseek-reasoner"
+        "deepseek": "deepseek-chat",
     }
 
     # Mapping of providers to their LLM classes
@@ -112,7 +114,7 @@ class ModelFactory:
         Provider.ANTHROPIC: AnthropicAugmentedLLM,
         Provider.OPENAI: OpenAIAugmentedLLM,
         Provider.FAST_AGENT: PassthroughLLM,
-        #     Provider.DEEPSEEK: DeekSeekAugmentedLLM,
+        Provider.DEEPSEEK: DeepSeekAugmentedLLM,
     }
 
     # Mapping of special model names to their specific LLM classes

@@ -5,7 +5,7 @@ This provides an implementation that delegates operations to a sequence of
 other agents, chaining their outputs together.
 """
 
-from typing import Any, List, Optional, Type, Union
+from typing import Any, List, Optional, Type
 
 from mcp.types import TextContent
 

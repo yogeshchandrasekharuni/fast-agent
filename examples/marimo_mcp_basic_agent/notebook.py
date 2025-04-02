@@ -63,7 +63,7 @@ async def _():
 
     from mcp_agent.agents.agent import Agent
     from mcp_agent.app import MCPApp
-    from mcp_agent.llm.augmented_llm_openai import OpenAIAugmentedLLM
+    from mcp_agent.llm.providers.augmented_llm_openai import OpenAIAugmentedLLM
 
     app = MCPApp(name="mcp_basic_agent")
     await app.initialize()

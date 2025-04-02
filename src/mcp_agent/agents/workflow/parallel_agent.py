@@ -1,5 +1,5 @@
 import asyncio
-from typing import Any, List, Optional, Union
+from typing import Any, List, Optional
 
 from mcp.types import TextContent
 

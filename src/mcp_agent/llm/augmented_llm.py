@@ -7,7 +7,6 @@ from typing import (
     Optional,
     Type,
     TypeVar,
-    Union,
     cast,
 )
 
@@ -18,15 +17,19 @@ from mcp.types import (
     PromptMessage,
     TextContent,
 )
-from pydantic import BaseModel
 from pydantic_core import from_json
 from rich.text import Text
 
 from mcp_agent.context_dependent import ContextDependent
-from mcp_agent.core.exceptions import ModelConfigError, PromptExitError
+from mcp_agent.core.exceptions import PromptExitError
 from mcp_agent.core.prompt import Prompt
 from mcp_agent.core.request_params import RequestParams
 from mcp_agent.event_progress import ProgressAction
+from mcp_agent.llm.memory import Memory, SimpleMemory
+from mcp_agent.llm.sampling_format_converter import (
+    BasicFormatConverter,
+    ProviderFormatConverter,
+)
 from mcp_agent.logging.logger import get_logger
 from mcp_agent.mcp.interfaces import (
     AugmentedLLMProtocol,
@@ -36,11 +39,6 @@ from mcp_agent.mcp.mcp_aggregator import MCPAggregator
 from mcp_agent.mcp.prompt_message_multipart import PromptMessageMultipart
 from mcp_agent.mcp.prompt_serialization import multipart_messages_to_delimited_format
 from mcp_agent.ui.console_display import ConsoleDisplay
-from mcp_agent.llm.memory import Memory, SimpleMemory
-from mcp_agent.llm.sampling_format_converter import (
-    BasicFormatConverter,
-    ProviderFormatConverter,
-)
 
 # Define type variables locally
 MessageParamT = TypeVar("MessageParamT")

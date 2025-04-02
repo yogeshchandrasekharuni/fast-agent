@@ -12,11 +12,11 @@ from openai.types.chat import (
     ChatCompletionMessageParam,
 )
 
-from mcp_agent.mcp.prompt_message_multipart import PromptMessageMultipart
 from mcp_agent.llm.providers.multipart_converter_openai import OpenAIConverter
 from mcp_agent.llm.providers.openai_multipart import (
     openai_to_multipart,
 )
+from mcp_agent.mcp.prompt_message_multipart import PromptMessageMultipart
 
 
 def openai_message_to_prompt_message_multipart(

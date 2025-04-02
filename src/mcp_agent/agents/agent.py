@@ -5,7 +5,7 @@ This provides a streamlined implementation that adheres to AgentProtocol
 while delegating LLM operations to an attached AugmentedLLMProtocol instance.
 """
 
-from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, TypeVar, Union
+from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, TypeVar
 
 from mcp_agent.core.agent_types import AgentConfig
 from mcp_agent.core.base_agent import BaseAgent

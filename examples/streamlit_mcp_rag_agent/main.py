@@ -7,7 +7,7 @@ from qdrant_client import QdrantClient
 from mcp_agent.agents.agent import Agent
 from mcp_agent.app import MCPApp
 from mcp_agent.llm.augmented_llm import RequestParams
-from mcp_agent.llm.augmented_llm_openai import OpenAIAugmentedLLM
+from mcp_agent.llm.providers.augmented_llm_openai import OpenAIAugmentedLLM
 
 SAMPLE_TEXTS = [
     "Today, we're open-sourcing the Model Context Protocol (MCP), a new standard for connecting AI assistants to the systems where data lives, including content repositories, business tools, and development environments",

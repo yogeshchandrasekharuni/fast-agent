@@ -6,7 +6,7 @@ from mcp import ListToolsResult
 from mcp_agent.agents.agent import Agent
 from mcp_agent.app import MCPApp
 from mcp_agent.llm.augmented_llm import RequestParams
-from mcp_agent.llm.augmented_llm_openai import OpenAIAugmentedLLM
+from mcp_agent.llm.providers.augmented_llm_openai import OpenAIAugmentedLLM
 
 
 def format_list_tools_result(list_tools_result: ListToolsResult):

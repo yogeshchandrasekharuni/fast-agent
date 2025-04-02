@@ -16,6 +16,7 @@ from mcp_agent.core.prompt import Prompt
     [
         "gpt-4o-mini",  # OpenAI model
         "haiku35",  # Anthropic model
+        "deepseek",
     ],
 )
 async def test_basic_textual_prompting(fast_agent, model_name):
@@ -86,6 +87,7 @@ class WeatherForecast(BaseModel):
     [
         "gpt-4o",  # OpenAI model
         "o3-mini.low",  # reasoning
+        "deepseek",
         "haiku35",  # Anthropic model
     ],
 )

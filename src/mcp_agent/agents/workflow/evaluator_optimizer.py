@@ -8,7 +8,7 @@ or a maximum number of refinements is attempted.
 """
 
 from enum import Enum
-from typing import Any, List, Optional, Type, Union
+from typing import Any, List, Optional, Type
 
 from pydantic import BaseModel, Field
 

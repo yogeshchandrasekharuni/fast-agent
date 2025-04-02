@@ -14,21 +14,18 @@ Usage:
     )
 """
 
-import asyncio
-from typing import Dict, List, Optional, Union
+from typing import Dict, List, Optional
 
 from rich import print as rich_print
 from rich.console import Console
 from rich.table import Table
 
 from mcp_agent.core.enhanced_prompt import (
-    get_enhanced_input,
-    handle_special_commands,
     get_argument_input,
+    get_enhanced_input,
     get_selection_input,
+    handle_special_commands,
 )
-from mcp_agent.core.exceptions import PromptExitError
-from mcp_agent.mcp.prompt_message_multipart import PromptMessageMultipart
 from mcp_agent.progress_display import progress_display
 
 
@@ -38,7 +35,7 @@ class InteractivePrompt:
     This is extracted from the original AgentApp implementation to support DirectAgentApp.
     """
 
-    def __init__(self, agent_types: Optional[Dict[str, str]] = None):
+    def __init__(self, agent_types: Optional[Dict[str, str]] = None) -> None:
         """
         Initialize the interactive prompt.
 
@@ -132,7 +129,7 @@ class InteractivePrompt:
 
         return result
 
-    async def _list_prompts(self, apply_prompt_func, agent_name):
+    async def _list_prompts(self, apply_prompt_func, agent_name) -> None:
         """
         List available prompts for an agent.
 
@@ -171,7 +168,7 @@ class InteractivePrompt:
         except Exception as e:
             rich_print(f"[red]Error listing prompts: {e}[/red]")
 
-    async def _select_prompt(self, apply_prompt_func, agent_name, requested_name=None):
+    async def _select_prompt(self, apply_prompt_func, agent_name, requested_name=None) -> None:
         """
         Select and apply a prompt.
 
@@ -182,8 +179,6 @@ class InteractivePrompt:
         """
         # We already imported these at the top
         from rich import print as rich_print
-        from rich.console import Console
-        from rich.table import Table
 
         console = Console()
 

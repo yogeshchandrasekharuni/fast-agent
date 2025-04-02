@@ -46,14 +46,14 @@ class OpenAIAugmentedLLM(AugmentedLLM[ChatCompletionMessageParam, ChatCompletion
     This implementation uses OpenAI's ChatCompletion as the LLM.
     """
 
-    def __init__(self, *args, **kwargs) -> None:
+    def __init__(self, provider_name: str = "OpenAI", *args, **kwargs) -> None:
         # Set type_converter before calling super().__init__
         if "type_converter" not in kwargs:
             kwargs["type_converter"] = OpenAISamplingConverter
 
         super().__init__(*args, **kwargs)
 
-        self.provider = "OpenAI"
+        self.provider = provider_name
         # Initialize logger with name if available
         self.logger = get_logger(f"{__name__}.{self.name}" if self.name else __name__)
 
@@ -78,11 +78,6 @@ class OpenAIAugmentedLLM(AugmentedLLM[ChatCompletionMessageParam, ChatCompletion
     def _initialize_default_params(self, kwargs: dict) -> RequestParams:
         """Initialize OpenAI-specific default parameters"""
         chosen_model = kwargs.get("model", DEFAULT_OPENAI_MODEL)
-
-        # Get default model from config if available
-        if self.context and self.context.config and self.context.config.openai:
-            if hasattr(self.context.config.openai, "default_model"):
-                chosen_model = self.context.config.openai.default_model
 
         return RequestParams(
             model=chosen_model,
@@ -155,7 +150,7 @@ class OpenAIAugmentedLLM(AugmentedLLM[ChatCompletionMessageParam, ChatCompletion
             messages.append(message)
 
         response = await self.aggregator.list_tools()
-        available_tools: List[ChatCompletionToolParam] = [
+        available_tools: List[ChatCompletionToolParam] | None = [
             ChatCompletionToolParam(
                 type="function",
                 function={
@@ -168,7 +163,7 @@ class OpenAIAugmentedLLM(AugmentedLLM[ChatCompletionMessageParam, ChatCompletion
             for tool in response.tools
         ]
         if not available_tools:
-            available_tools = []
+            available_tools = None  # deepseek does not allow empty array
 
         responses: List[ChatCompletionMessage] = []
         model = self.default_request_params.model

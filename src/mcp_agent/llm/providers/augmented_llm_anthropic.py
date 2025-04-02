@@ -32,12 +32,12 @@ from pydantic_core import from_json
 from rich.text import Text
 
 from mcp_agent.core.exceptions import ProviderKeyError
-from mcp_agent.logging.logger import get_logger
 from mcp_agent.llm.augmented_llm import (
     AugmentedLLM,
     ModelT,
     RequestParams,
 )
+from mcp_agent.logging.logger import get_logger
 
 DEFAULT_ANTHROPIC_MODEL = "claude-3-7-sonnet-latest"
 

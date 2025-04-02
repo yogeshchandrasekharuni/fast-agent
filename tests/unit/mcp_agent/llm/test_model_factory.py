@@ -1,8 +1,8 @@
 import pytest
 
 from mcp_agent.core.exceptions import ModelConfigError
-from mcp_agent.llm.augmented_llm_anthropic import AnthropicAugmentedLLM
-from mcp_agent.llm.augmented_llm_openai import OpenAIAugmentedLLM
+from mcp_agent.llm.providers.augmented_llm_anthropic import AnthropicAugmentedLLM
+from mcp_agent.llm.providers.augmented_llm_openai import OpenAIAugmentedLLM
 from mcp_agent.llm.model_factory import (
     ModelFactory,
     Provider,

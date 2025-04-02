@@ -5,8 +5,6 @@ from mcp.types import PromptMessage
 from pydantic_core import from_json
 
 from mcp_agent.core.prompt import Prompt
-from mcp_agent.logging.logger import get_logger
-from mcp_agent.mcp.prompt_message_multipart import PromptMessageMultipart
 from mcp_agent.llm.augmented_llm import (
     AugmentedLLM,
     MessageParamT,
@@ -14,6 +12,8 @@ from mcp_agent.llm.augmented_llm import (
     ModelT,
     RequestParams,
 )
+from mcp_agent.logging.logger import get_logger
+from mcp_agent.mcp.prompt_message_multipart import PromptMessageMultipart
 
 CALL_TOOL_INDICATOR = "***CALL_TOOL"
 FIXED_RESPONSE_INDICATOR = "***FIXED_RESPONSE"

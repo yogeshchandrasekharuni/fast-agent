@@ -11,9 +11,7 @@ from prompt_toolkit.filters import Condition
 from prompt_toolkit.formatted_text import HTML
 from prompt_toolkit.history import InMemoryHistory
 from prompt_toolkit.key_binding import KeyBindings
-from prompt_toolkit.lexers import PygmentsLexer
 from prompt_toolkit.styles import Style
-from pygments.lexers.python import PythonLexer
 from rich import print as rich_print
 
 from mcp_agent.core.exceptions import PromptExitError
