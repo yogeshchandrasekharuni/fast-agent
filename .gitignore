@@ -183,3 +183,4 @@ CLAUDE.md
 example-outputs/
 
 tests/integration/prompt-state/simple.txt
+tests/integration/workflow/router/fastagent.jsonl
