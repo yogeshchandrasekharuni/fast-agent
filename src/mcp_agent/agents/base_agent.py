@@ -116,17 +116,9 @@ class BaseAgent(MCPAggregator, AgentProtocol):
             An instance of AugmentedLLM or one of its subclasses.
         """
 
-        # Create a new LLM instance
-        if isinstance(llm_factory, type):
-            # It's a class, instantiate it
-            self._llm = llm_factory(
-                agent=self, default_request_params=self._default_request_params, **kwargs
-            )
-        else:
-            # It's a callable, call it
-            self._llm = llm_factory(
-                agent=self, default_request_params=self._default_request_params, **kwargs
-            )
+        self._llm = llm_factory(
+            agent=self, default_request_params=self._default_request_params, **kwargs
+        )
 
         return self._llm
 

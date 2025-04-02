@@ -58,9 +58,6 @@ class PlaybackLLM(PassthroughLLM):
         # If this is the first call (initialization) or we're loading a prompt template
         # with multiple messages (comes from apply_prompt)
         if -1 == self._current_index:
-            # Store the messages for playback
-            # For a prompt template with multiple messages, use those directly
-            # Otherwise extend our existing message list
             if len(multipart_messages) > 1:
                 self._messages = multipart_messages
             else:
@@ -68,6 +65,11 @@ class PlaybackLLM(PassthroughLLM):
 
             # Reset the index to the beginning for proper playback
             self._current_index = 0
+
+            await self.show_assistant_message(
+                message_text=f"HISTORY LOADED ({len(self._messages)} messages)",
+                title="ASSISTANT/PLAYBACK",
+            )
 
             # In PlaybackLLM, we always return "HISTORY LOADED" on initialization,
             # regardless of the prompt content. The next call will return messages.

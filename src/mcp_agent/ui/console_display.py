@@ -182,6 +182,10 @@ class ConsoleDisplay:
         if not self.config or not self.config.logger.show_chat:
             return
 
+        subtitle_text = Text(f"{model or 'unknown'}", style="dim white")
+        if chat_turn > 0:
+            subtitle_text.append(f" turn {chat_turn}", style="dim white")
+
         panel = Panel(
             message,
             title=f"{f'({name}) [USER]' if name else '[USER]'}",
@@ -189,7 +193,7 @@ class ConsoleDisplay:
             style="blue",
             border_style="bold white",
             padding=(1, 2),
-            subtitle=Text(f"{model or 'unknown'} turn {chat_turn}", style="dim white"),
+            subtitle=subtitle_text,
             subtitle_align="left",
         )
         console.console.print(panel)

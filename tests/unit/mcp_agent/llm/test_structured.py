@@ -4,6 +4,7 @@ import pytest
 from pydantic import BaseModel
 
 from mcp_agent.core.prompt import Prompt
+from mcp_agent.llm.augmented_llm import AugmentedLLM
 from mcp_agent.llm.augmented_llm_passthrough import PassthroughLLM
 
 
@@ -53,7 +54,7 @@ async def test_direct_pydantic_conversion():
 
 
 @pytest.mark.asyncio
-async def test_strucutred_with_bad_json():
+async def test_structured_with_bad_json():
     # JSON string that would typically come from an LLM
     json_str = """
     {
@@ -75,11 +76,19 @@ async def test_strucutred_with_bad_json():
     result = await llm.structured([Prompt.user(json_str)], model=StructuredResponse)
 
     assert None is result
-    # # Verify conversion worked correctly
-    # assert isinstance(result, StructuredResponse)
-    # assert len(result.categories) == 2
-    # assert result.categories[0].category == "tech_support"
-    # assert result.categories[0].confidence == "high"
-    # assert result.categories[1].category == "documentation"
-    # assert result.categories[1].confidence == "medium"
-    # assert result.categories[1].reasoning is None
+
+
+@pytest.mark.asyncio
+async def test_chat_turn_counting():
+    # Create PassthroughLLM instance and use it to process the JSON
+    llm = PassthroughLLM()
+    # no messages yet, so chat turn should be 1
+    assert 1 == llm.chat_turn()
+    await llm.generate([Prompt.user("test")])
+    assert 2 == llm.chat_turn()
+
+    # just increment for each assistant message
+    await llm.generate([Prompt.user("foo")])
+    await llm.generate([Prompt.user("bar")])
+
+    assert 4 == llm.chat_turn()

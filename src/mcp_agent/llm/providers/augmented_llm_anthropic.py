@@ -71,7 +71,7 @@ class AnthropicAugmentedLLM(AugmentedLLM[MessageParam, Message]):
 
     async def generate_internal(
         self,
-        message,
+        message_param,
         request_params: RequestParams | None = None,
     ):
         """
@@ -94,12 +94,7 @@ class AnthropicAugmentedLLM(AugmentedLLM[MessageParam, Message]):
         # if use_history is True
         messages.extend(self.history.get(include_history=params.use_history))
 
-        if isinstance(message, str):
-            messages.append({"role": "user", "content": message})
-        elif isinstance(message, list):
-            messages.extend(message)
-        else:
-            messages.append(message)
+        messages.append(message_param)
 
         tool_list: ListToolsResult = await self.aggregator.list_tools()
         available_tools: List[ToolParam] = [
@@ -114,12 +109,9 @@ class AnthropicAugmentedLLM(AugmentedLLM[MessageParam, Message]):
         responses: List[Message] = []
 
         model = self.default_request_params.model
-        chat_turn = (len(messages) + 1) // 2
-        self.show_user_message(str(message), model, chat_turn)
 
         for i in range(params.max_iterations):
-            chat_turn = (len(messages) + 1) // 2
-            self._log_chat_progress(chat_turn, model=model)
+            self._log_chat_progress(self.chat_turn(), model=model)
             arguments = {
                 "model": model,
                 "messages": messages,
@@ -298,7 +290,7 @@ class AnthropicAugmentedLLM(AugmentedLLM[MessageParam, Message]):
 
     async def generate_str(
         self,
-        message,
+        message_param,
         request_params: RequestParams | None = None,
     ) -> str:
         """
@@ -309,7 +301,7 @@ class AnthropicAugmentedLLM(AugmentedLLM[MessageParam, Message]):
         """
 
         responses: List[Message] = await self.generate_internal(
-            message=message,
+            message_param=message_param,
             request_params=request_params,
         )
 
@@ -332,13 +324,6 @@ class AnthropicAugmentedLLM(AugmentedLLM[MessageParam, Message]):
         # Join all collected text
         return "\n".join(final_text)
 
-    async def generate_prompt(
-        self, prompt: "PromptMessageMultipart", request_params: RequestParams | None
-    ) -> str:
-        return await self.generate_str(
-            AnthropicConverter.convert_to_anthropic(prompt), request_params
-        )
-
     async def _apply_prompt_provider_specific(
         self,
         multipart_messages: List["PromptMessageMultipart"],
@@ -354,10 +339,10 @@ class AnthropicAugmentedLLM(AugmentedLLM[MessageParam, Message]):
         converted = []
         for msg in messages_to_add:
             converted.append(AnthropicConverter.convert_to_anthropic(msg))
+
         self.history.extend(converted, is_prompt=True)
 
         if last_message.role == "user":
-            # For user messages: Generate response to the last one
             self.logger.debug("Last message in prompt is from user, generating assistant response")
             message_param = AnthropicConverter.convert_to_anthropic(last_message)
             return Prompt.assistant(await self.generate_str(message_param, request_params))

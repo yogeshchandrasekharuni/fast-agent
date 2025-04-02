@@ -136,24 +136,6 @@ class PassthroughLLM(AugmentedLLM):
 
         return "\n".join(result_text)
 
-    async def generate_structured(
-        self,
-        message: Union[str, MessageParamT, List[MessageParamT]],
-        response_model: Type[ModelT],
-        request_params: Optional[RequestParams] = None,
-    ) -> ModelT | None:
-        """
-        Return the input message as the requested model type.
-        This is a best-effort implementation - it may fail if the
-        message cannot be converted to the requested model.
-        """
-        if isinstance(message, response_model):
-            return message
-        elif isinstance(message, dict):
-            return response_model(**message)
-        elif isinstance(message, str):
-            return response_model.model_validate(from_json(message, allow_partial=True))
-
     async def _apply_prompt_provider_specific(
         self,
         multipart_messages: List["PromptMessageMultipart"],
@@ -171,9 +153,11 @@ class PassthroughLLM(AugmentedLLM):
             )
 
         if self._fixed_response:
+            await self.show_assistant_message(self._fixed_response)
             return Prompt.assistant(self._fixed_response)
         else:
             concatenated: str = "\n".join(message.all_text() for message in multipart_messages)
+            await self.show_assistant_message(concatenated)
             return Prompt.assistant(concatenated)
 
     def is_tool_call(self, message: PromptMessageMultipart) -> bool:

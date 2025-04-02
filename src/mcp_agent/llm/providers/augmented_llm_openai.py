@@ -167,11 +167,6 @@ class OpenAIAugmentedLLM(AugmentedLLM[ChatCompletionMessageParam, ChatCompletion
 
         responses: List[ChatCompletionMessage] = []
         model = self.default_request_params.model
-        chat_turn = len(messages) // 2
-        if self._reasoning:
-            self.show_user_message(str(message), f"{model} ({self._reasoning_effort})", chat_turn)
-        else:
-            self.show_user_message(str(message), model, chat_turn)
 
         # we do NOT send stop sequences as this causes errors with mutlimodal processing
         for i in range(params.max_iterations):
@@ -195,7 +190,7 @@ class OpenAIAugmentedLLM(AugmentedLLM[ChatCompletionMessageParam, ChatCompletion
                 arguments = {**arguments, **params.metadata}
 
             self.logger.debug(f"{arguments}")
-            self._log_chat_progress(chat_turn, model=model)
+            self._log_chat_progress(self.chat_turn(), model=model)
 
             if response_model is None:
                 executor_result = await self.executor.execute(

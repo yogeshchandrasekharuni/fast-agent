@@ -88,10 +88,8 @@ class AugmentedLLM(ContextDependent, AugmentedLLMProtocol, Generic[MessageParamT
         self.logger = get_logger(__name__)
         self.executor = self.context.executor
         self.aggregator = agent if agent is not None else MCPAggregator(server_names or [])
-        self.name = name or (agent.name if agent else None)
-        self.instruction = instruction or (
-            agent.instruction if agent and isinstance(agent.instruction, str) else None
-        )
+        self.name = name
+        self.instruction = agent.instruction if agent else instruction
 
         # memory contains provider specific API types.
         self.history: Memory[MessageParamT] = SimpleMemory[MessageParamT]()
@@ -133,7 +131,6 @@ class AugmentedLLM(ContextDependent, AugmentedLLMProtocol, Generic[MessageParamT
         try:
             result: PromptMessageMultipart = await self.generate(prompt, request_params)
             json_data = from_json(result.first_text(), allow_partial=True)
-            # Ensure we return a properly typed instance of ModelT
             validated_model = model.model_validate(json_data)
             return cast("ModelT", validated_model)
         except Exception as e:
@@ -155,15 +152,30 @@ class AugmentedLLM(ContextDependent, AugmentedLLMProtocol, Generic[MessageParamT
                 parts[1].strip() if len(parts) > 1 else f"{self.name or 'assistant'}_prompts.txt"
             )
             await self._save_history(filename)
+            self.show_user_message(
+                f"History saved to {filename}", model=self.default_request_params.model, chat_turn=0
+            )
             return Prompt.assistant(f"History saved to {filename}")
 
         self.message_history.extend(multipart_messages)
+
+        if multipart_messages[-1].role == "user":
+            self.show_user_message(
+                multipart_messages[-1].first_text(),
+                model=self.default_request_params.model,
+                chat_turn=self.chat_turn(),
+            )
+
         assistant_response: PromptMessageMultipart = await self._apply_prompt_provider_specific(
             multipart_messages, request_params
         )
 
         self.message_history.append(assistant_response)
         return assistant_response
+
+    def chat_turn(self) -> int:
+        """Return the current chat turn number"""
+        return 1 + sum(1 for message in self.message_history if message.role == "assistant")
 
     def _merge_request_params(
         self, default_params: RequestParams, provided_params: RequestParams
@@ -416,7 +428,6 @@ class AugmentedLLM(ContextDependent, AugmentedLLMProtocol, Generic[MessageParamT
         with open(filename, "w", encoding="utf-8") as f:
             f.write("\n\n".join(delimited_content))
 
-    # this shouln't need to be very big...
     @abstractmethod
     async def _apply_prompt_provider_specific(
         self,

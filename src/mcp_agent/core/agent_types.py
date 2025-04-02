@@ -38,7 +38,9 @@ class AgentConfig:
         """Ensure default_request_params exists with proper history setting"""
 
         if self.default_request_params is None:
-            self.default_request_params = RequestParams(use_history=self.use_history)
+            self.default_request_params = RequestParams(
+                use_history=self.use_history, systemPrompt=self.instruction
+            )
         else:
             # Override the request params history setting if explicitly configured
             self.default_request_params.use_history = self.use_history

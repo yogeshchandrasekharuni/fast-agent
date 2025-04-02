@@ -121,7 +121,7 @@ async def sample(mcp_ctx: ClientSession, params: CreateMessageRequestParams) -> 
 
 
 def sampling_agent_config(
-    params: CreateMessageRequestParams = None,
+    params: CreateMessageRequestParams | None = None,
 ) -> AgentConfig:
     """
     Build a sampling AgentConfig based on request parameters.
@@ -134,7 +134,7 @@ def sampling_agent_config(
     """
     # Use systemPrompt from params if available, otherwise use default
     instruction = "You are a helpful AI Agent."
-    if params and hasattr(params, "systemPrompt") and params.systemPrompt is not None:
+    if params and params.systemPrompt is not None:
         instruction = params.systemPrompt
 
     return AgentConfig(name="sampling_agent", instruction=instruction, servers=[])
