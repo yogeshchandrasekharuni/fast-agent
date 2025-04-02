@@ -27,7 +27,7 @@ async def test_router_functionality(fast_agent):
             router_setup: list[PromptMessageMultipart] = load_prompt_multipart(
                 Path("router_script.txt")
             )
-            setup: PromptMessageMultipart = await agent.router._llm.generate_x(router_setup)
+            setup: PromptMessageMultipart = await agent.router._llm.generate(router_setup)
             assert "LOADED" in setup.first_text()
             result: str = await agent.router.send("some routing")
             assert "target1-result" in result
@@ -66,7 +66,7 @@ async def test_router_structured_output(fast_agent):
 
             # Set up router to route to structured_agent
             routing_response = """{"agent": "structured_agent", "confidence": "high", "reasoning": "Weather request"}"""
-            await agent.router._llm.generate_x(
+            await agent.router._llm.generate(
                 [Prompt.user(f"{FIXED_RESPONSE_INDICATOR} {routing_response}")]
             )
 
@@ -99,7 +99,7 @@ async def test_router_invalid_agent_selection(fast_agent):
         async with fast.run() as agent:
             # Set up router to route to non-existent agent
             routing_response = """{"agent": "nonexistent_agent", "confidence": "high", "reasoning": "Test request"}"""
-            await agent.router._llm.generate_x(
+            await agent.router._llm.generate(
                 [Prompt.user(f"{FIXED_RESPONSE_INDICATOR} {routing_response}")]
             )
 

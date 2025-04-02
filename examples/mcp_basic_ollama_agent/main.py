@@ -38,20 +38,20 @@ async def example_usage():
             logger.info("Tools available:", data=result.model_dump())
 
             llm = await finder_agent.attach_llm(OpenAIAugmentedLLM)
-            result = await llm.generate_str(
+            result = await llm.generate_internal(
                 message="Print the contents of mcp_agent.config.yaml verbatim",
             )
             logger.info(f"Result: {result}")
 
             # Let's switch the same agent to a different model for this request
-            result = await llm.generate_str(
+            result = await llm.generate_internal(
                 message="Print the first 2 paragraphs of https://www.anthropic.com/research/building-effective-agents",
                 request_params=RequestParams(model="llama3.1:8b"),
             )
             logger.info(f"Result: {result}")
 
             # Multi-turn conversations (uses default model from config)
-            result = await llm.generate_str(
+            result = await llm.generate_internal(
                 message="Summarize those paragraphs in a 128 character tweet",
             )
             logger.info(f"Result: {result}")

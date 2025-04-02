@@ -27,7 +27,7 @@ from mcp_agent.agents.workflow.orchestrator_prompts import (
     TASK_PROMPT_TEMPLATE,
 )
 from mcp_agent.core.agent_types import AgentConfig
-from mcp_agent.core.base_agent import BaseAgent
+from mcp_agent.agents.base_agent import BaseAgent
 from mcp_agent.core.exceptions import AgentConfigError
 from mcp_agent.core.request_params import RequestParams
 from mcp_agent.logging.logger import get_logger
@@ -81,7 +81,7 @@ class OrchestratorAgent(BaseAgent):
         # For tracking state during execution
         self.plan_result: Optional[PlanResult] = None
 
-    async def generate_x(
+    async def generate(
         self,
         multipart_messages: List[PromptMessageMultipart],
         request_params: Optional[RequestParams] = None,
@@ -130,7 +130,7 @@ class OrchestratorAgent(BaseAgent):
             The parsed final response, or None if parsing fails
         """
         # Generate orchestration result
-        response = await self.generate_x(prompt, request_params)
+        response = await self.generate(prompt, request_params)
 
         # Try to parse the response into the specified model
         try:
@@ -320,7 +320,7 @@ class OrchestratorAgent(BaseAgent):
             futures.append(
                 (
                     task,
-                    agent.generate_x(
+                    agent.generate(
                         [
                             PromptMessageMultipart(
                                 role="user",
@@ -553,7 +553,7 @@ class OrchestratorAgent(BaseAgent):
         )
 
         # Get response from LLM
-        response = await self._llm.generate_x([prompt], request_params)
+        response = await self._llm.generate([prompt], request_params)
         return response.all_text()
 
     def _merge_request_params(self, request_params: Optional[RequestParams]) -> RequestParams:

@@ -1,6 +1,6 @@
-
+from typing import Dict, List
 import pytest
-from mcp.types import GetPromptResult
+from mcp.types import GetPromptResult, Prompt
 
 from mcp_agent.mcp.prompt_message_multipart import PromptMessageMultipart
 
@@ -89,5 +89,22 @@ async def test_multiturn_with_subsitition(fast_agent):
             assert "nice to meet you. i am HAL9000" == y[1].first_text()
             assert "assistant" == y[1].role
             assert len(y) == 2
+
+    await agent_function()
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_agent_interface_returns_prompts_list(fast_agent):
+    """Multipart Message, with substitutions."""
+    # Use the FastAgent instance from the test directory fixture
+    fast = fast_agent
+
+    # Define the agent
+    @fast.agent(name="test", servers=["prompts"])
+    async def agent_function():
+        async with fast.run() as agent:
+            prompts: Dict[str, List[Prompt]] = await agent.test.list_prompts()
+            assert 4 == len(prompts["prompts"])
 
     await agent_function()

@@ -17,7 +17,7 @@ if TYPE_CHECKING:
 @pytest.mark.asyncio
 async def test_simple_return():
     llm: AugmentedLLMProtocol = PassthroughLLM()
-    response = await llm.generate_x(multipart_messages=[Prompt.user("playback message")])
+    response = await llm.generate(multipart_messages=[Prompt.user("playback message")])
     assert "assistant" == response.role
     assert "playback message" == response.first_text()
 
@@ -25,7 +25,7 @@ async def test_simple_return():
 @pytest.mark.asyncio
 async def test_concatenates_text_for_multiple_parts():
     llm: AugmentedLLMProtocol = PassthroughLLM()
-    response = await llm.generate_x(
+    response = await llm.generate(
         multipart_messages=[
             Prompt.user("123abc"),
             Prompt.assistant("456def"),
@@ -41,12 +41,12 @@ async def test_concatenates_text_for_multiple_parts():
 @pytest.mark.asyncio
 async def test_set_fixed_return():
     llm: AugmentedLLMProtocol = PassthroughLLM()
-    response: PromptMessageMultipart = await llm.generate_x(
+    response: PromptMessageMultipart = await llm.generate(
         multipart_messages=[Prompt.user(f"{FIXED_RESPONSE_INDICATOR} foo")]
     )
     assert "foo" == response.first_text()
 
-    response: PromptMessageMultipart = await llm.generate_x(
+    response: PromptMessageMultipart = await llm.generate(
         multipart_messages=[Prompt.user("other messages respond with foo")]
     )
     assert "foo" == response.first_text()
@@ -55,12 +55,12 @@ async def test_set_fixed_return():
 @pytest.mark.asyncio
 async def test_set_fixed_return_ignores_not_set():
     llm: AugmentedLLMProtocol = PassthroughLLM()
-    response: PromptMessageMultipart = await llm.generate_x(
+    response: PromptMessageMultipart = await llm.generate(
         multipart_messages=[Prompt.user(f"{FIXED_RESPONSE_INDICATOR}")]
     )
     assert "***FIXED_RESPONSE" == response.first_text()
 
-    response: PromptMessageMultipart = await llm.generate_x(
+    response: PromptMessageMultipart = await llm.generate(
         multipart_messages=[Prompt.user("ignored message")]
     )
     assert "ignored message" == response.first_text()

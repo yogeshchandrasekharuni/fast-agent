@@ -85,10 +85,10 @@ async def test_invalid_llm_response():
     router._llm = PassthroughLLM()
 
     # Set the fixed response to invalid JSON that can't be parsed as RoutingResponse
-    await router._llm.generate_x([Prompt.user(f"{FIXED_RESPONSE_INDICATOR} invalid json")])
+    await router._llm.generate([Prompt.user(f"{FIXED_RESPONSE_INDICATOR} invalid json")])
 
     # Verify router generates appropriate error message
-    response = await router.generate_x([Prompt.user("test request")])
+    response = await router.generate([Prompt.user("test request")])
     assert "Could not determine appropriate agent" in response.all_text()
 
 

@@ -131,7 +131,7 @@ class AugmentedLLM(ContextDependent, AugmentedLLMProtocol, Generic[MessageParamT
     ) -> ModelT | None:
         """Apply the prompt and return the result as a Pydantic model, or None if coercion fails"""
         try:
-            result: PromptMessageMultipart = await self.generate_x(prompt, request_params)
+            result: PromptMessageMultipart = await self.generate(prompt, request_params)
             json_data = from_json(result.first_text(), allow_partial=True)
             # Ensure we return a properly typed instance of ModelT
             validated_model = model.model_validate(json_data)
@@ -141,7 +141,7 @@ class AugmentedLLM(ContextDependent, AugmentedLLMProtocol, Generic[MessageParamT
             logger.error(f"Failed to parse structured response: {str(e)}")
             return None
 
-    async def generate_x(
+    async def generate(
         self,
         multipart_messages: List[PromptMessageMultipart],
         request_params: RequestParams | None = None,

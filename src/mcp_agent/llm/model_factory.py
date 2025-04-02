@@ -1,18 +1,19 @@
 from dataclasses import dataclass
 from enum import Enum, auto
-from typing import Callable, Dict, Optional, Type, Union
+from typing import Callable, Dict, Optional, Type, TypeVar, Union
 
 from mcp_agent.agents.agent import Agent
 from mcp_agent.core.exceptions import ModelConfigError
 from mcp_agent.core.request_params import RequestParams
-from mcp_agent.llm.providers.augmented_llm_anthropic import AnthropicAugmentedLLM
-from mcp_agent.llm.providers.augmented_llm_openai import OpenAIAugmentedLLM
 from mcp_agent.llm.augmented_llm_passthrough import PassthroughLLM
 from mcp_agent.llm.augmented_llm_playback import PlaybackLLM
+from mcp_agent.llm.providers.augmented_llm_anthropic import AnthropicAugmentedLLM
 from mcp_agent.llm.providers.augmented_llm_deepseek import DeepSeekAugmentedLLM
+from mcp_agent.llm.providers.augmented_llm_openai import OpenAIAugmentedLLM
 from mcp_agent.mcp.interfaces import AugmentedLLMProtocol
 
 # from mcp_agent.workflows.llm.augmented_llm_deepseek import DeekSeekAugmentedLLM
+
 
 # Type alias for LLM classes
 LLMClass = Union[
@@ -213,7 +214,7 @@ class ModelFactory:
                 if key not in ["agent", "default_request_params", "name"]:
                     llm_args[key] = value
 
-            llm = llm_class(**llm_args)
+            llm: AugmentedLLMProtocol = llm_class(**llm_args)
             return llm
 
         return factory

@@ -700,103 +700,97 @@ class MCPAggregator(ContextDependent):
             messages=[],
         )
 
-    async def list_prompts(self, server_name: str = None):
+    async def list_prompts(self, server_name: str = None) -> Dict[str, List[Prompt]]:
         """
         List available prompts from one or all servers.
 
         :param server_name: Optional server name to list prompts from. If not provided,
                            lists prompts from all servers.
-        :return: Dictionary mapping server names to lists of available prompts
+        :return: Dictionary mapping server names to lists of Prompt objects
         """
         if not self.initialized:
             await self.load_servers()
 
-        results = {}
+        results: Dict[str, List[Prompt]] = {}
 
-        # If we already have the data in cache and not requesting a specific server,
-        # we can use the cache directly
-        if not server_name:
-            async with self._prompt_cache_lock:
-                if all(s_name in self._prompt_cache for s_name in self.server_names):
-                    # Return the cached prompt objects
-                    for s_name, prompt_list in self._prompt_cache.items():
-                        results[s_name] = prompt_list
-                    logger.debug("Returning cached prompts for all servers")
-                    return results
-
-        # If server_name is provided, only list prompts from that server
+        # If specific server requested
         if server_name:
-            if server_name in self.server_names:
-                # Check if we can use the cache
-                async with self._prompt_cache_lock:
-                    if server_name in self._prompt_cache:
-                        results[server_name] = self._prompt_cache[server_name]
-                        logger.debug(f"Returning cached prompts for server '{server_name}'")
-                        return results
+            if server_name not in self.server_names:
+                logger.error(f"Server '{server_name}' not found")
+                return results
 
-                # Check if server supports prompts
-                capabilities = await self.get_capabilities(server_name)
-                if not capabilities or not capabilities.prompts:
-                    logger.debug(f"Server '{server_name}' does not support prompts")
-                    results[server_name] = []
+            # Check cache first
+            async with self._prompt_cache_lock:
+                if server_name in self._prompt_cache:
+                    results[server_name] = self._prompt_cache[server_name]
+                    logger.debug(f"Returning cached prompts for server '{server_name}'")
                     return results
 
-                # If not in cache and server supports prompts, fetch from server
+            # Check if server supports prompts
+            capabilities = await self.get_capabilities(server_name)
+            if not capabilities or not capabilities.prompts:
+                logger.debug(f"Server '{server_name}' does not support prompts")
+                results[server_name] = []
+                return results
+
+            # Fetch from server
+            result = await self._execute_on_server(
+                server_name=server_name,
+                operation_type="prompts-list",
+                operation_name="",
+                method_name="list_prompts",
+                error_factory=lambda _: None,
+            )
+
+            # Get prompts from result
+            prompts = getattr(result, "prompts", [])
+
+            # Update cache
+            async with self._prompt_cache_lock:
+                self._prompt_cache[server_name] = prompts
+
+            results[server_name] = prompts
+            return results
+
+        # No specific server - check if we can use the cache for all servers
+        async with self._prompt_cache_lock:
+            if all(s_name in self._prompt_cache for s_name in self.server_names):
+                for s_name, prompt_list in self._prompt_cache.items():
+                    results[s_name] = prompt_list
+                logger.debug("Returning cached prompts for all servers")
+                return results
+
+        # Identify servers that support prompts
+        supported_servers = []
+        for s_name in self.server_names:
+            capabilities = await self.get_capabilities(s_name)
+            if capabilities and capabilities.prompts:
+                supported_servers.append(s_name)
+            else:
+                logger.debug(f"Server '{s_name}' does not support prompts, skipping")
+                results[s_name] = []
+
+        # Fetch prompts from supported servers
+        for s_name in supported_servers:
+            try:
                 result = await self._execute_on_server(
-                    server_name=server_name,
+                    server_name=s_name,
                     operation_type="prompts-list",
                     operation_name="",
                     method_name="list_prompts",
-                    error_factory=lambda _: [],
+                    error_factory=lambda _: None,
                 )
 
-                # Update cache with the result
+                prompts = getattr(result, "prompts", [])
+
+                # Update cache and results
                 async with self._prompt_cache_lock:
-                    self._prompt_cache[server_name] = getattr(result, "prompts", [])
+                    self._prompt_cache[s_name] = prompts
 
-                results[server_name] = result
-            else:
-                logger.error(f"Server '{server_name}' not found")
-        else:
-            # We need to filter the servers that support prompts
-            supported_servers = []
-            for s_name in self.server_names:
-                capabilities = await self.get_capabilities(s_name)
-                if capabilities and capabilities.prompts:
-                    supported_servers.append(s_name)
-                else:
-                    logger.debug(f"Server '{s_name}' does not support prompts, skipping")
-                    # Add empty list to results for this server
-                    results[s_name] = []
-
-            # Process servers sequentially to ensure proper resource cleanup
-            # This helps prevent resource leaks especially on Windows
-            if supported_servers:
-                server_results = []
-                for s_name in supported_servers:
-                    try:
-                        result = await self._execute_on_server(
-                            server_name=s_name,
-                            operation_type="prompts-list",
-                            operation_name="",
-                            method_name="list_prompts",
-                            error_factory=lambda _: [],
-                        )
-                        server_results.append(result)
-                    except Exception as e:
-                        logger.debug(f"Error fetching prompts from {s_name}: {e}")
-                        server_results.append(e)
-
-                for i, result in enumerate(server_results):
-                    if isinstance(result, BaseException):
-                        continue
-
-                    s_name = supported_servers[i]
-                    results[s_name] = result
-
-                    # Update cache with the result
-                    async with self._prompt_cache_lock:
-                        self._prompt_cache[s_name] = getattr(result, "prompts", [])
+                results[s_name] = prompts
+            except Exception as e:
+                logger.debug(f"Error fetching prompts from {s_name}: {e}")
+                results[s_name] = []
 
         logger.debug(f"Available prompts across servers: {results}")
         return results
@@ -894,7 +888,7 @@ class MCPCompoundServer(Server):
         except Exception as e:
             return GetPromptResult(description=f"Error getting prompt: {e}", messages=[])
 
-    async def _list_prompts(self, server_name: str = None) -> Dict[str, List[str]]:
+    async def _list_prompts(self, server_name: str = None) -> Dict[str, List[Prompt]]:
         """List available prompts from the aggregated servers."""
         try:
             return await self.aggregator.list_prompts(server_name=server_name)

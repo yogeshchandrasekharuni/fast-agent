@@ -69,7 +69,7 @@ class AnthropicAugmentedLLM(AugmentedLLM[MessageParam, Message]):
             use_history=True,
         )
 
-    async def generate(
+    async def generate_internal(
         self,
         message,
         request_params: RequestParams | None = None,
@@ -308,7 +308,7 @@ class AnthropicAugmentedLLM(AugmentedLLM[MessageParam, Message]):
 
         """
 
-        responses: List[Message] = await self.generate(
+        responses: List[Message] = await self.generate_internal(
             message=message,
             request_params=request_params,
         )

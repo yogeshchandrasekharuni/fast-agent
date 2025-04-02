@@ -24,7 +24,7 @@ async def orchestrator_fixture():
     # Create mock agents
     agent1 = MagicMock()
     agent1.name = "agent1"
-    agent1.generate_x = AsyncMock(
+    agent1.generate = AsyncMock(
         return_value=PromptMessageMultipart(
             role="assistant", content=[TextContent(type="text", text="Agent1 response")]
         )
@@ -32,7 +32,7 @@ async def orchestrator_fixture():
 
     agent2 = MagicMock()
     agent2.name = "agent2"
-    agent2.generate_x = AsyncMock(
+    agent2.generate = AsyncMock(
         return_value=PromptMessageMultipart(
             role="assistant", content=[TextContent(type="text", text="Agent2 response")]
         )
@@ -45,7 +45,7 @@ async def orchestrator_fixture():
     # Create mock LLM for the orchestrator
     llm = MagicMock()
     llm.structured = AsyncMock()
-    llm.generate_x = AsyncMock(
+    llm.generate = AsyncMock(
         return_value=PromptMessageMultipart(
             role="assistant", content=[TextContent(type="text", text="LLM response")]
         )
@@ -87,8 +87,8 @@ async def test_execute_step(orchestrator_fixture):
     assert "Agent2 response" in step_result.task_results[1].result
 
     # Verify agent call counts
-    assert agent1.generate_x.call_count == 1
-    assert agent2.generate_x.call_count == 1
+    assert agent1.generate.call_count == 1
+    assert agent2.generate.call_count == 1
 
 
 @pytest.mark.asyncio
@@ -124,7 +124,7 @@ async def test_invalid_agent_handling(orchestrator_fixture):
     assert "ERROR" in invalid_task.result
 
     # Verify only valid agent was called
-    assert agent1.generate_x.call_count == 1
+    assert agent1.generate.call_count == 1
 
 
 @pytest.mark.asyncio
@@ -179,8 +179,8 @@ async def test_plan_execution_flow(orchestrator_fixture):
     assert "Agent2 response" in second_step.task_results[0].result
 
     # Verify agent call counts
-    assert agent1.generate_x.call_count == 1
-    assert agent2.generate_x.call_count == 1
+    assert agent1.generate.call_count == 1
+    assert agent2.generate.call_count == 1
 
 
 @pytest.mark.asyncio
@@ -224,8 +224,8 @@ async def test_iterative_planning(orchestrator_fixture):
     assert result.result == "Iterative result"
 
     # Check agent calls
-    assert agent1.generate_x.call_count == 1
-    assert agent2.generate_x.call_count == 1
+    assert agent1.generate.call_count == 1
+    assert agent2.generate.call_count == 1
 
     # Check _get_next_step call count
     assert get_next_step_mock.call_count == 2

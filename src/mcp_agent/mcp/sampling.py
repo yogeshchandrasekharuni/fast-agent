@@ -104,7 +104,7 @@ async def sample(mcp_ctx: ClientSession, params: CreateMessageRequestParams) -> 
         # Extract request parameters using our converter
         request_params = SamplingConverter.extract_request_params(params)
 
-        llm_response: PromptMessageMultipart = await llm.generate_x(conversation, request_params)
+        llm_response: PromptMessageMultipart = await llm.generate(conversation, request_params)
         logger.info(f"Complete sampling request : {llm_response.first_text()[:50]}...")
 
         return CreateMessageResult(

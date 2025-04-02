@@ -138,19 +138,19 @@ class BaseAgent(MCPAggregator, AgentProtocol):
         await super().close()
 
     async def __call__(
-        self, 
-        message: Union[str, PromptMessageMultipart] | None = None, 
+        self,
+        message: Union[str, PromptMessageMultipart] | None = None,
         agent_name: Optional[str] = None,
-        default: str = ""
+        default: str = "",
     ) -> str:
         """
         Make the agent callable to send messages or start an interactive prompt.
-        
+
         Args:
             message: Optional message to send to the agent
             agent_name: Optional name of the agent (for consistency with DirectAgentApp)
             default: Default message to use in interactive prompt mode
-            
+
         Returns:
             The agent's response as a string or the result of the interactive session
         """
@@ -176,7 +176,7 @@ class BaseAgent(MCPAggregator, AgentProtocol):
             prompt = message
 
         # Use the LLM to generate a response
-        response = await self.generate_x([prompt], None)
+        response = await self.generate([prompt], None)
         return response.first_text()
 
     async def prompt(self, default_prompt: str = "") -> str:
@@ -397,9 +397,9 @@ class BaseAgent(MCPAggregator, AgentProtocol):
         # Convert prompt messages to multipart format
         multipart_messages = PromptMessageMultipart.to_multipart(prompt_result.messages)
 
-        # Always call generate_x to ensure LLM implementations can handle prompt templates
+        # Always call generate to ensure LLM implementations can handle prompt templates
         # This is critical for stateful LLMs like PlaybackLLM
-        response = await self.generate_x(multipart_messages, None)
+        response = await self.generate(multipart_messages, None)
         return response.first_text()
 
     async def get_embedded_resources(
@@ -467,10 +467,10 @@ class BaseAgent(MCPAggregator, AgentProtocol):
         else:
             raise TypeError("prompt_content must be a string or PromptMessageMultipart")
 
-        response: PromptMessageMultipart = await self.generate_x([prompt], None)
+        response: PromptMessageMultipart = await self.generate([prompt], None)
         return response.first_text()
 
-    async def generate_x(
+    async def generate(
         self,
         multipart_messages: List[PromptMessageMultipart],
         request_params: RequestParams | None = None,
@@ -487,7 +487,7 @@ class BaseAgent(MCPAggregator, AgentProtocol):
             The LLM's response as a PromptMessageMultipart
         """
         assert self._llm
-        return await self._llm.generate_x(multipart_messages, request_params)
+        return await self._llm.generate(multipart_messages, request_params)
 
     async def structured(
         self,
@@ -524,5 +524,5 @@ class BaseAgent(MCPAggregator, AgentProtocol):
             The text response from the LLM
         """
 
-        response = await self.generate_x(prompts, request_params)
+        response = await self.generate(prompts, request_params)
         return response.first_text()

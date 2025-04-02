@@ -19,9 +19,10 @@ from typing import (
 )
 
 from anyio.streams.memory import MemoryObjectReceiveStream, MemoryObjectSendStream
-from mcp import ClientSession
+from mcp import ClientSession, GetPromptResult, ReadResourceResult
 from pydantic import BaseModel
 
+from mcp_agent.core.prompt import Prompt
 from mcp_agent.core.request_params import RequestParams
 from mcp_agent.mcp.prompt_message_multipart import PromptMessageMultipart
 
@@ -98,7 +99,7 @@ class AugmentedLLMProtocol(Protocol):
         """Apply the prompt and return the result as a Pydantic model, or None if coercion fails"""
         ...
 
-    async def generate_x(
+    async def generate(
         self,
         multipart_messages: List[PromptMessageMultipart],
         request_params: RequestParams | None = None,
@@ -135,8 +136,14 @@ class AgentProtocol(AugmentedLLMProtocol, Protocol):
         ...
 
     async def apply_prompt(self, prompt_name: str, arguments: Dict[str, str] | None = None) -> str:
-        """Apply a prompt template by name"""
+        """Apply an MCP prompt template by name"""
         ...
+
+    async def get_prompt(self, prompt_name: str) -> GetPromptResult: ...
+
+    async def list_prompts(self, server_name: str | None) -> Dict[str, List[Prompt]]: ...
+
+    async def get_resource(self, server_name: str, resource_uri: str) -> ReadResourceResult: ...
 
     async def with_resource(
         self,

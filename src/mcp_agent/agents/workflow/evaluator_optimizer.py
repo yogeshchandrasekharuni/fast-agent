@@ -13,7 +13,7 @@ from typing import Any, List, Optional, Type
 from pydantic import BaseModel, Field
 
 from mcp_agent.agents.agent import Agent
-from mcp_agent.core.base_agent import BaseAgent
+from mcp_agent.agents.base_agent import BaseAgent
 from mcp_agent.core.exceptions import AgentConfigError
 from mcp_agent.core.prompt import Prompt
 from mcp_agent.core.request_params import RequestParams
@@ -100,7 +100,7 @@ class EvaluatorOptimizerAgent(BaseAgent):
         self.max_refinements = max_refinements
         self.refinement_history = []
 
-    async def generate_x(
+    async def generate(
         self,
         multipart_messages: List[PromptMessageMultipart],
         request_params: Optional[RequestParams] = None,
@@ -125,7 +125,7 @@ class EvaluatorOptimizerAgent(BaseAgent):
         request = multipart_messages[-1].all_text() if multipart_messages else ""
 
         # Initial generation
-        response = await self.generator_agent.generate_x(multipart_messages, request_params)
+        response = await self.generator_agent.generate(multipart_messages, request_params)
         best_response = response
 
         # Refinement loop
@@ -191,7 +191,7 @@ class EvaluatorOptimizerAgent(BaseAgent):
 
             # Create refinement message and get refined response
             refinement_message = Prompt.user(refinement_prompt)
-            response = await self.generator_agent.generate_x([refinement_message], request_params)
+            response = await self.generator_agent.generate([refinement_message], request_params)
 
             refinement_count += 1
 
@@ -215,7 +215,7 @@ class EvaluatorOptimizerAgent(BaseAgent):
             The parsed response, or None if parsing fails
         """
         # Generate optimized response
-        response = await self.generate_x(prompt, request_params)
+        response = await self.generate(prompt, request_params)
 
         # Delegate structured parsing to the generator agent
         structured_prompt = Prompt.user(response.all_text())

@@ -171,7 +171,8 @@ async def test_structured_weather_forecast_prompting_style(fast_agent, model_nam
 
     @fast.agent(
         "weatherforecast",
-        instruction="You are a helpful assistant that provides syntehsized weather data for testing purposes.",
+        instruction="You are a helpful assistant that provides syntehsized weather data for testing"
+        " purposes.",
         model=model_name,
     )
     async def weather_forecast():
@@ -206,8 +207,7 @@ async def test_structured_weather_forecast_prompting_style(fast_agent, model_nam
                 "summary": "Overall, the week looks sunny with a chance of rain on Wednesday."
             }
 
-            DO NOT USE CODE FENCES OR ANY OTHER FORMAT.
-
+            DO NOT USE CODE FENCES, BLOCKS, BACKTICKS (`) OR ANY OTHER MARKUP TO FORMAT THE JSON
             """
 
             # Get structured response

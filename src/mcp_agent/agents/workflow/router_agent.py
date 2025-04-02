@@ -12,7 +12,7 @@ from pydantic import BaseModel
 
 from mcp_agent.agents.agent import Agent
 from mcp_agent.core.agent_types import AgentConfig
-from mcp_agent.core.base_agent import BaseAgent
+from mcp_agent.agents.base_agent import BaseAgent
 from mcp_agent.core.exceptions import AgentConfigError
 from mcp_agent.core.request_params import RequestParams
 from mcp_agent.logging.logger import get_logger
@@ -178,7 +178,7 @@ class RouterAgent(BaseAgent):
 
         return routing_result
 
-    async def generate_x(
+    async def generate(
         self,
         multipart_messages: List[PromptMessageMultipart],
         request_params: Optional[RequestParams] = None,
@@ -214,7 +214,7 @@ class RouterAgent(BaseAgent):
         )
 
         # Dispatch the request to the selected agent
-        return await selected_agent.generate_x(multipart_messages, request_params)
+        return await selected_agent.generate(multipart_messages, request_params)
 
     async def structured(
         self,

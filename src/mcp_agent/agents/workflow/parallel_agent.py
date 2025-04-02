@@ -4,7 +4,7 @@ from typing import Any, List, Optional
 from mcp.types import TextContent
 
 from mcp_agent.agents.agent import Agent, AgentConfig
-from mcp_agent.core.base_agent import BaseAgent
+from mcp_agent.agents.base_agent import BaseAgent
 from mcp_agent.core.request_params import RequestParams
 from mcp_agent.mcp.interfaces import ModelT
 from mcp_agent.mcp.prompt_message_multipart import PromptMessageMultipart
@@ -41,7 +41,7 @@ class ParallelAgent(BaseAgent):
         self.fan_out_agents = fan_out_agents
         self.include_request = include_request
 
-    async def generate_x(
+    async def generate(
         self,
         multipart_messages: List[PromptMessageMultipart],
         request_params: Optional[RequestParams] = None,
@@ -58,7 +58,7 @@ class ParallelAgent(BaseAgent):
         """
         # Execute all fan-out agents in parallel
         responses: List[PromptMessageMultipart] = await asyncio.gather(
-            *[agent.generate_x(multipart_messages, request_params) for agent in self.fan_out_agents]
+            *[agent.generate(multipart_messages, request_params) for agent in self.fan_out_agents]
         )
 
         # Extract the received message from the input
@@ -80,7 +80,7 @@ class ParallelAgent(BaseAgent):
         )
 
         # Use the fan-in agent to aggregate the responses
-        return await self.fan_in_agent.generate_x([formatted_prompt], request_params)
+        return await self.fan_in_agent.generate([formatted_prompt], request_params)
 
     def _format_responses(self, responses: List[Any], message: Optional[str] = None) -> str:
         """
@@ -129,7 +129,7 @@ class ParallelAgent(BaseAgent):
         """
         # Generate parallel responses first
         responses: List[PromptMessageMultipart] = await asyncio.gather(
-            *[agent.generate_x(prompt, request_params) for agent in self.fan_out_agents]
+            *[agent.generate(prompt, request_params) for agent in self.fan_out_agents]
         )
 
         # Extract the received message

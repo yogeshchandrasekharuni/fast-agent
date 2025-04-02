@@ -14,10 +14,11 @@ from typing import (
 
 from anyio import Event, Lock, create_task_group
 from anyio.streams.memory import MemoryObjectReceiveStream, MemoryObjectSendStream
-from mcp import ClientSession, stdio_client
+from mcp import ClientSession
 from mcp.client.sse import sse_client
 from mcp.client.stdio import (
     StdioServerParameters,
+    stdio_client,
     get_default_environment,
 )
 from mcp.types import JSONRPCMessage, ServerCapabilities
@@ -263,8 +264,11 @@ class MCPConnectionManager(ContextDependent):
                     args=config.args,
                     env={**get_default_environment(), **(config.env or {})},
                 )
-                # Create stdio client config with redirected stderr to our application logger
-                return stdio_client(server_params, errlog=get_stderr_handler(server_name))
+                # Create custom error handler to ensure all output is captured
+                error_handler = get_stderr_handler(server_name)
+                # Explicitly ensure we're using our custom logger for stderr
+                logger.debug(f"{server_name}: Creating stdio client with custom error handler")
+                return stdio_client(server_params, errlog=error_handler)
             elif config.transport == "sse":
                 return sse_client(config.url)
             else:

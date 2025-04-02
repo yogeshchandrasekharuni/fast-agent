@@ -53,7 +53,7 @@ async def main():
         with st.chat_message("assistant"):
             response = ""
             with st.spinner("Thinking..."):
-                response = await llm.generate_str(
+                response = await llm.generate_internal(
                     message=prompt, request_params=RequestParams(use_history=True)
                 )
             st.markdown(response)

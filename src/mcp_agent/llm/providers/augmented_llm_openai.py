@@ -111,7 +111,7 @@ class OpenAIAugmentedLLM(AugmentedLLM[ChatCompletionMessageParam, ChatCompletion
     def _base_url(self) -> str:
         return self.context.config.openai.base_url if self.context.config.openai else None
 
-    async def generate(
+    async def generate_internal(
         self,
         message,
         request_params: RequestParams | None = None,
@@ -327,7 +327,7 @@ class OpenAIAugmentedLLM(AugmentedLLM[ChatCompletionMessageParam, ChatCompletion
         self,
         message,
         request_params: RequestParams | None = None,
-    ):
+    ) -> str:
         """
         Process a query using an LLM and available tools.
         The default implementation uses OpenAI's ChatCompletion as the LLM.
@@ -338,7 +338,7 @@ class OpenAIAugmentedLLM(AugmentedLLM[ChatCompletionMessageParam, ChatCompletion
           in MCP prompt format with user/assistant delimiters.
         """
 
-        responses = await self.generate(
+        responses = await self.generate_internal(
             message=message,
             request_params=request_params,
         )
@@ -405,6 +405,10 @@ class OpenAIAugmentedLLM(AugmentedLLM[ChatCompletionMessageParam, ChatCompletion
         Returns:
             The parsed response as a Pydantic model, or None if parsing fails
         """
+
+        if not "OpenAI" == self.provider:
+            return await super().structured(prompt, model, request_params)
+
         logger = get_logger(__name__)
 
         # First try to use OpenAI's beta.chat.completions.parse feature

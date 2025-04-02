@@ -10,7 +10,7 @@ from typing import Any, List, Optional, Type
 from mcp.types import TextContent
 
 from mcp_agent.agents.agent import Agent, AgentConfig
-from mcp_agent.core.base_agent import BaseAgent
+from mcp_agent.agents.base_agent import BaseAgent
 from mcp_agent.core.prompt import Prompt
 from mcp_agent.core.request_params import RequestParams
 from mcp_agent.mcp.interfaces import ModelT
@@ -45,7 +45,7 @@ class ChainAgent(BaseAgent):
         self.agents = agents
         self.cumulative = cumulative
 
-    async def generate_x(
+    async def generate(
         self,
         multipart_messages: List[PromptMessageMultipart],
         request_params: Optional[RequestParams] = None,
@@ -74,11 +74,11 @@ class ChainAgent(BaseAgent):
         # Initialize messages with the input
 
         if not self.cumulative:
-            response: PromptMessageMultipart = await self.agents[0].generate_x(multipart_messages)
+            response: PromptMessageMultipart = await self.agents[0].generate(multipart_messages)
             # Process the rest of the agents in the chain
             for agent in self.agents[1:]:
                 next_message = Prompt.user(response.content)
-                response = await agent.generate_x([next_message])
+                response = await agent.generate([next_message])
 
             return response
 
@@ -97,7 +97,7 @@ class ChainAgent(BaseAgent):
             # In cumulative mode, include the original message and all previous responses
             chain_messages = multipart_messages.copy()
             chain_messages.extend(all_responses)
-            current_response = await agent.generate_x(chain_messages, request_params)
+            current_response = await agent.generate(chain_messages, request_params)
 
             # Store the response
             all_responses.append(current_response)
@@ -136,7 +136,7 @@ class ChainAgent(BaseAgent):
             The parsed response from the final agent, or None if parsing fails
         """
         # Generate response through the chain
-        response = await self.generate_x(prompt, request_params)
+        response = await self.generate(prompt, request_params)
 
         # Let the last agent in the chain try to parse the response
         if self.agents:

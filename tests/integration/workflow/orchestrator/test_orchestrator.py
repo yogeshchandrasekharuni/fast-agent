@@ -51,21 +51,21 @@ async def test_full_plan_execution(fast_agent):
             agent.orchestrator._get_full_plan = mock_get_full_plan
 
             # Set up agent1 responses
-            await agent.agent1._llm.generate_x(
+            await agent.agent1._llm.generate(
                 [Prompt.user(f"{FIXED_RESPONSE_INDICATOR} Agent1 Task 1 Response")]
             )
 
-            await agent.agent1._llm.generate_x(
+            await agent.agent1._llm.generate(
                 [Prompt.user(f"{FIXED_RESPONSE_INDICATOR} Agent1 Task 2 Response")]
             )
 
             # Set up agent2 response
-            await agent.agent2._llm.generate_x(
+            await agent.agent2._llm.generate(
                 [Prompt.user(f"{FIXED_RESPONSE_INDICATOR} Agent2 Task 1 Response")]
             )
 
             # Set up synthesis response
-            await agent.orchestrator._llm.generate_x(
+            await agent.orchestrator._llm.generate(
                 [Prompt.user(f"{FIXED_RESPONSE_INDICATOR} Final synthesized result from all steps")]
             )
 
@@ -143,7 +143,7 @@ async def test_iterative_plan_execution(fast_agent):
             agent.orchestrator._get_next_step = mock_get_next_step
 
             # Set up agent1 responses for step 1
-            await agent.agent1._llm.generate_x(
+            await agent.agent1._llm.generate(
                 [Prompt.user(f"{FIXED_RESPONSE_INDICATOR} Agent1 Step 1 Response")]
             )
 
@@ -203,12 +203,12 @@ async def test_invalid_agent_handling(fast_agent):
             agent.orchestrator._get_full_plan = mock_get_full_plan
 
             # Set up valid_agent response
-            await agent.valid_agent._llm.generate_x(
+            await agent.valid_agent._llm.generate(
                 [Prompt.user(f"{FIXED_RESPONSE_INDICATOR} Valid agent response")]
             )
 
             # Set up synthesis response
-            await agent.orchestrator._llm.generate_x(
+            await agent.orchestrator._llm.generate(
                 [Prompt.user(f"{FIXED_RESPONSE_INDICATOR} Synthesis including error handling")]
             )
 
@@ -279,12 +279,12 @@ async def test_max_iterations_handling(fast_agent):
             agent.orchestrator._get_next_step = mock_get_next_step
 
             # Set up agent1 response
-            await agent.agent1._llm.generate_x(
+            await agent.agent1._llm.generate(
                 [Prompt.user(f"{FIXED_RESPONSE_INDICATOR} Progress, but not complete")]
             )
 
             # Set up synthesis response indicating incomplete execution
-            await agent.orchestrator._llm.generate_x(
+            await agent.orchestrator._llm.generate(
                 [
                     Prompt.user(
                         f"{FIXED_RESPONSE_INDICATOR} Incomplete result due to iteration limits"

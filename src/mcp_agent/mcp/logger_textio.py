@@ -48,10 +48,10 @@ class LoggerTextIO(TextIO):
             complete_lines = lines[:-1]
             self._line_buffer = lines[-1]
 
-        # Log complete lines
+        # Log complete lines but at debug level instead of info to prevent console spam
         for line in complete_lines:
             if line.strip():  # Only log non-empty lines
-                logger.info(f"{self.server_name} (stderr): {line}")
+                logger.debug(f"{self.server_name} (stderr): {line}")
 
         # Always write to the underlying buffer
         return self._buffer.write(s)
@@ -64,7 +64,7 @@ class LoggerTextIO(TextIO):
         """Close the stream."""
         # Log any remaining content in the line buffer
         if self._line_buffer and self._line_buffer.strip():
-            logger.info(f"{self.server_name} (stderr): {self._line_buffer}")
+            logger.debug(f"{self.server_name} (stderr): {self._line_buffer}")
         self._buffer.close()
 
     def readable(self) -> bool:

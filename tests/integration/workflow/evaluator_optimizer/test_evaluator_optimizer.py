@@ -67,7 +67,7 @@ async def test_single_refinement_cycle(fast_agent):
         async with fast.run() as agent:
             # Initial generation - Set the response to return
             initial_message = f"{FIXED_RESPONSE_INDICATOR} This is the initial response."
-            await agent.generator._llm.generate_x([Prompt.user(initial_message)])
+            await agent.generator._llm.generate([Prompt.user(initial_message)])
 
             # Create properly formatted evaluation JSON
             eval_data = {
@@ -80,13 +80,13 @@ async def test_single_refinement_cycle(fast_agent):
 
             # Set up evaluator to return the structured evaluation
             eval_message = f"{FIXED_RESPONSE_INDICATOR} {eval_json}"
-            await agent.evaluator._llm.generate_x([Prompt.user(eval_message)])
+            await agent.evaluator._llm.generate([Prompt.user(eval_message)])
 
             # Set up second round response
             refined_message = (
                 f"{FIXED_RESPONSE_INDICATOR} This is the refined response with more details."
             )
-            await agent.generator._llm.generate_x([Prompt.user(refined_message)])
+            await agent.generator._llm.generate([Prompt.user(refined_message)])
 
             # Set up final evaluation to indicate good quality
             final_eval = {
@@ -96,7 +96,7 @@ async def test_single_refinement_cycle(fast_agent):
                 "focus_areas": [],
             }
             final_json = json.dumps(final_eval)
-            await agent.evaluator._llm.generate_x(
+            await agent.evaluator._llm.generate(
                 [Prompt.user(f"{FIXED_RESPONSE_INDICATOR} {final_json}")]
             )
 
@@ -131,7 +131,7 @@ async def test_max_refinements_limit(fast_agent):
         async with fast.run() as agent:
             # Initial generation
             initial_response = f"{FIXED_RESPONSE_INDICATOR} Initial draft."
-            await agent.generator_max._llm.generate_x([Prompt.user(initial_response)])
+            await agent.generator_max._llm.generate([Prompt.user(initial_response)])
 
             # First evaluation - needs improvement
             first_eval = {
@@ -141,13 +141,13 @@ async def test_max_refinements_limit(fast_agent):
                 "focus_areas": ["Be more specific"],
             }
             first_eval_json = json.dumps(first_eval)
-            await agent.evaluator_max._llm.generate_x(
+            await agent.evaluator_max._llm.generate(
                 [Prompt.user(f"{FIXED_RESPONSE_INDICATOR} {first_eval_json}")]
             )
 
             # First refinement
             first_refinement = f"{FIXED_RESPONSE_INDICATOR} First refinement."
-            await agent.generator_max._llm.generate_x([Prompt.user(first_refinement)])
+            await agent.generator_max._llm.generate([Prompt.user(first_refinement)])
 
             # Second evaluation - still needs improvement
             second_eval = {
@@ -157,13 +157,13 @@ async def test_max_refinements_limit(fast_agent):
                 "focus_areas": ["Add examples"],
             }
             second_eval_json = json.dumps(second_eval)
-            await agent.evaluator_max._llm.generate_x(
+            await agent.evaluator_max._llm.generate(
                 [Prompt.user(f"{FIXED_RESPONSE_INDICATOR} {second_eval_json}")]
             )
 
             # Second refinement
             second_refinement = f"{FIXED_RESPONSE_INDICATOR} Second refinement with examples."
-            await agent.generator_max._llm.generate_x([Prompt.user(second_refinement)])
+            await agent.generator_max._llm.generate([Prompt.user(second_refinement)])
 
             # Third evaluation - still needs improvement (should not be used due to max_refinements)
             third_eval = {
@@ -173,7 +173,7 @@ async def test_max_refinements_limit(fast_agent):
                 "focus_areas": ["Add more details"],
             }
             third_eval_json = json.dumps(third_eval)
-            await agent.evaluator_max._llm.generate_x(
+            await agent.evaluator_max._llm.generate(
                 [Prompt.user(f"{FIXED_RESPONSE_INDICATOR} {third_eval_json}")]
             )
 
@@ -209,7 +209,7 @@ async def test_early_stop_on_quality(fast_agent):
         async with fast.run() as agent:
             # Initial generation
             initial_response = f"{FIXED_RESPONSE_INDICATOR} Initial draft."
-            await agent.generator_quality._llm.generate_x([Prompt.user(initial_response)])
+            await agent.generator_quality._llm.generate([Prompt.user(initial_response)])
 
             # First evaluation - needs improvement (FAIR is below GOOD threshold)
             first_eval = {
@@ -219,13 +219,13 @@ async def test_early_stop_on_quality(fast_agent):
                 "focus_areas": ["Be more specific"],
             }
             first_eval_json = json.dumps(first_eval)
-            await agent.evaluator_quality._llm.generate_x(
+            await agent.evaluator_quality._llm.generate(
                 [Prompt.user(f"{FIXED_RESPONSE_INDICATOR} {first_eval_json}")]
             )
 
             # First refinement
             first_refinement = f"{FIXED_RESPONSE_INDICATOR} First refinement with more details."
-            await agent.generator_quality._llm.generate_x([Prompt.user(first_refinement)])
+            await agent.generator_quality._llm.generate([Prompt.user(first_refinement)])
 
             # Second evaluation - meets quality threshold (GOOD)
             second_eval = {
@@ -235,13 +235,13 @@ async def test_early_stop_on_quality(fast_agent):
                 "focus_areas": [],
             }
             second_eval_json = json.dumps(second_eval)
-            await agent.evaluator_quality._llm.generate_x(
+            await agent.evaluator_quality._llm.generate(
                 [Prompt.user(f"{FIXED_RESPONSE_INDICATOR} {second_eval_json}")]
             )
 
             # Additional refinement response (should not be used because we hit quality threshold)
             unused_response = f"{FIXED_RESPONSE_INDICATOR} This refinement should never be used."
-            await agent.generator_quality._llm.generate_x([Prompt.user(unused_response)])
+            await agent.generator_quality._llm.generate([Prompt.user(unused_response)])
 
             # Send the input and get optimized output
             result = await agent.optimizer_quality.send("Write something")
@@ -276,7 +276,7 @@ async def test_structured_output(fast_agent):
         async with fast.run() as agent:
             # Set up initial response - basic text
             initial_response = f"{FIXED_RESPONSE_INDICATOR} Initial content"
-            await agent.generator_struct._llm.generate_x([Prompt.user(initial_response)])
+            await agent.generator_struct._llm.generate([Prompt.user(initial_response)])
 
             # Evaluation - good quality, no need for refinement
             eval_result = {
@@ -286,7 +286,7 @@ async def test_structured_output(fast_agent):
                 "focus_areas": [],
             }
             eval_json = json.dumps(eval_result)
-            await agent.evaluator_struct._llm.generate_x(
+            await agent.evaluator_struct._llm.generate(
                 [Prompt.user(f"{FIXED_RESPONSE_INDICATOR} {eval_json}")]
             )
 
@@ -296,7 +296,7 @@ async def test_structured_output(fast_agent):
             test_output_json = json.dumps(test_output)
 
             # Prime the generator to return this JSON when asked for structured output
-            await agent.generator_struct._llm.generate_x(
+            await agent.generator_struct._llm.generate(
                 [Prompt.user(f"{FIXED_RESPONSE_INDICATOR} {test_output_json}")]
             )
 
