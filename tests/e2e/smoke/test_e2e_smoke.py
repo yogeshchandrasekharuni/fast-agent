@@ -78,7 +78,6 @@ class WeatherForecast(BaseModel):
     summary: str = Field(..., description="Brief summary of the overall forecast")
 
 
-@pytest.mark.skip
 @pytest.mark.integration
 @pytest.mark.asyncio
 @pytest.mark.e2e
@@ -86,6 +85,7 @@ class WeatherForecast(BaseModel):
     "model_name",
     [
         "gpt-4o",  # OpenAI model
+        "o3-mini.low",  # reasoning
         "haiku35",  # Anthropic model
     ],
 )

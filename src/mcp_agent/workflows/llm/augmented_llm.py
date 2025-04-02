@@ -113,40 +113,6 @@ class AugmentedLLM(ContextDependent, AugmentedLLMProtocol, Generic[MessageParamT
         self.type_converter = type_converter
         self.verb = kwargs.get("verb")
 
-    @abstractmethod
-    async def generate(
-        self,
-        message: str | MessageParamT | List[MessageParamT],
-        request_params: RequestParams | None = None,
-    ) -> List[MessageT]:
-        """Request an LLM generation, which may run multiple iterations, and return the result"""
-
-    @abstractmethod
-    async def generate_str(
-        self,
-        message: str | MessageParamT | List[MessageParamT],
-        request_params: RequestParams | None = None,
-    ) -> str:
-        """Request an LLM generation and return the string representation of the result"""
-
-    @abstractmethod
-    async def generate_structured(
-        self,
-        message: str | MessageParamT | List[MessageParamT],
-        response_model: Type[ModelT],
-        request_params: RequestParams | None = None,
-    ) -> ModelT:
-        """Request a structured LLM generation and return the result as a Pydantic model."""
-
-    async def select_model(self, request_params: RequestParams | None = None) -> str | None:
-        """
-        Return the configured model (legacy support)
-        """
-        if request_params and request_params.model:
-            return request_params.model
-
-        raise ModelConfigError("Internal Error: Model is not configured correctly")
-
     def _initialize_default_params(self, kwargs: dict) -> RequestParams:
         """Initialize default parameters for the LLM.
         Should be overridden by provider implementations to set provider-specific defaults."""
@@ -450,13 +416,6 @@ class AugmentedLLM(ContextDependent, AugmentedLLMProtocol, Generic[MessageParamT
             logger = get_logger(__name__)
             logger.error(f"Failed to parse structured response: {str(e)}")
             return None
-
-    async def apply_prompt(
-        self,
-        multipart_messages: List[PromptMessageMultipart],
-        request_params: RequestParams | None = None,
-    ) -> PromptMessageMultipart:
-        return await self.generate_x(multipart_messages, request_params)
 
     async def generate_x(
         self,

@@ -112,7 +112,8 @@ class AnthropicAugmentedLLM(AugmentedLLM[MessageParam, Message]):
         ]
 
         responses: List[Message] = []
-        model = await self.select_model(params)
+
+        model = self.default_request_params.model
         chat_turn = (len(messages) + 1) // 2
         self.show_user_message(str(message), model, chat_turn)
 

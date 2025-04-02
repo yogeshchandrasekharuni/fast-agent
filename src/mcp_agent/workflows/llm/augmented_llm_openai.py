@@ -171,7 +171,7 @@ class OpenAIAugmentedLLM(AugmentedLLM[ChatCompletionMessageParam, ChatCompletion
             available_tools = []
 
         responses: List[ChatCompletionMessage] = []
-        model = await self.select_model(params)
+        model = self.default_request_params.model
         chat_turn = len(messages) // 2
         if self._reasoning:
             self.show_user_message(str(message), f"{model} ({self._reasoning_effort})", chat_turn)
@@ -462,20 +462,17 @@ class OpenAIAugmentedLLM(AugmentedLLM[ChatCompletionMessageParam, ChatCompletion
                 )
                 messages.insert(0, system_msg)
 
-            # Get merged request parameters
-            params = self.get_request_params(request_params)
-
             # Use the beta parse feature
             try:
                 openai_client = OpenAI(api_key=self._api_key(), base_url=self._base_url())
-                model_name = await self.select_model(params)
+                model_name = self.default_request_params.model
 
                 logger.debug(
                     f"Using OpenAI beta parse with model {model_name} for structured output"
                 )
                 response = await self.executor.execute(
                     openai_client.beta.chat.completions.parse,
-                    model=model_name or "gpt-4o",
+                    model=model_name,
                     messages=messages,
                     response_format=model,
                 )
@@ -485,7 +482,6 @@ class OpenAIAugmentedLLM(AugmentedLLM[ChatCompletionMessageParam, ChatCompletion
 
                 parsed_result = response[0].choices[0].message
                 logger.debug("Successfully used OpenAI beta parse feature for structured output")
-                #                return cast("ModelT", parsed_result)
                 return parsed_result.parsed
 
             except (ImportError, AttributeError, NotImplementedError) as e:
