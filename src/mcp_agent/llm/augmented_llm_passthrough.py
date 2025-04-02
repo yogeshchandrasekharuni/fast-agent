@@ -1,14 +1,12 @@
 import json  # Import at the module level
-from typing import Any, List, Optional, Type, Union
+from typing import Any, List, Optional, Union
 
 from mcp.types import PromptMessage
-from pydantic_core import from_json
 
 from mcp_agent.core.prompt import Prompt
 from mcp_agent.llm.augmented_llm import (
     AugmentedLLM,
     MessageParamT,
-    ModelT,
     RequestParams,
 )
 from mcp_agent.logging.logger import get_logger

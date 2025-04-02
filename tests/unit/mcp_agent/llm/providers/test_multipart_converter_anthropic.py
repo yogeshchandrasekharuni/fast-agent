@@ -12,11 +12,11 @@ from mcp.types import (
 )
 from pydantic import AnyUrl
 
-from mcp_agent.mcp.prompt_message_multipart import PromptMessageMultipart
-from mcp_agent.mcp.resource_utils import normalize_uri
 from mcp_agent.llm.providers.multipart_converter_anthropic import (
     AnthropicConverter,
 )
+from mcp_agent.mcp.prompt_message_multipart import PromptMessageMultipart
+from mcp_agent.mcp.resource_utils import normalize_uri
 
 PDF_BASE64 = base64.b64encode(b"fake_pdf_data").decode("utf-8")
 

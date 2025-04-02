@@ -1,8 +1,11 @@
-from typing import Dict, List
+from typing import TYPE_CHECKING, Dict, List
+
 import pytest
-from mcp.types import GetPromptResult, Prompt
 
 from mcp_agent.mcp.prompt_message_multipart import PromptMessageMultipart
+
+if TYPE_CHECKING:
+    from mcp.types import GetPromptResult, Prompt
 
 
 @pytest.mark.integration

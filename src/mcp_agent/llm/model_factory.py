@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 from enum import Enum, auto
-from typing import Callable, Dict, Optional, Type, TypeVar, Union
+from typing import Callable, Dict, Optional, Type, Union
 
 from mcp_agent.agents.agent import Agent
 from mcp_agent.core.exceptions import ModelConfigError

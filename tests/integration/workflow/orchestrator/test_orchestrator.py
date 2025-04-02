@@ -41,9 +41,7 @@ async def test_full_plan_execution(fast_agent):
                 is_complete=True,
             )
 
-            # We need to override the _get_full_plan method for testing
-            # The passthrough LLM doesn't work well with structured methods
-            original_get_full_plan = agent.orchestrator._get_full_plan
+            agent.orchestrator._get_full_plan
 
             async def mock_get_full_plan(*args, **kwargs):
                 return test_plan
@@ -127,15 +125,8 @@ async def test_iterative_plan_execution(fast_agent):
                 is_complete=False,
             )
 
-            # Define second step
-            step2 = NextStep(
-                description="Second iterative step",
-                tasks=[AgentTask(description="Follow-up task for agent2", agent="agent2")],
-                is_complete=True,
-            )
-
             # Override _get_next_step to return our predefined steps
-            original_get_next_step = agent.orchestrator._get_next_step
+            agent.orchestrator._get_next_step
 
             async def mock_get_next_step(*args, **kwargs):
                 return step1
@@ -153,7 +144,7 @@ async def test_iterative_plan_execution(fast_agent):
 
             # Execute orchestrator to get first step
             # We'll skip the full test for iterative because of the limitations of passthrough LLM
-            result = await agent.orchestrator.send("Do this step by step")
+            await agent.orchestrator.send("Do this step by step")
 
             # Check that one step was executed
             plan_result = agent.orchestrator.plan_result
@@ -195,7 +186,7 @@ async def test_invalid_agent_handling(fast_agent):
             )
 
             # Override _get_full_plan to return our predefined plan
-            original_get_full_plan = agent.orchestrator._get_full_plan
+            agent.orchestrator._get_full_plan
 
             async def mock_get_full_plan(*args, **kwargs):
                 return test_plan
@@ -271,7 +262,7 @@ async def test_max_iterations_handling(fast_agent):
             )
 
             # Override _get_next_step to return our non-complete step
-            original_get_next_step = agent.orchestrator._get_next_step
+            agent.orchestrator._get_next_step
 
             async def mock_get_next_step(*args, **kwargs):
                 return not_complete_step

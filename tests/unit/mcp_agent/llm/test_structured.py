@@ -4,7 +4,6 @@ import pytest
 from pydantic import BaseModel
 
 from mcp_agent.core.prompt import Prompt
-from mcp_agent.llm.augmented_llm import AugmentedLLM
 from mcp_agent.llm.augmented_llm_passthrough import PassthroughLLM
 
 

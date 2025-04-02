@@ -19,7 +19,7 @@ from mcp.types import (
 )
 from pydantic import BaseModel
 
-from mcp_agent.agents.agent import AgentConfig
+from mcp_agent.core.agent_types import AgentConfig
 from mcp_agent.core.exceptions import PromptExitError
 from mcp_agent.core.prompt import Prompt
 from mcp_agent.core.request_params import RequestParams

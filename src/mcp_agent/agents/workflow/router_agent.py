@@ -11,8 +11,8 @@ from mcp.types import TextContent
 from pydantic import BaseModel
 
 from mcp_agent.agents.agent import Agent
-from mcp_agent.core.agent_types import AgentConfig
 from mcp_agent.agents.base_agent import BaseAgent
+from mcp_agent.core.agent_types import AgentConfig
 from mcp_agent.core.exceptions import AgentConfigError
 from mcp_agent.core.request_params import RequestParams
 from mcp_agent.logging.logger import get_logger

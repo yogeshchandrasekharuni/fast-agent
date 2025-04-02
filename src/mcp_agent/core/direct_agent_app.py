@@ -104,7 +104,7 @@ class DirectAgentApp:
             The agent's response as a string
         """
         return await self._agent(agent_name).apply_prompt(prompt_name, arguments)
-        
+
     async def list_prompts(self, agent_name: str | None = None):
         """
         List available prompts for an agent.
@@ -133,9 +133,7 @@ class DirectAgentApp:
         Returns:
             The result of the interactive session
         """
-        # Get all available agent names
-        all_agent_names = list(self._agents.keys())
-        
+
         # Get the default agent name if none specified
         if agent_name:
             # Validate that this agent exists
@@ -145,7 +143,7 @@ class DirectAgentApp:
         else:
             # Use the first agent's name as default
             target_name = next(iter(self._agents.keys()))
-            
+
         # Don't delegate to the agent's own prompt method - use our implementation
         # The agent's prompt method doesn't fully support switching between agents
 

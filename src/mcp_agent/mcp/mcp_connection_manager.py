@@ -18,8 +18,8 @@ from mcp import ClientSession
 from mcp.client.sse import sse_client
 from mcp.client.stdio import (
     StdioServerParameters,
-    stdio_client,
     get_default_environment,
+    stdio_client,
 )
 from mcp.types import JSONRPCMessage, ServerCapabilities
 

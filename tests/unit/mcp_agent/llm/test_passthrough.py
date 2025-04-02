@@ -3,7 +3,6 @@ from typing import TYPE_CHECKING
 import pytest
 
 from mcp_agent.core.prompt import Prompt
-from mcp_agent.mcp.prompt_message_multipart import PromptMessageMultipart
 from mcp_agent.llm.augmented_llm_passthrough import (
     CALL_TOOL_INDICATOR,
     FIXED_RESPONSE_INDICATOR,
@@ -12,6 +11,7 @@ from mcp_agent.llm.augmented_llm_passthrough import (
 
 if TYPE_CHECKING:
     from mcp_agent.mcp.interfaces import AugmentedLLMProtocol
+    from mcp_agent.mcp.prompt_message_multipart import PromptMessageMultipart
 
 
 @pytest.mark.asyncio
