@@ -64,10 +64,11 @@ include = [
     "src/mcp_agent/**/*.yaml",
     "src/mcp_agent/**/*.yml",
     "src/mcp_agent/**/*.csv",
-    "src/mcp_agent/resources/**/*.py",
-    "src/mcp_agent/resources/**/*.yaml",
-    "src/mcp_agent/resources/**/*.yml",
-    "src/mcp_agent/resources/**/*.csv",
+    "examples/**/*.py",
+    "examples/**/*.yaml",
+    "examples/**/*.yml",
+    "examples/**/*.csv",
+    "examples/**/mount-point/*.csv",
 ]
 
 [tool.pytest.ini_options]
@@ -101,14 +102,7 @@ silsila = "mcp_agent.cli.__main__:app"
 prompt-server = "mcp_agent.mcp.prompts.__main__:main"
 
 [tool.setuptools.package-data]
-mcp_agent = [
-    "data/*.json",
-    "resources/examples/**/*.py",
-    "resources/examples/**/*.yaml",
-    "resources/examples/**/*.yml",
-    "resources/examples/**/*.csv",
-    "resources/examples/**/mount-point/*.csv"
-]
+mcp_agent = []
 
 [tool.ruff]
 line-length = 100

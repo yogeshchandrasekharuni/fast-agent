@@ -3,8 +3,8 @@
 from mcp.server.fastmcp import Context as MCPContext
 from mcp.server.fastmcp import FastMCP
 
-# Remove circular import
-from mcp_agent.core.agent_app import AgentApp
+# Import the DirectAgentApp instead of AgentApp
+from mcp_agent.core.direct_agent_app import DirectAgentApp
 
 
 class AgentMCPServer:
@@ -12,7 +12,7 @@ class AgentMCPServer:
 
     def __init__(
         self,
-        agent_app: AgentApp,
+        agent_app: DirectAgentApp,
         server_name: str = "FastAgent-MCP-Server",
         server_description: str = None,
     ) -> None:
@@ -20,7 +20,7 @@ class AgentMCPServer:
         self.mcp_server = FastMCP(
             name=server_name,
             instructions=server_description
-            or f"This server provides access to {len(agent_app.agents)} agents",
+            or f"This server provides access to {len(agent_app._agents)} agents",
         )
         self.setup_tools()
 

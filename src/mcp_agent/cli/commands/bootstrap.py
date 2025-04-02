@@ -70,13 +70,9 @@ def copy_example_files(example_type: str, target_dir: Path, force: bool = False)
             mount_point_dir.mkdir(parents=True)
             console.print(f"Created mount-point directory: {mount_point_dir}")
 
-    # Use the resources directory from the package
-    source_dir = (
-        Path(__file__).parent.parent.parent
-        / "resources"
-        / "examples"
-        / ("workflows" if example_type == "workflow" else f"{example_type}")
-    )
+    # Use examples from top-level directory
+    package_dir = Path(__file__).parent.parent.parent.parent.parent
+    source_dir = package_dir / "examples" / ("workflows" if example_type == "workflow" else f"{example_type}")
 
     if not source_dir.exists():
         console.print(f"[red]Error: Source directory not found: {source_dir}[/red]")
