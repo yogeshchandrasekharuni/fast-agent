@@ -6,21 +6,21 @@ Implements type-safe factories with improved error handling.
 from typing import Any, Callable, Dict, Optional, Protocol, TypeVar
 
 from mcp_agent.agents.agent import Agent
+from mcp_agent.agents.workflow.evaluator_optimizer import (
+    EvaluatorOptimizerAgent,
+    QualityRating,
+)
+from mcp_agent.agents.workflow.orchestrator_agent import OrchestratorAgent
+from mcp_agent.agents.workflow.parallel_agent import ParallelAgent
+from mcp_agent.agents.workflow.router_agent import RouterAgent
 from mcp_agent.app import MCPApp
 from mcp_agent.core.agent_types import AgentType
 from mcp_agent.core.exceptions import AgentConfigError
 from mcp_agent.core.validation import get_dependencies_groups
 from mcp_agent.event_progress import ProgressAction
 from mcp_agent.logging.logger import get_logger
-from mcp_agent.workflows.evaluator_optimizer.evaluator_optimizer import (
-    EvaluatorOptimizerAgent,
-    QualityRating,
-)
 from mcp_agent.workflows.llm.augmented_llm import RequestParams
 from mcp_agent.workflows.llm.model_factory import ModelFactory
-from mcp_agent.workflows.orchestrator.orchestrator_agent import OrchestratorAgent
-from mcp_agent.workflows.parallel.parallel_agent import ParallelAgent
-from mcp_agent.workflows.router.router_agent import RouterAgent
 
 # Type aliases for improved readability and IDE support
 AgentDict = Dict[str, Agent]
@@ -256,7 +256,7 @@ async def create_agents_by_type(
                         raise AgentConfigError(f"Chain agent {agent_name} not found")
                     chain_agents.append(active_agents[agent_name])
 
-                from mcp_agent.workflows.chain.chain_agent import ChainAgent
+                from mcp_agent.agents.workflow.chain_agent import ChainAgent
 
                 # Get the cumulative parameter
                 cumulative = agent_data.get("cumulative", False)

@@ -10,14 +10,7 @@ from typing import Any, Dict, List, Literal, Optional, Type, Union
 from mcp.types import TextContent
 
 from mcp_agent.agents.agent import Agent
-from mcp_agent.core.agent_types import AgentConfig
-from mcp_agent.core.base_agent import BaseAgent
-from mcp_agent.core.exceptions import AgentConfigError
-from mcp_agent.core.request_params import RequestParams
-from mcp_agent.logging.logger import get_logger
-from mcp_agent.mcp.interfaces import ModelT
-from mcp_agent.mcp.prompt_message_multipart import PromptMessageMultipart
-from mcp_agent.workflows.orchestrator.orchestrator_models import (
+from mcp_agent.agents.workflow.orchestrator_models import (
     NextStep,
     Plan,
     PlanResult,
@@ -26,13 +19,20 @@ from mcp_agent.workflows.orchestrator.orchestrator_models import (
     format_plan_result,
     format_step_result_text,
 )
-from mcp_agent.workflows.orchestrator.orchestrator_prompts import (
+from mcp_agent.agents.workflow.orchestrator_prompts import (
     FULL_PLAN_PROMPT_TEMPLATE,
     ITERATIVE_PLAN_PROMPT_TEMPLATE,
     SYNTHESIZE_INCOMPLETE_PLAN_TEMPLATE,
     SYNTHESIZE_PLAN_PROMPT_TEMPLATE,
     TASK_PROMPT_TEMPLATE,
 )
+from mcp_agent.core.agent_types import AgentConfig
+from mcp_agent.core.base_agent import BaseAgent
+from mcp_agent.core.exceptions import AgentConfigError
+from mcp_agent.core.request_params import RequestParams
+from mcp_agent.logging.logger import get_logger
+from mcp_agent.mcp.interfaces import ModelT
+from mcp_agent.mcp.prompt_message_multipart import PromptMessageMultipart
 
 logger = get_logger(__name__)
 
@@ -284,7 +284,7 @@ class OrchestratorAgent(BaseAgent):
         Returns:
             Result of executing the step
         """
-        from mcp_agent.workflows.orchestrator.orchestrator_models import StepResult
+        from mcp_agent.agents.workflow.orchestrator_models import StepResult
 
         # Initialize step result
         step_result = StepResult(step=step, task_results=[])

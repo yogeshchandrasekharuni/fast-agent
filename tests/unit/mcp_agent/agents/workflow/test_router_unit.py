@@ -12,7 +12,7 @@ from mcp_agent.workflows.llm.augmented_llm_passthrough import (
     FIXED_RESPONSE_INDICATOR,
     PassthroughLLM,
 )
-from mcp_agent.workflows.router.router_agent import RouterAgent, RouterResult, RoutingResponse
+from mcp_agent.agents.workflow.router_agent import RouterAgent, RouterResult, RoutingResponse
 
 # Model tests
 

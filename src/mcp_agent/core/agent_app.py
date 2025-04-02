@@ -4,6 +4,10 @@ Main application wrapper for interacting with agents.
 
 from typing import TYPE_CHECKING, Dict, Optional, Union
 
+from mcp_agent.agents.workflow.evaluator_optimizer import (
+    EvaluatorOptimizerLLM,
+)
+from mcp_agent.agents.workflow.parallel_agent import ParallelAgent
 from mcp_agent.app import MCPApp
 
 # Import proxies directly - they handle their own circular imports
@@ -16,11 +20,7 @@ from mcp_agent.core.proxies import (
 )
 from mcp_agent.mcp.prompt_message_multipart import PromptMessageMultipart
 from mcp_agent.progress_display import progress_display
-from mcp_agent.workflows.evaluator_optimizer.evaluator_optimizer import (
-    EvaluatorOptimizerLLM,
-)
 from mcp_agent.workflows.orchestrator.orchestrator import Orchestrator
-from mcp_agent.workflows.parallel.parallel_agent import ParallelAgent
 
 # Handle possible circular imports with types
 if TYPE_CHECKING:

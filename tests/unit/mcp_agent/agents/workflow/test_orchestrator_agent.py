@@ -6,16 +6,16 @@ import pytest
 import pytest_asyncio
 from mcp.types import TextContent
 
-from mcp_agent.core.request_params import RequestParams
-from mcp_agent.mcp.prompt_message_multipart import PromptMessageMultipart
-from mcp_agent.workflows.orchestrator.orchestrator_agent import OrchestratorAgent
-from mcp_agent.workflows.orchestrator.orchestrator_models import (
+from mcp_agent.agents.workflow.orchestrator_agent import OrchestratorAgent
+from mcp_agent.agents.workflow.orchestrator_models import (
     AgentTask,
     NextStep,
     Plan,
     PlanResult,
     Step,
 )
+from mcp_agent.core.request_params import RequestParams
+from mcp_agent.mcp.prompt_message_multipart import PromptMessageMultipart
 
 
 @pytest_asyncio.fixture
