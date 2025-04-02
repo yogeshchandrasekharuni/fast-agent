@@ -344,17 +344,6 @@ class AnthropicAugmentedLLM(AugmentedLLM[MessageParam, Message]):
         multipart_messages: List["PromptMessageMultipart"],
         request_params: RequestParams | None = None,
     ) -> PromptMessageMultipart:
-        """
-        Anthropic-specific implementation of apply_prompt_template that handles
-        multimodal content natively.
-
-        Args:
-            multipart_messages: List of PromptMessageMultipart objects parsed from the prompt template
-
-        Returns:
-            String representation of the assistant's response if generated,
-            or the last assistant message in the prompt
-        """
         # Check the last message role
         last_message = multipart_messages[-1]
 

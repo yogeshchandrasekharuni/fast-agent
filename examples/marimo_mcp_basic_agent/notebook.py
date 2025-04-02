@@ -43,7 +43,7 @@ def _(ListToolsResult, mo, tools):
 def _(llm, mo):
     async def model(messages, config):
         message = messages[-1]
-        response = await llm.generate_str(message.content)
+        response = await llm.send(message.content)
         return mo.md(response)
 
     chatbot = mo.ui.chat(

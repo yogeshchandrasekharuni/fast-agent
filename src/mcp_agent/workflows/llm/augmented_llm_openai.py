@@ -366,18 +366,6 @@ class OpenAIAugmentedLLM(AugmentedLLM[ChatCompletionMessageParam, ChatCompletion
         multipart_messages: List["PromptMessageMultipart"],
         request_params: RequestParams | None = None,
     ) -> PromptMessageMultipart:
-        """
-        OpenAI-specific implementation of apply_prompt_template that handles
-        multimodal content natively.
-
-        Args:
-            multipart_messages: List of PromptMessageMultipart objects parsed from the prompt template
-
-        Returns:
-            String representation of the assistant's response if generated,
-            or the last assistant message in the prompt
-        """
-
         # TODO -- this is very similar to Anthropic (just the converter class changes).
         # TODO -- potential refactor to base class, standardize Converter interface
         # Check the last message role
@@ -401,30 +389,6 @@ class OpenAIAugmentedLLM(AugmentedLLM[ChatCompletionMessageParam, ChatCompletion
             # For assistant messages: Return the last message content as text
             self.logger.debug("Last message in prompt is from assistant, returning it directly")
             return last_message
-
-    async def generate_structured(
-        self,
-        message,
-        response_model: Type[ModelT],
-        request_params: RequestParams | None = None,
-    ) -> ModelT:
-        """
-        Generate a structured response using OpenAI's beta.chat.completions.parse feature.
-
-        Args:
-            message: The input message(s)
-            response_model: Pydantic model to parse the response into
-            request_params: Optional request parameters
-
-        Returns:
-            Parsed structured response matching the Pydantic model
-        """
-        responses = await self.generate(
-            message=message,
-            request_params=request_params,
-            response_model=response_model,
-        )
-        return responses[0].parsed
 
     async def structured(
         self,
