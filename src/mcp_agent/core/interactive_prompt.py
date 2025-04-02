@@ -50,6 +50,7 @@ class InteractivePrompt:
         default_agent: str,
         available_agents: List[str],
         apply_prompt_func=None,
+        list_prompts_func=None,
         default: str = "",
     ) -> str:
         """
@@ -60,6 +61,7 @@ class InteractivePrompt:
             default_agent: Name of the default agent to use
             available_agents: List of available agent names
             apply_prompt_func: Optional function to apply prompts (signature: async (name, args, agent))
+            list_prompts_func: Optional function to list available prompts (signature: async (agent_name))
             default: Default message to use when user presses enter
 
         Returns:
@@ -92,8 +94,8 @@ class InteractivePrompt:
                     agent_types=self.agent_types,  # Pass agent types for display
                 )
 
-                # Handle special commands
-                command_result = await handle_special_commands(user_input)
+                # Handle special commands - pass "True" to enable agent switching
+                command_result = await handle_special_commands(user_input, True)
 
                 # Check if we should switch agents
                 if isinstance(command_result, dict):
@@ -105,14 +107,14 @@ class InteractivePrompt:
                         else:
                             rich_print(f"[red]Agent '{new_agent}' not found[/red]")
                             continue
-                    elif "list_prompts" in command_result and apply_prompt_func:
-                        # Delegate to the apply_prompt_func
-                        await self._list_prompts(apply_prompt_func, agent)
+                    elif "list_prompts" in command_result and list_prompts_func:
+                        # Use the list_prompts_func directly
+                        await self._list_prompts(list_prompts_func, agent)
                         continue
-                    elif "select_prompt" in command_result and apply_prompt_func:
-                        # Handle prompt selection
+                    elif "select_prompt" in command_result and (list_prompts_func and apply_prompt_func):
+                        # Handle prompt selection, using both list_prompts and apply_prompt
                         prompt_name = command_result.get("prompt_name")
-                        await self._select_prompt(apply_prompt_func, agent, prompt_name)
+                        await self._select_prompt(list_prompts_func, apply_prompt_func, agent, prompt_name)
                         continue
 
                 # Skip further processing if command was handled
@@ -129,21 +131,23 @@ class InteractivePrompt:
 
         return result
 
-    async def _list_prompts(self, apply_prompt_func, agent_name) -> None:
+    async def _list_prompts(self, list_prompts_func, agent_name) -> None:
         """
         List available prompts for an agent.
 
         Args:
-            apply_prompt_func: Function to apply prompts
+            list_prompts_func: Function to get available prompts
             agent_name: Name of the agent
         """
         from rich import print as rich_print
 
         try:
-            # Call the list_prompts function
+            # Directly call the list_prompts function for this agent
             rich_print(f"\n[bold]Fetching prompts for agent [cyan]{agent_name}[/cyan]...[/bold]")
-            prompt_servers = await apply_prompt_func("list_prompts", None, agent_name)
-
+            
+            prompt_servers = await list_prompts_func(agent_name)
+            
+            # Process the returned prompt servers
             if prompt_servers:
                 found_prompts = False
                 for server_name, prompts_info in prompt_servers.items():
@@ -166,13 +170,16 @@ class InteractivePrompt:
             else:
                 rich_print("[yellow]No prompts available[/yellow]")
         except Exception as e:
+            import traceback
             rich_print(f"[red]Error listing prompts: {e}[/red]")
+            rich_print(f"[dim]{traceback.format_exc()}[/dim]")
 
-    async def _select_prompt(self, apply_prompt_func, agent_name, requested_name=None) -> None:
+    async def _select_prompt(self, list_prompts_func, apply_prompt_func, agent_name, requested_name=None) -> None:
         """
         Select and apply a prompt.
 
         Args:
+            list_prompts_func: Function to get available prompts
             apply_prompt_func: Function to apply prompts
             agent_name: Name of the agent
             requested_name: Optional name of the prompt to apply
@@ -183,9 +190,9 @@ class InteractivePrompt:
         console = Console()
 
         try:
-            # Get all available prompts
+            # Get all available prompts directly from the list_prompts function
             rich_print(f"\n[bold]Fetching prompts for agent [cyan]{agent_name}[/cyan]...[/bold]")
-            prompt_servers = await apply_prompt_func("list_prompts", None, agent_name)
+            prompt_servers = await list_prompts_func(agent_name)
 
             if not prompt_servers:
                 rich_print("[yellow]No prompts available for this agent[/yellow]")

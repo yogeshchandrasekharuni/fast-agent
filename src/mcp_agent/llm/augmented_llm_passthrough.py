@@ -8,7 +8,6 @@ from mcp_agent.core.prompt import Prompt
 from mcp_agent.llm.augmented_llm import (
     AugmentedLLM,
     MessageParamT,
-    MessageT,
     ModelT,
     RequestParams,
 )
@@ -34,15 +33,6 @@ class PassthroughLLM(AugmentedLLM):
         self.logger = get_logger(__name__)
         self._messages = [PromptMessage]
         self._fixed_response: str | None = None
-
-    async def generate(
-        self,
-        message: Union[str, MessageParamT, List[MessageParamT]],
-        request_params: Optional[RequestParams] = None,
-    ) -> Union[List[MessageT], Any]:
-        """Simply return the input message as is."""
-        # Return in the format expected by the caller
-        return [message] if isinstance(message, list) else message
 
     async def generate_str(
         self,

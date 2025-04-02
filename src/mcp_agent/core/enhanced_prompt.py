@@ -285,7 +285,7 @@ async def get_enhanced_input(
             elif cmd == "agents":
                 return "LIST_AGENTS"
             elif cmd == "prompts":
-                return "SELECT_PROMPT"  # Changed from LIST_PROMPTS to directly launch selection UI
+                return "SELECT_PROMPT"  # Directly launch prompt selection UI
             elif cmd == "prompt" and len(cmd_parts) > 1:
                 # Direct prompt selection with name
                 return f"SELECT_PROMPT:{cmd_parts[1].strip()}"
@@ -462,17 +462,7 @@ async def handle_special_commands(command, agent_app=None):
             rich_print("[yellow]No agents available[/yellow]")
         return True
 
-    elif command == "LIST_PROMPTS":
-        # Return a dictionary with a list_prompts action to be handled by the caller
-        # The actual prompt listing is implemented in the AgentApp class
-        if agent_app:
-            rich_print("\n[bold]Fetching available MCP prompts...[/bold]")
-            return {"list_prompts": True}
-        else:
-            rich_print(
-                "[yellow]Prompt listing is not available outside of an agent context[/yellow]"
-            )
-            return True
+    # Removed LIST_PROMPTS handling as it's now covered by SELECT_PROMPT
 
     elif command == "SELECT_PROMPT" or (
         isinstance(command, str) and command.startswith("SELECT_PROMPT:")
@@ -496,7 +486,7 @@ async def handle_special_commands(command, agent_app=None):
         agent_name = command.split(":", 1)[1]
         if agent_name in available_agents:
             if agent_app:
-                #                rich_print(f"[green]Switching to agent: {agent_name}[/green]")
+                # The parameter can be the actual agent_app or just True to enable switching
                 return {"switch_agent": agent_name}
             else:
                 rich_print("[yellow]Agent switching not available in this context[/yellow]")

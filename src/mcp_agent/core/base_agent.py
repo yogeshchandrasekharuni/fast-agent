@@ -137,10 +137,26 @@ class BaseAgent(MCPAggregator, AgentProtocol):
         """
         await super().close()
 
-    async def __call__(self, message: Union[str, PromptMessageMultipart] | None = None) -> str:
+    async def __call__(
+        self, 
+        message: Union[str, PromptMessageMultipart] | None = None, 
+        agent_name: Optional[str] = None,
+        default: str = ""
+    ) -> str:
+        """
+        Make the agent callable to send messages or start an interactive prompt.
+        
+        Args:
+            message: Optional message to send to the agent
+            agent_name: Optional name of the agent (for consistency with DirectAgentApp)
+            default: Default message to use in interactive prompt mode
+            
+        Returns:
+            The agent's response as a string or the result of the interactive session
+        """
         if message:
             return await self.send(message)
-        return await self.prompt()
+        return await self.prompt(default=default, agent_name=agent_name)
 
     async def send(self, message: Union[str, PromptMessageMultipart]) -> str:
         """

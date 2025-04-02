@@ -46,22 +46,24 @@ class DirectAgentApp:
         self,
         message: Union[str, PromptMessageMultipart] | None = None,
         agent_name: str | None = None,
+        default: str = "",
     ) -> str:
         """
-        Make the object callable to send messages.
+        Make the object callable to send messages or start interactive prompt.
         This mirrors the FastAgent implementation that allowed agent("message").
 
         Args:
             message: The message to send
-            agent_name: Optional name of the agent to send to (defaults to first agent or all)
+            agent_name: Optional name of the agent to send to (defaults to first agent)
+            default: Default message to use in interactive prompt mode
 
         Returns:
-            The agent's response as a string
+            The agent's response as a string or the result of the interactive session
         """
         if message:
             return await self._agent(agent_name).send(message)
 
-        return await self._agent(agent_name).prompt()
+        return await self._agent(agent_name).prompt(default=default)
 
     async def send(self, message: str, agent_name: Optional[str] = None) -> str:
         """
@@ -102,6 +104,18 @@ class DirectAgentApp:
             The agent's response as a string
         """
         return await self._agent(agent_name).apply_prompt(prompt_name, arguments)
+        
+    async def list_prompts(self, agent_name: str | None = None):
+        """
+        List available prompts for an agent.
+
+        Args:
+            agent_name: Name of the agent to list prompts for
+
+        Returns:
+            Dictionary mapping server names to lists of available prompts
+        """
+        return await self._agent(agent_name).list_prompts()
 
     async def with_resource(self, user_prompt: str, server_name: str, resource_name: str) -> str:
         return await self._agent(None).with_resource(
@@ -119,8 +133,21 @@ class DirectAgentApp:
         Returns:
             The result of the interactive session
         """
-        # Get the default agent if none specified
-        target = self._agent(agent_name)
+        # Get all available agent names
+        all_agent_names = list(self._agents.keys())
+        
+        # Get the default agent name if none specified
+        if agent_name:
+            # Validate that this agent exists
+            if agent_name not in self._agents:
+                raise ValueError(f"Agent '{agent_name}' not found")
+            target_name = agent_name
+        else:
+            # Use the first agent's name as default
+            target_name = next(iter(self._agents.keys()))
+            
+        # Don't delegate to the agent's own prompt method - use our implementation
+        # The agent's prompt method doesn't fully support switching between agents
 
         # Create agent_types dictionary mapping agent names to their types
         agent_types = {}
@@ -128,7 +155,6 @@ class DirectAgentApp:
             # Determine agent type if possible
             agent_type = "Agent"  # Default type
 
-            #            agent_type = agent.config.agent_type
             # Try to get the type from the agent directly
             if hasattr(agent, "agent_type"):
                 agent_type = agent.agent_type
@@ -144,11 +170,12 @@ class DirectAgentApp:
         async def send_wrapper(message, agent_name):
             return await self.send(message, agent_name)
 
-        # Start the prompt loop
+        # Start the prompt loop with the agent name (not the agent object)
         return await prompt.prompt_loop(
             send_func=send_wrapper,
-            default_agent=target,
+            default_agent=target_name,  # Pass the agent name, not the agent object
             available_agents=list(self._agents.keys()),
             apply_prompt_func=self.apply_prompt,
+            list_prompts_func=self.list_prompts,
             default=default,
         )
