@@ -100,17 +100,7 @@ class MCPSettings(BaseModel):
 
 class AnthropicSettings(BaseModel):
     """
-    Settings for using Anthropic models in the MCP Agent application.
-    """
-
-    api_key: str | None = None
-
-    model_config = ConfigDict(extra="allow", arbitrary_types_allowed=True)
-
-
-class CohereSettings(BaseModel):
-    """
-    Settings for using Cohere models in the MCP Agent application.
+    Settings for using Anthropic models in the fast-agent application.
     """
 
     api_key: str | None = None
@@ -120,7 +110,7 @@ class CohereSettings(BaseModel):
 
 class OpenAISettings(BaseModel):
     """
-    Settings for using OpenAI models in the MCP Agent application.
+    Settings for using OpenAI models in the fast-agent application.
     """
 
     api_key: str | None = None
@@ -131,9 +121,22 @@ class OpenAISettings(BaseModel):
     model_config = ConfigDict(extra="allow", arbitrary_types_allowed=True)
 
 
+class DeepSeekSettings(BaseModel):
+    """
+    Settings for using OpenAI models in the fast-agent application.
+    """
+
+    api_key: str | None = None
+    # reasoning_effort: Literal["low", "medium", "high"] = "medium"
+
+    base_url: str | None = None
+
+    model_config = ConfigDict(extra="allow", arbitrary_types_allowed=True)
+
+
 class TemporalSettings(BaseModel):
     """
-    Temporal settings for the MCP Agent application.
+    Temporal settings for the fast-agent application.
     """
 
     host: str
@@ -142,27 +145,14 @@ class TemporalSettings(BaseModel):
     api_key: str | None = None
 
 
-class UsageTelemetrySettings(BaseModel):
-    """
-    Settings for usage telemetry in the MCP Agent application.
-    Anonymized usage metrics are sent to a telemetry server to help improve the product.
-    """
-
-    enabled: bool = True
-    """Enable usage telemetry in the MCP Agent application."""
-
-    enable_detailed_telemetry: bool = False
-    """If enabled, detailed telemetry data, including prompts and agents, will be sent to the telemetry server."""
-
-
 class OpenTelemetrySettings(BaseModel):
     """
-    OTEL settings for the MCP Agent application.
+    OTEL settings for the fast-agent application.
     """
 
     enabled: bool = True
 
-    service_name: str = "mcp-agent"
+    service_name: str = "fast-agent"
     service_instance_id: str | None = None
     service_version: str | None = None
 
@@ -178,7 +168,7 @@ class OpenTelemetrySettings(BaseModel):
 
 class LoggerSettings(BaseModel):
     """
-    Logger settings for the MCP Agent application.
+    Logger settings for the fast-agent application.
     """
 
     type: Literal["none", "console", "file", "http"] = "file"
@@ -221,7 +211,7 @@ class LoggerSettings(BaseModel):
 
 class Settings(BaseSettings):
     """
-    Settings class for the MCP Agent application.
+    Settings class for the fast-agent application.
     """
 
     model_config = SettingsConfigDict(
@@ -236,7 +226,7 @@ class Settings(BaseSettings):
     """MCP config, such as MCP servers"""
 
     execution_engine: Literal["asyncio", "temporal"] = "asyncio"
-    """Execution engine for the MCP Agent application"""
+    """Execution engine for the fast-agent application"""
 
     default_model: str | None = "haiku"
     """
@@ -247,22 +237,19 @@ class Settings(BaseSettings):
     """Settings for Temporal workflow orchestration"""
 
     anthropic: AnthropicSettings | None = None
-    """Settings for using Anthropic models in the MCP Agent application"""
-
-    cohere: CohereSettings | None = None
-    """Settings for using Cohere models in the MCP Agent application"""
-
-    openai: OpenAISettings | None = None
-    """Settings for using OpenAI models in the MCP Agent application"""
+    """Settings for using Anthropic models in the fast-agent application"""
 
     otel: OpenTelemetrySettings | None = OpenTelemetrySettings()
-    """OpenTelemetry logging settings for the MCP Agent application"""
+    """OpenTelemetry logging settings for the fast-agent application"""
+
+    openai: OpenAISettings | None = None
+    """Settings for using OpenAI models in the fast-agent application"""
+
+    deepseek: DeepSeekSettings | None = None
+    """Settings for using DeepSeek models in the fast-agent application"""
 
     logger: LoggerSettings | None = LoggerSettings()
-    """Logger settings for the MCP Agent application"""
-
-    usage_telemetry: UsageTelemetrySettings | None = UsageTelemetrySettings()
-    """Usage tracking settings for the MCP Agent application"""
+    """Logger settings for the fast-agent application"""
 
     @classmethod
     def find_config(cls) -> Path | None:

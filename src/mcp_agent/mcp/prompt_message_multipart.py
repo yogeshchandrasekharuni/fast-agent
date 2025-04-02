@@ -7,8 +7,29 @@ from mcp.types import (
     PromptMessage,
     Role,
     TextContent,
+    TextResourceContents,
 )
 from pydantic import BaseModel
+
+
+def get_text(content: Union[TextContent, ImageContent, EmbeddedResource]) -> str | None:
+    """
+    Extract text content from a content object if available.
+
+    Args:
+        content: A content object (TextContent, ImageContent, or EmbeddedResource)
+
+    Returns:
+        The text content as a string or None if not a text content
+    """
+    if isinstance(content, TextContent):
+        return content.text
+
+    if isinstance(content, EmbeddedResource):
+        if isinstance(content.resource, TextResourceContents):
+            return content.resource.text
+
+    return None
 
 
 class PromptMessageMultipart(BaseModel):
@@ -50,7 +71,44 @@ class PromptMessageMultipart(BaseModel):
 
     def from_multipart(self) -> List[PromptMessage]:
         """Convert this PromptMessageMultipart to a sequence of standard PromptMessages."""
-        return [PromptMessage(role=self.role, content=content_part) for content_part in self.content]
+        return [
+            PromptMessage(role=self.role, content=content_part) for content_part in self.content
+        ]
+
+    def first_text(self) -> str:
+        """
+        Get the first available text content from a message.
+
+        Args:
+            message: A PromptMessage or PromptMessageMultipart
+
+        Returns:
+            First text content or None if no text content exists
+        """
+        for content in self.content:
+            text = get_text(content)
+            if text is not None:
+                return text
+
+        return "<no text>"
+
+    def all_text(self) -> str:
+        """
+        Get all the text available.
+
+        Args:
+            message: A PromptMessage or PromptMessageMultipart
+
+        Returns:
+            First text content or None if no text content exists
+        """
+        result = []
+        for content in self.content:
+            text = get_text(content)
+            if text is not None:
+                result.append(text)
+
+        return "\n".join(result)
 
     @classmethod
     def parse_get_prompt_result(cls, result: GetPromptResult) -> List["PromptMessageMultipart"]:

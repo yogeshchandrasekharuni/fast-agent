@@ -3,8 +3,11 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from mcp_agent.core.fastagent import FastAgent
+from mcp_agent.llm.augmented_llm import RequestParams
 from mcp_agent.mcp.prompts.prompt_load import load_prompt_multipart
-from mcp_agent.workflows.llm.augmented_llm import RequestParams
+
+if TYPE_CHECKING:
+    from mcp_agent.mcp.prompt_message_multipart import PromptMessageMultipart
 
 if TYPE_CHECKING:
     from mcp_agent.mcp.prompt_message_multipart import PromptMessageMultipart

@@ -35,23 +35,6 @@ def project_root():
     return Path(__file__).parent.parent.parent
 
 
-# Fixture to set the current working directory for tests
-@pytest.fixture
-def set_cwd(project_root):
-    """Change to the project root directory during tests"""
-    # Save the original working directory
-    original_cwd = os.getcwd()
-
-    # Change to the project root directory
-    os.chdir(project_root)
-
-    # Run the test
-    yield
-
-    # Restore the original working directory
-    os.chdir(original_cwd)
-
-
 # Add a fixture that uses the test file's directory
 @pytest.fixture
 def fast_agent(request):

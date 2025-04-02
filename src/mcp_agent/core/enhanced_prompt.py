@@ -11,9 +11,7 @@ from prompt_toolkit.filters import Condition
 from prompt_toolkit.formatted_text import HTML
 from prompt_toolkit.history import InMemoryHistory
 from prompt_toolkit.key_binding import KeyBindings
-from prompt_toolkit.lexers import PygmentsLexer
 from prompt_toolkit.styles import Style
-from pygments.lexers.python import PythonLexer
 from rich import print as rich_print
 
 from mcp_agent.core.exceptions import PromptExitError
@@ -151,7 +149,6 @@ async def get_enhanced_input(
     show_stop_hint: bool = False,
     multiline: bool = False,
     available_agent_names: List[str] = None,
-    syntax: str = None,
     agent_types: dict = None,
     is_human_input: bool = False,
     toolbar_color: str = "ansiblue",
@@ -166,7 +163,6 @@ async def get_enhanced_input(
         show_stop_hint: Whether to show the STOP hint
         multiline: Start in multiline mode
         available_agent_names: List of agent names for auto-completion
-        syntax: Syntax highlighting (e.g., 'python', 'sql')
         agent_types: Dictionary mapping agent names to their types for display
         is_human_input: Whether this is a human input request (disables agent selection features)
         toolbar_color: Color to use for the agent name in the toolbar (default: "ansiblue")
@@ -238,7 +234,6 @@ async def get_enhanced_input(
             is_human_input=is_human_input,
         ),
         complete_while_typing=True,
-        lexer=PygmentsLexer(PythonLexer) if syntax == "python" else None,
         multiline=Condition(lambda: in_multiline_mode),
         complete_in_thread=True,
         mouse_support=False,
@@ -269,7 +264,9 @@ async def get_enhanced_input(
         if is_human_input:
             rich_print("[dim]Type /help for commands. Ctrl+T toggles multiline mode.[/dim]")
         else:
-            rich_print("[dim]Type /help for commands, @agent to switch agent. Ctrl+T toggles multiline mode.[/dim]")
+            rich_print(
+                "[dim]Type /help for commands, @agent to switch agent. Ctrl+T toggles multiline mode.[/dim]"
+            )
         rich_print()
         help_message_shown = True
 
@@ -288,7 +285,7 @@ async def get_enhanced_input(
             elif cmd == "agents":
                 return "LIST_AGENTS"
             elif cmd == "prompts":
-                return "SELECT_PROMPT"  # Changed from LIST_PROMPTS to directly launch selection UI
+                return "SELECT_PROMPT"  # Directly launch prompt selection UI
             elif cmd == "prompt" and len(cmd_parts) > 1:
                 # Direct prompt selection with name
                 return f"SELECT_PROMPT:{cmd_parts[1].strip()}"
@@ -396,7 +393,9 @@ async def get_argument_input(
     if description:
         rich_print(f"  [dim]{arg_name}: {description}[/dim]")
 
-    prompt_text = HTML(f"Enter value for <ansibrightcyan>{arg_name}</ansibrightcyan> {required_text}: ")
+    prompt_text = HTML(
+        f"Enter value for <ansibrightcyan>{arg_name}</ansibrightcyan> {required_text}: "
+    )
 
     # Create prompt session
     prompt_session = PromptSession()
@@ -463,17 +462,11 @@ async def handle_special_commands(command, agent_app=None):
             rich_print("[yellow]No agents available[/yellow]")
         return True
 
-    elif command == "LIST_PROMPTS":
-        # Return a dictionary with a list_prompts action to be handled by the caller
-        # The actual prompt listing is implemented in the AgentApp class
-        if agent_app:
-            rich_print("\n[bold]Fetching available MCP prompts...[/bold]")
-            return {"list_prompts": True}
-        else:
-            rich_print("[yellow]Prompt listing is not available outside of an agent context[/yellow]")
-            return True
+    # Removed LIST_PROMPTS handling as it's now covered by SELECT_PROMPT
 
-    elif command == "SELECT_PROMPT" or (isinstance(command, str) and command.startswith("SELECT_PROMPT:")):
+    elif command == "SELECT_PROMPT" or (
+        isinstance(command, str) and command.startswith("SELECT_PROMPT:")
+    ):
         # Handle prompt selection UI
         if agent_app:
             # If it's a specific prompt, extract the name
@@ -484,14 +477,16 @@ async def handle_special_commands(command, agent_app=None):
             # Return a dictionary with a select_prompt action to be handled by the caller
             return {"select_prompt": True, "prompt_name": prompt_name}
         else:
-            rich_print("[yellow]Prompt selection is not available outside of an agent context[/yellow]")
+            rich_print(
+                "[yellow]Prompt selection is not available outside of an agent context[/yellow]"
+            )
             return True
 
     elif isinstance(command, str) and command.startswith("SWITCH:"):
         agent_name = command.split(":", 1)[1]
         if agent_name in available_agents:
             if agent_app:
-                #                rich_print(f"[green]Switching to agent: {agent_name}[/green]")
+                # The parameter can be the actual agent_app or just True to enable switching
                 return {"switch_agent": agent_name}
             else:
                 rich_print("[yellow]Agent switching not available in this context[/yellow]")

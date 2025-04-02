@@ -156,7 +156,9 @@ async def configure_executor(config: "Settings"):
         return executor
 
 
-async def initialize_context(config: Optional[Union["Settings", str]] = None, store_globally: bool = False):
+async def initialize_context(
+    config: Optional[Union["Settings", str]] = None, store_globally: bool = False
+):
     """
     Initialize the global application context.
     """

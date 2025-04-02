@@ -3,8 +3,8 @@
 from mcp.server.fastmcp import Context as MCPContext
 from mcp.server.fastmcp import FastMCP
 
-# Remove circular import
-from mcp_agent.core.agent_app import AgentApp
+# Import the DirectAgentApp instead of AgentApp
+from mcp_agent.core.direct_agent_app import DirectAgentApp
 
 
 class AgentMCPServer:
@@ -12,14 +12,15 @@ class AgentMCPServer:
 
     def __init__(
         self,
-        agent_app: AgentApp,
+        agent_app: DirectAgentApp,
         server_name: str = "FastAgent-MCP-Server",
         server_description: str = None,
     ) -> None:
         self.agent_app = agent_app
         self.mcp_server = FastMCP(
             name=server_name,
-            instructions=server_description or f"This server provides access to {len(agent_app.agents)} agents",
+            instructions=server_description
+            or f"This server provides access to {len(agent_app._agents)} agents",
         )
         self.setup_tools()
 
@@ -63,7 +64,9 @@ class AgentMCPServer:
 
         self.mcp_server.run(transport=transport)
 
-    async def run_async(self, transport: str = "sse", host: str = "0.0.0.0", port: int = 8000) -> None:
+    async def run_async(
+        self, transport: str = "sse", host: str = "0.0.0.0", port: int = 8000
+    ) -> None:
         """Run the MCP server asynchronously."""
         if transport == "sse":
             self.mcp_server.settings.host = host

@@ -70,8 +70,9 @@ def copy_example_files(example_type: str, target_dir: Path, force: bool = False)
             mount_point_dir.mkdir(parents=True)
             console.print(f"Created mount-point directory: {mount_point_dir}")
 
-    # Use the resources directory from the package
-    source_dir = Path(__file__).parent.parent.parent / "resources" / "examples" / ("workflows" if example_type == "workflow" else f"{example_type}")
+    # Use examples from top-level directory
+    package_dir = Path(__file__).parent.parent.parent.parent.parent
+    source_dir = package_dir / "examples" / ("workflows" if example_type == "workflow" else f"{example_type}")
 
     if not source_dir.exists():
         console.print(f"[red]Error: Source directory not found: {source_dir}[/red]")
@@ -110,7 +111,9 @@ def copy_example_files(example_type: str, target_dir: Path, force: bool = False)
                     continue
 
                 if target.exists() and not force:
-                    console.print(f"[yellow]Skipping[/yellow] mount-point/{filename} (already exists)")
+                    console.print(
+                        f"[yellow]Skipping[/yellow] mount-point/{filename} (already exists)"
+                    )
                     continue
 
                 shutil.copy2(source, target)
@@ -137,7 +140,9 @@ def show_overview() -> None:
     for name, info in EXAMPLE_TYPES.items():
         files_list = "\n".join(f"• {f}" for f in info["files"])
         if "mount_point_files" in info:
-            files_list += "\n[blue]mount-point:[/blue]\n" + "\n".join(f"• {f}" for f in info["mount_point_files"])
+            files_list += "\n[blue]mount-point:[/blue]\n" + "\n".join(
+                f"• {f}" for f in info["mount_point_files"]
+            )
         table.add_row(f"[green]{name}[/green]", info["description"], files_list)
 
     console.print(table)
@@ -229,17 +234,23 @@ def _show_completion_message(example_type: str, created: list[str]) -> None:
             console.print("   - evaluator.py: Add evaluation capabilities")
             console.print("   - human_input.py: Incorporate human feedback")
             console.print("3. Run an example with: uv run <example>.py")
-            console.print("4. Try a different model with --model=<model>, or update the agent config")
+            console.print(
+                "4. Try a different model with --model=<model>, or update the agent config"
+            )
 
         elif example_type == "researcher":
-            console.print("1. Set up the Brave MCP Server (get an API key from https://brave.com/search/api/)")
+            console.print(
+                "1. Set up the Brave MCP Server (get an API key from https://brave.com/search/api/)"
+            )
             console.print("2. Try `uv run researcher.py` for the basic version")
             console.print("3. Try `uv run researcher-eval.py` for the eval/optimize version")
         elif example_type == "data-analysis":
             console.print("1. Run uv `analysis.py` to perform data analysis and visualization")
             console.print("2. The dataset is available in the mount-point directory:")
             console.print("   - mount-point/WA_Fn-UseC_-HR-Employee-Attrition.csv")
-            console.print("On Windows platforms, please edit the fastagent.config.yaml and adjust the volume mount point.")
+            console.print(
+                "On Windows platforms, please edit the fastagent.config.yaml and adjust the volume mount point."
+            )
     else:
         console.print("\n[yellow]No files were created.[/yellow]")
 
