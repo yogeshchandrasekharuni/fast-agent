@@ -8,9 +8,9 @@ from mcp import ClientSession
 from mcp.types import CreateMessageRequestParams, CreateMessageResult, TextContent
 
 from mcp_agent.core.agent_types import AgentConfig
+from mcp_agent.llm.sampling_converter import SamplingConverter
 from mcp_agent.logging.logger import get_logger
 from mcp_agent.mcp.interfaces import AugmentedLLMProtocol
-from mcp_agent.workflows.llm.sampling_converter import SamplingConverter
 
 if TYPE_CHECKING:
     from mcp_agent.mcp.prompt_message_multipart import PromptMessageMultipart
@@ -33,7 +33,7 @@ def create_sampling_llm(
         An initialized LLM instance ready to use
     """
     from mcp_agent.agents.agent import Agent
-    from mcp_agent.workflows.llm.model_factory import ModelFactory
+    from mcp_agent.llm.model_factory import ModelFactory
 
     app_context = None
     try:

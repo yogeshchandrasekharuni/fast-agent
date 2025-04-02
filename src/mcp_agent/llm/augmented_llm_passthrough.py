@@ -7,7 +7,7 @@ from pydantic_core import from_json
 from mcp_agent.core.prompt import Prompt
 from mcp_agent.logging.logger import get_logger
 from mcp_agent.mcp.prompt_message_multipart import PromptMessageMultipart
-from mcp_agent.workflows.llm.augmented_llm import (
+from mcp_agent.llm.augmented_llm import (
     AugmentedLLM,
     MessageParamT,
     MessageT,

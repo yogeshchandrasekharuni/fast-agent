@@ -2,13 +2,13 @@ import os
 from typing import TYPE_CHECKING, List, Type
 
 from mcp_agent.core.prompt import Prompt
-from mcp_agent.mcp.prompt_message_multipart import PromptMessageMultipart
-from mcp_agent.workflows.llm.providers.multipart_converter_anthropic import (
+from mcp_agent.llm.providers.multipart_converter_anthropic import (
     AnthropicConverter,
 )
-from mcp_agent.workflows.llm.providers.sampling_converter_anthropic import (
+from mcp_agent.llm.providers.sampling_converter_anthropic import (
     AnthropicSamplingConverter,
 )
+from mcp_agent.mcp.prompt_message_multipart import PromptMessageMultipart
 
 if TYPE_CHECKING:
     from mcp import ListToolsResult
@@ -33,7 +33,7 @@ from rich.text import Text
 
 from mcp_agent.core.exceptions import ProviderKeyError
 from mcp_agent.logging.logger import get_logger
-from mcp_agent.workflows.llm.augmented_llm import (
+from mcp_agent.llm.augmented_llm import (
     AugmentedLLM,
     ModelT,
     RequestParams,

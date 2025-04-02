@@ -13,8 +13,8 @@ from openai.types.chat import (
 )
 
 from mcp_agent.mcp.prompt_message_multipart import PromptMessageMultipart
-from mcp_agent.workflows.llm.providers.multipart_converter_openai import OpenAIConverter
-from mcp_agent.workflows.llm.providers.openai_multipart import (
+from mcp_agent.llm.providers.multipart_converter_openai import OpenAIConverter
+from mcp_agent.llm.providers.openai_multipart import (
     openai_to_multipart,
 )
 

@@ -6,11 +6,11 @@ from mcp_agent.agents.agent import Agent
 from mcp_agent.core.exceptions import ModelConfigError
 from mcp_agent.core.request_params import RequestParams
 from mcp_agent.mcp.interfaces import AugmentedLLMProtocol
-from mcp_agent.workflows.llm.augmented_llm_anthropic import AnthropicAugmentedLLM
-from mcp_agent.workflows.llm.augmented_llm_openai import OpenAIAugmentedLLM
-from mcp_agent.workflows.llm.augmented_llm_passthrough import PassthroughLLM
-from mcp_agent.workflows.llm.augmented_llm_playback import PlaybackLLM
-from mcp_agent.workflows.llm.augmented_llm_deepseek import DeekSeekAugmentedLLM
+from mcp_agent.llm.augmented_llm_anthropic import AnthropicAugmentedLLM
+from mcp_agent.llm.augmented_llm_openai import OpenAIAugmentedLLM
+from mcp_agent.llm.augmented_llm_passthrough import PassthroughLLM
+from mcp_agent.llm.augmented_llm_playback import PlaybackLLM
+# from mcp_agent.workflows.llm.augmented_llm_deepseek import DeekSeekAugmentedLLM
 
 # Type alias for LLM classes
 LLMClass = Union[
@@ -18,7 +18,7 @@ LLMClass = Union[
     Type[OpenAIAugmentedLLM],
     Type[PassthroughLLM],
     Type[PlaybackLLM],
-    Type[DeekSeekAugmentedLLM],
+    #  Type[DeekSeekAugmentedLLM],
 ]
 
 
@@ -112,7 +112,7 @@ class ModelFactory:
         Provider.ANTHROPIC: AnthropicAugmentedLLM,
         Provider.OPENAI: OpenAIAugmentedLLM,
         Provider.FAST_AGENT: PassthroughLLM,
-        Provider.DEEPSEEK: DeekSeekAugmentedLLM,
+        #     Provider.DEEPSEEK: DeekSeekAugmentedLLM,
     }
 
     # Mapping of special model names to their specific LLM classes

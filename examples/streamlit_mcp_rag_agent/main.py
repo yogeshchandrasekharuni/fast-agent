@@ -6,8 +6,8 @@ from qdrant_client import QdrantClient
 
 from mcp_agent.agents.agent import Agent
 from mcp_agent.app import MCPApp
-from mcp_agent.workflows.llm.augmented_llm import RequestParams
-from mcp_agent.workflows.llm.augmented_llm_openai import OpenAIAugmentedLLM
+from mcp_agent.llm.augmented_llm import RequestParams
+from mcp_agent.llm.augmented_llm_openai import OpenAIAugmentedLLM
 
 SAMPLE_TEXTS = [
     "Today, we're open-sourcing the Model Context Protocol (MCP), a new standard for connecting AI assistants to the systems where data lives, including content repositories, business tools, and development environments",
@@ -78,14 +78,10 @@ async def main():
     st.caption("🚀 A Streamlit chatbot powered by mcp-agent")
 
     with st.expander("View Tools"):
-        st.markdown(
-            [f"- **{tool.name}**: {tool.description}\n\n" for tool in tools.tools]
-        )
+        st.markdown([f"- **{tool.name}**: {tool.description}\n\n" for tool in tools.tools])
 
     if "messages" not in st.session_state:
-        st.session_state["messages"] = [
-            {"role": "assistant", "content": "How can I help you?"}
-        ]
+        st.session_state["messages"] = [{"role": "assistant", "content": "How can I help you?"}]
 
     for msg in st.session_state["messages"]:
         st.chat_message(msg["role"]).write(msg["content"])

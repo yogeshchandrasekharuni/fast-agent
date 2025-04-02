@@ -4,7 +4,7 @@ import pytest
 
 from mcp_agent.core.prompt import Prompt
 from mcp_agent.mcp.prompt_message_multipart import PromptMessageMultipart
-from mcp_agent.workflows.llm.augmented_llm_passthrough import (
+from mcp_agent.llm.augmented_llm_passthrough import (
     CALL_TOOL_INDICATOR,
     FIXED_RESPONSE_INDICATOR,
     PassthroughLLM,

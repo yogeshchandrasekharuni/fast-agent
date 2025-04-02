@@ -8,7 +8,7 @@ from mcp_agent.agents.workflow.evaluator_optimizer import (
     EvaluationResult,
     QualityRating,
 )
-from mcp_agent.workflows.llm.augmented_llm_passthrough import FIXED_RESPONSE_INDICATOR
+from mcp_agent.llm.augmented_llm_passthrough import FIXED_RESPONSE_INDICATOR
 
 
 class EvaluationResult(BaseModel):

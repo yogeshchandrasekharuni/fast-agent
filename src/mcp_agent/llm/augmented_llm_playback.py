@@ -3,8 +3,8 @@ from typing import Any, List
 from mcp_agent.core.prompt import Prompt
 from mcp_agent.mcp.prompt_message_multipart import PromptMessageMultipart
 from mcp_agent.mcp.prompts.prompt_helpers import MessageContent
-from mcp_agent.workflows.llm.augmented_llm import RequestParams
-from mcp_agent.workflows.llm.augmented_llm_passthrough import PassthroughLLM
+from mcp_agent.llm.augmented_llm import RequestParams
+from mcp_agent.llm.augmented_llm_passthrough import PassthroughLLM
 
 
 class PlaybackLLM(PassthroughLLM):

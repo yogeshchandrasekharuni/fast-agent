@@ -36,8 +36,8 @@ from mcp_agent.mcp.mcp_aggregator import MCPAggregator
 from mcp_agent.mcp.prompt_message_multipart import PromptMessageMultipart
 from mcp_agent.mcp.prompt_serialization import multipart_messages_to_delimited_format
 from mcp_agent.ui.console_display import ConsoleDisplay
-from mcp_agent.workflows.llm.memory import Memory, SimpleMemory
-from mcp_agent.workflows.llm.sampling_format_converter import (
+from mcp_agent.llm.memory import Memory, SimpleMemory
+from mcp_agent.llm.sampling_format_converter import (
     BasicFormatConverter,
     ProviderFormatConverter,
 )

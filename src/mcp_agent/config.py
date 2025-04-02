@@ -100,7 +100,7 @@ class MCPSettings(BaseModel):
 
 class AnthropicSettings(BaseModel):
     """
-    Settings for using Anthropic models in the MCP Agent application.
+    Settings for using Anthropic models in the fast-agent application.
     """
 
     api_key: str | None = None
@@ -110,7 +110,7 @@ class AnthropicSettings(BaseModel):
 
 class OpenAISettings(BaseModel):
     """
-    Settings for using OpenAI models in the MCP Agent application.
+    Settings for using OpenAI models in the fast-agent application.
     """
 
     api_key: str | None = None
@@ -123,7 +123,7 @@ class OpenAISettings(BaseModel):
 
 class DeepSeekSettings(BaseModel):
     """
-    Settings for using OpenAI models in the MCP Agent application.
+    Settings for using OpenAI models in the fast-agent application.
     """
 
     api_key: str | None = None
@@ -136,7 +136,7 @@ class DeepSeekSettings(BaseModel):
 
 class TemporalSettings(BaseModel):
     """
-    Temporal settings for the MCP Agent application.
+    Temporal settings for the fast-agent application.
     """
 
     host: str
@@ -147,12 +147,12 @@ class TemporalSettings(BaseModel):
 
 class OpenTelemetrySettings(BaseModel):
     """
-    OTEL settings for the MCP Agent application.
+    OTEL settings for the fast-agent application.
     """
 
     enabled: bool = True
 
-    service_name: str = "mcp-agent"
+    service_name: str = "fast-agent"
     service_instance_id: str | None = None
     service_version: str | None = None
 
@@ -168,7 +168,7 @@ class OpenTelemetrySettings(BaseModel):
 
 class LoggerSettings(BaseModel):
     """
-    Logger settings for the MCP Agent application.
+    Logger settings for the fast-agent application.
     """
 
     type: Literal["none", "console", "file", "http"] = "file"
@@ -211,7 +211,7 @@ class LoggerSettings(BaseModel):
 
 class Settings(BaseSettings):
     """
-    Settings class for the MCP Agent application.
+    Settings class for the fast-agent application.
     """
 
     model_config = SettingsConfigDict(
@@ -226,7 +226,7 @@ class Settings(BaseSettings):
     """MCP config, such as MCP servers"""
 
     execution_engine: Literal["asyncio", "temporal"] = "asyncio"
-    """Execution engine for the MCP Agent application"""
+    """Execution engine for the fast-agent application"""
 
     default_model: str | None = "haiku"
     """
@@ -237,16 +237,19 @@ class Settings(BaseSettings):
     """Settings for Temporal workflow orchestration"""
 
     anthropic: AnthropicSettings | None = None
-    """Settings for using Anthropic models in the MCP Agent application"""
+    """Settings for using Anthropic models in the fast-agent application"""
+
+    otel: OpenTelemetrySettings | None = OpenTelemetrySettings()
+    """OpenTelemetry logging settings for the fast-agent application"""
 
     openai: OpenAISettings | None = None
-    """Settings for using OpenAI models in the MCP Agent application"""
+    """Settings for using OpenAI models in the fast-agent application"""
 
     deepseek: DeepSeekSettings | None = None
-    """Settings for using DeepSeek models in the MCP Agent application"""
+    """Settings for using DeepSeek models in the fast-agent application"""
 
     logger: LoggerSettings | None = LoggerSettings()
-    """Logger settings for the MCP Agent application"""
+    """Logger settings for the fast-agent application"""
 
     @classmethod
     def find_config(cls) -> Path | None:

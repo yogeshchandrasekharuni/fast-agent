@@ -5,8 +5,8 @@ from mcp import ListToolsResult
 
 from mcp_agent.agents.agent import Agent
 from mcp_agent.app import MCPApp
-from mcp_agent.workflows.llm.augmented_llm import RequestParams
-from mcp_agent.workflows.llm.augmented_llm_openai import OpenAIAugmentedLLM
+from mcp_agent.llm.augmented_llm import RequestParams
+from mcp_agent.llm.augmented_llm_openai import OpenAIAugmentedLLM
 
 
 def format_list_tools_result(list_tools_result: ListToolsResult):
@@ -40,9 +40,7 @@ async def main():
         st.markdown(tools_str)
 
     if "messages" not in st.session_state:
-        st.session_state["messages"] = [
-            {"role": "assistant", "content": "How can I help you?"}
-        ]
+        st.session_state["messages"] = [{"role": "assistant", "content": "How can I help you?"}]
 
     for msg in st.session_state["messages"]:
         st.chat_message(msg["role"]).write(msg["content"])

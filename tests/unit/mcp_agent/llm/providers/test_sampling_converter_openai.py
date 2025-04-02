@@ -7,7 +7,7 @@ from mcp.types import (
     TextContent,
 )
 
-from mcp_agent.workflows.llm.providers import OpenAISamplingConverter
+from mcp_agent.llm.providers import OpenAISamplingConverter
 
 
 class TestOpenAIMCPTypeConverter:

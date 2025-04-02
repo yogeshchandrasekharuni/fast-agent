@@ -7,10 +7,10 @@ from openai.types.chat import (
     ChatCompletionMessage,
 )
 
-from mcp_agent.logging.logger import get_logger
-from mcp_agent.workflows.llm.sampling_format_converter import (
+from mcp_agent.llm.sampling_format_converter import (
     ProviderFormatConverter,
 )
+from mcp_agent.logging.logger import get_logger
 
 _logger = get_logger(__name__)
 
@@ -19,7 +19,7 @@ class OpenAISamplingConverter(ProviderFormatConverter[Dict[str, Any], ChatComple
     @classmethod
     def from_prompt_message(cls, message: PromptMessage) -> Dict[str, Any]:
         """Convert an MCP PromptMessage to an OpenAI message dict."""
-        from mcp_agent.workflows.llm.providers.multipart_converter_openai import (
+        from mcp_agent.llm.providers.multipart_converter_openai import (
             OpenAIConverter,
         )
 

@@ -10,7 +10,7 @@ from mcp_agent.core.exceptions import (
     CircularDependencyError,
     ServerConfigError,
 )
-from mcp_agent.workflows.llm.augmented_llm import AugmentedLLM
+from mcp_agent.llm.augmented_llm import AugmentedLLM
 
 
 def validate_server_references(context, agents: Dict[str, Dict[str, Any]]) -> None:

@@ -6,7 +6,7 @@ from mcp.types import (
     TextContent,
 )
 
-from mcp_agent.workflows.llm.sampling_converter import SamplingConverter
+from mcp_agent.llm.sampling_converter import SamplingConverter
 
 
 class TestSamplingConverter:

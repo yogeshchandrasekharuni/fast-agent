@@ -6,7 +6,7 @@ from pydantic import BaseModel
 from mcp_agent.core.prompt import Prompt
 from mcp_agent.mcp.prompt_message_multipart import PromptMessageMultipart
 from mcp_agent.mcp.prompts.prompt_load import load_prompt_multipart
-from mcp_agent.workflows.llm.augmented_llm_passthrough import FIXED_RESPONSE_INDICATOR
+from mcp_agent.llm.augmented_llm_passthrough import FIXED_RESPONSE_INDICATOR
 
 
 @pytest.mark.integration
@@ -93,7 +93,7 @@ async def test_router_invalid_agent_selection(fast_agent):
 
     # Define test agents and router - need two agents to bypass single-agent optimization
     @fast.agent(name="available_agent", model="playback")
-    @fast.agent(name="another_agent", model="playback") 
+    @fast.agent(name="another_agent", model="playback")
     @fast.router(name="router", agents=["available_agent", "another_agent"], model="passthrough")
     async def agent_function():
         async with fast.run() as agent:
