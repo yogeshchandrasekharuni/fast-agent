@@ -20,9 +20,9 @@
       "title": "AnthropicSettings",
       "type": "object"
     },
-    "CohereSettings": {
+    "DeepSeekSettings": {
       "additionalProperties": true,
-      "description": "Settings for using Cohere models in the MCP Agent application.",
+      "description": "Settings for using OpenAI models in the MCP Agent application.",
       "properties": {
         "api_key": {
           "anyOf": [
@@ -35,9 +35,21 @@
           ],
           "default": null,
           "title": "Api Key"
+        },
+        "base_url": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Base Url"
         }
       },
-      "title": "CohereSettings",
+      "title": "DeepSeekSettings",
       "type": "object"
     },
     "LoggerSettings": {
@@ -439,72 +451,6 @@
       "title": "OpenAISettings",
       "type": "object"
     },
-    "OpenTelemetrySettings": {
-      "description": "OTEL settings for the MCP Agent application.",
-      "properties": {
-        "enabled": {
-          "default": true,
-          "title": "Enabled",
-          "type": "boolean"
-        },
-        "service_name": {
-          "default": "mcp-agent",
-          "title": "Service Name",
-          "type": "string"
-        },
-        "service_instance_id": {
-          "anyOf": [
-            {
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null,
-          "title": "Service Instance Id"
-        },
-        "service_version": {
-          "anyOf": [
-            {
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null,
-          "title": "Service Version"
-        },
-        "otlp_endpoint": {
-          "anyOf": [
-            {
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null,
-          "title": "Otlp Endpoint",
-          "description": "OTLP endpoint for OpenTelemetry tracing"
-        },
-        "console_debug": {
-          "default": false,
-          "title": "Console Debug",
-          "type": "boolean",
-          "description": "Log spans to console"
-        },
-        "sample_rate": {
-          "default": 1.0,
-          "title": "Sample Rate",
-          "type": "number",
-          "description": "Sample rate for tracing (1.0 = sample everything)"
-        }
-      },
-      "title": "OpenTelemetrySettings",
-      "type": "object"
-    },
     "TemporalSettings": {
       "description": "Temporal settings for the MCP Agent application.",
       "properties": {
@@ -539,25 +485,6 @@
         "task_queue"
       ],
       "title": "TemporalSettings",
-      "type": "object"
-    },
-    "UsageTelemetrySettings": {
-      "description": "Settings for usage telemetry in the MCP Agent application.\nAnonymized usage metrics are sent to a telemetry server to help improve the product.",
-      "properties": {
-        "enabled": {
-          "default": true,
-          "title": "Enabled",
-          "type": "boolean",
-          "description": "Enable usage telemetry in the MCP Agent application."
-        },
-        "enable_detailed_telemetry": {
-          "default": false,
-          "title": "Enable Detailed Telemetry",
-          "type": "boolean",
-          "description": "If enabled, detailed telemetry data, including prompts and agents, will be sent to the telemetry server."
-        }
-      },
-      "title": "UsageTelemetrySettings",
       "type": "object"
     }
   },
@@ -624,18 +551,6 @@
       "default": null,
       "description": "Settings for using Anthropic models in the MCP Agent application"
     },
-    "cohere": {
-      "anyOf": [
-        {
-          "$ref": "#/$defs/CohereSettings"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "default": null,
-      "description": "Settings for using Cohere models in the MCP Agent application"
-    },
     "openai": {
       "anyOf": [
         {
@@ -648,25 +563,17 @@
       "default": null,
       "description": "Settings for using OpenAI models in the MCP Agent application"
     },
-    "otel": {
+    "deepseek": {
       "anyOf": [
         {
-          "$ref": "#/$defs/OpenTelemetrySettings"
+          "$ref": "#/$defs/DeepSeekSettings"
         },
         {
           "type": "null"
         }
       ],
-      "default": {
-        "enabled": true,
-        "service_name": "mcp-agent",
-        "service_instance_id": null,
-        "service_version": null,
-        "otlp_endpoint": null,
-        "console_debug": false,
-        "sample_rate": 1.0
-      },
-      "description": "OpenTelemetry logging settings for the MCP Agent application"
+      "default": null,
+      "description": "Settings for using DeepSeek models in the MCP Agent application"
     },
     "logger": {
       "anyOf": [
@@ -693,21 +600,6 @@
         "truncate_tools": true
       },
       "description": "Logger settings for the MCP Agent application"
-    },
-    "usage_telemetry": {
-      "anyOf": [
-        {
-          "$ref": "#/$defs/UsageTelemetrySettings"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "default": {
-        "enabled": true,
-        "enable_detailed_telemetry": false
-      },
-      "description": "Usage tracking settings for the MCP Agent application"
     }
   },
   "title": "MCP Agent Configuration Schema",
