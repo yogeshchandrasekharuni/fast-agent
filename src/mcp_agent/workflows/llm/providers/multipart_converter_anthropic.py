@@ -1,4 +1,4 @@
-from typing import List, Optional, Sequence, Union
+from typing import TYPE_CHECKING, List, Optional, Sequence, Union
 
 from anthropic.types import (
     Base64ImageSourceParam,
@@ -22,7 +22,6 @@ from mcp.types import (
     TextContent,
     TextResourceContents,
 )
-from pydantic import AnyUrl
 
 from mcp_agent.logging.logger import get_logger
 from mcp_agent.mcp.mime_utils import (
@@ -32,6 +31,9 @@ from mcp_agent.mcp.mime_utils import (
 )
 from mcp_agent.mcp.prompt_message_multipart import PromptMessageMultipart
 from mcp_agent.mcp.resource_utils import extract_title_from_uri
+
+if TYPE_CHECKING:
+    from pydantic import AnyUrl
 
 _logger = get_logger("multipart_converter_anthropic")
 
@@ -72,7 +74,9 @@ class AnthropicConverter:
             return MessageParam(role=role, content=[])
 
         # Convert content blocks
-        anthropic_blocks = AnthropicConverter._convert_content_items(multipart_msg.content, document_mode=True)
+        anthropic_blocks = AnthropicConverter._convert_content_items(
+            multipart_msg.content, document_mode=True
+        )
 
         # Filter blocks based on role (assistant can only have text blocks)
         if role == "assistant":
@@ -81,7 +85,9 @@ class AnthropicConverter:
                 if block.get("type") == "text":
                     text_blocks.append(block)
                 else:
-                    _logger.warning(f"Removing non-text block from assistant message: {block.get('type')}")
+                    _logger.warning(
+                        f"Removing non-text block from assistant message: {block.get('type')}"
+                    )
             anthropic_blocks = text_blocks
 
         # Create the Anthropic message
@@ -183,14 +189,20 @@ class AnthropicConverter:
 
         elif is_image_mime_type(mime_type):
             if not AnthropicConverter._is_supported_image_type(mime_type):
-                return AnthropicConverter._create_fallback_text(f"Image with unsupported format '{mime_type}'", resource)
+                return AnthropicConverter._create_fallback_text(
+                    f"Image with unsupported format '{mime_type}'", resource
+                )
 
             if is_url:
-                return ImageBlockParam(type="image", source=URLImageSourceParam(type="url", url=str(uri)))
+                return ImageBlockParam(
+                    type="image", source=URLImageSourceParam(type="url", url=str(uri))
+                )
             elif hasattr(resource_content, "blob"):
                 return ImageBlockParam(
                     type="image",
-                    source=Base64ImageSourceParam(type="base64", media_type=mime_type, data=resource_content.blob),
+                    source=Base64ImageSourceParam(
+                        type="base64", media_type=mime_type, data=resource_content.blob
+                    ),
                 )
             return AnthropicConverter._create_fallback_text("Image missing data", resource)
 
@@ -240,14 +252,18 @@ class AnthropicConverter:
             return TextBlockParam(type="text", text=resource_content.text)
 
         # This is for binary resources - match the format expected by the test
-        if isinstance(resource.resource, BlobResourceContents) and hasattr(resource.resource, "blob"):
+        if isinstance(resource.resource, BlobResourceContents) and hasattr(
+            resource.resource, "blob"
+        ):
             blob_length = len(resource.resource.blob)
             return TextBlockParam(
                 type="text",
                 text=f"Embedded Resource {uri._url} with unsupported format {mime_type} ({blob_length} characters)",
             )
 
-        return AnthropicConverter._create_fallback_text(f"Unsupported resource ({mime_type})", resource)
+        return AnthropicConverter._create_fallback_text(
+            f"Unsupported resource ({mime_type})", resource
+        )
 
     @staticmethod
     def _determine_mime_type(
@@ -290,7 +306,9 @@ class AnthropicConverter:
         return TextBlockParam(type="text", text="[SVG content could not be extracted]")
 
     @staticmethod
-    def _create_fallback_text(message: str, resource: Union[TextContent, ImageContent, EmbeddedResource]) -> TextBlockParam:
+    def _create_fallback_text(
+        message: str, resource: Union[TextContent, ImageContent, EmbeddedResource]
+    ) -> TextBlockParam:
         """
         Create a fallback text block for unsupported resource types.
 
@@ -308,7 +326,9 @@ class AnthropicConverter:
         return TextBlockParam(type="text", text=f"[{message}]")
 
     @staticmethod
-    def convert_tool_result_to_anthropic(tool_result: CallToolResult, tool_use_id: str) -> ToolResultBlockParam:
+    def convert_tool_result_to_anthropic(
+        tool_result: CallToolResult, tool_use_id: str
+    ) -> ToolResultBlockParam:
         """
         Convert an MCP CallToolResult to an Anthropic ToolResultBlockParam.
 
@@ -325,7 +345,9 @@ class AnthropicConverter:
         for item in tool_result.content:
             if isinstance(item, EmbeddedResource):
                 # For embedded resources, always use text mode in tool results
-                resource_block = AnthropicConverter._convert_embedded_resource(item, document_mode=False)
+                resource_block = AnthropicConverter._convert_embedded_resource(
+                    item, document_mode=False
+                )
                 anthropic_content.append(resource_block)
             elif isinstance(item, (TextContent, ImageContent)):
                 # For text and image, use standard conversion
@@ -374,11 +396,15 @@ class AnthropicConverter:
 
                     # Text resources go in tool results, others go as separate blocks
                     if isinstance(resource_content, TextResourceContents):
-                        block = AnthropicConverter._convert_embedded_resource(item, document_mode=False)
+                        block = AnthropicConverter._convert_embedded_resource(
+                            item, document_mode=False
+                        )
                         tool_result_blocks.append(block)
                     else:
                         # For binary resources like PDFs, add as separate block
-                        block = AnthropicConverter._convert_embedded_resource(item, document_mode=True)
+                        block = AnthropicConverter._convert_embedded_resource(
+                            item, document_mode=True
+                        )
                         separate_blocks.append(block)
 
             # Create the tool result block if we have content

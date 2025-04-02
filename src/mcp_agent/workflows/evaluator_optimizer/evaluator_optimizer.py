@@ -10,7 +10,6 @@ or a maximum number of refinements is attempted.
 from enum import Enum
 from typing import Any, List, Optional, Type, Union
 
-from mcp.types import TextContent
 from pydantic import BaseModel, Field
 
 from mcp_agent.agents.agent import Agent
@@ -59,7 +58,7 @@ class EvaluationResult(BaseModel):
 class EvaluatorOptimizerAgent(BaseAgent):
     """
     An agent that implements the evaluator-optimizer workflow pattern.
-    
+
     Uses one agent to generate responses and another to evaluate and provide feedback
     for refinement, continuing until a quality threshold is reached or a maximum
     number of refinement cycles is completed.
@@ -77,7 +76,7 @@ class EvaluatorOptimizerAgent(BaseAgent):
     ) -> None:
         """
         Initialize the evaluator-optimizer agent.
-        
+
         Args:
             config: Agent configuration or name
             generator_agent: Agent that generates the initial and refined responses
@@ -88,13 +87,13 @@ class EvaluatorOptimizerAgent(BaseAgent):
             **kwargs: Additional keyword arguments to pass to BaseAgent
         """
         super().__init__(config, context=context, **kwargs)
-        
+
         if not generator_agent:
             raise AgentConfigError("Generator agent must be provided")
-            
+
         if not evaluator_agent:
             raise AgentConfigError("Evaluator agent must be provided")
-            
+
         self.generator_agent = generator_agent
         self.evaluator_agent = evaluator_agent
         self.min_rating = min_rating
@@ -108,11 +107,11 @@ class EvaluatorOptimizerAgent(BaseAgent):
     ) -> PromptMessageMultipart:
         """
         Generate a response through evaluation-guided refinement.
-        
+
         Args:
             multipart_messages: Messages to process
             request_params: Optional request parameters
-            
+
         Returns:
             The optimized response after evaluation and refinement
         """
@@ -121,31 +120,29 @@ class EvaluatorOptimizerAgent(BaseAgent):
         best_response = None
         best_rating = QualityRating.POOR
         self.refinement_history = []
-        
+
         # Extract the user request
         request = multipart_messages[-1].all_text() if multipart_messages else ""
-        
+
         # Initial generation
         response = await self.generator_agent.generate_x(multipart_messages, request_params)
         best_response = response
-        
+
         # Refinement loop
         while refinement_count < self.max_refinements:
             logger.debug(f"Evaluating response (iteration {refinement_count + 1})")
-            
+
             # Evaluate current response
             eval_prompt = self._build_eval_prompt(
-                request=request, 
-                response=response.all_text(), 
-                iteration=refinement_count
+                request=request, response=response.all_text(), iteration=refinement_count
             )
-            
+
             # Create evaluation message and get structured evaluation result
             eval_message = Prompt.user(eval_prompt)
             evaluation_result = await self.evaluator_agent.structured(
                 [eval_message], EvaluationResult, request_params
             )
-            
+
             # If structured parsing failed, use default evaluation
             if evaluation_result is None:
                 logger.warning("Structured parsing failed, using default evaluation")
@@ -155,33 +152,35 @@ class EvaluatorOptimizerAgent(BaseAgent):
                     needs_improvement=True,
                     focus_areas=["Improve overall quality"],
                 )
-            
+
             # Track iteration
-            self.refinement_history.append({
-                "attempt": refinement_count + 1,
-                "response": response.all_text(),
-                "evaluation": evaluation_result.model_dump(),
-            })
-            
+            self.refinement_history.append(
+                {
+                    "attempt": refinement_count + 1,
+                    "response": response.all_text(),
+                    "evaluation": evaluation_result.model_dump(),
+                }
+            )
+
             logger.debug(f"Evaluation result: {evaluation_result.rating}")
-            
+
             # Track best response based on rating
             if evaluation_result.rating.value > best_rating.value:
                 best_rating = evaluation_result.rating
                 best_response = response
                 logger.debug(f"New best response (rating: {best_rating})")
-            
+
             # Check if we've reached acceptable quality
             if not evaluation_result.needs_improvement:
                 logger.debug("Improvement not needed, stopping refinement")
                 # When evaluator says no improvement needed, use the current response
                 best_response = response
                 break
-                
+
             if evaluation_result.rating.value >= self.min_rating.value:
                 logger.debug(f"Acceptable quality reached ({evaluation_result.rating})")
                 break
-                
+
             # Generate refined response
             refinement_prompt = self._build_refinement_prompt(
                 request=request,
@@ -189,13 +188,13 @@ class EvaluatorOptimizerAgent(BaseAgent):
                 feedback=evaluation_result,
                 iteration=refinement_count,
             )
-            
+
             # Create refinement message and get refined response
             refinement_message = Prompt.user(refinement_prompt)
             response = await self.generator_agent.generate_x([refinement_message], request_params)
-            
+
             refinement_count += 1
-            
+
         return best_response
 
     async def structured(
@@ -206,18 +205,18 @@ class EvaluatorOptimizerAgent(BaseAgent):
     ) -> Optional[ModelT]:
         """
         Generate an optimized response and parse it into a structured format.
-        
+
         Args:
             prompt: List of messages to process
             model: Pydantic model to parse the response into
             request_params: Optional request parameters
-            
+
         Returns:
             The parsed response, or None if parsing fails
         """
         # Generate optimized response
         response = await self.generate_x(prompt, request_params)
-        
+
         # Delegate structured parsing to the generator agent
         structured_prompt = Prompt.user(response.all_text())
         return await self.generator_agent.structured([structured_prompt], model, request_params)
@@ -225,26 +224,26 @@ class EvaluatorOptimizerAgent(BaseAgent):
     async def initialize(self) -> None:
         """Initialize the agent and its generator and evaluator agents."""
         await super().initialize()
-        
+
         # Initialize generator and evaluator agents if not already initialized
         if not getattr(self.generator_agent, "initialized", False):
             await self.generator_agent.initialize()
-            
+
         if not getattr(self.evaluator_agent, "initialized", False):
             await self.evaluator_agent.initialize()
-            
+
         self.initialized = True
 
     async def shutdown(self) -> None:
         """Shutdown the agent and its generator and evaluator agents."""
         await super().shutdown()
-        
+
         # Shutdown generator and evaluator agents
         try:
             await self.generator_agent.shutdown()
         except Exception as e:
             logger.warning(f"Error shutting down generator agent: {str(e)}")
-            
+
         try:
             await self.evaluator_agent.shutdown()
         except Exception as e:
@@ -253,12 +252,12 @@ class EvaluatorOptimizerAgent(BaseAgent):
     def _build_eval_prompt(self, request: str, response: str, iteration: int) -> str:
         """
         Build the evaluation prompt for the evaluator agent.
-        
+
         Args:
             request: The original user request
             response: The current response to evaluate
             iteration: The current iteration number
-            
+
         Returns:
             Formatted evaluation prompt
         """
@@ -318,18 +317,18 @@ IMPORTANT: Your response should be ONLY the JSON object without any code fences,
     ) -> str:
         """
         Build the refinement prompt for the generator agent.
-        
+
         Args:
             request: The original user request
             response: The current response to refine
             feedback: The evaluation feedback
             iteration: The current iteration number
-            
+
         Returns:
             Formatted refinement prompt
         """
         focus_areas = ", ".join(feedback.focus_areas) if feedback.focus_areas else "None specified"
-        
+
         return f"""
 You are tasked with improving a response based on expert feedback. This is iteration {iteration + 1} of the refinement process.
 

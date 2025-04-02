@@ -8,15 +8,13 @@ import argparse
 import asyncio
 import os
 from contextlib import asynccontextmanager
-from typing import Any, Callable, Dict, List, Optional, TypeVar, Union
+from typing import TYPE_CHECKING, Any, Callable, Dict, Optional, TypeVar
 
 import yaml
 
-from mcp_agent.agents.agent import Agent, AgentConfig
 from mcp_agent.app import MCPApp
 from mcp_agent.config import Settings
 from mcp_agent.context import Context
-from mcp_agent.core.agent_types import AgentType
 from mcp_agent.core.direct_agent_app import DirectAgentApp
 from mcp_agent.core.direct_decorators import (
     agent as agent_decorator,
@@ -25,13 +23,13 @@ from mcp_agent.core.direct_decorators import (
     chain as chain_decorator,
 )
 from mcp_agent.core.direct_decorators import (
+    evaluator_optimizer as evaluator_optimizer_decorator,
+)
+from mcp_agent.core.direct_decorators import (
     orchestrator as orchestrator_decorator,
 )
 from mcp_agent.core.direct_decorators import (
     parallel as parallel_decorator,
-)
-from mcp_agent.core.direct_decorators import (
-    evaluator_optimizer as evaluator_optimizer_decorator,
 )
 from mcp_agent.core.direct_decorators import (
     router as router_decorator,
@@ -55,6 +53,9 @@ from mcp_agent.core.validation import (
     validate_workflow_references,
 )
 from mcp_agent.logging.logger import get_logger
+
+if TYPE_CHECKING:
+    from mcp_agent.agents.agent import Agent
 
 F = TypeVar("F", bound=Callable[..., Any])  # For decorated functions
 logger = get_logger(__name__)
@@ -179,12 +180,13 @@ class DirectFastAgent:
                 validate_workflow_references(self.agents)
 
                 # Get a model factory function
-                model_factory_func = lambda model=None, request_params=None: get_model_factory(
-                    self.context,
-                    model=model,
-                    request_params=request_params,
-                    cli_model=self.args.model if hasattr(self, "args") else None,
-                )
+                def model_factory_func(model=None, request_params=None):
+                    return get_model_factory(
+                        self.context,
+                        model=model,
+                        request_params=request_params,
+                        cli_model=self.args.model if hasattr(self, "args") else None,
+                    )
 
                 # Create all agents in dependency order
                 active_agents = await create_agents_in_dependency_order(

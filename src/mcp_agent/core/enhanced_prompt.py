@@ -269,7 +269,9 @@ async def get_enhanced_input(
         if is_human_input:
             rich_print("[dim]Type /help for commands. Ctrl+T toggles multiline mode.[/dim]")
         else:
-            rich_print("[dim]Type /help for commands, @agent to switch agent. Ctrl+T toggles multiline mode.[/dim]")
+            rich_print(
+                "[dim]Type /help for commands, @agent to switch agent. Ctrl+T toggles multiline mode.[/dim]"
+            )
         rich_print()
         help_message_shown = True
 
@@ -396,7 +398,9 @@ async def get_argument_input(
     if description:
         rich_print(f"  [dim]{arg_name}: {description}[/dim]")
 
-    prompt_text = HTML(f"Enter value for <ansibrightcyan>{arg_name}</ansibrightcyan> {required_text}: ")
+    prompt_text = HTML(
+        f"Enter value for <ansibrightcyan>{arg_name}</ansibrightcyan> {required_text}: "
+    )
 
     # Create prompt session
     prompt_session = PromptSession()
@@ -470,10 +474,14 @@ async def handle_special_commands(command, agent_app=None):
             rich_print("\n[bold]Fetching available MCP prompts...[/bold]")
             return {"list_prompts": True}
         else:
-            rich_print("[yellow]Prompt listing is not available outside of an agent context[/yellow]")
+            rich_print(
+                "[yellow]Prompt listing is not available outside of an agent context[/yellow]"
+            )
             return True
 
-    elif command == "SELECT_PROMPT" or (isinstance(command, str) and command.startswith("SELECT_PROMPT:")):
+    elif command == "SELECT_PROMPT" or (
+        isinstance(command, str) and command.startswith("SELECT_PROMPT:")
+    ):
         # Handle prompt selection UI
         if agent_app:
             # If it's a specific prompt, extract the name
@@ -484,7 +492,9 @@ async def handle_special_commands(command, agent_app=None):
             # Return a dictionary with a select_prompt action to be handled by the caller
             return {"select_prompt": True, "prompt_name": prompt_name}
         else:
-            rich_print("[yellow]Prompt selection is not available outside of an agent context[/yellow]")
+            rich_print(
+                "[yellow]Prompt selection is not available outside of an agent context[/yellow]"
+            )
             return True
 
     elif isinstance(command, str) and command.startswith("SWITCH:"):

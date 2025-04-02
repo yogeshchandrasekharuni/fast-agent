@@ -19,7 +19,6 @@ from mcp.types import (
 )
 
 from mcp_agent.agents.agent import AgentConfig
-from mcp_agent.core.agent_types import AgentType
 from mcp_agent.core.exceptions import PromptExitError
 from mcp_agent.core.prompt import Prompt
 from mcp_agent.core.request_params import RequestParams
@@ -384,7 +383,7 @@ class BaseAgent(MCPAggregator, AgentProtocol):
             return error_msg
 
         # Get the display name (namespaced version)
-        display_name = getattr(prompt_result, "namespaced_name", prompt_name)
+        getattr(prompt_result, "namespaced_name", prompt_name)
 
         # Convert prompt messages to multipart format
         multipart_messages = PromptMessageMultipart.to_multipart(prompt_result.messages)

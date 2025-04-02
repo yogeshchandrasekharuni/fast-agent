@@ -2,14 +2,18 @@
 This simplified implementation directly converts between MCP types and PromptMessageMultipart.
 """
 
+from typing import TYPE_CHECKING
+
 from mcp import ClientSession
 from mcp.types import CreateMessageRequestParams, CreateMessageResult, TextContent
 
 from mcp_agent.core.agent_types import AgentConfig
 from mcp_agent.logging.logger import get_logger
 from mcp_agent.mcp.interfaces import AugmentedLLMProtocol
-from mcp_agent.mcp.prompt_message_multipart import PromptMessageMultipart
 from mcp_agent.workflows.llm.sampling_converter import SamplingConverter
+
+if TYPE_CHECKING:
+    from mcp_agent.mcp.prompt_message_multipart import PromptMessageMultipart
 
 logger = get_logger(__name__)
 

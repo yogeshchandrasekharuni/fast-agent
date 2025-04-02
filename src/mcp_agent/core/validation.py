@@ -247,7 +247,7 @@ def get_dependencies_groups(
         visited = set()
         path = set()
 
-        def visit(node):
+        def visit(node) -> None:
             if node in path:
                 path_str = " -> ".join(path) + " -> " + node
                 raise CircularDependencyError(f"Circular dependency detected: {path_str}")

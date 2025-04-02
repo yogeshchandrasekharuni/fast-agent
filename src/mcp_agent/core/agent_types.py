@@ -2,8 +2,8 @@
 Type definitions for agents and agent configurations.
 """
 
-from dataclasses import dataclass
 import dataclasses
+from dataclasses import dataclass
 from enum import Enum
 from typing import Callable, Dict, List, Optional, Union
 

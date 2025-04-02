@@ -72,7 +72,6 @@ class ChainAgent(BaseAgent):
         #     )
 
         # Initialize messages with the input
-        current_messages = multipart_messages
 
         if not self.cumulative:
             response: PromptMessageMultipart = await self.agents[0].generate_x(multipart_messages)
@@ -110,7 +109,7 @@ class ChainAgent(BaseAgent):
             final_results.append(attributed_response)
 
             if i < len(self.agents) - 1:
-                current_messages = [Prompt.user(current_response.all_text())]
+                [Prompt.user(current_response.all_text())]
 
         # For cumulative mode, return the properly formatted output with XML tags
         response_text = "\n\n".join(final_results)

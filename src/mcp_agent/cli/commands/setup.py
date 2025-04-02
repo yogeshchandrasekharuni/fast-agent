@@ -173,7 +173,9 @@ def init(
 
     config_path = Path(config_dir).resolve()
     if not config_path.exists():
-        should_create = Confirm.ask(f"Directory {config_path} does not exist. Create it?", default=True)
+        should_create = Confirm.ask(
+            f"Directory {config_path} does not exist. Create it?", default=True
+        )
         if should_create:
             config_path.mkdir(parents=True)
         else:
@@ -212,9 +214,15 @@ def init(
         console.print("\n[green]Setup completed successfully![/green]")
         if "fastagent.secrets.yaml" in created:
             console.print("\n[yellow]Important:[/yellow] Remember to:")
-            console.print("1. Add your API keys to fastagent-secrets.yaml or set OPENAI_API_KEY and ANTHROPIC_API_KEY environment variables")
-            console.print("2. Keep fastagent.secrets.yaml secure and never commit it to version control")
-            console.print("3. Update fastagent.config.yaml to set a default model (currently system default is 'haiku')")
+            console.print(
+                "1. Add your API keys to fastagent-secrets.yaml or set OPENAI_API_KEY and ANTHROPIC_API_KEY environment variables"
+            )
+            console.print(
+                "2. Keep fastagent.secrets.yaml secure and never commit it to version control"
+            )
+            console.print(
+                "3. Update fastagent.config.yaml to set a default model (currently system default is 'haiku')"
+            )
         console.print("\nTo get started, run:")
         console.print("  uv run agent.py")
     else:

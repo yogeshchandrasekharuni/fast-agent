@@ -1,15 +1,10 @@
-from typing import TYPE_CHECKING, Any, List
-
-from mcp import GetPromptResult
+from typing import Any, List
 
 from mcp_agent.core.prompt import Prompt
 from mcp_agent.mcp.prompt_message_multipart import PromptMessageMultipart
 from mcp_agent.mcp.prompts.prompt_helpers import MessageContent
 from mcp_agent.workflows.llm.augmented_llm import RequestParams
 from mcp_agent.workflows.llm.augmented_llm_passthrough import PassthroughLLM
-
-if TYPE_CHECKING:
-    from mcp.types import PromptMessage
 
 
 class PlaybackLLM(PassthroughLLM):

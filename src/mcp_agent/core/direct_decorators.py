@@ -71,12 +71,12 @@ class DecoratedParallelProtocol(DecoratedAgentProtocol[P, R], Protocol):
 
     _fan_out: List[str]
     _fan_in: str
-    
-    
+
+
 # Protocol for evaluator-optimizer functions
 class DecoratedEvaluatorOptimizerProtocol(DecoratedAgentProtocol[P, R], Protocol):
     """Protocol for decorated evaluator-optimizer functions with additional metadata."""
-    
+
     _generator: str
     _evaluator: str
 
@@ -160,7 +160,7 @@ def _decorator_impl(
         for key, value in extra_kwargs.items():
             setattr(wrapper, f"_{key}", value)
 
-        return cast(DecoratedAgentProtocol[P, R], wrapper)
+        return cast("DecoratedAgentProtocol[P, R]", wrapper)
 
     return decorator
 
@@ -249,7 +249,7 @@ def orchestrator(
     final_request_params["max_iterations"] = max_iterations
 
     return cast(
-        Callable[[AgentCallable[P, R]], DecoratedOrchestratorProtocol[P, R]],
+        "Callable[[AgentCallable[P, R]], DecoratedOrchestratorProtocol[P, R]]",
         _decorator_impl(
             self,
             AgentType.ORCHESTRATOR,
@@ -298,7 +298,7 @@ def router(
     """
 
     return cast(
-        Callable[[AgentCallable[P, R]], DecoratedRouterProtocol[P, R]],
+        "Callable[[AgentCallable[P, R]], DecoratedRouterProtocol[P, R]]",
         _decorator_impl(
             self,
             AgentType.ROUTER,
@@ -346,7 +346,7 @@ def chain(
     """
 
     return cast(
-        Callable[[AgentCallable[P, R]], DecoratedChainProtocol[P, R]],
+        "Callable[[AgentCallable[P, R]], DecoratedChainProtocol[P, R]]",
         _decorator_impl(
             self,
             AgentType.CHAIN,
@@ -386,7 +386,7 @@ def parallel(
     """
 
     return cast(
-        Callable[[AgentCallable[P, R]], DecoratedParallelProtocol[P, R]],
+        "Callable[[AgentCallable[P, R]], DecoratedParallelProtocol[P, R]]",
         _decorator_impl(
             self,
             AgentType.PARALLEL,
@@ -398,8 +398,8 @@ def parallel(
             include_request=include_request,
         ),
     )
-    
-    
+
+
 def evaluator_optimizer(
     self,
     name: str,
@@ -412,7 +412,7 @@ def evaluator_optimizer(
 ) -> Callable[[AgentCallable[P, R]], DecoratedEvaluatorOptimizerProtocol[P, R]]:
     """
     Decorator to create and register an evaluator-optimizer agent with type-safe signature.
-    
+
     Args:
         name: Name of the evaluator-optimizer agent
         generator: Name of the agent that generates responses
@@ -420,7 +420,7 @@ def evaluator_optimizer(
         instruction: Base instruction for the evaluator-optimizer
         min_rating: Minimum acceptable quality rating (EXCELLENT, GOOD, FAIR, POOR)
         max_refinements: Maximum number of refinement iterations
-        
+
     Returns:
         A decorator that registers the evaluator-optimizer with proper type annotations
     """
@@ -429,9 +429,9 @@ def evaluator_optimizer(
     evaluated for quality, and then refined based on specific feedback until
     it reaches an acceptable quality standard.
     """
-    
+
     return cast(
-        Callable[[AgentCallable[P, R]], DecoratedEvaluatorOptimizerProtocol[P, R]],
+        "Callable[[AgentCallable[P, R]], DecoratedEvaluatorOptimizerProtocol[P, R]]",
         _decorator_impl(
             self,
             AgentType.EVALUATOR_OPTIMIZER,
@@ -458,7 +458,7 @@ def orchestrator(
 ) -> Callable[[AgentCallable[P, R]], "DecoratedOrchestratorProtocol[P, R]"]:
     """
     Decorator to create and register an orchestrator agent with type-safe signature.
-    
+
     Args:
         name: Name of the orchestrator agent
         agents: List of worker agents available to the orchestrator
@@ -466,7 +466,7 @@ def orchestrator(
         plan_type: Planning mode ("full" or "iterative")
         model: Model specification to use for the orchestrator
         request_params: Additional request parameters
-        
+
     Returns:
         A decorator that registers the orchestrator with proper type annotations
     """
@@ -475,9 +475,9 @@ def orchestrator(
     into steps, delegates to specialized agents, and synthesizes their outputs into
     a cohesive result.
     """
-    
+
     return cast(
-        Callable[[AgentCallable[P, R]], "DecoratedOrchestratorProtocol[P, R]"],
+        "Callable[[AgentCallable[P, R]], DecoratedOrchestratorProtocol[P, R]]",
         _decorator_impl(
             self,
             AgentType.ORCHESTRATOR,

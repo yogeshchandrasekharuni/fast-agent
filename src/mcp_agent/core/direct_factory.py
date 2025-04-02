@@ -117,7 +117,8 @@ async def create_agents_by_type(
 
     if model_factory_func is None:
         # Default factory that just returns the inputs - should be overridden
-        model_factory_func = lambda model=None, request_params=None: (lambda: None)
+        def model_factory_func(model=None, request_params=None):
+            return lambda: None
 
     # Create a dictionary to store the initialized agents
     result_agents: AgentDict = {}

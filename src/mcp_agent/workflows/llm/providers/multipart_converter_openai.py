@@ -38,10 +38,14 @@ class OpenAIConverter:
         Returns:
             True if the MIME type is generally supported, False otherwise
         """
-        return mime_type is not None and is_image_mime_type(mime_type) and mime_type != "image/svg+xml"
+        return (
+            mime_type is not None and is_image_mime_type(mime_type) and mime_type != "image/svg+xml"
+        )
 
     @staticmethod
-    def convert_to_openai(multipart_msg: PromptMessageMultipart, concatenate_text_blocks: bool = False) -> OpenAIMessage:
+    def convert_to_openai(
+        multipart_msg: PromptMessageMultipart, concatenate_text_blocks: bool = False
+    ) -> OpenAIMessage:
         """
         Convert a PromptMessageMultipart message to OpenAI API format.
 
@@ -118,7 +122,11 @@ class OpenAIConverter:
             return {"role": role, "content": ""}
 
         # If we only have one text content and it's empty, return an empty string for content
-        if len(content_blocks) == 1 and content_blocks[0]["type"] == "text" and not content_blocks[0]["text"]:
+        if (
+            len(content_blocks) == 1
+            and content_blocks[0]["type"] == "text"
+            and not content_blocks[0]["text"]
+        ):
             return {"role": role, "content": ""}
 
         # If concatenate_text_blocks is True, combine adjacent text blocks
@@ -167,7 +175,9 @@ class OpenAIConverter:
         return combined_blocks
 
     @staticmethod
-    def convert_prompt_message_to_openai(message: PromptMessage, concatenate_text_blocks: bool = False) -> OpenAIMessage:
+    def convert_prompt_message_to_openai(
+        message: PromptMessage, concatenate_text_blocks: bool = False
+    ) -> OpenAIMessage:
         """
         Convert a standard PromptMessage to OpenAI API format.
 
@@ -274,12 +284,20 @@ class OpenAIConverter:
 
         # Handle SVG (convert to text)
         elif mime_type == "image/svg+xml" and hasattr(resource_content, "text"):
-            file_text = f'<fastagent:file title="{title}" mimetype="{mime_type}">\n' f"{resource_content.text}\n" f"</fastagent:file>"
+            file_text = (
+                f'<fastagent:file title="{title}" mimetype="{mime_type}">\n'
+                f"{resource_content.text}\n"
+                f"</fastagent:file>"
+            )
             return {"type": "text", "text": file_text}
 
         # Handle text files
         elif is_text_mime_type(mime_type) and hasattr(resource_content, "text"):
-            file_text = f'<fastagent:file title="{title}" mimetype="{mime_type}">\n' f"{resource_content.text}\n" f"</fastagent:file>"
+            file_text = (
+                f'<fastagent:file title="{title}" mimetype="{mime_type}">\n'
+                f"{resource_content.text}\n"
+                f"</fastagent:file>"
+            )
             return {"type": "text", "text": file_text}
 
         # Default fallback for text resources
@@ -370,10 +388,14 @@ class OpenAIConverter:
         if text_content:
             # Convert text content to OpenAI format
             temp_multipart = PromptMessageMultipart(role="user", content=text_content)
-            converted = OpenAIConverter.convert_to_openai(temp_multipart, concatenate_text_blocks=concatenate_text_blocks)
+            converted = OpenAIConverter.convert_to_openai(
+                temp_multipart, concatenate_text_blocks=concatenate_text_blocks
+            )
 
             # Extract text from content blocks
-            tool_message_content = OpenAIConverter._extract_text_from_content_blocks(converted.get("content", ""))
+            tool_message_content = OpenAIConverter._extract_text_from_content_blocks(
+                converted.get("content", "")
+            )
 
         if not tool_message_content:
             tool_message_content = "[Tool returned non-text content]"

@@ -48,7 +48,9 @@ def multipart_messages_to_json(messages: List[PromptMessageMultipart]) -> str:
     """
     # Convert to dictionaries using model_dump with proper JSON mode
     # The mode="json" parameter ensures proper handling of AnyUrl objects
-    message_dicts = [message.model_dump(by_alias=True, mode="json", exclude_none=True) for message in messages]
+    message_dicts = [
+        message.model_dump(by_alias=True, mode="json", exclude_none=True) for message in messages
+    ]
 
     # Convert to JSON string
     return json.dumps(message_dicts, indent=2)

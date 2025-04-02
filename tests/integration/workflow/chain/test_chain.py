@@ -2,7 +2,6 @@ import pytest
 
 from mcp_agent.core.exceptions import AgentConfigError
 from mcp_agent.core.prompt import Prompt
-from mcp_agent.workflows.llm.augmented_llm_passthrough import FIXED_RESPONSE_INDICATOR
 
 
 @pytest.mark.integration

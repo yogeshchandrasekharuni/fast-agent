@@ -5,7 +5,7 @@ This provides a simplified implementation that routes messages to agents
 by determining the best agent for a request and dispatching to it.
 """
 
-from typing import Dict, List, Optional, Type, Union
+from typing import List, Optional, Type, Union
 
 from mcp.types import TextContent
 from pydantic import BaseModel
@@ -61,6 +61,7 @@ Respond in JSON format. NEVER include Code Fences:
 
 class RoutingResponse(BaseModel):
     """Model for the structured routing response from the LLM."""
+
     agent: str
     confidence: str
     reasoning: Optional[str] = None
@@ -68,10 +69,11 @@ class RoutingResponse(BaseModel):
 
 class RouterResult(BaseModel):
     """Router result with agent reference and confidence rating."""
+
     result: Agent
     confidence: str
     reasoning: Optional[str] = None
-    
+
     # Allow Agent objects to be stored without serialization
     model_config = {"arbitrary_types_allowed": True}
 
@@ -103,45 +105,42 @@ class RouterAgent(BaseAgent):
             **kwargs: Additional keyword arguments to pass to BaseAgent
         """
         super().__init__(config=config, context=context, **kwargs)
-        
+
         if not agents:
             raise AgentConfigError("At least one agent must be provided")
-            
+
         self.agents = agents
         self.routing_instruction = routing_instruction
         self.agent_map = {agent.name: agent for agent in agents}
 
         # Set up base router request parameters
-        base_params = {
-            "systemPrompt": ROUTING_SYSTEM_INSTRUCTION,
-            "use_history": False
-        }
-        
+        base_params = {"systemPrompt": ROUTING_SYSTEM_INSTRUCTION, "use_history": False}
+
         # Merge with provided defaults if any
         if default_request_params:
             # Start with defaults and override with router-specific settings
             merged_params = default_request_params.model_copy(update=base_params)
         else:
             merged_params = RequestParams(**base_params)
-            
+
         self._default_request_params = merged_params
 
     async def initialize(self) -> None:
         """Initialize the router and all agents."""
         if not self.initialized:
             await super().initialize()
-            
+
             # Initialize all agents if not already initialized
             for agent in self.agents:
                 if not getattr(agent, "initialized", False):
                     await agent.initialize()
-                    
+
             self.initialized = True
 
     async def shutdown(self) -> None:
         """Shutdown the router and all agents."""
         await super().shutdown()
-        
+
         # Shutdown all agents
         for agent in self.agents:
             try:
@@ -155,25 +154,25 @@ class RouterAgent(BaseAgent):
     ) -> Optional[RouterResult]:
         """
         Common method to extract request and get routing result.
-        
+
         Args:
             messages: The messages to extract request from
-            
+
         Returns:
             RouterResult containing the selected agent, or None if no suitable agent found
         """
         if not self.initialized:
             await self.initialize()
-            
+
         # Extract the request text from the last message
         request = messages[-1].all_text() if messages else ""
-        
+
         # Determine which agent to route to
         routing_result = await self._route_request(request)
-        
+
         if not routing_result:
             logger.warning("Could not determine appropriate agent for this request")
-            
+
         return routing_result
 
     async def generate_x(
@@ -192,19 +191,25 @@ class RouterAgent(BaseAgent):
             The response from the selected agent
         """
         routing_result = await self._get_routing_result(multipart_messages)
-        
+
         if not routing_result:
             return PromptMessageMultipart(
                 role="assistant",
-                content=[TextContent(type="text", text="Could not determine appropriate agent for this request.")]
+                content=[
+                    TextContent(
+                        type="text", text="Could not determine appropriate agent for this request."
+                    )
+                ],
             )
-        
+
         # Get the selected agent
         selected_agent = routing_result.result
-        
+
         # Log the routing decision
-        logger.info(f"Routing request to agent: {selected_agent.name} (confidence: {routing_result.confidence})")
-        
+        logger.info(
+            f"Routing request to agent: {selected_agent.name} (confidence: {routing_result.confidence})"
+        )
+
         # Dispatch the request to the selected agent
         return await selected_agent.generate_x(multipart_messages, request_params)
 
@@ -226,16 +231,18 @@ class RouterAgent(BaseAgent):
             The parsed response from the selected agent, or None if parsing fails
         """
         routing_result = await self._get_routing_result(prompt)
-        
+
         if not routing_result:
             return None
-        
+
         # Get the selected agent
         selected_agent = routing_result.result
-        
+
         # Log the routing decision
-        logger.info(f"Routing structured request to agent: {selected_agent.name} (confidence: {routing_result.confidence})")
-        
+        logger.info(
+            f"Routing structured request to agent: {selected_agent.name} (confidence: {routing_result.confidence})"
+        )
+
         # Dispatch the request to the selected agent
         return await selected_agent.structured(prompt, model, request_params)
 
@@ -256,9 +263,7 @@ class RouterAgent(BaseAgent):
         # If only one agent is available, use it directly
         if len(self.agents) == 1:
             return RouterResult(
-                result=self.agents[0],
-                confidence="high", 
-                reasoning="Only one agent available"
+                result=self.agents[0], confidence="high", reasoning="Only one agent available"
             )
 
         # Generate agent descriptions for the context
@@ -268,33 +273,32 @@ class RouterAgent(BaseAgent):
             agent_descriptions.append(f"{i}. Name: {agent.name} - {description}")
 
         context = "\n\n".join(agent_descriptions)
-        
+
         # Format the routing prompt
         routing_instruction = self.routing_instruction or DEFAULT_ROUTING_INSTRUCTION
         prompt_text = routing_instruction.format(context=context, request=request)
-        
+
         # Create multipart message for the router
         prompt = PromptMessageMultipart(
-            role="user", 
-            content=[TextContent(type="text", text=prompt_text)]
+            role="user", content=[TextContent(type="text", text=prompt_text)]
         )
-        
+
         # Get structured response from LLM
-        response = await self._llm.structured([prompt], RoutingResponse, self._default_request_params)
-        
+        response = await self._llm.structured(
+            [prompt], RoutingResponse, self._default_request_params
+        )
+
         if not response:
             logger.warning("No routing response received from LLM")
             return None
-            
+
         # Look up the agent by name
         selected_agent = self.agent_map.get(response.agent)
-        
+
         if not selected_agent:
             logger.warning(f"Agent '{response.agent}' not found in available agents")
             return None
-            
+
         return RouterResult(
-            result=selected_agent,
-            confidence=response.confidence,
-            reasoning=response.reasoning
+            result=selected_agent, confidence=response.confidence, reasoning=response.reasoning
         )

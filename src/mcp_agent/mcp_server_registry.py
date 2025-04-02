@@ -26,8 +26,8 @@ from mcp_agent.config import (
     get_settings,
 )
 from mcp_agent.logging.logger import get_logger
-from mcp_agent.mcp.mcp_connection_manager import MCPConnectionManager
 from mcp_agent.mcp.logger_textio import get_stderr_handler
+from mcp_agent.mcp.mcp_connection_manager import MCPConnectionManager
 
 logger = get_logger(__name__)
 

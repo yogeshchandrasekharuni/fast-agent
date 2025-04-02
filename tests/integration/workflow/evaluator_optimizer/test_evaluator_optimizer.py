@@ -1,10 +1,13 @@
-import pytest
-from pydantic import BaseModel, Field
 import json
 
-from mcp_agent.core.exceptions import AgentConfigError
+import pytest
+from pydantic import BaseModel, Field
+
 from mcp_agent.core.prompt import Prompt
-from mcp_agent.workflows.evaluator_optimizer.evaluator_optimizer import EvaluationResult, QualityRating
+from mcp_agent.workflows.evaluator_optimizer.evaluator_optimizer import (
+    EvaluationResult,
+    QualityRating,
+)
 from mcp_agent.workflows.llm.augmented_llm_passthrough import FIXED_RESPONSE_INDICATOR
 
 

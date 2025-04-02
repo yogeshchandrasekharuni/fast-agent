@@ -18,7 +18,9 @@ class ProviderFormatConverter(Protocol, Generic[MessageParamT_co, MessageT_co]):
         ...
 
     @classmethod
-    def from_mutlipart_prompts(cls, messages: List[PromptMessageMultipart]) -> List[MessageParamT_co]:
+    def from_mutlipart_prompts(
+        cls, messages: List[PromptMessageMultipart]
+    ) -> List[MessageParamT_co]:
         """Convert a list of PromptMessageMultiparts to a list of provider-specific implementations"""
         ...
 
@@ -29,5 +31,7 @@ class BasicFormatConverter(ProviderFormatConverter[PromptMessage, PromptMessage]
         return message
 
     @classmethod
-    def from_multipart_prompts(cls, messages: List[PromptMessageMultipart]) -> List[PromptMessageMultipart]:
+    def from_multipart_prompts(
+        cls, messages: List[PromptMessageMultipart]
+    ) -> List[PromptMessageMultipart]:
         return messages

@@ -17,7 +17,9 @@ async def run() -> None:
         await app._mcp_server.run(
             read_stream,
             write_stream,
-            app._mcp_server.create_initialization_options(notification_options=NotificationOptions(tools_changed=True, resources_changed=True)),
+            app._mcp_server.create_initialization_options(
+                notification_options=NotificationOptions(tools_changed=True, resources_changed=True)
+            ),
         )
 
 

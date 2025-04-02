@@ -1,9 +1,7 @@
 import asyncio
 from contextlib import asynccontextmanager
 from datetime import timedelta
-from typing import Any, Callable, Dict, Optional, Type, TypeVar
-
-from mcp import ServerSession
+from typing import TYPE_CHECKING, Any, Callable, Dict, Optional, Type, TypeVar
 
 from mcp_agent.config import Settings
 from mcp_agent.context import Context, cleanup_context, initialize_context
@@ -12,6 +10,9 @@ from mcp_agent.executor.workflow_signal import SignalWaitCallback
 from mcp_agent.human_input.handler import console_input_callback
 from mcp_agent.human_input.types import HumanInputCallback
 from mcp_agent.logging.logger import get_logger
+
+if TYPE_CHECKING:
+    from mcp import ServerSession
 
 R = TypeVar("R")
 
@@ -71,7 +72,9 @@ class MCPApp:
     @property
     def context(self) -> Context:
         if self._context is None:
-            raise RuntimeError("MCPApp not initialized, please call initialize() first, or use async with app.run().")
+            raise RuntimeError(
+                "MCPApp not initialized, please call initialize() first, or use async with app.run()."
+            )
         return self._context
 
     @property

@@ -1,9 +1,7 @@
-from typing import List
 
 import pytest
 
 from mcp_agent.core.prompt import Prompt
-from mcp_agent.mcp.prompt_message_multipart import PromptMessageMultipart
 from mcp_agent.workflows.llm.augmented_llm_passthrough import FIXED_RESPONSE_INDICATOR
 from mcp_agent.workflows.orchestrator.orchestrator_models import AgentTask, NextStep, Plan, Step
 
