@@ -5,7 +5,7 @@ Type definitions for agents and agent configurations.
 import dataclasses
 from dataclasses import dataclass
 from enum import Enum
-from typing import Callable, Dict, List, Optional, Union
+from typing import Callable, Dict, List, Union
 
 # Forward imports to avoid circular dependencies
 from mcp_agent.core.request_params import RequestParams
@@ -27,11 +27,11 @@ class AgentConfig:
     """Configuration for an Agent instance"""
 
     name: str
-    instruction: Union[str, Callable[[Dict], str]]
+    instruction: str = "You are a helpful agent."
     servers: List[str] = dataclasses.field(default_factory=list)
-    model: Optional[str] = None
+    model: str | None = None
     use_history: bool = True
-    default_request_params: Optional[RequestParams] = None
+    default_request_params: RequestParams | None = None
     human_input: bool = False
 
     def __post_init__(self) -> None:

@@ -25,7 +25,7 @@ class ChainAgent(BaseAgent):
 
     def __init__(
         self,
-        config: Union[AgentConfig, str],
+        config: AgentConfig,
         agents: List[Agent],
         cumulative: bool = False,
         context: Optional[Any] = None,

@@ -197,7 +197,6 @@ class AgentApp:
                     show_stop_hint=True,
                     multiline=False,  # Default to single-line mode
                     available_agent_names=available_agents,
-                    syntax=None,  # Can enable syntax highlighting for code input
                     agent_types=agent_types,  # Pass agent types for display
                 )
 

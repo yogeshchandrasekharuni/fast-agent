@@ -66,7 +66,7 @@ class EvaluatorOptimizerAgent(BaseAgent):
 
     def __init__(
         self,
-        config: Union[Agent, str],
+        config: Agent,
         generator_agent: Agent,
         evaluator_agent: Agent,
         min_rating: QualityRating = QualityRating.GOOD,

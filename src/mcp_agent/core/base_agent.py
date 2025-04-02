@@ -7,7 +7,7 @@ and delegates operations to an attached AugmentedLLMProtocol instance.
 
 import asyncio
 import uuid
-from typing import Any, Callable, Dict, List, Optional, Type, TypeVar, Union
+from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Type, TypeVar, Union
 
 from mcp.types import (
     CallToolResult,
@@ -17,6 +17,7 @@ from mcp.types import (
     TextContent,
     Tool,
 )
+from pydantic import BaseModel
 
 from mcp_agent.agents.agent import AgentConfig
 from mcp_agent.core.exceptions import PromptExitError
@@ -34,12 +35,14 @@ from mcp_agent.mcp.mcp_aggregator import MCPAggregator
 from mcp_agent.mcp.prompt_message_multipart import PromptMessageMultipart
 
 # Define a TypeVar for models
-ModelT = TypeVar("ModelT")
+ModelT = TypeVar("ModelT", bound=BaseModel)
 
 # Define a TypeVar for AugmentedLLM and its subclasses
 LLM = TypeVar("LLM", bound=AugmentedLLMProtocol)
 
 HUMAN_INPUT_TOOL_NAME = "__human_input__"
+if TYPE_CHECKING:
+    from mcp_agent.context import Context
 
 
 class BaseAgent(MCPAggregator, AgentProtocol):
@@ -52,24 +55,14 @@ class BaseAgent(MCPAggregator, AgentProtocol):
 
     def __init__(
         self,
-        config: Union[AgentConfig, str],  # Can be AgentConfig or backward compatible str name
-        instruction: Optional[Union[str, Callable[[Dict], str]]] = None,
-        server_names: Optional[List[str]] = None,
+        config: AgentConfig,
         functions: Optional[List[Callable]] = None,
         connection_persistence: bool = True,
         human_input_callback: Optional[HumanInputCallback] = None,
-        context: Optional[Any] = None,
+        context: Optional["Context"] = None,
         **kwargs: Dict[str, Any],
     ) -> None:
-        # Handle backward compatibility where first arg was name
-        if isinstance(config, str):
-            self.config = AgentConfig(
-                name=config,
-                instruction=instruction or "You are a helpful agent.",
-                servers=server_names or [],
-            )
-        else:
-            self.config = config
+        self.config = config
 
         super().__init__(
             context=context,

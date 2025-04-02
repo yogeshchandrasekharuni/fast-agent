@@ -48,7 +48,7 @@ class OrchestratorAgent(BaseAgent):
 
     def __init__(
         self,
-        config: Union[AgentConfig, str],
+        config: AgentConfig,
         agents: List[Agent],
         plan_type: Literal["full", "iterative"] = "full",
         context: Optional[Any] = None,

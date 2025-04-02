@@ -11,6 +11,7 @@ from mcp.types import TextContent
 from pydantic import BaseModel
 
 from mcp_agent.agents.agent import Agent
+from mcp_agent.context import Context
 from mcp_agent.core.agent_types import AgentConfig
 from mcp_agent.core.base_agent import BaseAgent
 from mcp_agent.core.exceptions import AgentConfigError
@@ -86,10 +87,10 @@ class RouterAgent(BaseAgent):
 
     def __init__(
         self,
-        config: Union[AgentConfig, str],
+        config: AgentConfig,
         agents: List[Agent],
         routing_instruction: Optional[str] = None,
-        context: Optional[object] = None,
+        context: Optional["Context"] = None,
         default_request_params: Optional[RequestParams] = None,
         **kwargs,
     ) -> None:

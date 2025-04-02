@@ -5,6 +5,7 @@ Direct AgentApp implementation for interacting with agents without proxies.
 from typing import Dict, Optional, Union
 
 from mcp_agent.agents.agent import Agent
+from mcp_agent.core.interactive_prompt import InteractivePrompt
 from mcp_agent.mcp.prompt_message_multipart import PromptMessageMultipart
 
 
@@ -81,7 +82,7 @@ class DirectAgentApp:
                 raise ValueError(f"Agent '{agent_name}' not found")
             return self._agents[agent_name]
 
-        return next(iter(self.agents.values()))
+        return next(iter(self._agents.values()))
 
     async def apply_prompt(
         self,
@@ -103,30 +104,51 @@ class DirectAgentApp:
         return await self._agent(agent_name).apply_prompt(prompt_name, arguments)
 
     async def with_resource(self, user_prompt: str, server_name: str, resource_name: str) -> str:
-        """
-        Apply a prompt template to an agent (default agent if not specified).
-
-        Args:
-            prompt_name: Name of the prompt template to apply
-            agent_name: Name of the agent to send to
-            arguments: Optional arguments for the prompt template
-
-        Returns:
-            The agent's response as a string
-        """
         return await self._agent(None).with_resource(
             prompt_content=user_prompt, server_name=server_name, resource_name=resource_name
         )
 
-    @property
-    def agents(self) -> Dict[str, Agent]:
-        """Access all agents."""
-        return self._agents
+    async def prompt(self, agent_name: Optional[str] = None, default: str = "") -> str:
+        """
+        Interactive prompt for sending messages with advanced features.
 
-    async def close(self) -> None:
-        """Shutdown all agents."""
-        for agent in self._agents.values():
-            try:
-                await agent.shutdown()
-            except Exception:
-                pass
+        Args:
+            agent_name: Optional target agent name (uses default if not specified)
+            default: Default message to use when user presses enter
+
+        Returns:
+            The result of the interactive session
+        """
+        # Get the default agent if none specified
+        target = self._agent(agent_name)
+
+        # Create agent_types dictionary mapping agent names to their types
+        agent_types = {}
+        for name, agent in self._agents.items():
+            # Determine agent type if possible
+            agent_type = "Agent"  # Default type
+
+            #            agent_type = agent.config.agent_type
+            # Try to get the type from the agent directly
+            if hasattr(agent, "agent_type"):
+                agent_type = agent.agent_type
+            elif hasattr(agent, "config") and hasattr(agent.config, "agent_type"):
+                agent_type = agent.config.agent_type
+
+            agent_types[name] = agent_type
+
+        # Create the interactive prompt
+        prompt = InteractivePrompt(agent_types=agent_types)
+
+        # Define the wrapper for send function
+        async def send_wrapper(message, agent_name):
+            return await self.send(message, agent_name)
+
+        # Start the prompt loop
+        return await prompt.prompt_loop(
+            send_func=send_wrapper,
+            default_agent=target,
+            available_agents=list(self._agents.keys()),
+            apply_prompt_func=self.apply_prompt,
+            default=default,
+        )

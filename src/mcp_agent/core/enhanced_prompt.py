@@ -151,7 +151,6 @@ async def get_enhanced_input(
     show_stop_hint: bool = False,
     multiline: bool = False,
     available_agent_names: List[str] = None,
-    syntax: str = None,
     agent_types: dict = None,
     is_human_input: bool = False,
     toolbar_color: str = "ansiblue",
@@ -166,7 +165,6 @@ async def get_enhanced_input(
         show_stop_hint: Whether to show the STOP hint
         multiline: Start in multiline mode
         available_agent_names: List of agent names for auto-completion
-        syntax: Syntax highlighting (e.g., 'python', 'sql')
         agent_types: Dictionary mapping agent names to their types for display
         is_human_input: Whether this is a human input request (disables agent selection features)
         toolbar_color: Color to use for the agent name in the toolbar (default: "ansiblue")
@@ -238,7 +236,6 @@ async def get_enhanced_input(
             is_human_input=is_human_input,
         ),
         complete_while_typing=True,
-        lexer=PygmentsLexer(PythonLexer) if syntax == "python" else None,
         multiline=Condition(lambda: in_multiline_mode),
         complete_in_thread=True,
         mouse_support=False,

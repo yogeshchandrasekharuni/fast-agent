@@ -33,9 +33,7 @@ class Agent(BaseAgent):
 
     def __init__(
         self,
-        config: Union[AgentConfig, str],  # Can be AgentConfig or backward compatible str name
-        instruction: Optional[Union[str, Callable[[Dict], str]]] = None,
-        server_names: Optional[List[str]] = None,
+        config: AgentConfig,  # Can be AgentConfig or backward compatible str name
         functions: Optional[List[Callable]] = None,
         connection_persistence: bool = True,
         human_input_callback: Optional[HumanInputCallback] = None,
@@ -45,8 +43,6 @@ class Agent(BaseAgent):
         # Initialize with BaseAgent constructor
         super().__init__(
             config=config,
-            instruction=instruction,
-            server_names=server_names,
             functions=functions,
             connection_persistence=connection_persistence,
             human_input_callback=human_input_callback,

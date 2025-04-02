@@ -20,7 +20,7 @@ class ParallelAgent(BaseAgent):
 
     def __init__(
         self,
-        config: Union[AgentConfig, str],
+        config: AgentConfig,
         fan_in_agent: Agent,
         fan_out_agents: List[Agent],
         include_request: bool = True,
