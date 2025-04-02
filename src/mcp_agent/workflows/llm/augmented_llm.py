@@ -7,6 +7,7 @@ from typing import (
     Optional,
     Type,
     TypeVar,
+    Union,
     cast,
 )
 
@@ -17,6 +18,7 @@ from mcp.types import (
     PromptMessage,
     TextContent,
 )
+from pydantic import BaseModel
 from pydantic_core import from_json
 from rich.text import Text
 
@@ -122,6 +124,48 @@ class AugmentedLLM(ContextDependent, AugmentedLLMProtocol, Generic[MessageParamT
             max_iterations=10,
             use_history=True,
         )
+
+    async def structured(
+        self,
+        prompt: List[PromptMessageMultipart],
+        model: Type[ModelT],
+        request_params: RequestParams | None = None,
+    ) -> ModelT | None:
+        """Apply the prompt and return the result as a Pydantic model, or None if coercion fails"""
+        try:
+            result: PromptMessageMultipart = await self.generate_x(prompt, request_params)
+            json_data = from_json(result.first_text(), allow_partial=True)
+            # Ensure we return a properly typed instance of ModelT
+            validated_model = model.model_validate(json_data)
+            return cast("ModelT", validated_model)
+        except Exception as e:
+            logger = get_logger(__name__)
+            logger.error(f"Failed to parse structured response: {str(e)}")
+            return None
+
+    async def generate_x(
+        self,
+        multipart_messages: List[PromptMessageMultipart],
+        request_params: RequestParams | None = None,
+    ) -> PromptMessageMultipart:
+        """
+        Create a completion with the LLM using the provided messages.
+        """
+        if multipart_messages[-1].first_text().startswith("***SAVE_HISTORY"):
+            parts: list[str] = multipart_messages[-1].first_text().split(" ", 1)
+            filename: str = (
+                parts[1].strip() if len(parts) > 1 else f"{self.name or 'assistant'}_prompts.txt"
+            )
+            await self._save_history(filename)
+            return Prompt.assistant(f"History saved to {filename}")
+
+        self.message_history.extend(multipart_messages)
+        assistant_response: PromptMessageMultipart = await self._apply_prompt_provider_specific(
+            multipart_messages, request_params
+        )
+
+        self.message_history.append(assistant_response)
+        return assistant_response
 
     def _merge_request_params(
         self, default_params: RequestParams, provided_params: RequestParams
@@ -394,49 +438,3 @@ class AugmentedLLM(ContextDependent, AugmentedLLMProtocol, Generic[MessageParamT
             String representation of the assistant's response if generated,
             or the last assistant message in the prompt
         """
-
-    #####################################
-    ### NEW INTERFACE METHODS BELOW   ###
-    #####################################
-
-    async def structured(
-        self,
-        prompt: List[PromptMessageMultipart],
-        model: Type[ModelT],
-        request_params: RequestParams | None = None,
-    ) -> ModelT | None:
-        """Apply the prompt and return the result as a Pydantic model, or None if coercion fails"""
-        try:
-            result: PromptMessageMultipart = await self.generate_x(prompt, request_params)
-            json_data = from_json(result.first_text(), allow_partial=True)
-            # Ensure we return a properly typed instance of ModelT
-            validated_model = model.model_validate(json_data)
-            return cast("ModelT", validated_model)
-        except Exception as e:
-            logger = get_logger(__name__)
-            logger.error(f"Failed to parse structured response: {str(e)}")
-            return None
-
-    async def generate_x(
-        self,
-        multipart_messages: List[PromptMessageMultipart],
-        request_params: RequestParams | None = None,
-    ) -> PromptMessageMultipart:
-        """
-        Create a completion with the LLM using the provided messages.
-        """
-        if multipart_messages[-1].first_text().startswith("***SAVE_HISTORY"):
-            parts: list[str] = multipart_messages[-1].first_text().split(" ", 1)
-            filename: str = (
-                parts[1].strip() if len(parts) > 1 else f"{self.name or 'assistant'}_prompts.txt"
-            )
-            await self._save_history(filename)
-            return Prompt.assistant(f"History saved to {filename}")
-
-        self.message_history.extend(multipart_messages)
-        assistant_response: PromptMessageMultipart = await self._apply_prompt_provider_specific(
-            multipart_messages, request_params
-        )
-
-        self.message_history.append(assistant_response)
-        return assistant_response

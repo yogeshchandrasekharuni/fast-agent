@@ -20,6 +20,7 @@ from typing import (
 
 from anyio.streams.memory import MemoryObjectReceiveStream, MemoryObjectSendStream
 from mcp import ClientSession
+from pydantic import BaseModel
 
 from mcp_agent.core.request_params import RequestParams
 from mcp_agent.mcp.prompt_message_multipart import PromptMessageMultipart
@@ -82,7 +83,7 @@ class ServerConnection(Protocol):
     def session(self) -> ClientSession: ...
 
 
-ModelT = TypeVar("ModelT")
+ModelT = TypeVar("ModelT", bound=BaseModel)
 
 
 class AugmentedLLMProtocol(Protocol):
@@ -143,7 +144,7 @@ class AgentProtocol(AugmentedLLMProtocol, Protocol):
         server_name: str,
         resource_name: str,
     ) -> str:
-        """Send a message with an attached resource"""
+        """Send a message with an attached MCP resource"""
         ...
 
     async def initialize(self) -> None:
