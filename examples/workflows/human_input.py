@@ -19,7 +19,7 @@ async def main() -> None:
     async with fast.run() as agent:
         # this usually causes the LLM to request the Human Input Tool
         await agent("print the next number in the sequence")
-        await agent.prompt(default="STOP")
+        await agent.prompt(default_prompt="STOP")
 
 
 if __name__ == "__main__":

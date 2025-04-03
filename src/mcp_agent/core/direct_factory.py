@@ -5,7 +5,7 @@ Implements type-safe factories with improved error handling.
 
 from typing import Any, Callable, Dict, Optional, Protocol, TypeVar
 
-from mcp_agent.agents.agent import Agent
+from mcp_agent.agents.agent import Agent, AgentConfig
 from mcp_agent.agents.workflow.evaluator_optimizer import (
     EvaluatorOptimizerAgent,
     QualityRating,
@@ -193,13 +193,24 @@ async def create_agents_by_type(
 
             elif agent_type == AgentType.PARALLEL:
                 # Get the fan-out and fan-in agents
-                fan_in_name = agent_data["fan_in"]
+                fan_in_name = agent_data.get("fan_in")
                 fan_out_names = agent_data["fan_out"]
 
-                # Get the fan-in agent
-                if fan_in_name not in active_agents:
+                # Create or retrieve the fan-in agent
+                if not fan_in_name:
+                    # Create default fan-in agent with auto-generated name
+                    fan_in_name = f"{name}_fan_in"
+                    fan_in_agent = await _create_default_fan_in_agent(
+                        fan_in_name,
+                        app_instance.context, 
+                        model_factory_func
+                    )
+                    # Add to result_agents so it's registered properly
+                    result_agents[fan_in_name] = fan_in_agent
+                elif fan_in_name not in active_agents:
                     raise AgentConfigError(f"Fan-in agent {fan_in_name} not found")
-                fan_in_agent = active_agents[fan_in_name]
+                else:
+                    fan_in_agent = active_agents[fan_in_name]
 
                 # Get the fan-out agents
                 fan_out_agents = []
@@ -426,3 +437,40 @@ async def create_agents_in_dependency_order(
             active_agents.update(orchestrator_agents)
 
     return active_agents
+
+
+async def _create_default_fan_in_agent(
+    fan_in_name: str,
+    context,
+    model_factory_func: ModelFactoryFn,
+) -> Agent:
+    """
+    Create a default fan-in agent for parallel workflows when none is specified.
+
+    Args:
+        fan_in_name: Name for the new fan-in agent
+        context: Application context
+        model_factory_func: Function for creating model factories
+
+    Returns:
+        Initialized Agent instance for fan-in operations
+    """
+    # Create a simple config for the fan-in agent with passthrough model
+    default_config = AgentConfig(
+        name=fan_in_name,
+        model="passthrough",
+        instruction="You are a passthrough agent that combines outputs from parallel agents."
+    )
+
+    # Create and initialize the default agent
+    fan_in_agent = Agent(
+        config=default_config,
+        context=context,
+    )
+    await fan_in_agent.initialize()
+
+    # Attach LLM to the agent
+    llm_factory = model_factory_func(model="passthrough")
+    await fan_in_agent.attach_llm(llm_factory)
+
+    return fan_in_agent

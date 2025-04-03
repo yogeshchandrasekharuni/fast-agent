@@ -31,9 +31,6 @@ Todays date is 15 February 2025. Include the main data sources consulted in pres
     async with agents.run() as agent:
         await agent.prompt()
 
-        # await agent.prompt(default="STOP")
-        #        await agent.prompt(default=research_prompt)
-
 
 if __name__ == "__main__":
     asyncio.run(main())

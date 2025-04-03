@@ -56,7 +56,7 @@ def validate_workflow_references(agents: Dict[str, Dict[str, Any]]) -> None:
         if agent_type == AgentType.PARALLEL.value:
             # Check fan_in exists
             fan_in = agent_data["fan_in"]
-            if fan_in not in available_components:
+            if fan_in and fan_in not in available_components:
                 raise AgentConfigError(
                     f"Parallel workflow '{name}' references non-existent fan_in component: {fan_in}"
                 )

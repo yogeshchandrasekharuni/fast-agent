@@ -51,7 +51,7 @@ class Agent(BaseAgent):
             **kwargs,
         )
 
-    async def prompt(self, default: str = "", agent_name: Optional[str] = None) -> str:
+    async def prompt(self, default_prompt: str = "", agent_name: Optional[str] = None) -> str:
         """
         Start an interactive prompt session with this agent.
 
@@ -92,5 +92,5 @@ class Agent(BaseAgent):
             available_agents=[agent_name_str],  # Only this agent
             apply_prompt_func=apply_prompt_wrapper,
             list_prompts_func=list_prompts_wrapper,
-            default=default,
+            default=default_prompt,
         )

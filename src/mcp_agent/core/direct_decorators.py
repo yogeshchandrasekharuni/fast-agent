@@ -7,10 +7,8 @@ for creating agents in the DirectFastAgent framework.
 import inspect
 from functools import wraps
 from typing import (
-    Any,
     Awaitable,
     Callable,
-    Dict,
     List,
     Literal,
     Optional,
@@ -90,7 +88,7 @@ def _decorator_impl(
     servers: List[str] = [],
     model: Optional[str] = None,
     use_history: bool = True,
-    request_params: Optional[Dict[str, Any]] = None,
+    request_params: RequestParams | None = None,
     human_input: bool = False,
     **extra_kwargs,
 ) -> Callable[[AgentCallable[P, R]], DecoratedAgentProtocol[P, R]]:
@@ -138,7 +136,7 @@ def _decorator_impl(
 
         # Update request params if provided
         if request_params:
-            config.default_request_params = RequestParams(**request_params)
+            config.default_request_params = request_params
 
         # Store metadata on the wrapper function
         agent_data = {
@@ -174,7 +172,7 @@ def agent(
     servers: List[str] = [],
     model: Optional[str] = None,
     use_history: bool = True,
-    request_params: Optional[Dict[str, Any]] = None,
+    request_params: RequestParams | None = None,
     human_input: bool = False,
 ) -> Callable[[AgentCallable[P, R]], DecoratedAgentProtocol[P, R]]:
     """
@@ -216,7 +214,7 @@ def orchestrator(
     instruction: Optional[str] = None,
     model: Optional[str] = None,
     use_history: bool = False,
-    request_params: Optional[Dict[str, Any]] = None,
+    request_params: RequestParams | None = None,
     human_input: bool = False,
     plan_type: Literal["full", "iterative"] = "full",
     max_iterations: int = 30,
@@ -245,8 +243,6 @@ def orchestrator(
     """
 
     # Create final request params with max_iterations
-    final_request_params = request_params or {}
-    final_request_params["max_iterations"] = max_iterations
 
     return cast(
         "Callable[[AgentCallable[P, R]], DecoratedOrchestratorProtocol[P, R]]",
@@ -258,10 +254,11 @@ def orchestrator(
             servers=[],  # Orchestrators don't connect to servers directly
             model=model,
             use_history=use_history,
-            request_params=final_request_params,
+            request_params=request_params,
             human_input=human_input,
             child_agents=agents,
             plan_type=plan_type,
+            max_iterations=max_iterations,
         ),
     )
 
@@ -274,7 +271,7 @@ def router(
     instruction: Optional[str] = None,
     model: Optional[str] = None,
     use_history: bool = False,
-    request_params: Optional[Dict[str, Any]] = None,
+    request_params: RequestParams | None = None,
     human_input: bool = False,
 ) -> Callable[[AgentCallable[P, R]], DecoratedRouterProtocol[P, R]]:
     """
@@ -363,7 +360,7 @@ def parallel(
     name: str,
     *,
     fan_out: List[str],
-    fan_in: str,
+    fan_in: str | None = None,
     instruction: Optional[str] = None,
     include_request: bool = True,
 ) -> Callable[[AgentCallable[P, R]], DecoratedParallelProtocol[P, R]]:

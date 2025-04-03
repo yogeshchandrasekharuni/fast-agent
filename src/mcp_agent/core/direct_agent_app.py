@@ -46,7 +46,7 @@ class DirectAgentApp:
         self,
         message: Union[str, PromptMessageMultipart] | None = None,
         agent_name: str | None = None,
-        default: str = "",
+        default_prompt: str = "",
     ) -> str:
         """
         Make the object callable to send messages or start interactive prompt.
@@ -63,7 +63,7 @@ class DirectAgentApp:
         if message:
             return await self._agent(agent_name).send(message)
 
-        return await self._agent(agent_name).prompt(default=default)
+        return await self._agent(agent_name).prompt(default_prompt=default_prompt)
 
     async def send(self, message: str, agent_name: Optional[str] = None) -> str:
         """
@@ -122,7 +122,7 @@ class DirectAgentApp:
             prompt_content=user_prompt, server_name=server_name, resource_name=resource_name
         )
 
-    async def prompt(self, agent_name: Optional[str] = None, default: str = "") -> str:
+    async def prompt(self, agent_name: Optional[str] = None, default_prompt: str = "") -> str:
         """
         Interactive prompt for sending messages with advanced features.
 
@@ -175,5 +175,5 @@ class DirectAgentApp:
             available_agents=list(self._agents.keys()),
             apply_prompt_func=self.apply_prompt,
             list_prompts_func=self.list_prompts,
-            default=default,
+            default=default_prompt,
         )

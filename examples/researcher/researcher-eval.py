@@ -46,7 +46,7 @@ async def main() -> None:
         await agent.prompt("Researcher_Evaluator")
 
         print("Ask follow up quesions to the Researcher?")
-        await agent.prompt("Researcher", default="STOP")
+        await agent.prompt("Researcher", default_prompt="STOP")
 
 
 if __name__ == "__main__":

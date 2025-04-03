@@ -133,7 +133,7 @@ class BaseAgent(MCPAggregator, AgentProtocol):
         self,
         message: Union[str, PromptMessageMultipart] | None = None,
         agent_name: Optional[str] = None,
-        default: str = "",
+        default_prompt: str = "",
     ) -> str:
         """
         Make the agent callable to send messages or start an interactive prompt.
@@ -148,7 +148,7 @@ class BaseAgent(MCPAggregator, AgentProtocol):
         """
         if message:
             return await self.send(message)
-        return await self.prompt(default=default, agent_name=agent_name)
+        return await self.prompt(default_prompt=default_prompt)
 
     async def generate_str(self, message: str, request_params: RequestParams | None) -> str:
         result: PromptMessageMultipart = await self.generate([Prompt.user(message)], request_params)
@@ -185,9 +185,7 @@ class BaseAgent(MCPAggregator, AgentProtocol):
         Returns:
             The result of the interactive session
         """
-        # This is a placeholder implementation - derived classes should implement
-        # actual interactive prompting logic
-        return await self.send(default_prompt)
+        ...
 
     async def request_human_input(self, request: HumanInputRequest) -> str:
         """
