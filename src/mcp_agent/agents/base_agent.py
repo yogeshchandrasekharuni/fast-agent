@@ -7,7 +7,7 @@ and delegates operations to an attached AugmentedLLMProtocol instance.
 
 import asyncio
 import uuid
-from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Type, TypeVar, Union
+from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Tuple, Type, TypeVar, Union
 
 from mcp.types import (
     CallToolResult,
@@ -134,7 +134,7 @@ class BaseAgent(MCPAggregator, AgentProtocol):
         message: Union[str, PromptMessageMultipart] | None = None,
         agent_name: Optional[str] = None,
         default: str = "",
-    ) -> str:
+    ) -> Tuple[str, PromptMessageMultipart]:
         """
         Make the agent callable to send messages or start an interactive prompt.
 
@@ -150,7 +150,13 @@ class BaseAgent(MCPAggregator, AgentProtocol):
             return await self.send(message)
         return await self.prompt(default=default, agent_name=agent_name)
 
-    async def send(self, message: Union[str, PromptMessageMultipart]) -> str:
+    async def generate_str(self, message: str, request_params: RequestParams | None) -> str:
+        result: PromptMessageMultipart = await self.generate([Prompt.user(message)], request_params)
+        return result.first_text()
+
+    async def send(
+        self, message: Union[str, PromptMessageMultipart]
+    ) -> Tuple[str, PromptMessageMultipart]:
         """
         Send a message to the agent and get a response.
 
@@ -169,7 +175,7 @@ class BaseAgent(MCPAggregator, AgentProtocol):
 
         # Use the LLM to generate a response
         response = await self.generate([prompt], None)
-        return response.first_text()
+        return response.first_text(), response
 
     async def prompt(self, default_prompt: str = "") -> str:
         """

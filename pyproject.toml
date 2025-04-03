@@ -67,7 +67,10 @@ include = [
     "examples/**/*.py",
     "examples/**/*.yaml",
     "examples/**/*.yml",
+    "examples/**/*.txt",
     "examples/**/*.csv",
+    "examples/**/*.md",
+    "examples/**/*.css",
     "examples/**/mount-point/*.csv",
 ]
 

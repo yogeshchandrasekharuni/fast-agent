@@ -12,6 +12,7 @@ from typing import (
     List,
     Optional,
     Protocol,
+    Tuple,
     Type,
     TypeVar,
     Union,
@@ -19,6 +20,7 @@ from typing import (
 )
 
 from anyio.streams.memory import MemoryObjectReceiveStream, MemoryObjectSendStream
+from deprecated import deprecated
 from mcp import ClientSession, GetPromptResult, ReadResourceResult
 from pydantic import BaseModel
 
@@ -95,7 +97,7 @@ class AugmentedLLMProtocol(Protocol):
         prompt: List[PromptMessageMultipart],
         model: Type[ModelT],
         request_params: RequestParams | None = None,
-    ) -> ModelT | None:
+    ) -> Tuple[ModelT | None, PromptMessageMultipart]:
         """Apply the prompt and return the result as a Pydantic model, or None if coercion fails"""
         ...
 
@@ -123,11 +125,15 @@ class AgentProtocol(AugmentedLLMProtocol, Protocol):
 
     name: str
 
-    async def __call__(self, message: Union[str, PromptMessageMultipart] | None = None) -> str:
+    async def __call__(
+        self, message: Union[str, PromptMessageMultipart] | None = None
+    ) -> Tuple[str, PromptMessageMultipart]:
         """Make the agent callable for sending messages directly."""
         ...
 
-    async def send(self, message: Union[str, PromptMessageMultipart]) -> str:
+    async def send(
+        self, message: Union[str, PromptMessageMultipart]
+    ) -> Tuple[str, PromptMessageMultipart]:
         """Send a message to the agent and get a response"""
         ...
 
@@ -145,12 +151,17 @@ class AgentProtocol(AugmentedLLMProtocol, Protocol):
 
     async def get_resource(self, server_name: str, resource_uri: str) -> ReadResourceResult: ...
 
+    @deprecated
+    async def generate_str(self, message: str, request_params: RequestParams | None) -> str:
+        """Generate a response. Deprecated: please use send instead"""
+        ...
+
     async def with_resource(
         self,
         prompt_content: Union[str, PromptMessageMultipart],
         server_name: str,
         resource_name: str,
-    ) -> str:
+    ) -> Tuple[str, PromptMessageMultipart]:
         """Send a message with an attached MCP resource"""
         ...
 
