@@ -70,22 +70,32 @@ def copy_example_files(example_type: str, target_dir: Path, force: bool = False)
             console.print(f"Created mount-point directory: {mount_point_dir}")
 
     # Try to use examples from the installed package first, or fall back to the top-level directory
-    import importlib.resources
     from importlib.resources import files
-    
+
     try:
         # First try to find examples in the package resources
-        source_dir = files("mcp_agent").joinpath("resources").joinpath("examples").joinpath(
-            "workflows" if example_type == "workflow" else f"{example_type}"
+        source_dir = (
+            files("mcp_agent")
+            .joinpath("resources")
+            .joinpath("examples")
+            .joinpath("workflows" if example_type == "workflow" else f"{example_type}")
         )
         if not source_dir.is_dir():
             # Fall back to the top-level directory for development mode
             package_dir = Path(__file__).parent.parent.parent.parent.parent
-            source_dir = package_dir / "examples" / ("workflows" if example_type == "workflow" else f"{example_type}")
+            source_dir = (
+                package_dir
+                / "examples"
+                / ("workflows" if example_type == "workflow" else f"{example_type}")
+            )
     except (ImportError, ModuleNotFoundError, ValueError):
         # Fall back to the top-level directory if the resource finding fails
         package_dir = Path(__file__).parent.parent.parent.parent.parent
-        source_dir = package_dir / "examples" / ("workflows" if example_type == "workflow" else f"{example_type}")
+        source_dir = (
+            package_dir
+            / "examples"
+            / ("workflows" if example_type == "workflow" else f"{example_type}")
+        )
 
     if not source_dir.exists():
         console.print(f"[red]Error: Source directory not found: {source_dir}[/red]")
