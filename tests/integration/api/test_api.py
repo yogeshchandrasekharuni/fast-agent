@@ -93,7 +93,7 @@ async def test_agent_api_with_default_calls(fast_agent):
 
 @pytest.mark.integration
 @pytest.mark.asyncio
-async def test_agent_send_returns_tuple(fast_agent):
+async def test_generate_returns_tuple(fast_agent):
     """Test that the agent can process a multipart prompts using directory-specific config."""
     # Use the FastAgent instance from the test directory fixture
     fast = fast_agent
@@ -106,7 +106,7 @@ async def test_agent_send_returns_tuple(fast_agent):
     )
     async def agent_function():
         async with fast.run() as agent:
-            res, prmpt = await agent["agent1"]("echo")
+            res, prmpt = await agent["agent1"].generate(Prompt.user("echo"))
             assert "echo" == res
             assert "assistant" == prmpt.role
 

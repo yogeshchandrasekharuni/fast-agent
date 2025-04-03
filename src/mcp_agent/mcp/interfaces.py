@@ -131,9 +131,7 @@ class AgentProtocol(AugmentedLLMProtocol, Protocol):
         """Make the agent callable for sending messages directly."""
         ...
 
-    async def send(
-        self, message: Union[str, PromptMessageMultipart]
-    ) -> Tuple[str, PromptMessageMultipart]:
+    async def send(self, message: Union[str, PromptMessageMultipart]) -> str:
         """Send a message to the agent and get a response"""
         ...
 

@@ -134,7 +134,7 @@ class BaseAgent(MCPAggregator, AgentProtocol):
         message: Union[str, PromptMessageMultipart] | None = None,
         agent_name: Optional[str] = None,
         default: str = "",
-    ) -> Tuple[str, PromptMessageMultipart]:
+    ) -> str:
         """
         Make the agent callable to send messages or start an interactive prompt.
 
@@ -154,9 +154,7 @@ class BaseAgent(MCPAggregator, AgentProtocol):
         result: PromptMessageMultipart = await self.generate([Prompt.user(message)], request_params)
         return result.first_text()
 
-    async def send(
-        self, message: Union[str, PromptMessageMultipart]
-    ) -> Tuple[str, PromptMessageMultipart]:
+    async def send(self, message: Union[str, PromptMessageMultipart]) -> str:
         """
         Send a message to the agent and get a response.
 
@@ -175,7 +173,7 @@ class BaseAgent(MCPAggregator, AgentProtocol):
 
         # Use the LLM to generate a response
         response = await self.generate([prompt], None)
-        return response.first_text(), response
+        return response.first_text()
 
     async def prompt(self, default_prompt: str = "") -> str:
         """
