@@ -69,6 +69,9 @@ class AnthropicAugmentedLLM(AugmentedLLM[MessageParam, Message]):
             use_history=True,
         )
 
+    def _base_url(self) -> str:
+        return self.context.config.anthropic.base_url if self.context.config.anthropic else None
+
     async def generate_internal(
         self,
         message_param,
@@ -80,8 +83,12 @@ class AnthropicAugmentedLLM(AugmentedLLM[MessageParam, Message]):
         """
 
         api_key = self._api_key(self.context.config)
+        base_url = self._base_url()
+        if base_url and base_url.endswith("/v1"):
+            base_url = base_url.rstrip("/v1")
+
         try:
-            anthropic = Anthropic(api_key=api_key)
+            anthropic = Anthropic(api_key=api_key, base_url=base_url)
             messages: List[MessageParam] = []
             params = self.get_request_params(request_params)
         except AuthenticationError as e:
