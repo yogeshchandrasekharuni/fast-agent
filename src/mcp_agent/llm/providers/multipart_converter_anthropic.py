@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, List, Optional, Sequence, Union
+from typing import List, Sequence, Union
 
 from anthropic.types import (
     Base64ImageSourceParam,
@@ -30,10 +30,15 @@ from mcp_agent.mcp.mime_utils import (
     is_text_mime_type,
 )
 from mcp_agent.mcp.prompt_message_multipart import PromptMessageMultipart
+from mcp_agent.mcp.prompts.prompt_helpers import (
+    get_image_data,
+    get_resource_uri,
+    get_text,
+    is_image_content,
+    is_resource_content,
+    is_text_content,
+)
 from mcp_agent.mcp.resource_utils import extract_title_from_uri
-
-if TYPE_CHECKING:
-    from pydantic import AnyUrl
 
 _logger = get_logger("multipart_converter_anthropic")
 
@@ -128,31 +133,38 @@ class AnthropicConverter:
         anthropic_blocks: List[ContentBlockParam] = []
 
         for content_item in content_items:
-            if isinstance(content_item, TextContent):
-                anthropic_blocks.append(TextBlockParam(type="text", text=content_item.text))
+            if is_text_content(content_item):
+                # Handle text content
+                text = get_text(content_item)
+                anthropic_blocks.append(TextBlockParam(type="text", text=text))
 
-            elif isinstance(content_item, ImageContent):
+            elif is_image_content(content_item):
+                # Handle image content
+                image_content = content_item  # type: ImageContent
                 # Check if image MIME type is supported
-                if not AnthropicConverter._is_supported_image_type(content_item.mimeType):
+                if not AnthropicConverter._is_supported_image_type(image_content.mimeType):
+                    data_size = len(image_content.data) if image_content.data else 0
                     anthropic_blocks.append(
                         TextBlockParam(
                             type="text",
-                            text=f"Image with unsupported format '{content_item.mimeType}' ({len(content_item.data)} bytes)",
+                            text=f"Image with unsupported format '{image_content.mimeType}' ({data_size} bytes)",
                         )
                     )
                 else:
+                    image_data = get_image_data(image_content)
                     anthropic_blocks.append(
                         ImageBlockParam(
                             type="image",
                             source=Base64ImageSourceParam(
                                 type="base64",
-                                media_type=content_item.mimeType,
-                                data=content_item.data,
+                                media_type=image_content.mimeType,
+                                data=image_data,
                             ),
                         )
                     )
 
-            elif isinstance(content_item, EmbeddedResource):
+            elif is_resource_content(content_item):
+                # Handle embedded resource
                 block = AnthropicConverter._convert_embedded_resource(content_item, document_mode)
                 anthropic_blocks.append(block)
 
@@ -174,7 +186,8 @@ class AnthropicConverter:
             An appropriate ContentBlockParam for the resource
         """
         resource_content = resource.resource
-        uri: Optional[AnyUrl] = getattr(resource_content, "uri", None)
+        uri_str = get_resource_uri(resource)
+        uri = getattr(resource_content, "uri", None)
         is_url: bool = uri and uri.scheme in ("http", "https")
 
         # Determine MIME type
@@ -193,25 +206,29 @@ class AnthropicConverter:
                     f"Image with unsupported format '{mime_type}'", resource
                 )
 
-            if is_url:
+            if is_url and uri_str:
                 return ImageBlockParam(
-                    type="image", source=URLImageSourceParam(type="url", url=str(uri))
+                    type="image", source=URLImageSourceParam(type="url", url=uri_str)
                 )
-            elif hasattr(resource_content, "blob"):
+            
+            # Try to get image data
+            image_data = get_image_data(resource)
+            if image_data:
                 return ImageBlockParam(
                     type="image",
                     source=Base64ImageSourceParam(
-                        type="base64", media_type=mime_type, data=resource_content.blob
+                        type="base64", media_type=mime_type, data=image_data
                     ),
                 )
+            
             return AnthropicConverter._create_fallback_text("Image missing data", resource)
 
         elif mime_type == "application/pdf":
-            if is_url:
+            if is_url and uri_str:
                 return DocumentBlockParam(
                     type="document",
                     title=title,
-                    source=URLPDFSourceParam(type="url", url=str(uri)),
+                    source=URLPDFSourceParam(type="url", url=uri_str),
                 )
             elif hasattr(resource_content, "blob"):
                 return DocumentBlockParam(
@@ -226,7 +243,8 @@ class AnthropicConverter:
             return TextBlockParam(type="text", text=f"[PDF resource missing data: {title}]")
 
         elif is_text_mime_type(mime_type):
-            if not hasattr(resource_content, "text"):
+            text = get_text(resource)
+            if not text:
                 return TextBlockParam(
                     type="text",
                     text=f"[Text content could not be extracted from {title}]",
@@ -240,16 +258,17 @@ class AnthropicConverter:
                     source=PlainTextSourceParam(
                         type="text",
                         media_type="text/plain",
-                        data=resource_content.text,
+                        data=text,
                     ),
                 )
 
             # Return as simple text block when not in document mode
-            return TextBlockParam(type="text", text=resource_content.text)
+            return TextBlockParam(type="text", text=text)
 
         # Default fallback - convert to text if possible
-        if hasattr(resource_content, "text"):
-            return TextBlockParam(type="text", text=resource_content.text)
+        text = get_text(resource)
+        if text:
+            return TextBlockParam(type="text", text=text)
 
         # This is for binary resources - match the format expected by the test
         if isinstance(resource.resource, BlobResourceContents) and hasattr(

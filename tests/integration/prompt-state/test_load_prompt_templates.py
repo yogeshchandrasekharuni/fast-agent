@@ -64,7 +64,6 @@ async def test_load_conversation_with_attachments(fast_agent):
     await agent_function()
 
 
-@pytest.mark.skip("under development")
 @pytest.mark.integration
 @pytest.mark.asyncio
 async def test_save_state_to_simple_text_file(fast_agent):

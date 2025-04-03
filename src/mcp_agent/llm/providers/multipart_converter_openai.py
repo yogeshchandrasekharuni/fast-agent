@@ -15,6 +15,15 @@ from mcp_agent.mcp.mime_utils import (
     is_text_mime_type,
 )
 from mcp_agent.mcp.prompt_message_multipart import PromptMessageMultipart
+from mcp_agent.mcp.prompts.prompt_helpers import (
+    MessageContent,
+    get_image_data,
+    get_resource_uri,
+    get_text,
+    is_image_content,
+    is_resource_content,
+    is_text_content,
+)
 from mcp_agent.mcp.resource_utils import extract_title_from_uri
 
 _logger = get_logger("multipart_converter_openai")
@@ -62,25 +71,10 @@ class OpenAIConverter:
         if not multipart_msg.content:
             return {"role": role, "content": ""}
 
-        # Assistant messages in OpenAI only support string content, not array of content blocks
-        if role == "assistant":
-            # Extract text from all text content blocks
-            content_text = ""
-            for item in multipart_msg.content:
-                if isinstance(item, TextContent):
-                    content_text += item.text
-                # Other types are ignored for assistant messages in OpenAI
-
-            return {"role": role, "content": content_text}
-
-        # System messages also only support string content
-        if role == "system":
-            # Extract text from all text content blocks
-            content_text = ""
-            for item in multipart_msg.content:
-                if isinstance(item, TextContent):
-                    content_text += item.text
-
+        # Assistant and system messages in OpenAI only support string content, not array of content blocks
+        if role == "assistant" or role == "system":
+            # Use MessageContent helper to get all text
+            content_text = MessageContent.join_text(multipart_msg, separator="")
             return {"role": role, "content": content_text}
 
         # For user messages, convert each content block
@@ -88,13 +82,14 @@ class OpenAIConverter:
 
         for item in multipart_msg.content:
             try:
-                if isinstance(item, TextContent):
-                    content_blocks.append({"type": "text", "text": item.text})
+                if is_text_content(item):
+                    text = get_text(item)
+                    content_blocks.append({"type": "text", "text": text})
 
-                elif isinstance(item, ImageContent):
+                elif is_image_content(item):
                     content_blocks.append(OpenAIConverter._convert_image_content(item))
 
-                elif isinstance(item, EmbeddedResource):
+                elif is_resource_content(item):
                     block = OpenAIConverter._convert_embedded_resource(item)
                     if block:
                         content_blocks.append(block)
@@ -197,8 +192,11 @@ class OpenAIConverter:
     @staticmethod
     def _convert_image_content(content: ImageContent) -> ContentBlock:
         """Convert ImageContent to OpenAI image_url content block."""
+        # Get image data using helper
+        image_data = get_image_data(content)
+        
         # OpenAI requires image URLs or data URIs for images
-        image_url = {"url": f"data:{content.mimeType};base64,{content.data}"}
+        image_url = {"url": f"data:{content.mimeType};base64,{image_data}"}
 
         # Check if the image has annotations for detail level
         if hasattr(content, "annotations") and content.annotations:
@@ -246,6 +244,7 @@ class OpenAIConverter:
             An appropriate OpenAI content block or None if conversion failed
         """
         resource_content = resource.resource
+        uri_str = get_resource_uri(resource)
         uri = getattr(resource_content, "uri", None)
         is_url = uri and str(uri).startswith(("http://", "https://"))
         title = extract_title_from_uri(uri) if uri else "resource"
@@ -255,23 +254,26 @@ class OpenAIConverter:
 
         # Handle images
         if OpenAIConverter._is_supported_image_type(mime_type):
-            if is_url:
-                return {"type": "image_url", "image_url": {"url": str(uri)}}
-            elif hasattr(resource_content, "blob"):
+            if is_url and uri_str:
+                return {"type": "image_url", "image_url": {"url": uri_str}}
+            
+            # Try to get image data 
+            image_data = get_image_data(resource)
+            if image_data:
                 return {
                     "type": "image_url",
-                    "image_url": {"url": f"data:{mime_type};base64,{resource_content.blob}"},
+                    "image_url": {"url": f"data:{mime_type};base64,{image_data}"},
                 }
             else:
                 return {"type": "text", "text": f"[Image missing data: {title}]"}
 
         # Handle PDFs
         elif mime_type == "application/pdf":
-            if is_url:
+            if is_url and uri_str:
                 # OpenAI doesn't directly support PDF URLs, explain this limitation
                 return {
                     "type": "text",
-                    "text": f"[PDF URL: {uri}]\nOpenAI requires PDF files to be uploaded or provided as base64 data.",
+                    "text": f"[PDF URL: {uri_str}]\nOpenAI requires PDF files to be uploaded or provided as base64 data.",
                 }
             elif hasattr(resource_content, "blob"):
                 return {
@@ -283,26 +285,31 @@ class OpenAIConverter:
                 }
 
         # Handle SVG (convert to text)
-        elif mime_type == "image/svg+xml" and hasattr(resource_content, "text"):
-            file_text = (
-                f'<fastagent:file title="{title}" mimetype="{mime_type}">\n'
-                f"{resource_content.text}\n"
-                f"</fastagent:file>"
-            )
-            return {"type": "text", "text": file_text}
+        elif mime_type == "image/svg+xml":
+            text = get_text(resource)
+            if text:
+                file_text = (
+                    f'<fastagent:file title="{title}" mimetype="{mime_type}">\n'
+                    f"{text}\n"
+                    f"</fastagent:file>"
+                )
+                return {"type": "text", "text": file_text}
 
         # Handle text files
-        elif is_text_mime_type(mime_type) and hasattr(resource_content, "text"):
-            file_text = (
-                f'<fastagent:file title="{title}" mimetype="{mime_type}">\n'
-                f"{resource_content.text}\n"
-                f"</fastagent:file>"
-            )
-            return {"type": "text", "text": file_text}
+        elif is_text_mime_type(mime_type):
+            text = get_text(resource)
+            if text:
+                file_text = (
+                    f'<fastagent:file title="{title}" mimetype="{mime_type}">\n'
+                    f"{text}\n"
+                    f"</fastagent:file>"
+                )
+                return {"type": "text", "text": file_text}
 
         # Default fallback for text resources
-        elif hasattr(resource_content, "text"):
-            return {"type": "text", "text": resource_content.text}
+        text = get_text(resource)
+        if text:
+            return {"type": "text", "text": text}
 
         # Default fallback for binary resources
         elif hasattr(resource_content, "blob"):

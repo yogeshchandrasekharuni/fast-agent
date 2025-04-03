@@ -125,9 +125,7 @@ class AgentProtocol(AugmentedLLMProtocol, Protocol):
 
     name: str
 
-    async def __call__(
-        self, message: Union[str, PromptMessageMultipart] | None = None
-    ) -> Tuple[str, PromptMessageMultipart]:
+    async def __call__(self, message: Union[str, PromptMessageMultipart] | None = None) -> str:
         """Make the agent callable for sending messages directly."""
         ...
 
@@ -159,7 +157,7 @@ class AgentProtocol(AugmentedLLMProtocol, Protocol):
         prompt_content: Union[str, PromptMessageMultipart],
         server_name: str,
         resource_name: str,
-    ) -> Tuple[str, PromptMessageMultipart]:
+    ) -> str:
         """Send a message with an attached MCP resource"""
         ...
 

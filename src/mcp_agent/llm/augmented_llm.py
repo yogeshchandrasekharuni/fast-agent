@@ -37,6 +37,7 @@ from mcp_agent.mcp.interfaces import (
 )
 from mcp_agent.mcp.mcp_aggregator import MCPAggregator
 from mcp_agent.mcp.prompt_message_multipart import PromptMessageMultipart
+from mcp_agent.mcp.prompt_render import render_multipart_message
 from mcp_agent.mcp.prompt_serialization import multipart_messages_to_delimited_format
 from mcp_agent.ui.console_display import ConsoleDisplay
 
@@ -161,7 +162,7 @@ class AugmentedLLM(ContextDependent, AugmentedLLMProtocol, Generic[MessageParamT
 
         if multipart_messages[-1].role == "user":
             self.show_user_message(
-                multipart_messages[-1].first_text(),
+                render_multipart_message(multipart_messages[-1]),
                 model=self.default_request_params.model,
                 chat_turn=self.chat_turn(),
             )

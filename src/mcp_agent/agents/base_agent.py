@@ -7,7 +7,7 @@ and delegates operations to an attached AugmentedLLMProtocol instance.
 
 import asyncio
 import uuid
-from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Tuple, Type, TypeVar, Union
+from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Type, TypeVar, Union
 
 from mcp.types import (
     CallToolResult,
