@@ -105,6 +105,8 @@ class AnthropicSettings(BaseModel):
 
     api_key: str | None = None
 
+    base_url: str | None = None
+
     model_config = ConfigDict(extra="allow", arbitrary_types_allowed=True)
 
 
