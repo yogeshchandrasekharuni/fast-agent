@@ -64,6 +64,38 @@
       "title": "DeepSeekSettings",
       "type": "object"
     },
+    "GenericSettings": {
+      "additionalProperties": true,
+      "description": "Settings for using OpenAI models in the fast-agent application.",
+      "properties": {
+        "api_key": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Api Key"
+        },
+        "base_url": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Base Url"
+        }
+      },
+      "title": "GenericSettings",
+      "type": "object"
+    },
     "LoggerSettings": {
       "description": "Logger settings for the fast-agent application.",
       "properties": {
@@ -672,6 +704,18 @@
       ],
       "default": null,
       "description": "Settings for using DeepSeek models in the fast-agent application"
+    },
+    "generic": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/GenericSettings"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Settings for using Generic models in the fast-agent application"
     },
     "logger": {
       "anyOf": [

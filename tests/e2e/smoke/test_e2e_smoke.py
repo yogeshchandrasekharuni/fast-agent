@@ -250,3 +250,35 @@ async def test_structured_weather_forecast_prompting_style(fast_agent, model_nam
             print(f"Weather forecast for {forecast.location}: {forecast.summary}")
 
     await weather_forecast()
+
+
+@pytest.mark.skip(reason="Generic OpenAI endpoint")
+@pytest.mark.integration
+@pytest.mark.asyncio
+@pytest.mark.e2e
+@pytest.mark.parametrize(
+    "model_name",
+    [
+        "generic.qwen2.5:latest",
+        "generic.llama3.2:latest",
+    ],
+)
+async def test_generic_model_textual_prompting(fast_agent, model_name):
+    """Test that the agent can process an image and respond appropriately."""
+    fast = fast_agent
+
+    # Define the agent
+    @fast.agent(
+        "agent",
+        instruction="You are a helpful AI Agent",
+        model=model_name,
+    )
+    async def agent_function():
+        async with fast.run() as agent:
+            response = await agent.send(Prompt.user("write a 50 word story about cats"))
+            response_text = response.strip()
+            words = response_text.split()
+            word_count = len(words)
+            assert 40 <= word_count <= 60, f"Expected between 40-60 words, got {word_count}"
+
+    await agent_function()
