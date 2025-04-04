@@ -9,6 +9,7 @@ from mcp_agent.llm.augmented_llm_passthrough import PassthroughLLM
 from mcp_agent.llm.augmented_llm_playback import PlaybackLLM
 from mcp_agent.llm.providers.augmented_llm_anthropic import AnthropicAugmentedLLM
 from mcp_agent.llm.providers.augmented_llm_deepseek import DeepSeekAugmentedLLM
+from mcp_agent.llm.providers.augmented_llm_generic import GenericAugmentedLLM
 from mcp_agent.llm.providers.augmented_llm_openai import OpenAIAugmentedLLM
 from mcp_agent.mcp.interfaces import AugmentedLLMProtocol
 
@@ -32,6 +33,7 @@ class Provider(Enum):
     OPENAI = auto()
     FAST_AGENT = auto()
     DEEPSEEK = auto()
+    GENERIC = auto()
 
 
 class ReasoningEffort(Enum):
@@ -60,6 +62,7 @@ class ModelFactory:
         "openai": Provider.OPENAI,
         "fast-agent": Provider.FAST_AGENT,
         "deepseek": Provider.DEEPSEEK,
+        "generic": Provider.GENERIC,
     }
 
     # Mapping of effort strings to enum values
@@ -116,6 +119,7 @@ class ModelFactory:
         Provider.OPENAI: OpenAIAugmentedLLM,
         Provider.FAST_AGENT: PassthroughLLM,
         Provider.DEEPSEEK: DeepSeekAugmentedLLM,
+        Provider.GENERIC: GenericAugmentedLLM,
     }
 
     # Mapping of special model names to their specific LLM classes

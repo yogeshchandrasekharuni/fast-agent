@@ -115,7 +115,6 @@ class OpenAIAugmentedLLM(AugmentedLLM[ChatCompletionMessageParam, ChatCompletion
         self,
         message,
         request_params: RequestParams | None = None,
-        response_model: Type[ModelT] | None = None,
     ) -> List[ChatCompletionMessage]:
         """
         Process a query using an LLM and available tools.
@@ -192,16 +191,9 @@ class OpenAIAugmentedLLM(AugmentedLLM[ChatCompletionMessageParam, ChatCompletion
             self.logger.debug(f"{arguments}")
             self._log_chat_progress(self.chat_turn(), model=model)
 
-            if response_model is None:
-                executor_result = await self.executor.execute(
-                    openai_client.chat.completions.create, **arguments
-                )
-            else:
-                executor_result = await self.executor.execute(
-                    openai_client.beta.chat.completions.parse,
-                    **arguments,
-                    response_format=response_model,
-                )
+            executor_result = await self.executor.execute(
+                openai_client.chat.completions.create, **arguments
+            )
 
             response = executor_result[0]
 
