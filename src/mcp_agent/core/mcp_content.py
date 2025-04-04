@@ -13,7 +13,9 @@ from mcp.types import (
     Annotations,
     BlobResourceContents,
     EmbeddedResource,
-    ImageContent,
+    ImageContent, 
+    ReadResourceResult,
+    ResourceContents,
     TextContent,
     TextResourceContents,
 )
@@ -147,7 +149,7 @@ def MCPFile(
 
 
 def MCPPrompt(
-    *content_items: Union[dict, str, Path, bytes], role: Literal["user", "assistant"] = "user"
+    *content_items: Union[dict, str, Path, bytes, 'EmbeddedResource'], role: Literal["user", "assistant"] = "user"
 ) -> List[dict]:
     """
     Create one or more prompt messages with various content types.
@@ -158,6 +160,8 @@ def MCPPrompt(
     - File paths with text mime types or other mime types become EmbeddedResource
     - Dicts with role and content are passed through unchanged
     - Raw bytes become ImageContent
+    - EmbeddedResource objects are used directly
+    - ResourceContent objects are wrapped in EmbeddedResource
 
     Args:
         *content_items: Content items of various types
@@ -189,6 +193,22 @@ def MCPPrompt(
         elif isinstance(item, bytes):
             # Raw binary data, assume image
             result.append(MCPImage(data=item, role=role))
+        elif isinstance(item, EmbeddedResource):
+            # Already an EmbeddedResource, wrap in a message
+            result.append({"role": role, "content": item})
+        elif hasattr(item, 'type') and item.type == 'resource' and hasattr(item, 'resource'):
+            # Looks like an EmbeddedResource but may not be the exact class
+            result.append({"role": role, "content": EmbeddedResource(type="resource", resource=item.resource)})
+        elif isinstance(item, ResourceContents):
+            # It's a ResourceContents, wrap it in an EmbeddedResource
+            result.append({"role": role, "content": EmbeddedResource(type="resource", resource=item)})
+        elif isinstance(item, ReadResourceResult):
+            # It's a ReadResourceResult, convert each resource content
+            for resource_content in item.contents:
+                result.append({
+                    "role": role, 
+                    "content": EmbeddedResource(type="resource", resource=resource_content)
+                })
         else:
             # Try to convert to string
             result.append(MCPText(str(item), role=role))

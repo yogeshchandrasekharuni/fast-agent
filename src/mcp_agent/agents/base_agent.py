@@ -13,6 +13,7 @@ from mcp.types import (
     CallToolResult,
     EmbeddedResource,
     ListToolsResult,
+    PromptMessage,
     ReadResourceResult,
     TextContent,
     Tool,
@@ -154,26 +155,49 @@ class BaseAgent(MCPAggregator, AgentProtocol):
         result: PromptMessageMultipart = await self.generate([Prompt.user(message)], request_params)
         return result.first_text()
 
-    async def send(self, message: Union[str, PromptMessageMultipart]) -> str:
+    async def send(self, message: Union[str, PromptMessage, PromptMessageMultipart]) -> str:
         """
         Send a message to the agent and get a response.
 
         Args:
-            message: Either a string message or a PromptMessageMultipart object
+            message: Message content in various formats:
+                - String: Converted to a user PromptMessageMultipart
+                - PromptMessage: Converted to PromptMessageMultipart
+                - PromptMessageMultipart: Used directly
 
         Returns:
             The agent's response as a string
         """
-
-        # Create a PromptMessageMultipart if we received a string
-        if isinstance(message, str):
-            prompt = Prompt.user(message)
-        else:
-            prompt = message
-
+        # Convert the input to a PromptMessageMultipart
+        prompt = self._normalize_message_input(message)
+            
         # Use the LLM to generate a response
         response = await self.generate([prompt], None)
         return response.first_text()
+        
+    def _normalize_message_input(self, message: Union[str, PromptMessage, PromptMessageMultipart]) -> PromptMessageMultipart:
+        """
+        Convert a message of any supported type to PromptMessageMultipart.
+        
+        Args:
+            message: Message in various formats (string, PromptMessage, or PromptMessageMultipart)
+            
+        Returns:
+            A PromptMessageMultipart object
+        """
+        # Handle single message
+        if isinstance(message, str):
+            return Prompt.user(message)
+        elif isinstance(message, PromptMessage):
+            return PromptMessageMultipart(
+                role=message.role, 
+                content=[message.content]
+            )
+        elif isinstance(message, PromptMessageMultipart):
+            return message
+        else:
+            # Try to convert to string as fallback
+            return Prompt.user(str(message))
 
     async def prompt(self, default_prompt: str = "") -> str:
         """
@@ -388,8 +412,8 @@ class BaseAgent(MCPAggregator, AgentProtocol):
         # Get the display name (namespaced version)
         getattr(prompt_result, "namespaced_name", prompt_name)
 
-        # Convert prompt messages to multipart format
-        multipart_messages = PromptMessageMultipart.to_multipart(prompt_result.messages)
+        # Convert prompt messages to multipart format using the safer method
+        multipart_messages = PromptMessageMultipart.from_get_prompt_result(prompt_result)
 
         # Always call generate to ensure LLM implementations can handle prompt templates
         # This is critical for stateful LLMs like PlaybackLLM
@@ -427,7 +451,7 @@ class BaseAgent(MCPAggregator, AgentProtocol):
 
     async def with_resource(
         self,
-        prompt_content: Union[str, PromptMessageMultipart],
+        prompt_content: Union[str, PromptMessage, PromptMessageMultipart],
         server_name: str,
         resource_name: str,
     ) -> str:
@@ -435,7 +459,10 @@ class BaseAgent(MCPAggregator, AgentProtocol):
         Create a prompt with the given content and resource, then send it to the agent.
 
         Args:
-            prompt_content: Either a string message or an existing PromptMessageMultipart
+            prompt_content: Content in various formats:
+                - String: Converted to a user message with the text
+                - PromptMessage: Converted to PromptMessageMultipart
+                - PromptMessageMultipart: Used directly
             server_name: Name of the MCP server to retrieve the resource from
             resource_name: Name or URI of the resource to retrieve
 
@@ -454,12 +481,17 @@ class BaseAgent(MCPAggregator, AgentProtocol):
             content = [TextContent(type="text", text=prompt_content)]
             content.extend(embedded_resources)
             prompt = PromptMessageMultipart(role="user", content=content)
+        elif isinstance(prompt_content, PromptMessage):
+            # Convert PromptMessage to PromptMessageMultipart and add resources
+            content = [prompt_content.content]
+            content.extend(embedded_resources)
+            prompt = PromptMessageMultipart(role=prompt_content.role, content=content)
         elif isinstance(prompt_content, PromptMessageMultipart):
             # Add resources to the existing prompt
             prompt = prompt_content
             prompt.content.extend(embedded_resources)
         else:
-            raise TypeError("prompt_content must be a string or PromptMessageMultipart")
+            raise TypeError("prompt_content must be a string, PromptMessage, or PromptMessageMultipart")
 
         response: PromptMessageMultipart = await self.generate([prompt], None)
         return response.first_text()
@@ -520,3 +552,18 @@ class BaseAgent(MCPAggregator, AgentProtocol):
 
         response = await self.generate(prompts, request_params)
         return response.first_text()
+        
+    @property
+    def message_history(self) -> List[PromptMessageMultipart]:
+        """
+        Return the agent's message history as PromptMessageMultipart objects.
+        
+        This history can be used to transfer state between agents or for
+        analysis and debugging purposes.
+        
+        Returns:
+            List of PromptMessageMultipart objects representing the conversation history
+        """
+        if self._llm:
+            return self._llm.message_history
+        return []

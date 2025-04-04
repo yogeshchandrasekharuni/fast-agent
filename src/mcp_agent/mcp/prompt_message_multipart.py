@@ -1,4 +1,4 @@
-from typing import List, Union
+from typing import List, Optional, Union
 
 from mcp.types import (
     EmbeddedResource,
@@ -112,5 +112,29 @@ class PromptMessageMultipart(BaseModel):
 
     @classmethod
     def parse_get_prompt_result(cls, result: GetPromptResult) -> List["PromptMessageMultipart"]:
-        """Parse a GetPromptResult into PromptMessageMultipart objects."""
+        """
+        Parse a GetPromptResult into PromptMessageMultipart objects.
+        
+        Args:
+            result: GetPromptResult from MCP server
+            
+        Returns:
+            List of PromptMessageMultipart objects
+        """
+        return cls.to_multipart(result.messages)
+        
+    @classmethod
+    def from_get_prompt_result(cls, result: Optional[GetPromptResult]) -> List["PromptMessageMultipart"]:
+        """
+        Convert a GetPromptResult to PromptMessageMultipart objects with error handling.
+        This method safely handles None values and empty results.
+        
+        Args:
+            result: GetPromptResult from MCP server or None
+            
+        Returns:
+            List of PromptMessageMultipart objects or empty list if result is None/empty
+        """
+        if not result or not result.messages:
+            return []
         return cls.to_multipart(result.messages)

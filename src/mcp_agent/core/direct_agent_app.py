@@ -2,8 +2,9 @@
 Direct AgentApp implementation for interacting with agents without proxies.
 """
 
-from typing import Dict, Optional, Union
+from typing import Dict, List, Optional, Union
 
+from mcp import PromptMessage
 from mcp_agent.agents.agent import Agent
 from mcp_agent.core.interactive_prompt import InteractivePrompt
 from mcp_agent.mcp.prompt_message_multipart import PromptMessageMultipart
@@ -44,7 +45,7 @@ class DirectAgentApp:
 
     async def __call__(
         self,
-        message: Union[str, PromptMessageMultipart] | None = None,
+        message: Union[str, PromptMessage, PromptMessageMultipart] | None = None,
         agent_name: str | None = None,
         default_prompt: str = "",
     ) -> str:
@@ -53,9 +54,12 @@ class DirectAgentApp:
         This mirrors the FastAgent implementation that allowed agent("message").
 
         Args:
-            message: The message to send
+            message: Message content in various formats:
+                - String: Converted to a user PromptMessageMultipart
+                - PromptMessage: Converted to PromptMessageMultipart
+                - PromptMessageMultipart: Used directly
             agent_name: Optional name of the agent to send to (defaults to first agent)
-            default: Default message to use in interactive prompt mode
+            default_prompt: Default message to use in interactive prompt mode
 
         Returns:
             The agent's response as a string or the result of the interactive session
@@ -65,12 +69,15 @@ class DirectAgentApp:
 
         return await self._agent(agent_name).prompt(default_prompt=default_prompt)
 
-    async def send(self, message: str, agent_name: Optional[str] = None) -> str:
+    async def send(self, message: Union[str, PromptMessage, PromptMessageMultipart], agent_name: Optional[str] = None) -> str:
         """
         Send a message to the specified agent (or to all agents).
 
         Args:
-            message: The message to send
+            message: Message content in various formats:
+                - String: Converted to a user PromptMessageMultipart
+                - PromptMessage: Converted to PromptMessageMultipart
+                - PromptMessageMultipart: Used directly
             agent_name: Optional name of the agent to send to
 
         Returns:
