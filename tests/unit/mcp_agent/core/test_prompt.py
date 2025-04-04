@@ -116,7 +116,7 @@ def test_with_file_paths():
         assert decoded == b"fake image data"
         
         # Test with ResourceContents and EmbeddedResource
-        from mcp.types import ResourceContents, TextResourceContents, ReadResourceResult
+        from mcp.types import ReadResourceResult, TextResourceContents
         from pydantic import AnyUrl
         
         # Create a TextResourceContents
@@ -149,6 +149,29 @@ def test_with_file_paths():
         assert len(message.content) > 1  # Should have text + resource
         assert message.content[0].text == "Resource result:"
         assert isinstance(message.content[1], EmbeddedResource)
+        
+        # Test with direct TextContent
+        text_content = TextContent(type="text", text="Direct text content")
+        message = Prompt.user(text_content)
+        assert message.role == "user"
+        assert len(message.content) == 1
+        assert message.content[0] == text_content
+        
+        # Test with direct ImageContent
+        image_content = ImageContent(type="image", data="ZmFrZSBpbWFnZSBkYXRh", mimeType="image/png")
+        message = Prompt.assistant(image_content)
+        assert message.role == "assistant"
+        assert len(message.content) == 1
+        assert message.content[0] == image_content
+        
+        # Test with mixed content including direct content types
+        message = Prompt.user("Text followed by:", text_content, "And an image:", image_content)
+        assert message.role == "user"
+        assert len(message.content) == 4
+        assert message.content[0].text == "Text followed by:"
+        assert message.content[1] == text_content
+        assert message.content[2].text == "And an image:"
+        assert message.content[3] == image_content
 
     finally:
         # Clean up

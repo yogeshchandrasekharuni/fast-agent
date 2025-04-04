@@ -2,9 +2,10 @@
 Direct AgentApp implementation for interacting with agents without proxies.
 """
 
-from typing import Dict, List, Optional, Union
+from typing import Dict, Optional, Union
 
-from mcp import PromptMessage
+from mcp.types import PromptMessage
+
 from mcp_agent.agents.agent import Agent
 from mcp_agent.core.interactive_prompt import InteractivePrompt
 from mcp_agent.mcp.prompt_message_multipart import PromptMessageMultipart

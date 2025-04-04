@@ -21,7 +21,8 @@ from typing import (
 
 from anyio.streams.memory import MemoryObjectReceiveStream, MemoryObjectSendStream
 from deprecated import deprecated
-from mcp import ClientSession, GetPromptResult, PromptMessage, ReadResourceResult
+from mcp import ClientSession
+from mcp.types import GetPromptResult, PromptMessage, ReadResourceResult
 from pydantic import BaseModel
 
 from mcp_agent.core.prompt import Prompt
@@ -125,7 +126,9 @@ class AgentProtocol(AugmentedLLMProtocol, Protocol):
 
     name: str
 
-    async def __call__(self, message: Union[str, PromptMessage, PromptMessageMultipart] | None = None) -> str:
+    async def __call__(
+        self, message: Union[str, PromptMessage, PromptMessageMultipart] | None = None
+    ) -> str:
         """Make the agent callable for sending messages directly."""
         ...
 

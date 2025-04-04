@@ -168,7 +168,7 @@ def test_prompt_function():
         assert messages[0]["content"] == resource
 
         # Test with ResourceContents
-        from mcp.types import ResourceContents, TextResourceContents
+        from mcp.types import TextResourceContents
         from pydantic import AnyUrl
         
         text_resource = TextResourceContents(
@@ -190,6 +190,20 @@ def test_prompt_function():
         assert len(messages) == 2
         assert all(msg["role"] == "user" for msg in messages)
         assert all(isinstance(msg["content"], EmbeddedResource) for msg in messages)
+        
+        # Test with direct TextContent
+        text_content = TextContent(type="text", text="Direct text content")
+        messages = MCPPrompt(text_content)
+        assert len(messages) == 1
+        assert messages[0]["role"] == "user"
+        assert messages[0]["content"] == text_content
+        
+        # Test with direct ImageContent
+        image_content = ImageContent(type="image", data="ZmFrZSBpbWFnZSBkYXRh", mimeType="image/png")
+        messages = MCPPrompt(image_content, role="assistant")
+        assert len(messages) == 1
+        assert messages[0]["role"] == "assistant"
+        assert messages[0]["content"] == image_content
 
     finally:
         # Clean up

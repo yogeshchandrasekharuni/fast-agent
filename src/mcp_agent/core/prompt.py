@@ -3,15 +3,14 @@ Prompt class for easily creating and working with MCP prompt content.
 """
 
 from pathlib import Path
-from typing import Any, List, Literal, Optional, Union
+from typing import List, Literal, Union
 
-from mcp.types import PromptMessage, TextContent
+from mcp.types import PromptMessage
 
 from mcp_agent.mcp.prompt_message_multipart import PromptMessageMultipart
-from mcp_agent.mcp.prompts.prompt_helpers import MessageContent
 
 # Import our content helper functions
-from .mcp_content import Assistant, MCPPrompt, User
+from .mcp_content import Assistant, MCPContentType, MCPPrompt, User
 
 
 class Prompt:
@@ -27,11 +26,14 @@ class Prompt:
     - Strings become TextContent
     - Image file paths become ImageContent
     - Other file paths become EmbeddedResource
+    - TextContent objects are used directly
+    - ImageContent objects are used directly
+    - EmbeddedResource objects are used directly 
     - Pre-formatted messages pass through unchanged
     """
 
     @classmethod
-    def user(cls, *content_items: Union[str, Path, bytes, dict, PromptMessage, PromptMessageMultipart]) -> PromptMessageMultipart:
+    def user(cls, *content_items: Union[str, Path, bytes, dict, MCPContentType, PromptMessage, PromptMessageMultipart]) -> PromptMessageMultipart:
         """
         Create a user PromptMessageMultipart with various content items.
 
@@ -41,6 +43,9 @@ class Prompt:
                 - Path objects: Converted based on file type (image/text/binary)
                 - Bytes: Treated as image data
                 - Dicts with role/content: Content extracted
+                - TextContent: Used directly
+                - ImageContent: Used directly
+                - EmbeddedResource: Used directly
                 - PromptMessage: Content extracted
                 - PromptMessageMultipart: Content extracted with role changed to user
 
@@ -61,7 +66,7 @@ class Prompt:
         return PromptMessageMultipart(role="user", content=[msg["content"] for msg in messages])
 
     @classmethod
-    def assistant(cls, *content_items: Union[str, Path, bytes, dict, PromptMessage, PromptMessageMultipart]) -> PromptMessageMultipart:
+    def assistant(cls, *content_items: Union[str, Path, bytes, dict, MCPContentType, PromptMessage, PromptMessageMultipart]) -> PromptMessageMultipart:
         """
         Create an assistant PromptMessageMultipart with various content items.
 
@@ -71,6 +76,9 @@ class Prompt:
                 - Path objects: Converted based on file type (image/text/binary)
                 - Bytes: Treated as image data
                 - Dicts with role/content: Content extracted
+                - TextContent: Used directly
+                - ImageContent: Used directly
+                - EmbeddedResource: Used directly
                 - PromptMessage: Content extracted
                 - PromptMessageMultipart: Content extracted with role changed to assistant
 
@@ -94,7 +102,7 @@ class Prompt:
 
     @classmethod
     def message(
-        cls, *content_items: Union[str, Path, bytes, dict, PromptMessage, PromptMessageMultipart], 
+        cls, *content_items: Union[str, Path, bytes, dict, MCPContentType, PromptMessage, PromptMessageMultipart], 
         role: Literal["user", "assistant"] = "user"
     ) -> PromptMessageMultipart:
         """
@@ -106,6 +114,9 @@ class Prompt:
                 - Path objects: Converted based on file type (image/text/binary)
                 - Bytes: Treated as image data
                 - Dicts with role/content: Content extracted
+                - TextContent: Used directly
+                - ImageContent: Used directly
+                - EmbeddedResource: Used directly
                 - PromptMessage: Content extracted
                 - PromptMessageMultipart: Content extracted with role changed as specified
             role: Role for the message (user or assistant)

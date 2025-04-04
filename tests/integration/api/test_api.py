@@ -1,5 +1,5 @@
+
 import pytest
-from typing import List, Union
 
 from mcp_agent.core.prompt import Prompt
 
@@ -97,8 +97,9 @@ async def test_agent_api_with_default_calls(fast_agent):
 async def test_mixed_message_types(fast_agent):
     """Test that the agent can handle mixed message types seamlessly."""
     from mcp.types import PromptMessage, TextContent
-    from mcp_agent.mcp.prompt_message_multipart import PromptMessageMultipart
+
     from mcp_agent.core.prompt import Prompt
+    from mcp_agent.mcp.prompt_message_multipart import PromptMessageMultipart
     
     # Use the FastAgent instance from the test directory fixture
     fast = fast_agent
@@ -166,7 +167,7 @@ async def test_mixed_message_types(fast_agent):
             assert "simulated prompt result" == response.first_text()
             
             # Test with EmbeddedResource directly in Prompt.user()
-            from mcp.types import TextResourceContents, EmbeddedResource
+            from mcp.types import EmbeddedResource, TextResourceContents
             from pydantic import AnyUrl
             
             # Create a resource
