@@ -7,6 +7,7 @@ from mcp_agent.llm.model_factory import (
     ReasoningEffort,
 )
 from mcp_agent.llm.providers.augmented_llm_anthropic import AnthropicAugmentedLLM
+from mcp_agent.llm.providers.augmented_llm_generic import GenericAugmentedLLM
 from mcp_agent.llm.providers.augmented_llm_openai import OpenAIAugmentedLLM
 
 
@@ -74,3 +75,12 @@ def test_llm_class_creation():
         # Note: You may need to adjust params based on what the factory requires
         instance = factory(None)
         assert isinstance(instance, expected_class)
+
+
+def test_allows_generic_model():
+    """Test that generic model names are allowed"""
+    generic_model = "generic.llama3.2:latest"
+    factory = ModelFactory.create_factory(generic_model)
+    instance = factory(None)
+    assert isinstance(instance, GenericAugmentedLLM)
+    assert instance._base_url() == "http://localhost:11434/v1"

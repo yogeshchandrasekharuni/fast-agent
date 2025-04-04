@@ -10,11 +10,11 @@ DEFAULT_OLLAMA_API_KEY = "ollama"
 
 class GenericAugmentedLLM(OpenAIAugmentedLLM):
     def __init__(self, *args, **kwargs) -> None:
-        kwargs["provider_name"] = "GenericOpenAI"  # Set provider name in kwargs
+        kwargs["provider_name"] = "GenericOpenAI"
         super().__init__(*args, **kwargs)  # Properly pass args and kwargs to parent
 
     def _initialize_default_params(self, kwargs: dict) -> RequestParams:
-        """Initialize Deepseek-specific default parameters"""
+        """Initialize Generic  parameters"""
         chosen_model = kwargs.get("model", DEFAULT_OLLAMA_MODEL)
 
         return RequestParams(
@@ -40,7 +40,8 @@ class GenericAugmentedLLM(OpenAIAugmentedLLM):
         return api_key or "ollama"
 
     def _base_url(self) -> str:
-        if self.context.config and self.context.config.deepseek:
-            base_url = self.context.config.deepseek.base_url
+        base_url = None
+        if self.context.config and self.context.config.generic:
+            base_url = self.context.config.generic.base_url
 
         return base_url if base_url else DEFAULT_OLLAMA_BASE_URL
