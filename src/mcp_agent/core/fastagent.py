@@ -110,8 +110,15 @@ class FastAgent:
 
         self.name = name
         self.config_path = config_path
-        self._load_config()
-
+        try:
+            self._load_config()
+        except yaml.parser.ParserError as e:
+            handle_error(
+                e,
+                "YAML Parsing Error",
+                "There was an error parsing the config or secrets YAML configuration file.",
+            )
+            raise SystemExit(1)
         # Create the MCPApp with the config
         self.app = MCPApp(
             name=name,
@@ -296,6 +303,12 @@ class FastAgent:
             handle_error(
                 e,
                 "User requested exit",
+            )
+        elif isinstance(e, asyncio.CancelledError):
+            handle_error(
+                e,
+                "Cancelled",
+                "The operation was cancelled.",
             )
         else:
             handle_error(e, error_type or "Error", "An unexpected error occurred.")
