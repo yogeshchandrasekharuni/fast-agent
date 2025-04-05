@@ -14,7 +14,7 @@ async def test_chaining_routers(fast_agent):
     @fast.agent(name="target2")
     @fast.agent(name="target3")
     @fast.router(name="router1", agents=["target1", "target2"])
-    @fast.chain(name="chain", sequence=["router1", "target3"])
+    @fast.chain(name="chain", sequence=["router1", "target3"], cumulative=True)
     async def agent_function():
         async with fast.run() as agent:
             await agent.router1._llm.generate(
@@ -27,6 +27,8 @@ async def test_chaining_routers(fast_agent):
                     )
                 ]
             )
-            assert "github.com/varaarul" in await agent.chain.send("github.com/varaarul")
+            result = await agent.chain.send("github.com/varaarul")
+            assert "github.com/varaarul" in result
+            assert "target3" in result
 
     await agent_function()
