@@ -115,24 +115,54 @@ class BaseAgent(MCPAggregator, AgentProtocol):
         """
         await self.__aenter__()  # This initializes the connection manager and loads the servers
 
-    async def attach_llm(self, llm_factory: Union[Type[LLM], Callable[..., LLM]], **kwargs) -> LLM:
+    async def attach_llm(
+        self,
+        llm_factory: Union[Type[AugmentedLLMProtocol], Callable[..., AugmentedLLMProtocol]],
+        model: Optional[str] = None,
+        request_params: Optional[RequestParams] = None,
+        **additional_kwargs
+    ) -> AugmentedLLMProtocol:
         """
-        Create an LLM instance for the agent.
-
+        Create and attach an LLM instance to this agent.
+        
+        Parameters have the following precedence (highest to lowest):
+        1. Explicitly passed parameters to this method
+        2. Agent's default_request_params
+        3. LLM's default values
+        
         Args:
-            llm_factory: A class or callable that constructs an AugmentedLLM or its subclass.
-                       The factory should accept keyword arguments matching the
-                       AugmentedLLM constructor parameters.
-            **kwargs: Additional keyword arguments to pass to the LLM constructor.
-
+            llm_factory: A class or callable that constructs an AugmentedLLM
+            model: Optional model name override
+            request_params: Optional request parameters override
+            **additional_kwargs: Additional parameters passed to the LLM constructor
+            
         Returns:
-            An instance of AugmentedLLM or one of its subclasses.
+            The created LLM instance
         """
-
+        # Start with agent's default params
+        effective_params = self._default_request_params.model_copy() if self._default_request_params else None
+        
+        # Override with explicitly passed request_params
+        if request_params:
+            if effective_params:
+                # Update non-None values
+                for k, v in request_params.model_dump(exclude_unset=True).items():
+                    if v is not None:
+                        setattr(effective_params, k, v)
+            else:
+                effective_params = request_params
+        
+        # Override model if explicitly specified
+        if model and effective_params:
+            effective_params.model = model
+        
+        # Create the LLM instance
         self._llm = llm_factory(
-            agent=self, default_request_params=self._default_request_params, **kwargs
+            agent=self,
+            request_params=effective_params,
+            **additional_kwargs
         )
-
+        
         return self._llm
 
     async def shutdown(self) -> None:

@@ -186,37 +186,27 @@ class ModelFactory:
         else:
             llm_class = cls.PROVIDER_CLASSES[config.provider]
 
-        # Create a factory function matching the attach_llm protocol
-        def factory(agent: Agent, **kwargs) -> LLMClass:
-            # Create merged params with parsed model name
-            factory_params = request_params.model_copy() if request_params else RequestParams()
-            factory_params.model = config.model_name  # Use the parsed model name, not the alias
-
-            # Merge with any provided default_request_params
-            if "default_request_params" in kwargs and kwargs["default_request_params"]:
-                params_dict = factory_params.model_dump()
-                params_dict.update(kwargs["default_request_params"].model_dump(exclude_unset=True))
-                factory_params = RequestParams(**params_dict)
-                factory_params.model = (
-                    config.model_name
-                )  # Ensure parsed model name isn't overwritten
-
-            # Forward all keyword arguments to LLM constructor
+        # Create a factory function matching the updated attach_llm protocol
+        def factory(
+            agent: Agent, 
+            request_params: Optional[RequestParams] = None, 
+            **kwargs
+        ) -> AugmentedLLMProtocol:
+            # Create base params with parsed model name
+            base_params = RequestParams()
+            base_params.model = config.model_name  # Use the parsed model name, not the alias
+            
+            # Add reasoning effort if available
+            if config.reasoning_effort:
+                kwargs["reasoning_effort"] = config.reasoning_effort.value
+            
+            # Forward all arguments to LLM constructor
             llm_args = {
                 "agent": agent,
                 "model": config.model_name,
-                "request_params": factory_params,
-                "name": kwargs.get("name"),
+                "request_params": request_params,
+                **kwargs
             }
-
-            # Add reasoning effort if available
-            if config.reasoning_effort:
-                llm_args["reasoning_effort"] = config.reasoning_effort.value
-
-            # Forward all other kwargs (including verb)
-            for key, value in kwargs.items():
-                if key not in ["agent", "default_request_params", "name"]:
-                    llm_args[key] = value
 
             llm: AugmentedLLMProtocol = llm_class(**llm_args)
             return llm

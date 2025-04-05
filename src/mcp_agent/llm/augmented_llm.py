@@ -76,12 +76,24 @@ class AugmentedLLM(ContextDependent, AugmentedLLMProtocol, Generic[MessageParamT
             ProviderFormatConverter[MessageParamT, MessageT]
         ] = BasicFormatConverter,
         context: Optional["Context"] = None,
+        model: Optional[str] = None,
         **kwargs: dict[str, Any],
     ) -> None:
         """
         Initialize the LLM with a list of server names and an instruction.
         If a name is provided, it will be used to identify the LLM.
         If an agent is provided, all other properties are optional
+        
+        Args:
+            agent: Optional Agent that owns this LLM
+            server_names: List of MCP server names to connect to
+            instruction: System prompt for the LLM
+            name: Optional name identifier for the LLM
+            request_params: RequestParams to configure LLM behavior
+            type_converter: Provider-specific format converter class
+            context: Application context
+            model: Optional model name override
+            **kwargs: Additional provider-specific parameters
         """
         # Extract request_params before super() call
         self._init_request_params = request_params
@@ -102,6 +114,10 @@ class AugmentedLLM(ContextDependent, AugmentedLLMProtocol, Generic[MessageParamT
 
         # Initialize default parameters
         self.default_request_params = self._initialize_default_params(kwargs)
+
+        # Apply model override if provided
+        if model:
+            self.default_request_params.model = model
 
         # Merge with provided params if any
         if self._init_request_params:
