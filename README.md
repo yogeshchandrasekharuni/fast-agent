@@ -101,7 +101,7 @@ Specify a model with the `--model` switch - for example `uv run sizer.py --model
 
 ### Combining Agents and using MCP Servers
 
-_To generate examples use `fast-agent bootstrap workflow`. This example can be run with `uv run chaining.py`. fast-agent looks for configuration files in the current directory before checking parent directories recursively._
+_To generate examples use `fast-agent bootstrap workflow`. This example can be run with `uv run workflow/chaining.py`. fast-agent looks for configuration files in the current directory before checking parent directories recursively._
 
 Agents can be chained to build a workflow, using MCP Servers defined in the `fastagent.config.yaml` file:
 
@@ -118,12 +118,14 @@ Agents can be chained to build a workflow, using MCP Servers defined in the `fas
     Respond only with the post, never use hashtags.
     """,
 )
-
+@fast.chain(
+    name="post_writer",
+    sequence=["url_fetcher", "social_media"],
+)
 async def main():
     async with fast.run() as agent:
-        await agent.social_media(
-            await agent.url_fetcher("http://llmindset.co.uk/resources/mcp-hfspace/")
-        )
+        # using chain workflow
+        await agent.post_writer("http://llmindset.co.uk")
 ```
 
 All Agents and Workflows respond to `.send("message")` or `.prompt()` to begin a chat session.
@@ -131,7 +133,7 @@ All Agents and Workflows respond to `.send("message")` or `.prompt()` to begin a
 Saved as `social.py` we can now run this workflow from the command line with:
 
 ```bash
-uv run social.py --agent social_media --message "<url>"
+uv run workflow/chaining.py --agent post_writer --message "<url>"
 ```
 
 Add the `--quiet` switch to disable progress and message display and return only the final response - useful for simple automations.
