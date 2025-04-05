@@ -231,7 +231,7 @@ def get_dependencies_groups(
             dependencies[name].update(agent_data.get("parallel_agents", []))
         elif agent_type == AgentType.CHAIN.value:
             # Chain agents depend on the agents in their sequence
-            dependencies[name].update(agent_data.get("sequence", []))
+            dependencies[name].update(agent_data.get("chain_agents", []))
         elif agent_type == AgentType.ROUTER.value:
             # Router agents depend on the agents they route to
             dependencies[name].update(agent_data.get("router_agents", []))
