@@ -301,7 +301,7 @@ async def test_structured_output(fast_agent):
 
             # Try to get structured output - this will use the generator's structured method
             try:
-                result = await agent.optimizer_struct.structured(
+                result, _ = await agent.optimizer_struct.structured(
                     [Prompt.user("Write something structured")], TestOutput
                 )
 

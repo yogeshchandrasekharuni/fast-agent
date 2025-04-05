@@ -8,7 +8,7 @@ or a maximum number of refinements is attempted.
 """
 
 from enum import Enum
-from typing import Any, List, Optional, Type
+from typing import Any, List, Optional, Tuple, Type
 
 from pydantic import BaseModel, Field
 
@@ -139,7 +139,7 @@ class EvaluatorOptimizerAgent(BaseAgent):
 
             # Create evaluation message and get structured evaluation result
             eval_message = Prompt.user(eval_prompt)
-            evaluation_result = await self.evaluator_agent.structured(
+            evaluation_result, _ = await self.evaluator_agent.structured(
                 [eval_message], EvaluationResult, request_params
             )
 
@@ -202,7 +202,7 @@ class EvaluatorOptimizerAgent(BaseAgent):
         prompt: List[PromptMessageMultipart],
         model: Type[ModelT],
         request_params: Optional[RequestParams] = None,
-    ) -> Optional[ModelT]:
+    ) -> Tuple[ModelT | None, PromptMessageMultipart]:
         """
         Generate an optimized response and parse it into a structured format.
 

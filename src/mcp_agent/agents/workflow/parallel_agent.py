@@ -1,5 +1,5 @@
 import asyncio
-from typing import Any, List, Optional
+from typing import Any, List, Optional, Tuple
 
 from mcp.types import TextContent
 
@@ -113,7 +113,7 @@ class ParallelAgent(BaseAgent):
         prompt: List[PromptMessageMultipart],
         model: type[ModelT],
         request_params: Optional[RequestParams] = None,
-    ) -> Optional[ModelT]:
+    ) -> Tuple[ModelT | None, PromptMessageMultipart]:
         """
         Apply the prompt and return the result as a Pydantic model.
 

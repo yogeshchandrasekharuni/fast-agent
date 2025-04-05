@@ -115,7 +115,7 @@ async def test_structured_weather_forecast_openai_structured_api(fast_agent, mod
             """
 
             # Get structured response
-            forecast = await agent.weatherforecast.structured(
+            forecast, result = await agent.weatherforecast.structured(
                 [Prompt.user(prompt_text)], WeatherForecast
             )
 
@@ -152,6 +152,7 @@ async def test_structured_weather_forecast_openai_structured_api(fast_agent, mod
 
             # Print forecast summary for debugging
             print(f"Weather forecast for {forecast.location}: {forecast.summary}")
+            assert '{"location":' in result.first_text()
 
     await weather_forecast()
 
@@ -212,7 +213,7 @@ async def test_structured_weather_forecast_prompting_style(fast_agent, model_nam
             """
 
             # Get structured response
-            forecast = await agent.weatherforecast.structured(
+            forecast, _ = await agent.weatherforecast.structured(
                 [Prompt.user(prompt_text)], WeatherForecast
             )
 

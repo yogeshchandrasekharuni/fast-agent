@@ -5,7 +5,7 @@ This provides an implementation that delegates operations to a sequence of
 other agents, chaining their outputs together.
 """
 
-from typing import Any, List, Optional, Type
+from typing import Any, List, Optional, Tuple, Type
 
 from mcp.types import TextContent
 
@@ -123,7 +123,7 @@ class ChainAgent(BaseAgent):
         prompt: List[PromptMessageMultipart],
         model: Type[ModelT],
         request_params: Optional[RequestParams] = None,
-    ) -> Optional[ModelT]:
+    ) -> Tuple[ModelT | None, PromptMessageMultipart]:
         """
         Chain the request through multiple agents and parse the final response.
 
@@ -137,16 +137,12 @@ class ChainAgent(BaseAgent):
         """
         # Generate response through the chain
         response = await self.generate(prompt, request_params)
-
-        # Let the last agent in the chain try to parse the response
-        if self.agents:
-            last_agent = self.agents[-1]
-            try:
-                return await last_agent.structured([response], model, request_params)
-            except Exception as e:
-                self.logger.warning(f"Failed to parse response from chain: {str(e)}")
-                return None
-        return None
+        last_agent = self.agents[-1]
+        try:
+            return await last_agent.structured([response], model, request_params)
+        except Exception as e:
+            self.logger.warning(f"Failed to parse response from chain: {str(e)}")
+            return None, Prompt.assistant("Failed to parse response from chain: {str(e)}")
 
     async def initialize(self) -> None:
         """
