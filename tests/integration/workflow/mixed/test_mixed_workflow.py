@@ -23,7 +23,7 @@ async def test_chaining_routers(fast_agent):
                         """***FIXED_RESPONSE 
                         {"agent": "target2",
                         "confidence": "high",
-                        "reasoning": "Request is asking for weather information"}"""
+                        "reasoning": "Test Request"}"""
                     )
                 ]
             )
