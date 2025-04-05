@@ -74,7 +74,7 @@ async def test_router_structured_output(fast_agent):
             )
 
             # Send request through router with proper PromptMessageMultipart list
-            result = await agent.router.structured(
+            result, _ = await agent.router.structured(
                 [Prompt.user("What's the weather in New York?")], WeatherData
             )
 

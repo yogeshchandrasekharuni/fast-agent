@@ -47,6 +47,7 @@ async def test_agent_with_image_prompt(fast_agent, model_name):
     [
         "gpt-4o-mini",  # OpenAI model
         "haiku35",  # Anthropic model
+        #    "gemini2",
     ],
 )
 async def test_agent_with_mcp_image(fast_agent, model_name):

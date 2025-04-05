@@ -1,5 +1,5 @@
 import os
-from typing import List, Type
+from typing import List, Tuple, Type
 
 from mcp.types import (
     CallToolRequest,
@@ -377,7 +377,7 @@ class OpenAIAugmentedLLM(AugmentedLLM[ChatCompletionMessageParam, ChatCompletion
         prompt: List[PromptMessageMultipart],
         model: Type[ModelT],
         request_params: RequestParams | None = None,
-    ) -> ModelT | None:
+    ) -> Tuple[ModelT | None, PromptMessageMultipart]:
         """
         Apply the prompt and return the result as a Pydantic model.
 
@@ -432,7 +432,7 @@ class OpenAIAugmentedLLM(AugmentedLLM[ChatCompletionMessageParam, ChatCompletion
 
                 parsed_result = response[0].choices[0].message
                 logger.debug("Successfully used OpenAI beta parse feature for structured output")
-                return parsed_result.parsed
+                return parsed_result.parsed, Prompt.assistant(parsed_result.content)
 
             except (ImportError, AttributeError, NotImplementedError) as e:
                 # Beta feature not available, log and continue to fallback

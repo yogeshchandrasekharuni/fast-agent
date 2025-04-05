@@ -7,11 +7,23 @@ and delegates operations to an attached AugmentedLLMProtocol instance.
 
 import asyncio
 import uuid
-from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Type, TypeVar, Union
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Callable,
+    Dict,
+    List,
+    Optional,
+    Tuple,
+    Type,
+    TypeVar,
+    Union,
+)
 
 from mcp.types import (
     CallToolResult,
     EmbeddedResource,
+    GetPromptResult,
     ListToolsResult,
     PromptMessage,
     ReadResourceResult,
@@ -103,24 +115,54 @@ class BaseAgent(MCPAggregator, AgentProtocol):
         """
         await self.__aenter__()  # This initializes the connection manager and loads the servers
 
-    async def attach_llm(self, llm_factory: Union[Type[LLM], Callable[..., LLM]], **kwargs) -> LLM:
+    async def attach_llm(
+        self,
+        llm_factory: Union[Type[AugmentedLLMProtocol], Callable[..., AugmentedLLMProtocol]],
+        model: Optional[str] = None,
+        request_params: Optional[RequestParams] = None,
+        **additional_kwargs
+    ) -> AugmentedLLMProtocol:
         """
-        Create an LLM instance for the agent.
-
+        Create and attach an LLM instance to this agent.
+        
+        Parameters have the following precedence (highest to lowest):
+        1. Explicitly passed parameters to this method
+        2. Agent's default_request_params
+        3. LLM's default values
+        
         Args:
-            llm_factory: A class or callable that constructs an AugmentedLLM or its subclass.
-                       The factory should accept keyword arguments matching the
-                       AugmentedLLM constructor parameters.
-            **kwargs: Additional keyword arguments to pass to the LLM constructor.
-
+            llm_factory: A class or callable that constructs an AugmentedLLM
+            model: Optional model name override
+            request_params: Optional request parameters override
+            **additional_kwargs: Additional parameters passed to the LLM constructor
+            
         Returns:
-            An instance of AugmentedLLM or one of its subclasses.
+            The created LLM instance
         """
-
+        # Start with agent's default params
+        effective_params = self._default_request_params.model_copy() if self._default_request_params else None
+        
+        # Override with explicitly passed request_params
+        if request_params:
+            if effective_params:
+                # Update non-None values
+                for k, v in request_params.model_dump(exclude_unset=True).items():
+                    if v is not None:
+                        setattr(effective_params, k, v)
+            else:
+                effective_params = request_params
+        
+        # Override model if explicitly specified
+        if model and effective_params:
+            effective_params.model = model
+        
+        # Create the LLM instance
         self._llm = llm_factory(
-            agent=self, default_request_params=self._default_request_params, **kwargs
+            agent=self,
+            request_params=effective_params,
+            **additional_kwargs
         )
-
+        
         return self._llm
 
     async def shutdown(self) -> None:
@@ -170,18 +212,20 @@ class BaseAgent(MCPAggregator, AgentProtocol):
         """
         # Convert the input to a PromptMessageMultipart
         prompt = self._normalize_message_input(message)
-            
+
         # Use the LLM to generate a response
         response = await self.generate([prompt], None)
         return response.first_text()
-        
-    def _normalize_message_input(self, message: Union[str, PromptMessage, PromptMessageMultipart]) -> PromptMessageMultipart:
+
+    def _normalize_message_input(
+        self, message: Union[str, PromptMessage, PromptMessageMultipart]
+    ) -> PromptMessageMultipart:
         """
         Convert a message of any supported type to PromptMessageMultipart.
-        
+
         Args:
             message: Message in various formats (string, PromptMessage, or PromptMessageMultipart)
-            
+
         Returns:
             A PromptMessageMultipart object
         """
@@ -189,10 +233,7 @@ class BaseAgent(MCPAggregator, AgentProtocol):
         if isinstance(message, str):
             return Prompt.user(message)
         elif isinstance(message, PromptMessage):
-            return PromptMessageMultipart(
-                role=message.role, 
-                content=[message.content]
-            )
+            return PromptMessageMultipart(role=message.role, content=[message.content])
         elif isinstance(message, PromptMessageMultipart):
             return message
         else:
@@ -384,10 +425,34 @@ class BaseAgent(MCPAggregator, AgentProtocol):
                 content=[TextContent(type="text", text=f"Error requesting human input: {str(e)}")],
             )
 
-    async def apply_prompt(self, prompt_name: str, arguments: Dict[str, str] | None = None) -> str:
+    async def get_prompt(
+        self,
+        prompt_name: str,
+        arguments: Dict[str, str] | None = None,
+        server_name: str | None = None,
+    ) -> GetPromptResult:
+        """
+        Get a prompt from a server.
+
+        Args:
+            prompt_name: Name of the prompt, optionally namespaced
+            arguments: Optional dictionary of arguments to pass to the prompt template
+            server_name: Optional name of the server to get the prompt from
+
+        Returns:
+            GetPromptResult containing the prompt information
+        """
+        return await super().get_prompt(prompt_name, arguments, server_name)
+
+    async def apply_prompt(
+        self,
+        prompt_name: str,
+        arguments: Dict[str, str] | None = None,
+        server_name: str | None = None,
+    ) -> str:
         """
         Apply an MCP Server Prompt by name and return the assistant's response.
-        Will search all available servers for the prompt if not namespaced.
+        Will search all available servers for the prompt if not namespaced and no server_name provided.
 
         If the last message in the prompt is from a user, this will automatically
         generate an assistant response to ensure we always end with an assistant message.
@@ -395,6 +460,7 @@ class BaseAgent(MCPAggregator, AgentProtocol):
         Args:
             prompt_name: The name of the prompt to apply
             arguments: Optional dictionary of string arguments to pass to the prompt template
+            server_name: Optional name of the server to get the prompt from
 
         Returns:
             The assistant's response or error message
@@ -402,7 +468,7 @@ class BaseAgent(MCPAggregator, AgentProtocol):
 
         # Get the prompt - this will search all servers if needed
         self.logger.debug(f"Loading prompt '{prompt_name}'")
-        prompt_result = await self.get_prompt(prompt_name, arguments)
+        prompt_result = await self.get_prompt(prompt_name, arguments, server_name)
 
         if not prompt_result or not prompt_result.messages:
             error_msg = f"Prompt '{prompt_name}' could not be found or contains no messages"
@@ -410,7 +476,8 @@ class BaseAgent(MCPAggregator, AgentProtocol):
             return error_msg
 
         # Get the display name (namespaced version)
-        getattr(prompt_result, "namespaced_name", prompt_name)
+        namespaced_name = getattr(prompt_result, "namespaced_name", prompt_name)
+        self.logger.debug(f"Using prompt '{namespaced_name}'")
 
         # Convert prompt messages to multipart format using the safer method
         multipart_messages = PromptMessageMultipart.from_get_prompt_result(prompt_result)
@@ -421,14 +488,14 @@ class BaseAgent(MCPAggregator, AgentProtocol):
         return response.first_text()
 
     async def get_embedded_resources(
-        self, server_name: str, resource_name: str
+        self, resource_uri: str, server_name: str | None = None
     ) -> List[EmbeddedResource]:
         """
         Get a resource from an MCP server and return it as a list of embedded resources ready for use in prompts.
 
         Args:
-            server_name: Name of the MCP server to retrieve the resource from
-            resource_name: Name or URI of the resource to retrieve
+            resource_uri: URI of the resource to retrieve
+            server_name: Optional name of the MCP server to retrieve the resource from
 
         Returns:
             List of EmbeddedResource objects ready to use in a PromptMessageMultipart
@@ -437,7 +504,7 @@ class BaseAgent(MCPAggregator, AgentProtocol):
             ValueError: If the server doesn't exist or the resource couldn't be found
         """
         # Get the raw resource result
-        result: ReadResourceResult = await super().get_resource(server_name, resource_name)
+        result: ReadResourceResult = await self.get_resource(resource_uri, server_name)
 
         # Convert each resource content to an EmbeddedResource
         embedded_resources: List[EmbeddedResource] = []
@@ -452,8 +519,8 @@ class BaseAgent(MCPAggregator, AgentProtocol):
     async def with_resource(
         self,
         prompt_content: Union[str, PromptMessage, PromptMessageMultipart],
-        server_name: str,
-        resource_name: str,
+        resource_uri: str,
+        server_name: str | None = None,
     ) -> str:
         """
         Create a prompt with the given content and resource, then send it to the agent.
@@ -463,15 +530,15 @@ class BaseAgent(MCPAggregator, AgentProtocol):
                 - String: Converted to a user message with the text
                 - PromptMessage: Converted to PromptMessageMultipart
                 - PromptMessageMultipart: Used directly
-            server_name: Name of the MCP server to retrieve the resource from
-            resource_name: Name or URI of the resource to retrieve
+            resource_uri: URI of the resource to retrieve
+            server_name: Optional name of the MCP server to retrieve the resource from
 
         Returns:
             The agent's response as a string
         """
         # Get the embedded resources
         embedded_resources: List[EmbeddedResource] = await self.get_embedded_resources(
-            server_name, resource_name
+            resource_uri, server_name
         )
 
         # Create or update the prompt message
@@ -491,7 +558,9 @@ class BaseAgent(MCPAggregator, AgentProtocol):
             prompt = prompt_content
             prompt.content.extend(embedded_resources)
         else:
-            raise TypeError("prompt_content must be a string, PromptMessage, or PromptMessageMultipart")
+            raise TypeError(
+                "prompt_content must be a string, PromptMessage, or PromptMessageMultipart"
+            )
 
         response: PromptMessageMultipart = await self.generate([prompt], None)
         return response.first_text()
@@ -520,7 +589,7 @@ class BaseAgent(MCPAggregator, AgentProtocol):
         prompt: List[PromptMessageMultipart],
         model: Type[ModelT],
         request_params: RequestParams | None = None,
-    ) -> ModelT | None:
+    ) -> Tuple[ModelT | None, PromptMessageMultipart]:
         """
         Apply the prompt and return the result as a Pydantic model.
         Delegates to the attached LLM.
@@ -552,15 +621,15 @@ class BaseAgent(MCPAggregator, AgentProtocol):
 
         response = await self.generate(prompts, request_params)
         return response.first_text()
-        
+
     @property
     def message_history(self) -> List[PromptMessageMultipart]:
         """
         Return the agent's message history as PromptMessageMultipart objects.
-        
+
         This history can be used to transfer state between agents or for
         analysis and debugging purposes.
-        
+
         Returns:
             List of PromptMessageMultipart objects representing the conversation history
         """

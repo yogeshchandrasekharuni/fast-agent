@@ -5,7 +5,7 @@ This provides a simplified implementation that routes messages to agents
 by determining the best agent for a request and dispatching to it.
 """
 
-from typing import TYPE_CHECKING, List, Optional, Type
+from typing import TYPE_CHECKING, List, Optional, Tuple, Type
 
 from mcp.types import TextContent
 from pydantic import BaseModel
@@ -14,6 +14,7 @@ from mcp_agent.agents.agent import Agent
 from mcp_agent.agents.base_agent import BaseAgent
 from mcp_agent.core.agent_types import AgentConfig
 from mcp_agent.core.exceptions import AgentConfigError
+from mcp_agent.core.prompt import Prompt
 from mcp_agent.core.request_params import RequestParams
 from mcp_agent.logging.logger import get_logger
 from mcp_agent.mcp.interfaces import ModelT
@@ -221,7 +222,7 @@ class RouterAgent(BaseAgent):
         prompt: List[PromptMessageMultipart],
         model: Type[ModelT],
         request_params: Optional[RequestParams] = None,
-    ) -> Optional[ModelT]:
+    ) -> Tuple[ModelT | None, PromptMessageMultipart]:
         """
         Route the request to the most appropriate agent and parse its response.
 
@@ -236,7 +237,7 @@ class RouterAgent(BaseAgent):
         routing_result = await self._get_routing_result(prompt)
 
         if not routing_result:
-            return None
+            return None, Prompt.assistant("No routing result")
 
         # Get the selected agent
         selected_agent = routing_result.result
@@ -287,7 +288,8 @@ class RouterAgent(BaseAgent):
         )
 
         # Get structured response from LLM
-        response = await self._llm.structured(
+        assert self._llm
+        response, _ = await self._llm.structured(
             [prompt], RoutingResponse, self._default_request_params
         )
 

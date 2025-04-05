@@ -5,6 +5,7 @@ from typing import (
     Generic,
     List,
     Optional,
+    Tuple,
     Type,
     TypeVar,
     cast,
@@ -76,12 +77,24 @@ class AugmentedLLM(ContextDependent, AugmentedLLMProtocol, Generic[MessageParamT
             ProviderFormatConverter[MessageParamT, MessageT]
         ] = BasicFormatConverter,
         context: Optional["Context"] = None,
+        model: Optional[str] = None,
         **kwargs: dict[str, Any],
     ) -> None:
         """
         Initialize the LLM with a list of server names and an instruction.
         If a name is provided, it will be used to identify the LLM.
         If an agent is provided, all other properties are optional
+
+        Args:
+            agent: Optional Agent that owns this LLM
+            server_names: List of MCP server names to connect to
+            instruction: System prompt for the LLM
+            name: Optional name identifier for the LLM
+            request_params: RequestParams to configure LLM behavior
+            type_converter: Provider-specific format converter class
+            context: Application context
+            model: Optional model name override
+            **kwargs: Additional provider-specific parameters
         """
         # Extract request_params before super() call
         self._init_request_params = request_params
@@ -95,13 +108,17 @@ class AugmentedLLM(ContextDependent, AugmentedLLMProtocol, Generic[MessageParamT
         # memory contains provider specific API types.
         self.history: Memory[MessageParamT] = SimpleMemory[MessageParamT]()
 
-        self.message_history: List[PromptMessageMultipart] = []
+        self._message_history: List[PromptMessageMultipart] = []
 
         # Initialize the display component
         self.display = ConsoleDisplay(config=self.context.config)
 
         # Initialize default parameters
         self.default_request_params = self._initialize_default_params(kwargs)
+
+        # Apply model override if provided
+        if model:
+            self.default_request_params.model = model
 
         # Merge with provided params if any
         if self._init_request_params:
@@ -127,17 +144,17 @@ class AugmentedLLM(ContextDependent, AugmentedLLMProtocol, Generic[MessageParamT
         prompt: List[PromptMessageMultipart],
         model: Type[ModelT],
         request_params: RequestParams | None = None,
-    ) -> ModelT | None:
+    ) -> Tuple[ModelT | None, PromptMessageMultipart]:
         """Apply the prompt and return the result as a Pydantic model, or None if coercion fails"""
         try:
             result: PromptMessageMultipart = await self.generate(prompt, request_params)
             json_data = from_json(result.first_text(), allow_partial=True)
             validated_model = model.model_validate(json_data)
-            return cast("ModelT", validated_model)
+            return cast("ModelT", validated_model), Prompt.assistant(json_data)
         except Exception as e:
             logger = get_logger(__name__)
             logger.error(f"Failed to parse structured response: {str(e)}")
-            return None
+            return None, Prompt.assistant(f"Failed to parse structured response: {str(e)}")
 
     async def generate(
         self,
@@ -158,7 +175,7 @@ class AugmentedLLM(ContextDependent, AugmentedLLMProtocol, Generic[MessageParamT
             )
             return Prompt.assistant(f"History saved to {filename}")
 
-        self.message_history.extend(multipart_messages)
+        self._message_history.extend(multipart_messages)
 
         if multipart_messages[-1].role == "user":
             self.show_user_message(
@@ -171,12 +188,12 @@ class AugmentedLLM(ContextDependent, AugmentedLLMProtocol, Generic[MessageParamT
             multipart_messages, request_params
         )
 
-        self.message_history.append(assistant_response)
+        self._message_history.append(assistant_response)
         return assistant_response
 
     def chat_turn(self) -> int:
         """Return the current chat turn number"""
-        return 1 + sum(1 for message in self.message_history if message.role == "assistant")
+        return 1 + sum(1 for message in self._message_history if message.role == "assistant")
 
     def _merge_request_params(
         self, default_params: RequestParams, provided_params: RequestParams
@@ -422,7 +439,7 @@ class AugmentedLLM(ContextDependent, AugmentedLLMProtocol, Generic[MessageParamT
         """
         # Convert to delimited format
         delimited_content = multipart_messages_to_delimited_format(
-            self.message_history,
+            self._message_history,
         )
 
         # Write to file
@@ -448,3 +465,16 @@ class AugmentedLLM(ContextDependent, AugmentedLLMProtocol, Generic[MessageParamT
             String representation of the assistant's response if generated,
             or the last assistant message in the prompt
         """
+
+    @property
+    def message_history(self) -> List[PromptMessageMultipart]:
+        """
+        Return the agent's message history as PromptMessageMultipart objects.
+
+        This history can be used to transfer state between agents or for
+        analysis and debugging purposes.
+
+        Returns:
+            List of PromptMessageMultipart objects representing the conversation history
+        """
+        return self._message_history

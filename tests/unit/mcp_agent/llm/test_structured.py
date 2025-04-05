@@ -40,7 +40,7 @@ async def test_direct_pydantic_conversion():
 
     # Create PassthroughLLM instance and use it to process the JSON
     llm = PassthroughLLM(name="structured")
-    result = await llm.structured([Prompt.user(json_str)], model=StructuredResponse)
+    result, _ = await llm.structured([Prompt.user(json_str)], model=StructuredResponse)
 
     # Verify conversion worked correctly
     assert isinstance(result, StructuredResponse)
@@ -72,7 +72,7 @@ async def test_structured_with_bad_json():
 
     # Create PassthroughLLM instance and use it to process the JSON
     llm = PassthroughLLM(name="structured")
-    result = await llm.structured([Prompt.user(json_str)], model=StructuredResponse)
+    result, _ = await llm.structured([Prompt.user(json_str)], model=StructuredResponse)
 
     assert None is result
 

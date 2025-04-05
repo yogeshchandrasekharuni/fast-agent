@@ -5,7 +5,7 @@ This workflow provides an implementation that manages complex tasks by
 dynamically planning, delegating to specialized agents, and synthesizing results.
 """
 
-from typing import Any, Dict, List, Literal, Optional, Type
+from typing import Any, Dict, List, Literal, Optional, Tuple, Type
 
 from mcp.types import TextContent
 
@@ -29,6 +29,7 @@ from mcp_agent.agents.workflow.orchestrator_prompts import (
 )
 from mcp_agent.core.agent_types import AgentConfig
 from mcp_agent.core.exceptions import AgentConfigError
+from mcp_agent.core.prompt import Prompt
 from mcp_agent.core.request_params import RequestParams
 from mcp_agent.logging.logger import get_logger
 from mcp_agent.mcp.interfaces import ModelT
@@ -117,7 +118,7 @@ class OrchestratorAgent(BaseAgent):
         prompt: List[PromptMessageMultipart],
         model: Type[ModelT],
         request_params: Optional[RequestParams] = None,
-    ) -> Optional[ModelT]:
+    ) -> Tuple[ModelT | None, PromptMessageMultipart]:
         """
         Execute an orchestration plan and parse the result into a structured format.
 
@@ -138,12 +139,11 @@ class OrchestratorAgent(BaseAgent):
             prompt_message = PromptMessageMultipart(
                 role="user", content=[TextContent(type="text", text=result_text)]
             )
-
-            # Use the LLM's structured parsing capability
+            assert self._llm
             return await self._llm.structured([prompt_message], model, request_params)
         except Exception as e:
             self.logger.warning(f"Failed to parse orchestration result: {str(e)}")
-            return None
+            return None, Prompt.assistant(f"Failed to parse orchestration result: {str(e)}")
 
     async def initialize(self) -> None:
         """Initialize the orchestrator agent and worker agents."""
@@ -429,7 +429,8 @@ class OrchestratorAgent(BaseAgent):
             plan_msg = PromptMessageMultipart(
                 role="user", content=[TextContent(type="text", text=prompt)]
             )
-            return await self._llm.structured([plan_msg], Plan, request_params)
+            plan, _ = await self._llm.structured([plan_msg], Plan, request_params)
+            return plan
         except Exception as e:
             self.logger.error(f"Failed to parse plan: {str(e)}")
             return None
@@ -483,7 +484,8 @@ class OrchestratorAgent(BaseAgent):
             plan_msg = PromptMessageMultipart(
                 role="user", content=[TextContent(type="text", text=prompt)]
             )
-            return await self._llm.structured([plan_msg], NextStep, request_params)
+            next_step, _ = await self._llm.structured([plan_msg], NextStep, request_params)
+            return next_step
         except Exception as e:
             self.logger.error(f"Failed to parse next step: {str(e)}")
             return None

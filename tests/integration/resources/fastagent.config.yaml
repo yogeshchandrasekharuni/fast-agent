@@ -27,8 +27,13 @@ logger:
   show_tools: true
   # Truncate long tool responses on the console
   truncate_tools: true
+
+# MCP Servers
 mcp:
   servers:
-    test_server:
-      command: "uv"
-      args: ["run", "test_server.py"]
+    resource_server_one:
+      command: "prompt-server"
+      args: ["prompt1.txt"]
+    resource_server_two:
+      command: "prompt-server"
+      args: ["prompt2.txt"]

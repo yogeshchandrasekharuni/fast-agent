@@ -8,112 +8,22 @@ without repetitive type checking.
 from typing import List, Optional, Union, cast
 
 from mcp.types import (
-    BlobResourceContents,
     EmbeddedResource,
-    ImageContent,
     PromptMessage,
     TextContent,
-    TextResourceContents,
 )
 
-from mcp_agent.mcp.prompt_message_multipart import PromptMessageMultipart
+from mcp_agent.mcp.helpers.content_helpers import get_image_data, get_text
 
-
-def get_text(content: Union[TextContent, ImageContent, EmbeddedResource]) -> Optional[str]:
-    """
-    Extract text content from a content object if available.
-
-    Args:
-        content: A content object (TextContent, ImageContent, or EmbeddedResource)
-
-    Returns:
-        The text content as a string or None if not a text content
-    """
-    if isinstance(content, TextContent):
-        return content.text
-
-    if isinstance(content, EmbeddedResource):
-        if isinstance(content.resource, TextResourceContents):
-            return content.resource.text
-
-    return None
-
-
-def get_image_data(content: Union[TextContent, ImageContent, EmbeddedResource]) -> Optional[str]:
-    """
-    Extract image data from a content object if available.
-
-    Args:
-        content: A content object (TextContent, ImageContent, or EmbeddedResource)
-
-    Returns:
-        The image data as a base64 string or None if not an image content
-    """
-    if isinstance(content, ImageContent):
-        return content.data
-
-    if isinstance(content, EmbeddedResource):
-        if isinstance(content.resource, BlobResourceContents):
-            # This assumes the blob might be an image, which isn't always true
-            # Consider checking the mimeType if needed
-            return content.resource.blob
-
-    return None
-
-
-def get_resource_uri(content: Union[TextContent, ImageContent, EmbeddedResource]) -> Optional[str]:
-    """
-    Extract resource URI from an EmbeddedResource if available.
-
-    Args:
-        content: A content object (TextContent, ImageContent, or EmbeddedResource)
-
-    Returns:
-        The resource URI as a string or None if not an embedded resource
-    """
-    if isinstance(content, EmbeddedResource):
-        return str(content.resource.uri)
-
-    return None
-
-
-def is_text_content(content: Union[TextContent, ImageContent, EmbeddedResource]) -> bool:
-    """
-    Check if the content is text content.
-
-    Args:
-        content: A content object (TextContent, ImageContent, or EmbeddedResource)
-
-    Returns:
-        True if the content is TextContent, False otherwise
-    """
-    return isinstance(content, TextContent)
-
-
-def is_image_content(content: Union[TextContent, ImageContent, EmbeddedResource]) -> bool:
-    """
-    Check if the content is image content.
-
-    Args:
-        content: A content object (TextContent, ImageContent, or EmbeddedResource)
-
-    Returns:
-        True if the content is ImageContent, False otherwise
-    """
-    return isinstance(content, ImageContent)
-
-
-def is_resource_content(content: Union[TextContent, ImageContent, EmbeddedResource]) -> bool:
-    """
-    Check if the content is an embedded resource.
-
-    Args:
-        content: A content object (TextContent, ImageContent, or EmbeddedResource)
-
-    Returns:
-        True if the content is EmbeddedResource, False otherwise
-    """
-    return isinstance(content, EmbeddedResource)
+# Forward reference for PromptMessageMultipart, actual import happens at runtime
+PromptMessageMultipartType = Union[object]  # Will be replaced with actual type
+try:
+    from mcp_agent.mcp.prompt_message_multipart import PromptMessageMultipart
+    PromptMessageMultipartType = PromptMessageMultipart
+except ImportError:
+    # During initialization, there might be a circular import.
+    # We'll handle this gracefully.
+    pass
 
 
 class MessageContent:
@@ -123,7 +33,7 @@ class MessageContent:
     """
 
     @staticmethod
-    def get_all_text(message: Union[PromptMessage, PromptMessageMultipart]) -> List[str]:
+    def get_all_text(message: Union[PromptMessage, "PromptMessageMultipart"]) -> List[str]:
         """
         Extract all text content from a message.
 
@@ -147,7 +57,7 @@ class MessageContent:
 
     @staticmethod
     def join_text(
-        message: Union[PromptMessage, PromptMessageMultipart], separator: str = "\n\n"
+        message: Union[PromptMessage, "PromptMessageMultipart"], separator: str = "\n\n"
     ) -> str:
         """
         Join all text content in a message with a separator.
@@ -162,7 +72,7 @@ class MessageContent:
         return separator.join(MessageContent.get_all_text(message))
 
     @staticmethod
-    def get_first_text(message: Union[PromptMessage, PromptMessageMultipart]) -> Optional[str]:
+    def get_first_text(message: Union[PromptMessage, "PromptMessageMultipart"]) -> Optional[str]:
         """
         Get the first available text content from a message.
 
@@ -183,7 +93,7 @@ class MessageContent:
         return None
 
     @staticmethod
-    def has_text_at_first_position(message: Union[PromptMessage, PromptMessageMultipart]) -> bool:
+    def has_text_at_first_position(message: Union[PromptMessage, "PromptMessageMultipart"]) -> bool:
         """
         Check if a message has a TextContent at the first position.
         This is a common case when dealing with messages that start with text.
@@ -202,7 +112,7 @@ class MessageContent:
 
     @staticmethod
     def get_text_at_first_position(
-        message: Union[PromptMessage, PromptMessageMultipart],
+        message: Union[PromptMessage, "PromptMessageMultipart"],
     ) -> Optional[str]:
         """
         Get the text from the first position of a message if it's TextContent.
@@ -224,7 +134,7 @@ class MessageContent:
         return cast("TextContent", message.content[0]).text
 
     @staticmethod
-    def get_all_images(message: Union[PromptMessage, PromptMessageMultipart]) -> List[str]:
+    def get_all_images(message: Union[PromptMessage, "PromptMessageMultipart"]) -> List[str]:
         """
         Extract all image data from a message.
 
@@ -247,7 +157,7 @@ class MessageContent:
         return result
 
     @staticmethod
-    def get_first_image(message: Union[PromptMessage, PromptMessageMultipart]) -> Optional[str]:
+    def get_first_image(message: Union[PromptMessage, "PromptMessageMultipart"]) -> Optional[str]:
         """
         Get the first available image data from a message.
 
@@ -269,7 +179,7 @@ class MessageContent:
 
     @staticmethod
     def get_all_resources(
-        message: Union[PromptMessage, PromptMessageMultipart],
+        message: Union[PromptMessage, "PromptMessageMultipart"],
     ) -> List[EmbeddedResource]:
         """
         Extract all embedded resources from a message.
@@ -288,7 +198,7 @@ class MessageContent:
         return [content for content in message.content if isinstance(content, EmbeddedResource)]
 
     @staticmethod
-    def has_text(message: Union[PromptMessage, PromptMessageMultipart]) -> bool:
+    def has_text(message: Union[PromptMessage, "PromptMessageMultipart"]) -> bool:
         """
         Check if the message has any text content.
 
@@ -301,7 +211,7 @@ class MessageContent:
         return len(MessageContent.get_all_text(message)) > 0
 
     @staticmethod
-    def has_images(message: Union[PromptMessage, PromptMessageMultipart]) -> bool:
+    def has_images(message: Union[PromptMessage, "PromptMessageMultipart"]) -> bool:
         """
         Check if the message has any image content.
 
@@ -314,7 +224,7 @@ class MessageContent:
         return len(MessageContent.get_all_images(message)) > 0
 
     @staticmethod
-    def has_resources(message: Union[PromptMessage, PromptMessageMultipart]) -> bool:
+    def has_resources(message: Union[PromptMessage, "PromptMessageMultipart"]) -> bool:
         """
         Check if the message has any embedded resources.
 

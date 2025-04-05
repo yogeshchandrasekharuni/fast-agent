@@ -1,8 +1,5 @@
 import asyncio
 
-from mcp import ReadResourceResult
-from mcp.types import PromptMessage, TextContent
-
 from mcp_agent.core.fastagent import FastAgent
 
 # Create the application

@@ -5,6 +5,7 @@ from typing import (
     Callable,
     Dict,
     List,
+    Mapping,
     Optional,
     TypeVar,
 )
@@ -373,7 +374,11 @@ class MCPAggregator(ContextDependent):
                     f"Failed to {method_name} '{operation_name}' on server '{server_name}': {e}"
                 )
                 logger.error(error_msg)
-                return error_factory(error_msg) if error_factory else None
+                if error_factory:
+                    return error_factory(error_msg)
+                else:
+                    # Re-raise the original exception to propagate it
+                    raise e
 
         if self.connection_persistence:
             server_connection = await self._persistent_connection_manager.get_server(
@@ -476,7 +481,10 @@ class MCPAggregator(ContextDependent):
         )
 
     async def get_prompt(
-        self, prompt_name: str | None, arguments: dict[str, str] | None
+        self,
+        prompt_name: str | None,
+        arguments: dict[str, str] | None = None,
+        server_name: str | None = None,
     ) -> GetPromptResult:
         """
         Get a prompt from a server.
@@ -485,6 +493,8 @@ class MCPAggregator(ContextDependent):
                            using the format 'server_name-prompt_name'
         :param arguments: Optional dictionary of string arguments to pass to the prompt template
                          for templating
+        :param server_name: Optional name of the server to get the prompt from. If not provided
+                          and prompt_name is not namespaced, will search all servers.
         :return: GetPromptResult containing the prompt description and messages
                  with a namespaced_name property for display purposes
         """
@@ -493,17 +503,17 @@ class MCPAggregator(ContextDependent):
 
         # Handle the case where prompt_name is None
         if not prompt_name:
-            server_name = self.server_names[0] if self.server_names else None
+            if server_name is None:
+                server_name = self.server_names[0] if self.server_names else None
             local_prompt_name = None
             namespaced_name = None
         # Handle namespaced prompt name
-        elif SEP in prompt_name:
+        elif SEP in prompt_name and server_name is None:
             server_name, local_prompt_name = prompt_name.split(SEP, 1)
             namespaced_name = prompt_name  # Already namespaced
-        # Plain prompt name - will use cache to find the server
+        # Plain prompt name - use provided server or search
         else:
             local_prompt_name = prompt_name
-            server_name = None
             namespaced_name = None  # Will be set when server is found
 
         # If we have a specific server to check
@@ -700,7 +710,7 @@ class MCPAggregator(ContextDependent):
             messages=[],
         )
 
-    async def list_prompts(self, server_name: str = None) -> Dict[str, List[Prompt]]:
+    async def list_prompts(self, server_name: str | None = None) -> Mapping[str, List[Prompt]]:
         """
         List available prompts from one or all servers.
 
@@ -795,13 +805,16 @@ class MCPAggregator(ContextDependent):
         logger.debug(f"Available prompts across servers: {results}")
         return results
 
-    async def get_resource(self, server_name: str, resource_uri: str) -> ReadResourceResult:
+    async def get_resource(
+        self, resource_uri: str, server_name: str | None = None
+    ) -> ReadResourceResult:
         """
         Get a resource directly from an MCP server by URI.
+        If server_name is None, will search all available servers.
 
         Args:
-            server_name: Name of the MCP server to retrieve the resource from
             resource_uri: URI of the resource to retrieve
+            server_name: Optional name of the MCP server to retrieve the resource from
 
         Returns:
             ReadResourceResult object containing the resource content
@@ -812,9 +825,45 @@ class MCPAggregator(ContextDependent):
         if not self.initialized:
             await self.load_servers()
 
-        if server_name not in self.server_names:
-            raise ValueError(f"Server '{server_name}' not found")
+        # If specific server requested, use only that server
+        if server_name is not None:
+            if server_name not in self.server_names:
+                raise ValueError(f"Server '{server_name}' not found")
 
+            # Get the resource from the specified server
+            return await self._get_resource_from_server(server_name, resource_uri)
+
+        # If no server specified, search all servers
+        if not self.server_names:
+            raise ValueError("No servers available to get resource from")
+
+        # Try each server in order - simply attempt to get the resource
+        for s_name in self.server_names:
+            try:
+                return await self._get_resource_from_server(s_name, resource_uri)
+            except Exception:
+                # Continue to next server if not found
+                continue
+
+        # If we reach here, we couldn't find the resource on any server
+        raise ValueError(f"Resource '{resource_uri}' not found on any server")
+
+    async def _get_resource_from_server(
+        self, server_name: str, resource_uri: str
+    ) -> ReadResourceResult:
+        """
+        Internal helper method to get a resource from a specific server.
+
+        Args:
+            server_name: Name of the server to get the resource from
+            resource_uri: URI of the resource to retrieve
+
+        Returns:
+            ReadResourceResult containing the resource
+
+        Raises:
+            Exception: If the resource couldn't be found or other error occurs
+        """
         logger.info(
             "Requesting resource",
             data={
@@ -831,14 +880,69 @@ class MCPAggregator(ContextDependent):
             raise ValueError(f"Invalid resource URI: {resource_uri}. Error: {e}")
 
         # Use the _execute_on_server method to call read_resource on the server
-        return await self._execute_on_server(
+        result = await self._execute_on_server(
             server_name=server_name,
             operation_type="resource",
             operation_name=resource_uri,
             method_name="read_resource",
             method_args={"uri": uri},
-            error_factory=lambda msg: ValueError(f"Failed to retrieve resource: {msg}"),
+            # Don't create ValueError, just return None on error so we can catch it
+            #            error_factory=lambda _: None,
         )
+
+        # If result is None, the resource was not found
+        if result is None:
+            raise ValueError(f"Resource '{resource_uri}' not found on server '{server_name}'")
+
+        return result
+
+    async def list_resources(self, server_name: str | None = None) -> Dict[str, List[str]]:
+        """
+        List available resources from one or all servers.
+
+        Args:
+            server_name: Optional server name to list resources from. If not provided,
+                        lists resources from all servers.
+
+        Returns:
+            Dictionary mapping server names to lists of resource URIs
+        """
+        if not self.initialized:
+            await self.load_servers()
+
+        results: Dict[str, List[str]] = {}
+
+        # Get the list of servers to check
+        servers_to_check = [server_name] if server_name else self.server_names
+
+        # For each server, try to list its resources
+        for s_name in servers_to_check:
+            if s_name not in self.server_names:
+                logger.error(f"Server '{s_name}' not found")
+                continue
+
+            # Initialize empty list for this server
+            results[s_name] = []
+
+            try:
+                # Use the _execute_on_server method to call list_resources on the server
+                result = await self._execute_on_server(
+                    server_name=s_name,
+                    operation_type="resources-list",
+                    operation_name="",
+                    method_name="list_resources",
+                    method_args={},  # Empty dictionary instead of None
+                    # No error_factory to allow exceptions to propagate
+                )
+
+                # Get resources from result
+                resources = getattr(result, "resources", [])
+                results[s_name] = [str(r.uri) for r in resources]
+
+            except Exception as e:
+                logger.error(f"Error fetching resources from {s_name}: {e}")
+
+        return results
 
 
 class MCPCompoundServer(Server):
