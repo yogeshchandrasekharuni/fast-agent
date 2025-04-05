@@ -3,13 +3,9 @@
 Simple MCP server that responds to tool calls with text and image content.
 """
 
-import base64
 import logging
-import sys
-from pathlib import Path
 
-from mcp.server.fastmcp import Context, FastMCP, Image
-from mcp.types import BlobResourceContents, EmbeddedResource, ImageContent, TextContent
+from mcp.server.fastmcp import FastMCP
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)

@@ -1,6 +1,5 @@
 # integration_tests/mcp_agent/test_agent_with_image.py
 import os
-import time
 from enum import Enum
 from typing import List
 

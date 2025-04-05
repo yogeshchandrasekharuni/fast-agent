@@ -5,6 +5,7 @@ from typing import (
     Generic,
     List,
     Optional,
+    Tuple,
     Type,
     TypeVar,
     cast,
@@ -83,7 +84,7 @@ class AugmentedLLM(ContextDependent, AugmentedLLMProtocol, Generic[MessageParamT
         Initialize the LLM with a list of server names and an instruction.
         If a name is provided, it will be used to identify the LLM.
         If an agent is provided, all other properties are optional
-        
+
         Args:
             agent: Optional Agent that owns this LLM
             server_names: List of MCP server names to connect to
@@ -143,17 +144,17 @@ class AugmentedLLM(ContextDependent, AugmentedLLMProtocol, Generic[MessageParamT
         prompt: List[PromptMessageMultipart],
         model: Type[ModelT],
         request_params: RequestParams | None = None,
-    ) -> ModelT | None:
+    ) -> Tuple[ModelT | None, PromptMessageMultipart]:
         """Apply the prompt and return the result as a Pydantic model, or None if coercion fails"""
         try:
             result: PromptMessageMultipart = await self.generate(prompt, request_params)
             json_data = from_json(result.first_text(), allow_partial=True)
             validated_model = model.model_validate(json_data)
-            return cast("ModelT", validated_model)
+            return cast("ModelT", validated_model), Prompt.assistant(json_data)
         except Exception as e:
             logger = get_logger(__name__)
             logger.error(f"Failed to parse structured response: {str(e)}")
-            return None
+            return None, Prompt.assistant(f"Failed to parse structured response: {str(e)}")
 
     async def generate(
         self,
