@@ -29,6 +29,6 @@ logger:
   truncate_tools: true
 mcp:
   servers:
-    image_server:
+    test_server:
       command: "uv"
-      args: ["run", "image_server.py", "image.png"]
+      args: ["run", "test_server.py"]
