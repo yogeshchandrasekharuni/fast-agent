@@ -84,6 +84,11 @@ class Agent(BaseAgent):
         async def list_prompts_wrapper(agent_name):
             # Always call list_prompts on this agent regardless of agent_name
             return await self.list_prompts()
+            
+        # Define wrapper for list_resources function
+        async def list_resources_wrapper(agent_name):
+            # Always call list_resources on this agent regardless of agent_name
+            return await self.list_resources()
 
         # Start the prompt loop with just this agent
         return await prompt.prompt_loop(

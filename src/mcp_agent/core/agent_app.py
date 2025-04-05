@@ -2,8 +2,9 @@
 Direct AgentApp implementation for interacting with agents without proxies.
 """
 
-from typing import Dict, Optional, Union
+from typing import Dict, List, Optional, Union
 
+from deprecated import deprecated
 from mcp.types import PromptMessage
 
 from mcp_agent.agents.agent import Agent
@@ -11,7 +12,7 @@ from mcp_agent.core.interactive_prompt import InteractivePrompt
 from mcp_agent.mcp.prompt_message_multipart import PromptMessageMultipart
 
 
-class DirectAgentApp:
+class AgentApp:
     """
     Container for active agents that provides a simple API for interacting with them.
     This implementation works directly with Agent instances without proxies.
@@ -68,9 +69,13 @@ class DirectAgentApp:
         if message:
             return await self._agent(agent_name).send(message)
 
-        return await self._agent(agent_name).prompt(default_prompt=default_prompt)
+        return await self.interactive(agent_name=agent_name, default_prompt=default_prompt)
 
-    async def send(self, message: Union[str, PromptMessage, PromptMessageMultipart], agent_name: Optional[str] = None) -> str:
+    async def send(
+        self,
+        message: Union[str, PromptMessage, PromptMessageMultipart],
+        agent_name: Optional[str] = None,
+    ) -> str:
         """
         Send a message to the specified agent (or to all agents).
 
@@ -105,32 +110,119 @@ class DirectAgentApp:
 
         Args:
             prompt_name: Name of the prompt template to apply
-            agent_name: Name of the agent to send to
             arguments: Optional arguments for the prompt template
+            agent_name: Name of the agent to send to
 
         Returns:
             The agent's response as a string
         """
         return await self._agent(agent_name).apply_prompt(prompt_name, arguments)
 
-    async def list_prompts(self, agent_name: str | None = None):
+    async def list_prompts(self, server_name: str | None = None, agent_name: str | None = None):
         """
         List available prompts for an agent.
 
         Args:
+            server_name: Optional name of the server to list prompts from
             agent_name: Name of the agent to list prompts for
 
         Returns:
             Dictionary mapping server names to lists of available prompts
         """
-        return await self._agent(agent_name).list_prompts()
+        return await self._agent(agent_name).list_prompts(server_name=server_name)
 
-    async def with_resource(self, user_prompt: str, server_name: str, resource_name: str) -> str:
-        return await self._agent(None).with_resource(
-            prompt_content=user_prompt, server_name=server_name, resource_name=resource_name
+    async def get_prompt(
+        self,
+        prompt_name: str,
+        arguments: Dict[str, str] | None = None,
+        server_name: str | None = None,
+        agent_name: str | None = None,
+    ):
+        """
+        Get a prompt from a server.
+
+        Args:
+            prompt_name: Name of the prompt, optionally namespaced
+            arguments: Optional dictionary of arguments to pass to the prompt template
+            server_name: Optional name of the server to get the prompt from
+            agent_name: Name of the agent to use
+
+        Returns:
+            GetPromptResult containing the prompt information
+        """
+        return await self._agent(agent_name).get_prompt(
+            prompt_name=prompt_name, arguments=arguments, server_name=server_name
         )
 
-    async def prompt(self, agent_name: Optional[str] = None, default_prompt: str = "") -> str:
+    async def with_resource(
+        self,
+        prompt_content: Union[str, PromptMessage, PromptMessageMultipart],
+        resource_uri: str,
+        server_name: str | None = None,
+        agent_name: str | None = None,
+    ) -> str:
+        """
+        Send a message with an attached MCP resource.
+
+        Args:
+            prompt_content: Content in various formats (String, PromptMessage, or PromptMessageMultipart)
+            resource_uri: URI of the resource to retrieve
+            server_name: Optional name of the MCP server to retrieve the resource from
+            agent_name: Name of the agent to use
+
+        Returns:
+            The agent's response as a string
+        """
+        return await self._agent(agent_name).with_resource(
+            prompt_content=prompt_content, resource_uri=resource_uri, server_name=server_name
+        )
+
+    async def list_resources(
+        self,
+        server_name: str | None = None,
+        agent_name: str | None = None,
+    ) -> Dict[str, List[str]]:
+        """
+        List available resources from one or all servers.
+
+        Args:
+            server_name: Optional server name to list resources from
+            agent_name: Name of the agent to use
+
+        Returns:
+            Dictionary mapping server names to lists of resource URIs
+        """
+        return await self._agent(agent_name).list_resources(server_name=server_name)
+
+    async def get_resource(
+        self,
+        resource_uri: str,
+        server_name: str | None = None,
+        agent_name: str | None = None,
+    ):
+        """
+        Get a resource from an MCP server.
+
+        Args:
+            resource_uri: URI of the resource to retrieve
+            server_name: Optional name of the MCP server to retrieve the resource from
+            agent_name: Name of the agent to use
+
+        Returns:
+            ReadResourceResult object containing the resource content
+        """
+        return await self._agent(agent_name).get_resource(
+            resource_uri=resource_uri, server_name=server_name
+        )
+
+    @deprecated
+    async def prompt(self, agent_name: str | None = None, default_prompt: str = "") -> str:
+        """
+        Deprecated - use interactive() instead.
+        """
+        return await self.interactive(agent_name=agent_name, default_prompt=default_prompt)
+
+    async def interactive(self, agent_name: str | None = None, default_prompt: str = "") -> str:
         """
         Interactive prompt for sending messages with advanced features.
 

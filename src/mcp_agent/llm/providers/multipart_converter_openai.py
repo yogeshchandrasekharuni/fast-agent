@@ -9,14 +9,7 @@ from mcp.types import (
 )
 
 from mcp_agent.logging.logger import get_logger
-from mcp_agent.mcp.mime_utils import (
-    guess_mime_type,
-    is_image_mime_type,
-    is_text_mime_type,
-)
-from mcp_agent.mcp.prompt_message_multipart import PromptMessageMultipart
-from mcp_agent.mcp.prompts.prompt_helpers import (
-    MessageContent,
+from mcp_agent.mcp.helpers.content_helpers import (
     get_image_data,
     get_resource_uri,
     get_text,
@@ -24,6 +17,13 @@ from mcp_agent.mcp.prompts.prompt_helpers import (
     is_resource_content,
     is_text_content,
 )
+from mcp_agent.mcp.mime_utils import (
+    guess_mime_type,
+    is_image_mime_type,
+    is_text_mime_type,
+)
+from mcp_agent.mcp.prompt_message_multipart import PromptMessageMultipart
+from mcp_agent.mcp.prompts.prompt_helpers import MessageContent
 from mcp_agent.mcp.resource_utils import extract_title_from_uri
 
 _logger = get_logger("multipart_converter_openai")
