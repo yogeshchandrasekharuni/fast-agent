@@ -10,6 +10,7 @@ from typing import (
     Callable,
     Dict,
     List,
+    Mapping,
     Optional,
     Protocol,
     Tuple,
@@ -21,10 +22,10 @@ from typing import (
 
 from anyio.streams.memory import MemoryObjectReceiveStream, MemoryObjectSendStream
 from deprecated import deprecated
-from mcp import ClientSession, GetPromptResult, ReadResourceResult
+from mcp import ClientSession
+from mcp.types import GetPromptResult, Prompt, PromptMessage, ReadResourceResult
 from pydantic import BaseModel
 
-from mcp_agent.core.prompt import Prompt
 from mcp_agent.core.request_params import RequestParams
 from mcp_agent.mcp.prompt_message_multipart import PromptMessageMultipart
 
@@ -119,44 +120,66 @@ class AugmentedLLMProtocol(Protocol):
         """
         ...
 
+    @property
+    def message_history(self) -> List[PromptMessageMultipart]:
+        """
+        Return the LLM's message history as PromptMessageMultipart objects.
+
+        Returns:
+            List of PromptMessageMultipart objects representing the conversation history
+        """
+        ...
+
 
 class AgentProtocol(AugmentedLLMProtocol, Protocol):
     """Protocol defining the standard agent interface"""
 
     name: str
 
-    async def __call__(self, message: Union[str, PromptMessageMultipart] | None = None) -> str:
+    async def __call__(self, message: Union[str, PromptMessage, PromptMessageMultipart]) -> str:
         """Make the agent callable for sending messages directly."""
         ...
 
-    async def send(self, message: Union[str, PromptMessageMultipart]) -> str:
+    async def send(self, message: Union[str, PromptMessage, PromptMessageMultipart]) -> str:
         """Send a message to the agent and get a response"""
-        ...
-
-    async def prompt(self, default_prompt: str = "") -> str:
-        """Start an interactive prompt session with the agent"""
         ...
 
     async def apply_prompt(self, prompt_name: str, arguments: Dict[str, str] | None = None) -> str:
         """Apply an MCP prompt template by name"""
         ...
 
-    async def get_prompt(self, prompt_name: str) -> GetPromptResult: ...
+    async def get_prompt(
+        self,
+        prompt_name: str,
+        arguments: Dict[str, str] | None = None,
+        server_name: str | None = None,
+    ) -> GetPromptResult: ...
 
-    async def list_prompts(self, server_name: str | None) -> Dict[str, List[Prompt]]: ...
+    async def list_prompts(self, server_name: str | None = None) -> Mapping[str, List[Prompt]]: ...
 
-    async def get_resource(self, server_name: str, resource_uri: str) -> ReadResourceResult: ...
+    async def list_resources(self, server_name: str | None = None) -> Mapping[str, List[str]]: ...
+
+    async def get_resource(
+        self, resource_uri: str, server_name: str | None = None
+    ) -> ReadResourceResult:
+        """Get a resource from a specific server or search all servers"""
+        ...
 
     @deprecated
-    async def generate_str(self, message: str, request_params: RequestParams | None) -> str:
-        """Generate a response. Deprecated: please use send instead"""
+    async def generate_str(self, message: str, request_params: RequestParams | None = None) -> str:
+        """Generate a response. Deprecated: Use send(), generate() or structured()  instead"""
+        ...
+
+    @deprecated
+    async def prompt(self, default_prompt: str = "") -> str:
+        """Start an interactive prompt session with the agent. Deprecated. Use agent_app.interactive() instead."""
         ...
 
     async def with_resource(
         self,
-        prompt_content: Union[str, PromptMessageMultipart],
-        server_name: str,
-        resource_name: str,
+        prompt_content: Union[str, PromptMessage, PromptMessageMultipart],
+        resource_uri: str,
+        server_name: str | None = None,
     ) -> str:
         """Send a message with an attached MCP resource"""
         ...

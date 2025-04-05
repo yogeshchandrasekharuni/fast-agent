@@ -16,7 +16,7 @@ from mcp.types import (
 
 # Core agent components
 from mcp_agent.agents.agent import Agent, AgentConfig
-from mcp_agent.core.direct_agent_app import DirectAgentApp
+from mcp_agent.core.agent_app import AgentApp
 
 # Workflow decorators
 from mcp_agent.core.direct_decorators import (
@@ -62,7 +62,7 @@ __all__ = [
     "PromptMessageMultipart",
     # FastAgent components
     "FastAgent",
-    "DirectAgentApp",
+    "AgentApp",
     # Workflow decorators
     "agent",
     "orchestrator",

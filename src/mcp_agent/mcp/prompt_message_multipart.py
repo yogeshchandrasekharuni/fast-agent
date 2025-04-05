@@ -1,4 +1,4 @@
-from typing import List, Union
+from typing import List, Optional, Union
 
 from mcp.types import (
     EmbeddedResource,
@@ -7,29 +7,10 @@ from mcp.types import (
     PromptMessage,
     Role,
     TextContent,
-    TextResourceContents,
 )
 from pydantic import BaseModel
 
-
-def get_text(content: Union[TextContent, ImageContent, EmbeddedResource]) -> str | None:
-    """
-    Extract text content from a content object if available.
-
-    Args:
-        content: A content object (TextContent, ImageContent, or EmbeddedResource)
-
-    Returns:
-        The text content as a string or None if not a text content
-    """
-    if isinstance(content, TextContent):
-        return content.text
-
-    if isinstance(content, EmbeddedResource):
-        if isinstance(content.resource, TextResourceContents):
-            return content.resource.text
-
-    return None
+from mcp_agent.mcp.helpers.content_helpers import get_text
 
 
 class PromptMessageMultipart(BaseModel):
@@ -112,5 +93,31 @@ class PromptMessageMultipart(BaseModel):
 
     @classmethod
     def parse_get_prompt_result(cls, result: GetPromptResult) -> List["PromptMessageMultipart"]:
-        """Parse a GetPromptResult into PromptMessageMultipart objects."""
+        """
+        Parse a GetPromptResult into PromptMessageMultipart objects.
+
+        Args:
+            result: GetPromptResult from MCP server
+
+        Returns:
+            List of PromptMessageMultipart objects
+        """
+        return cls.to_multipart(result.messages)
+
+    @classmethod
+    def from_get_prompt_result(
+        cls, result: Optional[GetPromptResult]
+    ) -> List["PromptMessageMultipart"]:
+        """
+        Convert a GetPromptResult to PromptMessageMultipart objects with error handling.
+        This method safely handles None values and empty results.
+
+        Args:
+            result: GetPromptResult from MCP server or None
+
+        Returns:
+            List of PromptMessageMultipart objects or empty list if result is None/empty
+        """
+        if not result or not result.messages:
+            return []
         return cls.to_multipart(result.messages)

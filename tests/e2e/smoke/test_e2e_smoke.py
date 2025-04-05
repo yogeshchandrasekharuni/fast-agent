@@ -1,4 +1,6 @@
 # integration_tests/mcp_agent/test_agent_with_image.py
+import os
+import time
 from enum import Enum
 from typing import List
 
@@ -282,3 +284,40 @@ async def test_generic_model_textual_prompting(fast_agent, model_name):
             assert 40 <= word_count <= 60, f"Expected between 40-60 words, got {word_count}"
 
     await agent_function()
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+@pytest.mark.e2e
+@pytest.mark.parametrize(
+    "model_name",
+    ["deepseek", "haiku35", "gpt-4o"],
+)
+async def test_basic_tool_calling(fast_agent, model_name):
+    """Test that the agent can generate structured weather forecast data."""
+    fast = fast_agent
+
+    @fast.agent(
+        "weatherforecast",
+        instruction="You are a helpful assistant that provides syntehsized weather data for testing"
+        " purposes.",
+        model=model_name,
+        servers=["test_server"],
+    )
+    async def weather_forecast():
+        async with fast.run() as agent:
+            # Delete weather_location.txt if it exists
+            if os.path.exists("weather_location.txt"):
+                os.remove("weather_location.txt")
+
+            assert not os.path.exists("weather_location.txt")
+
+            response = await agent.send(Prompt.user("what is the weather in london"))
+            assert "sunny" in response
+
+            # Check that the file exists after response
+            assert os.path.exists("weather_location.txt"), (
+                "File should exist after response (created by tool call)"
+            )
+
+    await weather_forecast()

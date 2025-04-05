@@ -15,7 +15,7 @@ import yaml
 from mcp_agent.app import MCPApp
 from mcp_agent.config import Settings
 from mcp_agent.context import Context
-from mcp_agent.core.direct_agent_app import DirectAgentApp
+from mcp_agent.core.agent_app import AgentApp
 from mcp_agent.core.direct_decorators import (
     agent as agent_decorator,
 )
@@ -196,7 +196,7 @@ class FastAgent:
                 )
 
                 # Create a wrapper with all agents for simplified access
-                wrapper = DirectAgentApp(active_agents)
+                wrapper = AgentApp(active_agents)
 
                 # Handle direct message sending if --agent and --message are provided
                 if hasattr(self, "args") and self.args.agent and self.args.message:
