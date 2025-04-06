@@ -1,8 +1,4 @@
-import asyncio
-
 import pytest
-
-from mcp_agent.core.fastagent import FastAgent
 
 
 @pytest.mark.integration
