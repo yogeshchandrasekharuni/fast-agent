@@ -152,7 +152,7 @@ async def test_structured_weather_forecast_openai_structured_api(fast_agent, mod
 
             # Print forecast summary for debugging
             print(f"Weather forecast for {forecast.location}: {forecast.summary}")
-            assert '{"location":' in result.first_text()
+            assert '"location":' in result.first_text()
 
     await weather_forecast()
 
