@@ -110,6 +110,48 @@ def load_messages_from_json_file(file_path: str) -> List[PromptMessageMultipart]
     return json_to_multipart_messages(json_str)
 
 
+def save_messages_to_file(messages: List[PromptMessageMultipart], file_path: str) -> None:
+    """
+    Save PromptMessageMultipart objects to a file, with format determined by file extension.
+    
+    Uses JSON format for .json files and delimited text format for other extensions.
+    
+    Args:
+        messages: List of PromptMessageMultipart objects
+        file_path: Path to save the file
+    """
+    path_str = str(file_path).lower()
+    
+    if path_str.endswith(".json"):
+        # Use JSON format for .json files (MCP SDK compatible format)
+        save_messages_to_json_file(messages, file_path)
+    else:
+        # Use delimited text format for other extensions
+        save_messages_to_delimited_file(messages, file_path)
+
+
+def load_messages_from_file(file_path: str) -> List[PromptMessageMultipart]:
+    """
+    Load PromptMessageMultipart objects from a file, with format determined by file extension.
+    
+    Uses JSON format for .json files and delimited text format for other extensions.
+    
+    Args:
+        file_path: Path to the file
+        
+    Returns:
+        List of PromptMessageMultipart objects
+    """
+    path_str = str(file_path).lower()
+    
+    if path_str.endswith(".json"):
+        # Use JSON format for .json files (MCP SDK compatible format)
+        return load_messages_from_json_file(file_path)
+    else:
+        # Use delimited text format for other extensions
+        return load_messages_from_delimited_file(file_path)
+
+
 # -------------------------------------------------------------------------
 # Delimited Text Format Functions
 # -------------------------------------------------------------------------

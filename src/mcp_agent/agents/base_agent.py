@@ -120,28 +120,30 @@ class BaseAgent(MCPAggregator, AgentProtocol):
         llm_factory: Union[Type[AugmentedLLMProtocol], Callable[..., AugmentedLLMProtocol]],
         model: Optional[str] = None,
         request_params: Optional[RequestParams] = None,
-        **additional_kwargs
+        **additional_kwargs,
     ) -> AugmentedLLMProtocol:
         """
         Create and attach an LLM instance to this agent.
-        
+
         Parameters have the following precedence (highest to lowest):
         1. Explicitly passed parameters to this method
         2. Agent's default_request_params
         3. LLM's default values
-        
+
         Args:
             llm_factory: A class or callable that constructs an AugmentedLLM
             model: Optional model name override
             request_params: Optional request parameters override
             **additional_kwargs: Additional parameters passed to the LLM constructor
-            
+
         Returns:
             The created LLM instance
         """
         # Start with agent's default params
-        effective_params = self._default_request_params.model_copy() if self._default_request_params else None
-        
+        effective_params = (
+            self._default_request_params.model_copy() if self._default_request_params else None
+        )
+
         # Override with explicitly passed request_params
         if request_params:
             if effective_params:
@@ -151,18 +153,14 @@ class BaseAgent(MCPAggregator, AgentProtocol):
                         setattr(effective_params, k, v)
             else:
                 effective_params = request_params
-        
+
         # Override model if explicitly specified
         if model and effective_params:
             effective_params.model = model
-        
+
         # Create the LLM instance
-        self._llm = llm_factory(
-            agent=self,
-            request_params=effective_params,
-            **additional_kwargs
-        )
-        
+        self._llm = llm_factory(agent=self, request_params=effective_params, **additional_kwargs)
+
         return self._llm
 
     async def shutdown(self) -> None:
@@ -468,7 +466,7 @@ class BaseAgent(MCPAggregator, AgentProtocol):
 
         # Get the prompt - this will search all servers if needed
         self.logger.debug(f"Loading prompt '{prompt_name}'")
-        prompt_result = await self.get_prompt(prompt_name, arguments, server_name)
+        prompt_result: GetPromptResult = await self.get_prompt(prompt_name, arguments, server_name)
 
         if not prompt_result or not prompt_result.messages:
             error_msg = f"Prompt '{prompt_name}' could not be found or contains no messages"

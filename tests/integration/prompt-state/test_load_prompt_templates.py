@@ -90,3 +90,74 @@ async def test_save_state_to_simple_text_file(fast_agent):
             assert "assistant" == prompts[1].role
 
     await agent_function()
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_save_state_to_mcp_json_format(fast_agent):
+    """Test saving conversation history to a JSON file in MCP wire format.
+    This should create a file that's compatible with the MCP SDK and can be
+    loaded directly using Pydantic types."""
+    from mcp.types import GetPromptResult
+
+    from mcp_agent.mcp.prompt_serialization import json_to_multipart_messages
+
+    # Use the FastAgent instance from the test directory fixture
+    fast = fast_agent
+
+    # Define the agent
+    @fast.agent()
+    async def agent_function():
+        async with fast.run() as agent:
+            # Delete the file if it exists before running the test
+            if os.path.exists("./history.json"):
+                os.remove("./history.json")
+
+            # Send a few messages
+            await agent.send("hello")
+            await agent.send("world")
+
+            # Save in JSON format (filename ends with .json)
+            await agent.send("***SAVE_HISTORY history.json")
+
+            # Verify file exists
+            assert os.path.exists("./history.json")
+
+            # Load the file and check content
+            with open("./history.json", "r", encoding="utf-8") as f:
+                json_content = f.read()
+
+            # Parse using JSON
+            import json
+
+            json_data = json.loads(json_content)
+
+            # Validate it's a list of messages
+            assert isinstance(json_data, list)
+            assert len(json_data) >= 4  # At least 4 messages (2 user, 2 assistant)
+
+            # Check that messages have expected structure
+            for msg in json_data:
+                assert "role" in msg
+                assert "content" in msg
+                assert isinstance(msg["content"], list)
+
+            # Validate with Pydantic by parsing to PromptMessageMultipart objects
+            prompts = json_to_multipart_messages(json_content)
+
+            # Verify loaded objects
+            assert len(prompts) >= 4
+            assert prompts[0].role == "user"
+            assert prompts[1].role == "assistant"
+            assert "hello" in prompts[0].first_text()
+
+            # Validate compatibility with GetPromptResult
+            messages = []
+            for mp in prompts:
+                messages.extend(mp.from_multipart())
+
+            # Construct and validate with GetPromptResult
+            prompt_result = GetPromptResult(messages=messages)
+            assert len(prompt_result.messages) >= len(messages)
+
+    await agent_function()
