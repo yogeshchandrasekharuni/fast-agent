@@ -184,3 +184,7 @@ example-outputs/
 
 tests/integration/prompt-state/simple.txt
 tests/integration/workflow/router/fastagent.jsonl
+tests/e2e/smoke/weather_location.txt
+tests/integration/resources/fastagent.jsonl
+tests/integration/workflow/orchestrator/fastagent.jsonl
+fastagent.jsonl
