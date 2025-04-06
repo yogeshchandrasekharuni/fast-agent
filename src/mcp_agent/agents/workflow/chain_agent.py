@@ -77,7 +77,7 @@ class ChainAgent(BaseAgent):
             response: PromptMessageMultipart = await self.agents[0].generate(multipart_messages)
             # Process the rest of the agents in the chain
             for agent in self.agents[1:]:
-                next_message = Prompt.user(response.content)
+                next_message = Prompt.user(response.content[0].text)
                 response = await agent.generate([next_message])
 
             return response
