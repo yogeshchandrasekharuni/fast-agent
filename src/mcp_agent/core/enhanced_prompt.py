@@ -291,7 +291,7 @@ async def get_enhanced_input(
                 return f"SELECT_PROMPT:{cmd_parts[1].strip()}"
             elif cmd == "exit":
                 return "EXIT"
-            elif cmd == "stop":
+            elif cmd.lower() == "stop":
                 return "STOP"
 
         # Agent switching
@@ -420,7 +420,7 @@ async def get_argument_input(
             prompt_session.app.exit()
 
 
-async def handle_special_commands(command, agent_app=None):
+async def handle_special_commands(command: str, agent_app=None):
     """Handle special input commands."""
     # Quick guard for empty or None commands
     if not command:
@@ -450,7 +450,7 @@ async def handle_special_commands(command, agent_app=None):
         print("\033c", end="")
         return True
 
-    elif command == "EXIT":
+    elif command.upper() == "EXIT":
         raise PromptExitError("User requested to exit fast-agent session")
 
     elif command == "LIST_AGENTS":

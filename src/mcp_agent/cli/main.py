@@ -62,6 +62,7 @@ def main(
     verbose: bool = typer.Option(False, "--verbose", "-v", help="Enable verbose mode"),
     quiet: bool = typer.Option(False, "--quiet", "-q", help="Disable output"),
     color: bool = typer.Option(True, "--color/--no-color", help="Enable/disable color output"),
+    version: bool = typer.Option(False, "--version", help="Show version and exit"),
 ) -> None:
     """FastAgent CLI - Build effective agents using Model Context Protocol (MCP).
 
@@ -69,6 +70,16 @@ def main(
     """
     application.verbosity = 1 if verbose else 0 if not quiet else -1
     application.console = application.console if color else None
+
+    # Handle version flag
+    if version:
+        from importlib.metadata import version as get_version
+        try:
+            app_version = get_version("fast-agent-mcp")
+        except:  # noqa: E722
+            app_version = "unknown"
+        console.print(f"fast-agent-mcp v{app_version}")
+        raise typer.Exit()
 
     # Show welcome message if no command was invoked
     if ctx.invoked_subcommand is None:

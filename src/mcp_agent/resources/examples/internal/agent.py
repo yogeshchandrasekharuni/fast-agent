@@ -13,7 +13,7 @@ async def main() -> None:
     # use the --model command line switch or agent arguments to change model
     async with fast.run() as agent:
 #        await agent.prompt(agent_name="test")
-        await agent.send("hello,world")
+        await agent()
 
 
 if __name__ == "__main__":

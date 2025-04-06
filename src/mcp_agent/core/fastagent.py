@@ -7,7 +7,9 @@ directly creates Agent instances without proxies.
 import argparse
 import asyncio
 import os
+import sys
 from contextlib import asynccontextmanager
+from importlib.metadata import version as get_version
 from typing import TYPE_CHECKING, Any, Callable, Dict, Optional, TypeVar
 
 import yaml
@@ -101,12 +103,26 @@ class FastAgent:
             action="store_true",
             help="Disable progress display, tool and message logging for cleaner output",
         )
+        parser.add_argument(
+            "--version",
+            action="store_true",
+            help="Show version and exit",
+        )
 
         if ignore_unknown_args:
             known_args, _ = parser.parse_known_args()
             self.args = known_args
         else:
             self.args = parser.parse_args()
+            
+        # Handle version flag
+        if self.args.version:
+            try:
+                app_version = get_version("fast-agent-mcp")
+            except:  # noqa: E722
+                app_version = "unknown"
+            print(f"fast-agent-mcp v{app_version}")
+            sys.exit(0)
 
         self.name = name
         self.config_path = config_path
