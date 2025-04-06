@@ -103,7 +103,7 @@ class ModelFactory:
         "sonnet": "claude-3-7-sonnet-latest",
         "sonnet35": "claude-3-5-sonnet-latest",
         "sonnet37": "claude-3-7-sonnet-latest",
-        "claude": "claude-3-5-sonnet-latest",
+        "claude": "claude-3-7-sonnet-latest",
         "haiku": "claude-3-5-haiku-latest",
         "haiku3": "claude-3-haiku-20240307",
         "haiku35": "claude-3-5-haiku-latest",
@@ -188,24 +188,22 @@ class ModelFactory:
 
         # Create a factory function matching the updated attach_llm protocol
         def factory(
-            agent: Agent, 
-            request_params: Optional[RequestParams] = None, 
-            **kwargs
+            agent: Agent, request_params: Optional[RequestParams] = None, **kwargs
         ) -> AugmentedLLMProtocol:
             # Create base params with parsed model name
             base_params = RequestParams()
             base_params.model = config.model_name  # Use the parsed model name, not the alias
-            
+
             # Add reasoning effort if available
             if config.reasoning_effort:
                 kwargs["reasoning_effort"] = config.reasoning_effort.value
-            
+
             # Forward all arguments to LLM constructor
             llm_args = {
                 "agent": agent,
                 "model": config.model_name,
                 "request_params": request_params,
-                **kwargs
+                **kwargs,
             }
 
             llm: AugmentedLLMProtocol = llm_class(**llm_args)

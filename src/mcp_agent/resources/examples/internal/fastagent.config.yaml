@@ -59,3 +59,8 @@ mcp:
     mcp_hfspace:
       command: "npx"
       args: ["@llmindset/mcp-hfspace"]
+
+    mcp_webcam:
+      command: "npx"
+      args: ["@llmindset/mcp-webcam"]
+

@@ -39,7 +39,6 @@ from mcp_agent.mcp.interfaces import (
 from mcp_agent.mcp.mcp_aggregator import MCPAggregator
 from mcp_agent.mcp.prompt_message_multipart import PromptMessageMultipart
 from mcp_agent.mcp.prompt_render import render_multipart_message
-from mcp_agent.mcp.prompt_serialization import multipart_messages_to_delimited_format
 from mcp_agent.ui.console_display import ConsoleDisplay
 
 # Define type variables locally
@@ -435,16 +434,15 @@ class AugmentedLLM(ContextDependent, AugmentedLLMProtocol, Generic[MessageParamT
 
     async def _save_history(self, filename: str) -> None:
         """
-        Save the Message History to a file in a simple delimeted format.
+        Save the Message History to a file in a format determined by the file extension.
+        
+        Uses JSON format for .json files (MCP SDK compatible format) and
+        delimited text format for other extensions.
         """
-        # Convert to delimited format
-        delimited_content = multipart_messages_to_delimited_format(
-            self._message_history,
-        )
-
-        # Write to file
-        with open(filename, "w", encoding="utf-8") as f:
-            f.write("\n\n".join(delimited_content))
+        from mcp_agent.mcp.prompt_serialization import save_messages_to_file
+        
+        # Save messages using the unified save function that auto-detects format
+        save_messages_to_file(self._message_history, filename)
 
     @abstractmethod
     async def _apply_prompt_provider_specific(

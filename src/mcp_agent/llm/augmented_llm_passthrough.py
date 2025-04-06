@@ -143,7 +143,9 @@ class PassthroughLLM(AugmentedLLM):
 
         # TODO -- improve when we support Audio/Multimodal gen
         if self.is_tool_call(last_message):
-            return Prompt.assistant(await self.generate_str(last_message.first_text()))
+            result = Prompt.assistant(await self.generate_str(last_message.first_text()))
+            await self.show_assistant_message(result.first_text())
+            return result
 
         if last_message.first_text().startswith(FIXED_RESPONSE_INDICATOR):
             self._fixed_response = (
