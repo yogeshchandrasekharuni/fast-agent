@@ -188,3 +188,5 @@ tests/e2e/smoke/weather_location.txt
 tests/integration/resources/fastagent.jsonl
 tests/integration/workflow/orchestrator/fastagent.jsonl
 fastagent.jsonl
+tests/integration/resources/fastagent.jsonl
+fastagent.jsonl
