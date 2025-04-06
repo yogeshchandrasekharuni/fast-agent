@@ -74,7 +74,7 @@ class RoutingResponse(BaseModel):
 class RouterResult(BaseModel):
     """Router result with agent reference and confidence rating."""
 
-    result: Agent
+    result: BaseAgent
     confidence: str
     reasoning: Optional[str] = None
 
