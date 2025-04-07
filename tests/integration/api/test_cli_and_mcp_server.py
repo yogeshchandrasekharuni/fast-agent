@@ -1,7 +1,10 @@
 import os
 import subprocess
 
+from mcp import GetPromptResult
 import pytest
+
+from mcp_agent.mcp.helpers.content_helpers import get_text
 
 
 @pytest.mark.integration
@@ -93,6 +96,27 @@ async def test_agent_server_option_stdio(fast_agent):
 
 @pytest.mark.integration
 @pytest.mark.asyncio
+async def test_agent_server_option_stdio_and_prompt_history(fast_agent):
+    """Test that FastAgent supports --server flag with STDIO transport."""
+
+    @fast_agent.agent(name="client", servers=["std_io"])
+    async def agent_function():
+        async with fast_agent.run() as agent:
+            assert "connected" == await agent.send("connected")
+            result = await agent.send('***CALL_TOOL test.send {"message": "message one"}')
+            assert "message one" == result
+            result = await agent.send('***CALL_TOOL test.send {"message": "message two"}')
+            assert "message two" == result
+
+            history: GetPromptResult = await agent.get_prompt("test.history", server_name="std_io")
+            assert len(history.messages) == 4
+            assert "message one" == get_text(history.messages[1].content)
+
+    await agent_function()
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
 async def test_agent_server_option_sse(fast_agent):
     """Test that FastAgent supports --server flag with SSE transport."""
 
@@ -100,7 +124,6 @@ async def test_agent_server_option_sse(fast_agent):
     import asyncio
     import os
     import subprocess
-    import time
 
     # Get the path to the test agent
     test_dir = os.path.dirname(os.path.abspath(__file__))
@@ -130,7 +153,7 @@ async def test_agent_server_option_sse(fast_agent):
 
     try:
         # Give the server a moment to start
-        await asyncio.sleep(3)
+        await asyncio.sleep(1.5)
 
         # Now connect to it via the configured MCP server
         @fast_agent.agent(name="client", servers=["sse"])
