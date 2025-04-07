@@ -71,9 +71,19 @@ class AgentMCPServer:
         if transport == "sse":
             self.mcp_server.settings.host = host
             self.mcp_server.settings.port = port
-            await self.mcp_server.run_sse_async()
+            try:
+                await self.mcp_server.run_sse_async()
+            except (asyncio.CancelledError, KeyboardInterrupt):
+                # Gracefully handle cancellation during shutdown
+                await self.shutdown()
+                pass
         else:  # stdio
-            await self.mcp_server.run_stdio_async()
+            try:
+                await self.mcp_server.run_stdio_async()
+            except (asyncio.CancelledError, KeyboardInterrupt):
+                # Gracefully handle cancellation during shutdown
+                await self.shutdown()
+                pass
 
     async def with_bridged_context(self, agent_context, mcp_context, func, *args, **kwargs):
         """
@@ -115,3 +125,20 @@ class AgentMCPServer:
             # Remove MCP context reference
             if hasattr(agent_context, "mcp_context"):
                 delattr(agent_context, "mcp_context")
+                
+    async def shutdown(self):
+        """Gracefully shutdown the MCP server and its resources."""
+        # Your MCP server may have additional cleanup code here
+        try:
+            # If your MCP server has a shutdown method, call it
+            if hasattr(self.mcp_server, "shutdown"):
+                await self.mcp_server.shutdown()
+            
+            # Clean up any other resources
+            import asyncio
+            # Allow any pending tasks to clean up
+            await asyncio.sleep(0.5)
+        except Exception as e:
+            # Just log exceptions during shutdown, don't raise
+            print(f"Error during MCP server shutdown: {e}")
+            pass
