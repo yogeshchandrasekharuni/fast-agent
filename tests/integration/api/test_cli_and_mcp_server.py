@@ -91,7 +91,7 @@ async def test_agent_server_option_stdio(fast_agent):
     async def agent_function():
         async with fast_agent.run() as agent:
             assert "connected" == await agent.send("connected")
-            result = await agent.send('***CALL_TOOL test.send {"message": "stdio server test"}')
+            result = await agent.send('***CALL_TOOL test-send {"message": "stdio server test"}')
             assert "stdio server test" == result
 
     await agent_function()
@@ -106,9 +106,9 @@ async def test_agent_server_option_stdio_and_prompt_history(fast_agent):
     async def agent_function():
         async with fast_agent.run() as agent:
             assert "connected" == await agent.send("connected")
-            result = await agent.send('***CALL_TOOL test.send {"message": "message one"}')
+            result = await agent.send('***CALL_TOOL test-send {"message": "message one"}')
             assert "message one" == result
-            result = await agent.send('***CALL_TOOL test.send {"message": "message two"}')
+            result = await agent.send('***CALL_TOOL test-send {"message": "message two"}')
             assert "message two" == result
 
             history: GetPromptResult = await agent.get_prompt("test.history", server_name="std_io")
@@ -164,7 +164,7 @@ async def test_agent_server_option_sse(fast_agent):
             async with fast_agent.run() as agent:
                 # Try connecting and sending a message
                 assert "connected" == await agent.send("connected")
-                result = await agent.send('***CALL_TOOL test.send {"message": "sse server test"}')
+                result = await agent.send('***CALL_TOOL test-send {"message": "sse server test"}')
                 assert "sse server test" == result
 
         await agent_function()
