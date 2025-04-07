@@ -153,7 +153,7 @@ async def test_agent_server_option_sse(fast_agent):
 
     try:
         # Give the server a moment to start
-        await asyncio.sleep(1.5)
+        await asyncio.sleep(3)
 
         # Now connect to it via the configured MCP server
         @fast_agent.agent(name="client", servers=["sse"])
