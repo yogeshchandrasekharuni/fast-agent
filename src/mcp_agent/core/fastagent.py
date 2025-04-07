@@ -6,7 +6,6 @@ directly creates Agent instances without proxies.
 
 import argparse
 import asyncio
-import os
 import sys
 from contextlib import asynccontextmanager
 from importlib.metadata import version as get_version
@@ -14,8 +13,8 @@ from typing import TYPE_CHECKING, Any, Callable, Dict, Optional, TypeVar
 
 import yaml
 
+from mcp_agent import config
 from mcp_agent.app import MCPApp
-from mcp_agent.config import Settings
 from mcp_agent.context import Context
 from mcp_agent.core.agent_app import AgentApp
 from mcp_agent.core.direct_decorators import (
@@ -72,7 +71,7 @@ class FastAgent:
     def __init__(
         self,
         name: str,
-        config_path: Optional[str] = None,
+        config_path: str | None = None,
         ignore_unknown_args: bool = False,
     ) -> None:
         """
@@ -108,13 +107,35 @@ class FastAgent:
             action="store_true",
             help="Show version and exit",
         )
+        parser.add_argument(
+            "--server",
+            action="store_true",
+            help="Run as an MCP server",
+        )
+        parser.add_argument(
+            "--transport",
+            choices=["sse", "stdio"],
+            default="sse",
+            help="Transport protocol to use when running as a server (sse or stdio)",
+        )
+        parser.add_argument(
+            "--port",
+            type=int,
+            default=8000,
+            help="Port to use when running as a server with SSE transport",
+        )
+        parser.add_argument(
+            "--host",
+            default="0.0.0.0",
+            help="Host address to bind to when running as a server with SSE transport",
+        )
 
         if ignore_unknown_args:
             known_args, _ = parser.parse_known_args()
             self.args = known_args
         else:
             self.args = parser.parse_args()
-            
+
         # Handle version flag
         if self.args.version:
             try:
@@ -126,8 +147,17 @@ class FastAgent:
 
         self.name = name
         self.config_path = config_path
+
         try:
+            # Load configuration directly for this instance
             self._load_config()
+
+            # Create the app with our local settings
+            self.app = MCPApp(
+                name=name,
+                settings=config.Settings(**self.config) if hasattr(self, "config") else None,
+            )
+
         except yaml.parser.ParserError as e:
             handle_error(
                 e,
@@ -135,25 +165,30 @@ class FastAgent:
                 "There was an error parsing the config or secrets YAML configuration file.",
             )
             raise SystemExit(1)
-        # Create the MCPApp with the config
-        self.app = MCPApp(
-            name=name,
-            settings=Settings(**self.config) if hasattr(self, "config") else None,
-        )
 
         # Dictionary to store agent configurations from decorators
         self.agents: Dict[str, Dict[str, Any]] = {}
 
     def _load_config(self) -> None:
-        """Load configuration from YAML file"""
-        if self.config_path:
-            with open(self.config_path) as f:
-                self.config = yaml.safe_load(f) or {}
-        elif os.path.exists("fastagent.config.yaml"):
-            with open("fastagent.config.yaml") as f:
-                self.config = yaml.safe_load(f) or {}
-        else:
-            self.config = {}
+        """Load configuration from YAML file including secrets using get_settings
+        but without relying on the global cache."""
+
+        # Import but make a local copy to avoid affecting the global state
+        from mcp_agent.config import _settings, get_settings
+
+        # Temporarily clear the global settings to ensure a fresh load
+        old_settings = _settings
+        _settings = None
+
+        try:
+            # Use get_settings to load config - this handles all paths and secrets merging
+            settings = get_settings(self.config_path)
+
+            # Convert to dict for backward compatibility
+            self.config = settings.model_dump() if settings else {}
+        finally:
+            # Restore the original global settings
+            _settings = old_settings
 
     @property
     def context(self) -> Context:
@@ -182,16 +217,17 @@ class FastAgent:
         quiet_mode = hasattr(self, "args") and self.args.quiet
 
         try:
-            async with self.app.run() as agent_app:
+            async with self.app.run():
                 # Apply quiet mode if requested
                 if (
                     quiet_mode
-                    and hasattr(agent_app.context, "config")
-                    and hasattr(agent_app.context.config, "logger")
+                    and hasattr(self.app.context, "config")
+                    and hasattr(self.app.context.config, "logger")
                 ):
-                    agent_app.context.config.logger.progress_display = False
-                    agent_app.context.config.logger.show_chat = False
-                    agent_app.context.config.logger.show_tools = False
+                    # Update our app's config directly
+                    self.app.context.config.logger.progress_display = False
+                    self.app.context.config.logger.show_chat = False
+                    self.app.context.config.logger.show_tools = False
 
                     # Directly disable the progress display singleton
                     from mcp_agent.progress_display import progress_display
@@ -221,6 +257,41 @@ class FastAgent:
                 # Create a wrapper with all agents for simplified access
                 wrapper = AgentApp(active_agents)
 
+                # Handle command line options that should be processed after agent initialization
+
+                # Handle --server option
+                if hasattr(self, "args") and self.args.server:
+                    try:
+                        # Print info message if not in quiet mode
+                        if not quiet_mode:
+                            print(f"Starting FastAgent '{self.name}' in server mode")
+                            print(f"Transport: {self.args.transport}")
+                            if self.args.transport == "sse":
+                                print(f"Listening on {self.args.host}:{self.args.port}")
+                            print("Press Ctrl+C to stop")
+
+                        # Create the MCP server
+                        from mcp_agent.mcp_server import AgentMCPServer
+
+                        mcp_server = AgentMCPServer(
+                            agent_app=wrapper,
+                            server_name=f"{self.name}-MCP-Server",
+                        )
+
+                        # Run the server directly (this is a blocking call)
+                        await mcp_server.run_async(
+                            transport=self.args.transport, host=self.args.host, port=self.args.port
+                        )
+                    except KeyboardInterrupt:
+                        if not quiet_mode:
+                            print("\nServer stopped by user (Ctrl+C)")
+                    except Exception as e:
+                        if not quiet_mode:
+                            print(f"\nServer stopped with error: {e}")
+
+                    # Exit after server shutdown
+                    raise SystemExit(0)
+
                 # Handle direct message sending if --agent and --message are provided
                 if hasattr(self, "args") and self.args.agent and self.args.message:
                     agent_name = self.args.agent
@@ -238,7 +309,8 @@ class FastAgent:
                         agent = active_agents[agent_name]
                         response = await agent.send(message)
 
-                        # Print the response in quiet mode
+                        # In quiet mode, just print the raw response
+                        # The chat display should already be turned off by the configuration
                         if self.args.quiet:
                             print(f"{response}")
 
@@ -329,6 +401,58 @@ class FastAgent:
         else:
             handle_error(e, error_type or "Error", "An unexpected error occurred.")
 
+    async def start_server(
+        self,
+        transport: str = "sse",
+        host: str = "0.0.0.0",
+        port: int = 8000,
+        server_name: Optional[str] = None,
+        server_description: Optional[str] = None,
+    ) -> None:
+        """
+        Start the application as an MCP server.
+        This method initializes agents and exposes them through an MCP server.
+        It is a blocking method that runs until the server is stopped.
+
+        Args:
+            transport: Transport protocol to use ("stdio" or "sse")
+            host: Host address for the server when using SSE
+            port: Port for the server when using SSE
+            server_name: Optional custom name for the MCP server
+            server_description: Optional description for the MCP server
+        """
+        # This method simply updates the command line arguments and uses run()
+        # to ensure we follow the same initialization path for all operations
+
+        # Store original args
+        original_args = None
+        if hasattr(self, "args"):
+            original_args = self.args
+
+        # Create our own args object with server settings
+        from argparse import Namespace
+
+        self.args = Namespace()
+        self.args.server = True
+        self.args.transport = transport
+        self.args.host = host
+        self.args.port = port
+        self.args.quiet = (
+            original_args.quiet if original_args and hasattr(original_args, "quiet") else False
+        )
+        self.args.model = None
+        if hasattr(original_args, "model"):
+            self.args.model = original_args.model
+
+        # Run the application, which will detect the server flag and start server mode
+        async with self.run():
+            pass  # This won't be reached due to SystemExit in run()
+
+        # Restore original args (if we get here)
+        if original_args:
+            self.args = original_args
+
+    # Keep run_with_mcp_server for backward compatibility
     async def run_with_mcp_server(
         self,
         transport: str = "sse",
@@ -339,6 +463,8 @@ class FastAgent:
     ) -> None:
         """
         Run the application and expose agents through an MCP server.
+        This method is kept for backward compatibility.
+        For new code, use start_server() instead.
 
         Args:
             transport: Transport protocol to use ("stdio" or "sse")
@@ -347,26 +473,40 @@ class FastAgent:
             server_name: Optional custom name for the MCP server
             server_description: Optional description for the MCP server
         """
-        from mcp_agent.mcp_server import AgentMCPServer
+        await self.start_server(
+            transport=transport,
+            host=host,
+            port=port,
+            server_name=server_name,
+            server_description=server_description,
+        )
 
-        async with self.run() as agent_app:
-            # Create the MCP server
-            mcp_server = AgentMCPServer(
-                agent_app=agent_app,
-                server_name=server_name or f"{self.name}-MCP-Server",
-                server_description=server_description,
-            )
+    async def main(self):
+        """
+        Helper method for checking if server mode was requested.
 
-            # Run the MCP server in a separate task
-            server_task = asyncio.create_task(
-                mcp_server.run_async(transport=transport, host=host, port=port)
-            )
+        Usage:
+        ```python
+        fast = FastAgent("My App")
 
-            try:
-                # Wait for the server task to complete (or be cancelled)
-                await server_task
-            except asyncio.CancelledError:
-                # Propagate cancellation
-                server_task.cancel()
-                await asyncio.gather(server_task, return_exceptions=True)
-                raise
+        @fast.agent(...)
+        async def app_main():
+            # Check if server mode was requested
+            # This doesn't actually do anything - the check happens in run()
+            # But it provides a way for application code to know if server mode
+            # was requested for conditionals
+            is_server_mode = hasattr(self, "args") and self.args.server
+
+            # Normal run - this will handle server mode automatically if requested
+            async with fast.run() as agent:
+                # This code only executes for normal mode
+                # Server mode will exit before reaching here
+                await agent.send("Hello")
+        ```
+
+        Returns:
+            bool: True if --server flag is set, False otherwise
+        """
+        # Just check if the flag is set, no action here
+        # The actual server code will be handled by run()
+        return hasattr(self, "args") and self.args.server

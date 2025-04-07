@@ -1,9 +1,13 @@
 # src/mcp_agent/mcp_server/agent_server.py
 
+import asyncio
+
 from mcp.server.fastmcp import Context as MCPContext
 from mcp.server.fastmcp import FastMCP
 
-# Import the DirectAgentApp instead of AgentApp
+import mcp_agent
+import mcp_agent.core
+import mcp_agent.core.prompt
 from mcp_agent.core.agent_app import AgentApp
 
 
@@ -14,7 +18,7 @@ class AgentMCPServer:
         self,
         agent_app: AgentApp,
         server_name: str = "FastAgent-MCP-Server",
-        server_description: str = None,
+        server_description: str | None = None,
     ) -> None:
         self.agent_app = agent_app
         self.mcp_server = FastMCP(
@@ -26,10 +30,10 @@ class AgentMCPServer:
 
     def setup_tools(self) -> None:
         """Register all agents as MCP tools."""
-        for agent_name, agent_proxy in self.agent_app._agents.items():
-            self.register_agent_tools(agent_name, agent_proxy)
+        for agent_name, agent in self.agent_app._agents.items():
+            self.register_agent_tools(agent_name, agent)
 
-    def register_agent_tools(self, agent_name: str, agent_proxy) -> None:
+    def register_agent_tools(self, agent_name: str, agent) -> None:
         """Register tools for a specific agent."""
 
         # Basic send message tool
@@ -41,19 +45,36 @@ class AgentMCPServer:
             """Send a message to the agent and return its response."""
 
             # Get the agent's context
-            agent_context = None
-            if hasattr(agent_proxy, "_agent") and hasattr(agent_proxy._agent, "context"):
-                agent_context = agent_proxy._agent.context
+            agent_context = getattr(agent, "context", None)
 
             # Define the function to execute
             async def execute_send():
-                return await agent_proxy.send(message)
+                return await agent.send(message)
 
             # Execute with bridged context
             if agent_context and ctx:
                 return await self.with_bridged_context(agent_context, ctx, execute_send)
             else:
                 return await execute_send()
+
+        # Register a history prompt for this agent
+        @self.mcp_server.prompt(name=f"{agent_name}.history", description=f"Conversation history for the {agent_name} agent")
+        async def get_history_prompt() -> list:
+            """Return the conversation history as MCP messages."""
+            # Get the conversation history from the agent's LLM
+            if not hasattr(agent, "_llm") or agent._llm is None:
+                return []
+                
+            # Convert the multipart message history to standard PromptMessages
+            multipart_history = agent._llm.message_history
+            prompt_messages = mcp_agent.core.prompt.Prompt.from_multipart(multipart_history)
+            
+            # In FastMCP, we need to return the raw list of messages
+            # that matches the structure that FastMCP expects (list of dicts with role/content)
+            return [
+                {"role": msg.role, "content": msg.content}
+                for msg in prompt_messages
+            ]
 
     def run(self, transport: str = "sse", host: str = "0.0.0.0", port: int = 8000) -> None:
         """Run the MCP server."""
@@ -71,9 +92,19 @@ class AgentMCPServer:
         if transport == "sse":
             self.mcp_server.settings.host = host
             self.mcp_server.settings.port = port
-            await self.mcp_server.run_sse_async()
+            try:
+                await self.mcp_server.run_sse_async()
+            except (asyncio.CancelledError, KeyboardInterrupt):
+                # Gracefully handle cancellation during shutdown
+                await self.shutdown()
+                pass
         else:  # stdio
-            await self.mcp_server.run_stdio_async()
+            try:
+                await self.mcp_server.run_stdio_async()
+            except (asyncio.CancelledError, KeyboardInterrupt):
+                # Gracefully handle cancellation during shutdown
+                await self.shutdown()
+                pass
 
     async def with_bridged_context(self, agent_context, mcp_context, func, *args, **kwargs):
         """
@@ -115,3 +146,21 @@ class AgentMCPServer:
             # Remove MCP context reference
             if hasattr(agent_context, "mcp_context"):
                 delattr(agent_context, "mcp_context")
+
+    async def shutdown(self):
+        """Gracefully shutdown the MCP server and its resources."""
+        # Your MCP server may have additional cleanup code here
+        try:
+            # If your MCP server has a shutdown method, call it
+            if hasattr(self.mcp_server, "shutdown"):
+                await self.mcp_server.shutdown()
+
+            # Clean up any other resources
+            import asyncio
+
+            # Allow any pending tasks to clean up
+            await asyncio.sleep(0.5)
+        except Exception as e:
+            # Just log exceptions during shutdown, don't raise
+            print(f"Error during MCP server shutdown: {e}")
+            pass

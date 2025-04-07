@@ -148,10 +148,7 @@ async def create_agents_by_type(
 
                 # Attach LLM to the agent
                 llm_factory = model_factory_func(model=config.model)
-                await agent.attach_llm(
-                    llm_factory,
-                    request_params=config.default_request_params
-                )
+                await agent.attach_llm(llm_factory, request_params=config.default_request_params)
                 result_agents[name] = agent
 
             elif agent_type == AgentType.ORCHESTRATOR:
@@ -185,8 +182,7 @@ async def create_agents_by_type(
                 # Attach LLM to the orchestrator
                 llm_factory = model_factory_func(model=config.model)
                 await orchestrator.attach_llm(
-                    llm_factory,
-                    request_params=config.default_request_params
+                    llm_factory, request_params=config.default_request_params
                 )
 
                 result_agents[name] = orchestrator
@@ -201,9 +197,7 @@ async def create_agents_by_type(
                     # Create default fan-in agent with auto-generated name
                     fan_in_name = f"{name}_fan_in"
                     fan_in_agent = await _create_default_fan_in_agent(
-                        fan_in_name,
-                        app_instance.context, 
-                        model_factory_func
+                        fan_in_name, app_instance.context, model_factory_func
                     )
                     # Add to result_agents so it's registered properly
                     result_agents[fan_in_name] = fan_in_agent
@@ -248,10 +242,7 @@ async def create_agents_by_type(
 
                 # Attach LLM to the router
                 llm_factory = model_factory_func(model=config.model)
-                await router.attach_llm(
-                    llm_factory,
-                    request_params=config.default_request_params
-                )
+                await router.attach_llm(llm_factory, request_params=config.default_request_params)
                 result_agents[name] = router
 
             elif agent_type == AgentType.CHAIN:
@@ -459,7 +450,7 @@ async def _create_default_fan_in_agent(
     default_config = AgentConfig(
         name=fan_in_name,
         model="passthrough",
-        instruction="You are a passthrough agent that combines outputs from parallel agents."
+        instruction="You are a passthrough agent that combines outputs from parallel agents.",
     )
 
     # Create and initialize the default agent
