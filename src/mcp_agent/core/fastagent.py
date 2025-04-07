@@ -10,10 +10,13 @@ import os
 import sys
 from contextlib import asynccontextmanager
 from importlib.metadata import version as get_version
+from pathlib import Path
 from typing import TYPE_CHECKING, Any, Callable, Dict, Optional, TypeVar
 
+import yaml
+
+from mcp_agent import config
 from mcp_agent.app import MCPApp
-from mcp_agent.config import Settings
 from mcp_agent.context import Context
 from mcp_agent.core.agent_app import AgentApp
 from mcp_agent.core.direct_decorators import (
@@ -70,7 +73,7 @@ class FastAgent:
     def __init__(
         self,
         name: str,
-        config_path: Optional[str] = None,
+        config_path: str | None = None,
         ignore_unknown_args: bool = False,
     ) -> None:
         """
@@ -146,8 +149,17 @@ class FastAgent:
 
         self.name = name
         self.config_path = config_path
+
         try:
+            # Load configuration directly for this instance
             self._load_config()
+
+            # Create the app with our local settings
+            self.app = MCPApp(
+                name=name,
+                settings=config.Settings(**self.config) if hasattr(self, "config") else None,
+            )
+
         except yaml.parser.ParserError as e:
             handle_error(
                 e,
@@ -156,34 +168,29 @@ class FastAgent:
             )
             raise SystemExit(1)
 
-        # Create the MCPApp with the global settings
-        from mcp_agent.config import _settings
-
-        self.app = MCPApp(
-            name=name,
-            settings=_settings,
-        )
-
         # Dictionary to store agent configurations from decorators
         self.agents: Dict[str, Dict[str, Any]] = {}
 
-        # Note: Server mode is handled in the run() method
-        # We don't need to start it here, as run() will detect the --server flag and start the server
-
     def _load_config(self) -> None:
-        """Load configuration from YAML file using the centralized get_settings function"""
-        from mcp_agent.config import get_settings, _settings
+        """Load configuration from YAML file including secrets using get_settings
+        but without relying on the global cache."""
 
-        # Reset global settings to ensure fresh load with proper path
-        global _settings
+        # Import but make a local copy to avoid affecting the global state
+        from mcp_agent.config import _settings, get_settings
+
+        # Temporarily clear the global settings to ensure a fresh load
+        old_settings = _settings
         _settings = None
 
-        # Use the centralized get_settings function to load config
-        # This ensures consistent loading including secrets merging
-        settings = get_settings(self.config_path)
+        try:
+            # Use get_settings to load config - this handles all paths and secrets merging
+            settings = get_settings(self.config_path)
 
-        # Convert Settings to dict for backward compatibility
-        self.config = settings.model_dump()
+            # Convert to dict for backward compatibility
+            self.config = settings.model_dump() if settings else {}
+        finally:
+            # Restore the original global settings
+            _settings = old_settings
 
     @property
     def context(self) -> Context:
@@ -212,17 +219,17 @@ class FastAgent:
         quiet_mode = hasattr(self, "args") and self.args.quiet
 
         try:
-            async with self.app.run() as agent_app:
+            async with self.app.run():
                 # Apply quiet mode if requested
-                if quiet_mode:
-                    # Update the global settings object directly to ensure all components see the change
-                    from mcp_agent.config import _settings
-
-                    if _settings and hasattr(_settings, "logger"):
-                        # Set quiet mode in the global config
-                        _settings.logger.progress_display = False
-                        _settings.logger.show_chat = False
-                        _settings.logger.show_tools = False
+                if (
+                    quiet_mode
+                    and hasattr(self.app.context, "config")
+                    and hasattr(self.app.context.config, "logger")
+                ):
+                    # Update our app's config directly
+                    self.app.context.config.logger.progress_display = False
+                    self.app.context.config.logger.show_chat = False
+                    self.app.context.config.logger.show_tools = False
 
                     # Directly disable the progress display singleton
                     from mcp_agent.progress_display import progress_display

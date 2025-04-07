@@ -40,7 +40,7 @@ class MCPRootSettings(BaseModel):
     @classmethod
     def validate_uri(cls, v: str) -> str:
         """Validate that the URI starts with file:// (required by specification 2024-11-05)"""
-        if not v.startswith("file://"):
+        if v and not v.startswith("file://"):
             raise ValueError("Root URI must start with file://")
         return v
 
@@ -276,9 +276,9 @@ class Settings(BaseSettings):
         # Check current directory and parent directories
         while current_dir != current_dir.parent:
             for filename in [
+                "fastagent.config.yaml",
                 "mcp-agent.config.yaml",
                 "mcp_agent.config.yaml",
-                "fastagent.config.yaml",
             ]:
                 config_path = current_dir / filename
                 if config_path.exists():
@@ -306,15 +306,33 @@ def get_settings(config_path: str | None = None) -> Settings:
         return merged
 
     global _settings
-    if _settings:
+
+    # If we have a specific config path, always reload settings
+    # This ensures each test gets its own config
+    if config_path:
+        # Reset for the new path
+        _settings = None
+    elif _settings:
+        # Use cached settings only for no specific path
         return _settings
 
-    config_file = Path(config_path) if config_path else Settings.find_config()
+    # Handle config path - convert string to Path if needed
+    if config_path:
+        config_file = Path(config_path)
+        # If it's a relative path and doesn't exist, try finding it
+        if not config_file.is_absolute() and not config_file.exists():
+            # Try resolving against current directory first
+            resolved_path = Path.cwd() / config_file.name
+            if resolved_path.exists():
+                config_file = resolved_path
+    else:
+        config_file = Settings.find_config()
+
     merged_settings = {}
 
     if config_file:
         if not config_file.exists():
-            pass
+            print(f"Warning: Specified config file does not exist: {config_file}")
         else:
             import yaml  # pylint: disable=C0415
 
@@ -326,11 +344,14 @@ def get_settings(config_path: str | None = None) -> Settings:
             # but stop after finding the first one
             current_dir = config_file.parent
             found_secrets = False
+            # Start with the absolute path of the config file's directory
+            current_dir = config_file.parent.resolve()
+
             while current_dir != current_dir.parent and not found_secrets:
                 for secrets_filename in [
+                    "fastagent.secrets.yaml",
                     "mcp-agent.secrets.yaml",
                     "mcp_agent.secrets.yaml",
-                    "fastagent.secrets.yaml",
                 ]:
                     secrets_file = current_dir / secrets_filename
                     if secrets_file.exists():
@@ -340,7 +361,8 @@ def get_settings(config_path: str | None = None) -> Settings:
                             found_secrets = True
                             break
                 if not found_secrets:
-                    current_dir = current_dir.parent
+                    # Get the absolute path of the parent directory
+                    current_dir = current_dir.parent.resolve()
 
             _settings = Settings(**merged_settings)
             return _settings
