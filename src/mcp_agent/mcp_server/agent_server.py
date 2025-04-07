@@ -2,14 +2,9 @@
 
 import asyncio
 
-import asyncio
-
 from mcp.server.fastmcp import Context as MCPContext
 from mcp.server.fastmcp import FastMCP
 
-import mcp_agent
-import mcp_agent.core
-import mcp_agent.core.prompt
 import mcp_agent
 import mcp_agent.core
 import mcp_agent.core.prompt
@@ -37,8 +32,6 @@ class AgentMCPServer:
         """Register all agents as MCP tools."""
         for agent_name, agent in self.agent_app._agents.items():
             self.register_agent_tools(agent_name, agent)
-        for agent_name, agent in self.agent_app._agents.items():
-            self.register_agent_tools(agent_name, agent)
 
     def register_agent_tools(self, agent_name: str, agent) -> None:
         """Register tools for a specific agent."""
@@ -52,7 +45,6 @@ class AgentMCPServer:
             """Send a message to the agent and return its response."""
 
             # Get the agent's context
-            agent_context = getattr(agent, "context", None)
             agent_context = getattr(agent, "context", None)
 
             # Define the function to execute
@@ -100,12 +92,6 @@ class AgentMCPServer:
         if transport == "sse":
             self.mcp_server.settings.host = host
             self.mcp_server.settings.port = port
-            try:
-                await self.mcp_server.run_sse_async()
-            except (asyncio.CancelledError, KeyboardInterrupt):
-                # Gracefully handle cancellation during shutdown
-                await self.shutdown()
-                pass
             try:
                 await self.mcp_server.run_sse_async()
             except (asyncio.CancelledError, KeyboardInterrupt):
