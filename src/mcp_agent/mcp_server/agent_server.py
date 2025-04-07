@@ -2,9 +2,14 @@
 
 import asyncio
 
+import asyncio
+
 from mcp.server.fastmcp import Context as MCPContext
 from mcp.server.fastmcp import FastMCP
 
+import mcp_agent
+import mcp_agent.core
+import mcp_agent.core.prompt
 import mcp_agent
 import mcp_agent.core
 import mcp_agent.core.prompt
@@ -32,13 +37,16 @@ class AgentMCPServer:
         """Register all agents as MCP tools."""
         for agent_name, agent in self.agent_app._agents.items():
             self.register_agent_tools(agent_name, agent)
+        for agent_name, agent in self.agent_app._agents.items():
+            self.register_agent_tools(agent_name, agent)
 
+    def register_agent_tools(self, agent_name: str, agent) -> None:
     def register_agent_tools(self, agent_name: str, agent) -> None:
         """Register tools for a specific agent."""
 
         # Basic send message tool
         @self.mcp_server.tool(
-            name=f"{agent_name}.send",
+            name=f"{agent_name}-send",
             description=f"Send a message to the {agent_name} agent",
         )
         async def send_message(message: str, ctx: MCPContext) -> str:
@@ -46,9 +54,11 @@ class AgentMCPServer:
 
             # Get the agent's context
             agent_context = getattr(agent, "context", None)
+            agent_context = getattr(agent, "context", None)
 
             # Define the function to execute
             async def execute_send():
+                return await agent.send(message)
                 return await agent.send(message)
 
             # Execute with bridged context
@@ -58,23 +68,23 @@ class AgentMCPServer:
                 return await execute_send()
 
         # Register a history prompt for this agent
-        @self.mcp_server.prompt(name=f"{agent_name}.history", description=f"Conversation history for the {agent_name} agent")
+        @self.mcp_server.prompt(
+            name=f"{agent_name}-history",
+            description=f"Conversation history for the {agent_name} agent",
+        )
         async def get_history_prompt() -> list:
             """Return the conversation history as MCP messages."""
             # Get the conversation history from the agent's LLM
             if not hasattr(agent, "_llm") or agent._llm is None:
                 return []
-                
+
             # Convert the multipart message history to standard PromptMessages
             multipart_history = agent._llm.message_history
             prompt_messages = mcp_agent.core.prompt.Prompt.from_multipart(multipart_history)
-            
+
             # In FastMCP, we need to return the raw list of messages
             # that matches the structure that FastMCP expects (list of dicts with role/content)
-            return [
-                {"role": msg.role, "content": msg.content}
-                for msg in prompt_messages
-            ]
+            return [{"role": msg.role, "content": msg.content} for msg in prompt_messages]
 
     def run(self, transport: str = "sse", host: str = "0.0.0.0", port: int = 8000) -> None:
         """Run the MCP server."""
@@ -92,6 +102,12 @@ class AgentMCPServer:
         if transport == "sse":
             self.mcp_server.settings.host = host
             self.mcp_server.settings.port = port
+            try:
+                await self.mcp_server.run_sse_async()
+            except (asyncio.CancelledError, KeyboardInterrupt):
+                # Gracefully handle cancellation during shutdown
+                await self.shutdown()
+                pass
             try:
                 await self.mcp_server.run_sse_async()
             except (asyncio.CancelledError, KeyboardInterrupt):
