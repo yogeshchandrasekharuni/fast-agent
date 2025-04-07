@@ -23,6 +23,42 @@ def test_agent_message_cli():
             "test",
             "--message",
             test_message,
+            #  "--quiet",  # Suppress progress display, etc. for cleaner output
+        ],
+        capture_output=True,
+        text=True,
+        cwd=test_dir,  # Run in the test directory to use its config
+    )
+
+    # Check that the command succeeded
+    assert result.returncode == 0, f"Command failed with output: {result.stderr}"
+
+    command_output = result.stdout
+    # With the passthrough model, the output should contain the input message
+    assert test_message in command_output, "Test message not found in agent response"
+    # this is from show_user_output
+    assert "[USER]" in command_output, "show chat messages included in output"
+
+
+@pytest.mark.integration
+def test_agent_message_cli_quiet_flag():
+    """Test sending a message via command line to a FastAgent program."""
+    # Get the path to the test_agent.py file (in the same directory as this test)
+    test_dir = os.path.dirname(os.path.abspath(__file__))
+    test_agent_path = os.path.join(test_dir, "integration_agent.py")
+
+    # Test message
+    test_message = "Hello from command line test"
+
+    # Run the test agent with the --agent and --message flags
+    result = subprocess.run(
+        [
+            "python",
+            test_agent_path,
+            "--agent",
+            "test",
+            "--message",
+            test_message,
             "--quiet",  # Suppress progress display, etc. for cleaner output
         ],
         capture_output=True,
@@ -33,8 +69,11 @@ def test_agent_message_cli():
     # Check that the command succeeded
     assert result.returncode == 0, f"Command failed with output: {result.stderr}"
 
+    command_output = result.stdout
     # With the passthrough model, the output should contain the input message
-    assert test_message in result.stdout, "Test message not found in agent response"
+    assert test_message in command_output, "Test message not found in agent response"
+    # this is from show_user_output
+    assert "[USER]" not in command_output, "show chat messages included in output"
 
 
 @pytest.mark.integration

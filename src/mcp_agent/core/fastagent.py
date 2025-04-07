@@ -12,8 +12,6 @@ from contextlib import asynccontextmanager
 from importlib.metadata import version as get_version
 from typing import TYPE_CHECKING, Any, Callable, Dict, Optional, TypeVar
 
-import yaml
-
 from mcp_agent.app import MCPApp
 from mcp_agent.config import Settings
 from mcp_agent.context import Context
@@ -136,7 +134,7 @@ class FastAgent:
             self.args = known_args
         else:
             self.args = parser.parse_args()
-            
+
         # Handle version flag
         if self.args.version:
             try:
@@ -157,60 +155,35 @@ class FastAgent:
                 "There was an error parsing the config or secrets YAML configuration file.",
             )
             raise SystemExit(1)
-        # Create the MCPApp with the config
+
+        # Create the MCPApp with the global settings
+        from mcp_agent.config import _settings
+
         self.app = MCPApp(
             name=name,
-            settings=Settings(**self.config) if hasattr(self, "config") else None,
+            settings=_settings,
         )
 
         # Dictionary to store agent configurations from decorators
         self.agents: Dict[str, Dict[str, Any]] = {}
-        
-        # If --server flag is present, automatically start in server mode
-        # this ensures that any program can be run as a server without code changes
-        if hasattr(self, "args") and self.args.server:
-            # Import needed here to avoid circular imports
-            import asyncio
-            
-            # Print info message
-            print(f"Starting FastAgent '{name}' in server mode")
-            print(f"Transport: {self.args.transport}")
-            if self.args.transport == 'sse':
-                print(f"Listening on {self.args.host}:{self.args.port}")
-            print("Press Ctrl+C to stop")
-            
-            # We wrap server startup in a task and run it in the event loop
-            # This allows us to automatically handle the server at startup time
-            async def server_start_task():
-                try:
-                    await self.start_server(
-                        transport=self.args.transport,
-                        host=self.args.host,
-                        port=self.args.port
-                    )
-                except KeyboardInterrupt:
-                    print("\nServer stopped by user (Ctrl+C)")
-                except Exception as e:
-                    print(f"\nServer stopped with error: {e}")
-                finally:
-                    sys.exit(0)
-                    
-            # Execute the server startup task
-            event_loop = asyncio.get_event_loop()
-            event_loop.create_task(server_start_task())
-            # Note: We don't block here - the program continues execution
-            # But when it reaches the run() method, it will yield a dummy object
+
+        # Note: Server mode is handled in the run() method
+        # We don't need to start it here, as run() will detect the --server flag and start the server
 
     def _load_config(self) -> None:
-        """Load configuration from YAML file"""
-        if self.config_path:
-            with open(self.config_path) as f:
-                self.config = yaml.safe_load(f) or {}
-        elif os.path.exists("fastagent.config.yaml"):
-            with open("fastagent.config.yaml") as f:
-                self.config = yaml.safe_load(f) or {}
-        else:
-            self.config = {}
+        """Load configuration from YAML file using the centralized get_settings function"""
+        from mcp_agent.config import get_settings, _settings
+
+        # Reset global settings to ensure fresh load with proper path
+        global _settings
+        _settings = None
+
+        # Use the centralized get_settings function to load config
+        # This ensures consistent loading including secrets merging
+        settings = get_settings(self.config_path)
+
+        # Convert Settings to dict for backward compatibility
+        self.config = settings.model_dump()
 
     @property
     def context(self) -> Context:
@@ -241,14 +214,15 @@ class FastAgent:
         try:
             async with self.app.run() as agent_app:
                 # Apply quiet mode if requested
-                if (
-                    quiet_mode
-                    and hasattr(agent_app.context, "config")
-                    and hasattr(agent_app.context.config, "logger")
-                ):
-                    agent_app.context.config.logger.progress_display = False
-                    agent_app.context.config.logger.show_chat = False
-                    agent_app.context.config.logger.show_tools = False
+                if quiet_mode:
+                    # Update the global settings object directly to ensure all components see the change
+                    from mcp_agent.config import _settings
+
+                    if _settings and hasattr(_settings, "logger"):
+                        # Set quiet mode in the global config
+                        _settings.logger.progress_display = False
+                        _settings.logger.show_chat = False
+                        _settings.logger.show_tools = False
 
                     # Directly disable the progress display singleton
                     from mcp_agent.progress_display import progress_display
@@ -279,39 +253,40 @@ class FastAgent:
                 wrapper = AgentApp(active_agents)
 
                 # Handle command line options that should be processed after agent initialization
-                
+
                 # Handle --server option
                 if hasattr(self, "args") and self.args.server:
                     try:
-                        # Print info message
-                        print(f"Starting FastAgent '{self.name}' in server mode")
-                        print(f"Transport: {self.args.transport}")
-                        if self.args.transport == 'sse':
-                            print(f"Listening on {self.args.host}:{self.args.port}")
-                        print("Press Ctrl+C to stop")
-                        
+                        # Print info message if not in quiet mode
+                        if not quiet_mode:
+                            print(f"Starting FastAgent '{self.name}' in server mode")
+                            print(f"Transport: {self.args.transport}")
+                            if self.args.transport == "sse":
+                                print(f"Listening on {self.args.host}:{self.args.port}")
+                            print("Press Ctrl+C to stop")
+
                         # Create the MCP server
                         from mcp_agent.mcp_server import AgentMCPServer
-                        
+
                         mcp_server = AgentMCPServer(
                             agent_app=wrapper,
                             server_name=f"{self.name}-MCP-Server",
                         )
-                        
+
                         # Run the server directly (this is a blocking call)
                         await mcp_server.run_async(
-                            transport=self.args.transport,
-                            host=self.args.host,
-                            port=self.args.port
+                            transport=self.args.transport, host=self.args.host, port=self.args.port
                         )
                     except KeyboardInterrupt:
-                        print("\nServer stopped by user (Ctrl+C)")
+                        if not quiet_mode:
+                            print("\nServer stopped by user (Ctrl+C)")
                     except Exception as e:
-                        print(f"\nServer stopped with error: {e}")
-                    
+                        if not quiet_mode:
+                            print(f"\nServer stopped with error: {e}")
+
                     # Exit after server shutdown
                     raise SystemExit(0)
-                
+
                 # Handle direct message sending if --agent and --message are provided
                 if hasattr(self, "args") and self.args.agent and self.args.message:
                     agent_name = self.args.agent
@@ -329,7 +304,8 @@ class FastAgent:
                         agent = active_agents[agent_name]
                         response = await agent.send(message)
 
-                        # Print the response in quiet mode
+                        # In quiet mode, just print the raw response
+                        # The chat display should already be turned off by the configuration
                         if self.args.quiet:
                             print(f"{response}")
 
@@ -442,32 +418,35 @@ class FastAgent:
         """
         # This method simply updates the command line arguments and uses run()
         # to ensure we follow the same initialization path for all operations
-        
+
         # Store original args
         original_args = None
         if hasattr(self, "args"):
             original_args = self.args
-            
+
         # Create our own args object with server settings
         from argparse import Namespace
+
         self.args = Namespace()
         self.args.server = True
         self.args.transport = transport
         self.args.host = host
         self.args.port = port
-        self.args.quiet = False
+        self.args.quiet = (
+            original_args.quiet if original_args and hasattr(original_args, "quiet") else False
+        )
         self.args.model = None
         if hasattr(original_args, "model"):
             self.args.model = original_args.model
-            
+
         # Run the application, which will detect the server flag and start server mode
         async with self.run():
             pass  # This won't be reached due to SystemExit in run()
-        
+
         # Restore original args (if we get here)
         if original_args:
             self.args = original_args
-    
+
     # Keep run_with_mcp_server for backward compatibility
     async def run_with_mcp_server(
         self,
@@ -500,11 +479,11 @@ class FastAgent:
     async def main(self):
         """
         Helper method for checking if server mode was requested.
-        
+
         Usage:
         ```python
         fast = FastAgent("My App")
-        
+
         @fast.agent(...)
         async def app_main():
             # Check if server mode was requested
@@ -512,14 +491,14 @@ class FastAgent:
             # But it provides a way for application code to know if server mode
             # was requested for conditionals
             is_server_mode = hasattr(self, "args") and self.args.server
-            
+
             # Normal run - this will handle server mode automatically if requested
             async with fast.run() as agent:
                 # This code only executes for normal mode
                 # Server mode will exit before reaching here
                 await agent.send("Hello")
         ```
-        
+
         Returns:
             bool: True if --server flag is set, False otherwise
         """

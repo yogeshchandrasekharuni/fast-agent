@@ -159,7 +159,9 @@ class BaseAgent(MCPAggregator, AgentProtocol):
             effective_params.model = model
 
         # Create the LLM instance
-        self._llm = llm_factory(agent=self, request_params=effective_params, **additional_kwargs)
+        self._llm = llm_factory(
+            agent=self, request_params=effective_params, context=self._context, **additional_kwargs
+        )
 
         return self._llm
 

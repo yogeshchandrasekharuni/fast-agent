@@ -1,9 +1,10 @@
 # src/mcp_agent/mcp_server/agent_server.py
 
+import asyncio
+
 from mcp.server.fastmcp import Context as MCPContext
 from mcp.server.fastmcp import FastMCP
 
-# Import the DirectAgentApp instead of AgentApp
 from mcp_agent.core.agent_app import AgentApp
 
 
@@ -14,7 +15,7 @@ class AgentMCPServer:
         self,
         agent_app: AgentApp,
         server_name: str = "FastAgent-MCP-Server",
-        server_description: str = None,
+        server_description: str | None = None,
     ) -> None:
         self.agent_app = agent_app
         self.mcp_server = FastMCP(
@@ -125,7 +126,7 @@ class AgentMCPServer:
             # Remove MCP context reference
             if hasattr(agent_context, "mcp_context"):
                 delattr(agent_context, "mcp_context")
-                
+
     async def shutdown(self):
         """Gracefully shutdown the MCP server and its resources."""
         # Your MCP server may have additional cleanup code here
@@ -133,9 +134,10 @@ class AgentMCPServer:
             # If your MCP server has a shutdown method, call it
             if hasattr(self.mcp_server, "shutdown"):
                 await self.mcp_server.shutdown()
-            
+
             # Clean up any other resources
             import asyncio
+
             # Allow any pending tasks to clean up
             await asyncio.sleep(0.5)
         except Exception as e:
