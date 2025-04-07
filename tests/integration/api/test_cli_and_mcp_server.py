@@ -1,10 +1,13 @@
 import os
 import subprocess
+from typing import TYPE_CHECKING
 
-from mcp import GetPromptResult
 import pytest
 
 from mcp_agent.mcp.helpers.content_helpers import get_text
+
+if TYPE_CHECKING:
+    from mcp import GetPromptResult
 
 
 @pytest.mark.integration

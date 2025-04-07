@@ -4,7 +4,6 @@ import asyncio
 
 from mcp.server.fastmcp import Context as MCPContext
 from mcp.server.fastmcp import FastMCP
-from mcp.types import GetPromptResult
 
 import mcp_agent
 import mcp_agent.core

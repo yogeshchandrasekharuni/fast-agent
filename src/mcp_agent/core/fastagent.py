@@ -6,11 +6,9 @@ directly creates Agent instances without proxies.
 
 import argparse
 import asyncio
-import os
 import sys
 from contextlib import asynccontextmanager
 from importlib.metadata import version as get_version
-from pathlib import Path
 from typing import TYPE_CHECKING, Any, Callable, Dict, Optional, TypeVar
 
 import yaml
