@@ -41,12 +41,11 @@ class AgentMCPServer:
             self.register_agent_tools(agent_name, agent)
 
     def register_agent_tools(self, agent_name: str, agent) -> None:
-    def register_agent_tools(self, agent_name: str, agent) -> None:
         """Register tools for a specific agent."""
 
         # Basic send message tool
         @self.mcp_server.tool(
-            name=f"{agent_name}-send",
+            name=f"{agent_name}_send",
             description=f"Send a message to the {agent_name} agent",
         )
         async def send_message(message: str, ctx: MCPContext) -> str:
@@ -59,7 +58,6 @@ class AgentMCPServer:
             # Define the function to execute
             async def execute_send():
                 return await agent.send(message)
-                return await agent.send(message)
 
             # Execute with bridged context
             if agent_context and ctx:
@@ -69,7 +67,7 @@ class AgentMCPServer:
 
         # Register a history prompt for this agent
         @self.mcp_server.prompt(
-            name=f"{agent_name}-history",
+            name=f"{agent_name}_history",
             description=f"Conversation history for the {agent_name} agent",
         )
         async def get_history_prompt() -> list:
