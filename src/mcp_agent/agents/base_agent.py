@@ -215,7 +215,7 @@ class BaseAgent(MCPAggregator, AgentProtocol):
 
         # Use the LLM to generate a response
         response = await self.generate([prompt], None)
-        return response.first_text()
+        return response.all_text()
 
     def _normalize_message_input(
         self, message: Union[str, PromptMessage, PromptMessageMultipart]
@@ -625,15 +625,15 @@ class BaseAgent(MCPAggregator, AgentProtocol):
     @property
     def agent_type(self) -> str:
         """
-        Return the type of this agent. 
-        
+        Return the type of this agent.
+
         This is used for display purposes in the interactive prompt and other UI elements.
-        
+
         Returns:
             String representing the agent type
         """
         return self.config.agent_type
-        
+
     @property
     def message_history(self) -> List[PromptMessageMultipart]:
         """

@@ -53,12 +53,29 @@ You are a highly accurate request router that directs incoming requests to the m
 Your task is to analyze the request and determine the most appropriate agent from the options above.
 
 <fastagent:instruction>
-Respond in JSON format. ONLY include JSON (no explanation). NEVER include Code Fences:
+Respond with JSON following the schema below:
 {{
-    "agent": "<agent name>",
-    "confidence": "<high, medium or low>",
-    "reasoning": "<brief explanation>"
+    "type": "object",
+    "required": ["agent", "confidence", "reasoning"],
+    "properties": {{
+        "agent": {{
+            "type": "string",
+            "description": "The exact name of the selected agent"
+        }},
+        "confidence": {{
+            "type": "string",
+            "enum": ["high", "medium", "low"],
+            "description": "Your confidence level in this selection"
+        }},
+        "reasoning": {{
+            "type": "string",
+            "description": "Brief explanation for your selection"
+        }}
+    }}
 }}
+
+Supply only the JSON with no preamble. Use "reasoning" field to describe actions. NEVER EMIT CODE FENCES. 
+
 </fastagent:instruction>
 """
 
@@ -87,7 +104,7 @@ class RouterAgent(BaseAgent):
     A simplified router that uses an LLM to determine the best agent for a request,
     then dispatches the request to that agent and returns the response.
     """
-    
+
     @property
     def agent_type(self) -> str:
         """Return the type of this agent."""

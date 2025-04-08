@@ -32,6 +32,7 @@ from mcp_agent.llm.sampling_format_converter import (
     ProviderFormatConverter,
 )
 from mcp_agent.logging.logger import get_logger
+from mcp_agent.mcp.helpers.content_helpers import get_text
 from mcp_agent.mcp.interfaces import (
     AugmentedLLMProtocol,
     ModelT,
@@ -147,8 +148,11 @@ class AugmentedLLM(ContextDependent, AugmentedLLMProtocol, Generic[MessageParamT
         """Apply the prompt and return the result as a Pydantic model, or None if coercion fails"""
         try:
             result: PromptMessageMultipart = await self.generate(prompt, request_params)
-            json_data = from_json(result.first_text().strip(), allow_partial=True)
+            final_generation = get_text(result.content[-1]) or ""
+            await self.show_assistant_message(final_generation)
+            json_data = from_json(final_generation, allow_partial=True)
             validated_model = model.model_validate(json_data)
+
             return cast("ModelT", validated_model), Prompt.assistant(json_data)
         except Exception as e:
             logger = get_logger(__name__)

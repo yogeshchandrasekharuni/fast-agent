@@ -1,5 +1,5 @@
 import os
-from typing import TYPE_CHECKING, List, Type
+from typing import TYPE_CHECKING, List
 
 from mcp_agent.core.prompt import Prompt
 from mcp_agent.llm.providers.multipart_converter_anthropic import (
@@ -28,13 +28,11 @@ from mcp.types import (
     CallToolRequest,
     CallToolRequestParams,
 )
-from pydantic_core import from_json
 from rich.text import Text
 
 from mcp_agent.core.exceptions import ProviderKeyError
 from mcp_agent.llm.augmented_llm import (
     AugmentedLLM,
-    ModelT,
     RequestParams,
 )
 from mcp_agent.logging.logger import get_logger
@@ -69,7 +67,8 @@ class AnthropicAugmentedLLM(AugmentedLLM[MessageParam, Message]):
             use_history=True,
         )
 
-    def _base_url(self) -> str:
+    def _base_url(self) -> str | None:
+        assert self.context.config
         return self.context.config.anthropic.base_url if self.context.config.anthropic else None
 
     async def generate_internal(
@@ -295,11 +294,11 @@ class AnthropicAugmentedLLM(AugmentedLLM[MessageParam, Message]):
 
         return api_key
 
-    async def generate_str(
+    async def generate_messages(
         self,
         message_param,
         request_params: RequestParams | None = None,
-    ) -> str:
+    ) -> PromptMessageMultipart:
         """
         Process a query using an LLM and available tools.
         The default implementation uses Claude as the LLM.
@@ -327,9 +326,7 @@ class AnthropicAugmentedLLM(AugmentedLLM[MessageParam, Message]):
             if message_text:
                 final_text.append(message_text)
 
-        # TODO -- make tool detail inclusion behaviour configurable
-        # Join all collected text
-        return "\n".join(final_text)
+        return Prompt.assistant(*final_text)
 
     async def _apply_prompt_provider_specific(
         self,
@@ -352,29 +349,11 @@ class AnthropicAugmentedLLM(AugmentedLLM[MessageParam, Message]):
         if last_message.role == "user":
             self.logger.debug("Last message in prompt is from user, generating assistant response")
             message_param = AnthropicConverter.convert_to_anthropic(last_message)
-            return Prompt.assistant(await self.generate_str(message_param, request_params))
+            return await self.generate_messages(message_param, request_params)
         else:
             # For assistant messages: Return the last message content as text
             self.logger.debug("Last message in prompt is from assistant, returning it directly")
             return last_message
-
-    async def generate_structured(
-        self,
-        message: str,
-        response_model: Type[ModelT],
-        request_params: RequestParams | None = None,
-    ) -> ModelT:
-        # TODO -- simiar to the OAI version, we should create a tool call for the expected schema
-        response = await self.generate_str(
-            message=message,
-            request_params=request_params,
-        )
-        # Don't try to parse if we got no response
-        if not response:
-            self.logger.error("No response from generate_str")
-            return None
-
-        return response_model.model_validate(from_json(response, allow_partial=True))
 
     @classmethod
     def convert_message_to_message_param(cls, message: Message, **kwargs) -> MessageParam:
