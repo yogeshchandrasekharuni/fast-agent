@@ -69,7 +69,7 @@ class AgentApp:
         if message:
             return await self._agent(agent_name).send(message)
 
-        return await self.interactive(agent_name=agent_name, default_prompt=default_prompt)
+        return await self.interactive(agent=agent_name, default_prompt=default_prompt)
 
     async def send(
         self,
@@ -220,9 +220,9 @@ class AgentApp:
         """
         Deprecated - use interactive() instead.
         """
-        return await self.interactive(agent_name=agent_name, default_prompt=default_prompt)
+        return await self.interactive(agent=agent_name, default_prompt=default_prompt)
 
-    async def interactive(self, agent_name: str | None = None, default_prompt: str = "") -> str:
+    async def interactive(self, agent: str | None = None, default_prompt: str = "") -> str:
         """
         Interactive prompt for sending messages with advanced features.
 
@@ -235,11 +235,11 @@ class AgentApp:
         """
 
         # Get the default agent name if none specified
-        if agent_name:
+        if agent:
             # Validate that this agent exists
-            if agent_name not in self._agents:
-                raise ValueError(f"Agent '{agent_name}' not found")
-            target_name = agent_name
+            if agent not in self._agents:
+                raise ValueError(f"Agent '{agent}' not found")
+            target_name = agent
         else:
             # Use the first agent's name as default
             target_name = next(iter(self._agents.keys()))
