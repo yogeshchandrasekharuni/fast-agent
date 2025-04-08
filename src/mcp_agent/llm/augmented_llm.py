@@ -147,7 +147,7 @@ class AugmentedLLM(ContextDependent, AugmentedLLMProtocol, Generic[MessageParamT
         """Apply the prompt and return the result as a Pydantic model, or None if coercion fails"""
         try:
             result: PromptMessageMultipart = await self.generate(prompt, request_params)
-            json_data = from_json(result.first_text(), allow_partial=True)
+            json_data = from_json(result.first_text().strip(), allow_partial=True)
             validated_model = model.model_validate(json_data)
             return cast("ModelT", validated_model), Prompt.assistant(json_data)
         except Exception as e:

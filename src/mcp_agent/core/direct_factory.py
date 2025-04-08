@@ -236,7 +236,7 @@ async def create_agents_by_type(
                     config=config,
                     context=app_instance.context,
                     agents=router_agents,
-                    routing_instruction=agent_data.get("routing_instruction"),
+                    routing_instruction=agent_data.get("instruction"),
                 )
                 await router.initialize()
 

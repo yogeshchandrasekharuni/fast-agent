@@ -269,6 +269,7 @@ def router(
     *,
     agents: List[str],
     instruction: Optional[str] = None,
+    servers: List[str] = [],
     model: Optional[str] = None,
     use_history: bool = False,
     request_params: RequestParams | None = None,
@@ -301,7 +302,7 @@ def router(
             AgentType.ROUTER,
             name=name,
             instruction=instruction or default_instruction,
-            servers=[],  # Routers don't connect to servers directly
+            servers=servers,
             model=model,
             use_history=use_history,
             request_params=request_params,

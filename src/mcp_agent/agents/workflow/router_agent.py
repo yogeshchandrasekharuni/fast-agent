@@ -53,7 +53,7 @@ You are a highly accurate request router that directs incoming requests to the m
 Your task is to analyze the request and determine the most appropriate agent from the options above.
 
 <fastagent:instruction>
-Respond in JSON format. NEVER include Code Fences:
+Respond in JSON format. ONLY include JSON (no explanation). NEVER include Code Fences:
 {{
     "agent": "<agent name>",
     "confidence": "<high, medium or low>",
