@@ -1,12 +1,7 @@
 # integration_tests/mcp_agent/test_agent_with_image.py
 import os
-from enum import Enum
-from typing import List
 
 import pytest
-from pydantic import BaseModel, Field
-
-from mcp_agent.core.prompt import Prompt
 
 
 @pytest.mark.integration
