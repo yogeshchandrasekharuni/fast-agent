@@ -14,6 +14,7 @@ from pydantic import BaseModel, Field
 
 from mcp_agent.agents.agent import Agent
 from mcp_agent.agents.base_agent import BaseAgent
+from mcp_agent.core.agent_types import AgentType
 from mcp_agent.core.exceptions import AgentConfigError
 from mcp_agent.core.prompt import Prompt
 from mcp_agent.core.request_params import RequestParams
@@ -63,6 +64,11 @@ class EvaluatorOptimizerAgent(BaseAgent):
     for refinement, continuing until a quality threshold is reached or a maximum
     number of refinement cycles is completed.
     """
+    
+    @property
+    def agent_type(self) -> str:
+        """Return the type of this agent."""
+        return AgentType.EVALUATOR_OPTIMIZER.value
 
     def __init__(
         self,

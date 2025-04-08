@@ -77,7 +77,7 @@ class InteractivePrompt:
         if agent not in available_agents:
             raise ValueError(f"No agent named '{agent}'")
 
-        # Create agent_types dictionary if not provided
+        # Ensure we track available agents in a set for fast lookup
         available_agents_set = set(available_agents)
 
         result = ""

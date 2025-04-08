@@ -9,8 +9,9 @@ from typing import Any, List, Optional, Tuple, Type
 
 from mcp.types import TextContent
 
-from mcp_agent.agents.agent import Agent, AgentConfig
+from mcp_agent.agents.agent import Agent
 from mcp_agent.agents.base_agent import BaseAgent
+from mcp_agent.core.agent_types import AgentConfig, AgentType
 from mcp_agent.core.prompt import Prompt
 from mcp_agent.core.request_params import RequestParams
 from mcp_agent.mcp.interfaces import ModelT
@@ -22,6 +23,11 @@ class ChainAgent(BaseAgent):
     A chain agent that processes requests through a series of specialized agents in sequence.
     Passes the output of each agent to the next agent in the chain.
     """
+    
+    @property
+    def agent_type(self) -> str:
+        """Return the type of this agent."""
+        return AgentType.CHAIN.value
 
     def __init__(
         self,

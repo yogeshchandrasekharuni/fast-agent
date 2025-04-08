@@ -12,7 +12,7 @@ from pydantic import BaseModel
 
 from mcp_agent.agents.agent import Agent
 from mcp_agent.agents.base_agent import BaseAgent
-from mcp_agent.core.agent_types import AgentConfig
+from mcp_agent.core.agent_types import AgentConfig, AgentType
 from mcp_agent.core.exceptions import AgentConfigError
 from mcp_agent.core.prompt import Prompt
 from mcp_agent.core.request_params import RequestParams
@@ -87,6 +87,11 @@ class RouterAgent(BaseAgent):
     A simplified router that uses an LLM to determine the best agent for a request,
     then dispatches the request to that agent and returns the response.
     """
+    
+    @property
+    def agent_type(self) -> str:
+        """Return the type of this agent."""
+        return AgentType.ROUTER.value
 
     def __init__(
         self,

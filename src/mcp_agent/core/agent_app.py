@@ -248,18 +248,7 @@ class AgentApp:
         # The agent's prompt method doesn't fully support switching between agents
 
         # Create agent_types dictionary mapping agent names to their types
-        agent_types = {}
-        for name, agent in self._agents.items():
-            # Determine agent type if possible
-            agent_type = "Agent"  # Default type
-
-            # Try to get the type from the agent directly
-            if hasattr(agent, "agent_type"):
-                agent_type = agent.agent_type
-            elif hasattr(agent, "config") and hasattr(agent.config, "agent_type"):
-                agent_type = agent.config.agent_type
-
-            agent_types[name] = agent_type
+        agent_types = {name: agent.agent_type for name, agent in self._agents.items()}
 
         # Create the interactive prompt
         prompt = InteractivePrompt(agent_types=agent_types)

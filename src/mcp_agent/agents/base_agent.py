@@ -623,6 +623,18 @@ class BaseAgent(MCPAggregator, AgentProtocol):
         return response.first_text()
 
     @property
+    def agent_type(self) -> str:
+        """
+        Return the type of this agent. 
+        
+        This is used for display purposes in the interactive prompt and other UI elements.
+        
+        Returns:
+            String representing the agent type
+        """
+        return self.config.agent_type
+        
+    @property
     def message_history(self) -> List[PromptMessageMultipart]:
         """
         Return the agent's message history as PromptMessageMultipart objects.

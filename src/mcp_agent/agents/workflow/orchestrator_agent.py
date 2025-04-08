@@ -27,7 +27,7 @@ from mcp_agent.agents.workflow.orchestrator_prompts import (
     SYNTHESIZE_PLAN_PROMPT_TEMPLATE,
     TASK_PROMPT_TEMPLATE,
 )
-from mcp_agent.core.agent_types import AgentConfig
+from mcp_agent.core.agent_types import AgentConfig, AgentType
 from mcp_agent.core.exceptions import AgentConfigError
 from mcp_agent.core.prompt import Prompt
 from mcp_agent.core.request_params import RequestParams
@@ -46,6 +46,11 @@ class OrchestratorAgent(BaseAgent):
     to specialized worker agents, synthesizing their results into a cohesive output.
     Supports both full planning and iterative planning modes.
     """
+    
+    @property
+    def agent_type(self) -> str:
+        """Return the type of this agent."""
+        return AgentType.ORCHESTRATOR.value
 
     def __init__(
         self,

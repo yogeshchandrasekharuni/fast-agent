@@ -136,6 +136,11 @@ class AgentProtocol(AugmentedLLMProtocol, Protocol):
 
     name: str
 
+    @property
+    def agent_type(self) -> str:
+        """Return the type of this agent"""
+        ...
+
     async def __call__(self, message: Union[str, PromptMessage, PromptMessageMultipart]) -> str:
         """Make the agent callable for sending messages directly."""
         ...

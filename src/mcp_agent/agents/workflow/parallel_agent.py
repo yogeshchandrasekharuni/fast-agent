@@ -3,8 +3,9 @@ from typing import Any, List, Optional, Tuple
 
 from mcp.types import TextContent
 
-from mcp_agent.agents.agent import Agent, AgentConfig
+from mcp_agent.agents.agent import Agent
 from mcp_agent.agents.base_agent import BaseAgent
+from mcp_agent.core.agent_types import AgentConfig, AgentType
 from mcp_agent.core.request_params import RequestParams
 from mcp_agent.mcp.interfaces import ModelT
 from mcp_agent.mcp.prompt_message_multipart import PromptMessageMultipart
@@ -17,6 +18,11 @@ class ParallelAgent(BaseAgent):
     This workflow performs both the fan-out and fan-in operations using LLMs.
     From the user's perspective, an input is specified and the output is returned.
     """
+    
+    @property
+    def agent_type(self) -> str:
+        """Return the type of this agent."""
+        return AgentType.PARALLEL.value
 
     def __init__(
         self,

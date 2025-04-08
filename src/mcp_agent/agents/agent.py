@@ -66,7 +66,7 @@ class Agent(BaseAgent):
         agent_name_str = str(self.name)
 
         # Create agent_types dictionary with just this agent
-        agent_types = {agent_name_str: getattr(self.config, "agent_type", "Agent")}
+        agent_types = {agent_name_str: self.agent_type}
 
         # Create the interactive prompt
         prompt = InteractivePrompt(agent_types=agent_types)
