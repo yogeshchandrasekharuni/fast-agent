@@ -146,6 +146,17 @@ class GenericSettings(BaseModel):
     base_url: str | None = None
 
     model_config = ConfigDict(extra="allow", arbitrary_types_allowed=True)
+    
+
+class OpenRouterSettings(BaseModel):
+    """
+    Settings for using OpenRouter models via its OpenAI-compatible API.
+    """
+    api_key: str | None = None
+    
+    base_url: str | None = None # Optional override, defaults handled in provider
+
+    model_config = ConfigDict(extra="allow", arbitrary_types_allowed=True)
 
 
 class TemporalSettings(BaseModel):
@@ -261,6 +272,9 @@ class Settings(BaseSettings):
 
     deepseek: DeepSeekSettings | None = None
     """Settings for using DeepSeek models in the fast-agent application"""
+
+    openrouter: OpenRouterSettings | None = None
+    """Settings for using OpenRouter models in the fast-agent application"""
 
     generic: GenericSettings | None = None
     """Settings for using Generic models in the fast-agent application"""

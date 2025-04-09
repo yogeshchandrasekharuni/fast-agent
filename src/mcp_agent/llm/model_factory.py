@@ -11,6 +11,7 @@ from mcp_agent.llm.providers.augmented_llm_anthropic import AnthropicAugmentedLL
 from mcp_agent.llm.providers.augmented_llm_deepseek import DeepSeekAugmentedLLM
 from mcp_agent.llm.providers.augmented_llm_generic import GenericAugmentedLLM
 from mcp_agent.llm.providers.augmented_llm_openai import OpenAIAugmentedLLM
+from mcp_agent.llm.providers.augmented_llm_openrouter import OpenRouterAugmentedLLM
 from mcp_agent.mcp.interfaces import AugmentedLLMProtocol
 
 # from mcp_agent.workflows.llm.augmented_llm_deepseek import DeekSeekAugmentedLLM
@@ -23,6 +24,7 @@ LLMClass = Union[
     Type[PassthroughLLM],
     Type[PlaybackLLM],
     Type[DeepSeekAugmentedLLM],
+    Type[OpenRouterAugmentedLLM],
 ]
 
 
@@ -34,6 +36,7 @@ class Provider(Enum):
     FAST_AGENT = auto()
     DEEPSEEK = auto()
     GENERIC = auto()
+    OPENROUTER = auto()
 
 
 class ReasoningEffort(Enum):
@@ -63,6 +66,7 @@ class ModelFactory:
         "fast-agent": Provider.FAST_AGENT,
         "deepseek": Provider.DEEPSEEK,
         "generic": Provider.GENERIC,
+        "openrouter": Provider.OPENROUTER,
     }
 
     # Mapping of effort strings to enum values
@@ -120,6 +124,7 @@ class ModelFactory:
         Provider.FAST_AGENT: PassthroughLLM,
         Provider.DEEPSEEK: DeepSeekAugmentedLLM,
         Provider.GENERIC: GenericAugmentedLLM,
+        Provider.OPENROUTER: OpenRouterAugmentedLLM,
     }
 
     # Mapping of special model names to their specific LLM classes
