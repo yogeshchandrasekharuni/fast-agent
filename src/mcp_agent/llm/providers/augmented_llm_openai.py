@@ -411,7 +411,8 @@ class OpenAIAugmentedLLM(AugmentedLLM[ChatCompletionMessageParam, ChatCompletion
                     role="system", content=self.instruction
                 )
                 messages.insert(0, system_msg)
-
+            model_name = self.default_request_params.model
+            self.show_user_message(prompt[-1].first_text(), model_name, self.chat_turn())
             # Use the beta parse feature
             try:
                 openai_client = OpenAI(api_key=self._api_key(), base_url=self._base_url())
@@ -429,8 +430,8 @@ class OpenAIAugmentedLLM(AugmentedLLM[ChatCompletionMessageParam, ChatCompletion
 
                 if response and isinstance(response[0], BaseException):
                     raise response[0]
-
                 parsed_result = response[0].choices[0].message
+                await self.show_assistant_message(parsed_result.content)
                 logger.debug("Successfully used OpenAI beta parse feature for structured output")
                 return parsed_result.parsed, Prompt.assistant(parsed_result.content)
 
