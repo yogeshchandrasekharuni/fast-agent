@@ -4,7 +4,6 @@ Utilities for MCP stdio client integration with our logging system.
 
 import io
 import os
-import sys
 from typing import TextIO
 
 from mcp_agent.logging.logger import get_logger
