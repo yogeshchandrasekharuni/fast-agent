@@ -25,7 +25,7 @@ async def test_sampling_config(fast_agent):
 
     @fast.agent(name="empty")
     async def agent_function():
-        async with fast.run() as agent:
+        async with fast.run():
             assert "passthrough" == fast.context.config.mcp.servers["sampling_test"].sampling.model
 
     await agent_function()
