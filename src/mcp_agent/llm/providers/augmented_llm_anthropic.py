@@ -1,8 +1,9 @@
 import os
 from typing import TYPE_CHECKING, List
 
+from mcp.types import EmbeddedResource, ImageContent, TextContent
+
 from mcp_agent.core.prompt import Prompt
-from mcp.types import TextContent, ImageContent, EmbeddedResource
 from mcp_agent.llm.providers.multipart_converter_anthropic import (
     AnthropicConverter,
 )
