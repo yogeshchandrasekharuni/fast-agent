@@ -49,6 +49,19 @@ class AnthropicAugmentedLLM(AugmentedLLM[MessageParam, Message]):
     Our current models can actively use these capabilities—generating their own search queries,
     selecting appropriate tools, and determining what information to retain.
     """
+    
+    # Anthropic-specific parameter exclusions
+    ANTHROPIC_EXCLUDE_FIELDS = {
+        AugmentedLLM.PARAM_MESSAGES,
+        AugmentedLLM.PARAM_MODEL,
+        AugmentedLLM.PARAM_SYSTEM_PROMPT,
+        AugmentedLLM.PARAM_STOP_SEQUENCES,
+        AugmentedLLM.PARAM_MAX_TOKENS,
+        AugmentedLLM.PARAM_METADATA,
+        AugmentedLLM.PARAM_USE_HISTORY,
+        AugmentedLLM.PARAM_MAX_ITERATIONS,
+        AugmentedLLM.PARAM_PARALLEL_TOOL_CALLS
+    }
 
     def __init__(self, *args, **kwargs) -> None:
         self.provider = "Anthropic"
@@ -120,7 +133,8 @@ class AnthropicAugmentedLLM(AugmentedLLM[MessageParam, Message]):
 
         for i in range(params.max_iterations):
             self._log_chat_progress(self.chat_turn(), model=model)
-            arguments = {
+            # Create base arguments dictionary
+            base_args = {
                 "model": model,
                 "messages": messages,
                 "system": self.instruction or params.systemPrompt,
@@ -129,10 +143,10 @@ class AnthropicAugmentedLLM(AugmentedLLM[MessageParam, Message]):
             }
 
             if params.maxTokens is not None:
-                arguments["max_tokens"] = params.maxTokens
-
-            if params.metadata:
-                arguments = {**arguments, **params.metadata}
+                base_args["max_tokens"] = params.maxTokens
+            
+            # Use the base class method to prepare all arguments with Anthropic-specific exclusions
+            arguments = self.prepare_provider_arguments(base_args, params, self.ANTHROPIC_EXCLUDE_FIELDS)
 
             self.logger.debug(f"{arguments}")
 

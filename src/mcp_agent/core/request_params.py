@@ -44,3 +44,9 @@ class RequestParams(CreateMessageRequestParams):
     Whether to allow multiple tool calls per iteration.
     Also known as multi-step tool use.
     """
+    
+    response_format: dict | None = None
+    """
+    Format to return the response in.
+    Provider-specific parameter, primarily used with OpenAI models to request JSON or other structured outputs.
+    """

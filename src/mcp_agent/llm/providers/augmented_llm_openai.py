@@ -48,6 +48,18 @@ class OpenAIAugmentedLLM(AugmentedLLM[ChatCompletionMessageParam, ChatCompletion
     such as retrieval, tools, and memory provided from a collection of MCP servers.
     This implementation uses OpenAI's ChatCompletion as the LLM.
     """
+    
+    # OpenAI-specific parameter exclusions
+    OPENAI_EXCLUDE_FIELDS = {
+        AugmentedLLM.PARAM_MESSAGES,
+        AugmentedLLM.PARAM_MODEL, 
+        AugmentedLLM.PARAM_MAX_TOKENS,
+        AugmentedLLM.PARAM_SYSTEM_PROMPT,
+        AugmentedLLM.PARAM_PARALLEL_TOOL_CALLS,
+        AugmentedLLM.PARAM_METADATA,
+        AugmentedLLM.PARAM_USE_HISTORY,
+        AugmentedLLM.PARAM_MAX_ITERATIONS
+    }
 
     def __init__(self, provider_name: str = "OpenAI", *args, **kwargs) -> None:
         # Set type_converter before calling super().__init__
@@ -172,24 +184,26 @@ class OpenAIAugmentedLLM(AugmentedLLM[ChatCompletionMessageParam, ChatCompletion
 
         # we do NOT send stop sequences as this causes errors with mutlimodal processing
         for i in range(params.max_iterations):
-            arguments = {
+            # Create base arguments dictionary
+            base_args = {
                 "model": model or "gpt-4o",
                 "messages": messages,
                 "tools": available_tools,
             }
+            
+            # Add model-specific parameters
             if self._reasoning:
-                arguments = {
-                    **arguments,
+                base_args.update({
                     "max_completion_tokens": params.maxTokens,
                     "reasoning_effort": self._reasoning_effort,
-                }
+                })
             else:
-                arguments = {**arguments, "max_tokens": params.maxTokens}
+                base_args["max_tokens"] = params.maxTokens
                 if available_tools:
-                    arguments["parallel_tool_calls"] = params.parallel_tool_calls
-
-            if params.metadata:
-                arguments = {**arguments, **params.metadata}
+                    base_args["parallel_tool_calls"] = params.parallel_tool_calls
+            
+            # Use the base class method to prepare all arguments with OpenAI-specific exclusions
+            arguments = self.prepare_provider_arguments(base_args, params, self.OPENAI_EXCLUDE_FIELDS)
 
             self.logger.debug(f"{arguments}")
             self._log_chat_progress(self.chat_turn(), model=model)

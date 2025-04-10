@@ -208,6 +208,55 @@ class AugmentedLLM(ContextDependent, AugmentedLLMProtocol, Generic[MessageParamT
         final_params = RequestParams(**merged)
 
         return final_params
+        
+    # Common parameter names used across providers
+    PARAM_MESSAGES = "messages"
+    PARAM_MODEL = "model"
+    PARAM_MAX_TOKENS = "maxTokens"
+    PARAM_SYSTEM_PROMPT = "systemPrompt"
+    PARAM_STOP_SEQUENCES = "stopSequences"
+    PARAM_PARALLEL_TOOL_CALLS = "parallel_tool_calls"
+    PARAM_METADATA = "metadata"
+    PARAM_USE_HISTORY = "use_history"
+    PARAM_MAX_ITERATIONS = "max_iterations"
+    
+    # Base set of fields that should always be excluded
+    BASE_EXCLUDE_FIELDS = {PARAM_METADATA}
+    
+    def prepare_provider_arguments(
+        self, 
+        base_args: dict, 
+        params: RequestParams, 
+        exclude_fields: set = None
+    ) -> dict:
+        """
+        Prepare arguments for provider API calls by merging request parameters.
+        
+        Args:
+            base_args: Base arguments dictionary with provider-specific required parameters
+            params: The RequestParams object containing all parameters
+            exclude_fields: Set of field names to exclude from params. If None, uses BASE_EXCLUDE_FIELDS.
+            
+        Returns:
+            Complete arguments dictionary with all applicable parameters
+        """
+        # Start with base arguments
+        arguments = base_args.copy()
+        
+        # Use provided exclude_fields or fall back to base exclusions
+        exclude_fields = exclude_fields or self.BASE_EXCLUDE_FIELDS.copy()
+            
+        # Add all fields from params that aren't explicitly excluded
+        params_dict = params.model_dump(exclude=exclude_fields)
+        for key, value in params_dict.items():
+            if value is not None and key not in arguments:
+                arguments[key] = value
+                
+        # Finally, add any metadata fields as a last layer of overrides
+        if params.metadata:
+            arguments.update(params.metadata)
+            
+        return arguments
 
     def get_request_params(
         self,
