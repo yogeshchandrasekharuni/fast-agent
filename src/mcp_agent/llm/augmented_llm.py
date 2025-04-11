@@ -20,6 +20,7 @@ from mcp.types import (
 )
 from pydantic_core import from_json
 from rich.text import Text
+from sklearn.multioutput import MultiOutputClassifier
 
 from mcp_agent.context_dependent import ContextDependent
 from mcp_agent.core.exceptions import PromptExitError
@@ -139,7 +140,7 @@ class AugmentedLLM(ContextDependent, AugmentedLLMProtocol, Generic[MessageParamT
             use_history=True,
         )
 
-    async def structured(
+    async def _apply_prompt_provider_specific_structured(
         self,
         prompt: List[PromptMessageMultipart],
         model: Type[ModelT],
@@ -147,7 +148,9 @@ class AugmentedLLM(ContextDependent, AugmentedLLMProtocol, Generic[MessageParamT
     ) -> Tuple[ModelT | None, PromptMessageMultipart]:
         """Apply the prompt and return the result as a Pydantic model, or None if coercion fails"""
         try:
-            result: PromptMessageMultipart = await self.generate(prompt, request_params)
+            result: PromptMessageMultipart = await self._apply_prompt_provider_specific(
+                prompt, request_params
+            )
             final_generation = get_text(result.content[-1]) or ""
             await self.show_assistant_message(final_generation)
             json_data = from_json(final_generation, allow_partial=True)
@@ -167,6 +170,11 @@ class AugmentedLLM(ContextDependent, AugmentedLLMProtocol, Generic[MessageParamT
         """
         Create a completion with the LLM using the provided messages.
         """
+        # note - check changes here are mirrored in structured(). i've thought hard about
+        # a strategy to reduce duplication etc, but aiming for simple if imperfect for the moment
+
+        # We never expect this for structured() calls - this is for interactive use - developers
+        # can do this programatically
         if multipart_messages[-1].first_text().startswith("***SAVE_HISTORY"):
             parts: list[str] = multipart_messages[-1].first_text().split(" ", 1)
             filename: str = (
@@ -178,14 +186,7 @@ class AugmentedLLM(ContextDependent, AugmentedLLMProtocol, Generic[MessageParamT
             )
             return Prompt.assistant(f"History saved to {filename}")
 
-        self._message_history.extend(multipart_messages)
-
-        if multipart_messages[-1].role == "user":
-            self.show_user_message(
-                render_multipart_message(multipart_messages[-1]),
-                model=self.default_request_params.model,
-                chat_turn=self.chat_turn(),
-            )
+        self._precall(multipart_messages)
 
         assistant_response: PromptMessageMultipart = await self._apply_prompt_provider_specific(
             multipart_messages, request_params
@@ -193,6 +194,30 @@ class AugmentedLLM(ContextDependent, AugmentedLLMProtocol, Generic[MessageParamT
 
         self._message_history.append(assistant_response)
         return assistant_response
+
+    async def structured(
+        self,
+        multipart_messages: List[PromptMessageMultipart],
+        model: Type[ModelT],
+        request_params: RequestParams | None = None,
+    ) -> Tuple[ModelT | None, PromptMessageMultipart]:
+        self._precall(multipart_messages)
+        result, multipart = await self._apply_prompt_provider_specific_structured(
+            multipart_messages, model, request_params
+        )
+
+        self._message_history.append(multipart)
+        return result, multipart
+
+    def _precall(self, multipart_messages: List[PromptMessageMultipart]) -> None:
+        """Pre-call hook to modify the message before sending it to the provider."""
+        self._message_history.extend(multipart_messages)
+        if multipart_messages[-1].role == "user":
+            self.show_user_message(
+                render_multipart_message(multipart_messages[-1]),
+                model=self.default_request_params.model,
+                chat_turn=self.chat_turn(),
+            )
 
     def chat_turn(self) -> int:
         """Return the current chat turn number"""
@@ -208,7 +233,7 @@ class AugmentedLLM(ContextDependent, AugmentedLLMProtocol, Generic[MessageParamT
         final_params = RequestParams(**merged)
 
         return final_params
-        
+
     # Common parameter names used across providers
     PARAM_MESSAGES = "messages"
     PARAM_MODEL = "model"
@@ -219,43 +244,40 @@ class AugmentedLLM(ContextDependent, AugmentedLLMProtocol, Generic[MessageParamT
     PARAM_METADATA = "metadata"
     PARAM_USE_HISTORY = "use_history"
     PARAM_MAX_ITERATIONS = "max_iterations"
-    
+
     # Base set of fields that should always be excluded
     BASE_EXCLUDE_FIELDS = {PARAM_METADATA}
-    
+
     def prepare_provider_arguments(
-        self, 
-        base_args: dict, 
-        params: RequestParams, 
-        exclude_fields: set = None
+        self, base_args: dict, params: RequestParams, exclude_fields: set = None
     ) -> dict:
         """
         Prepare arguments for provider API calls by merging request parameters.
-        
+
         Args:
             base_args: Base arguments dictionary with provider-specific required parameters
             params: The RequestParams object containing all parameters
             exclude_fields: Set of field names to exclude from params. If None, uses BASE_EXCLUDE_FIELDS.
-            
+
         Returns:
             Complete arguments dictionary with all applicable parameters
         """
         # Start with base arguments
         arguments = base_args.copy()
-        
+
         # Use provided exclude_fields or fall back to base exclusions
         exclude_fields = exclude_fields or self.BASE_EXCLUDE_FIELDS.copy()
-            
+
         # Add all fields from params that aren't explicitly excluded
         params_dict = params.model_dump(exclude=exclude_fields)
         for key, value in params_dict.items():
             if value is not None and key not in arguments:
                 arguments[key] = value
-                
+
         # Finally, add any metadata fields as a last layer of overrides
         if params.metadata:
             arguments.update(params.metadata)
-            
+
         return arguments
 
     def get_request_params(

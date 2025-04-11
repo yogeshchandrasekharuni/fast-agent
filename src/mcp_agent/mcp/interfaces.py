@@ -95,7 +95,7 @@ class AugmentedLLMProtocol(Protocol):
 
     async def structured(
         self,
-        prompt: List[PromptMessageMultipart],
+        multipart_messages: List[PromptMessageMultipart],
         model: Type[ModelT],
         request_params: RequestParams | None = None,
     ) -> Tuple[ModelT | None, PromptMessageMultipart]:

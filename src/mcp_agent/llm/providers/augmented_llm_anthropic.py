@@ -49,7 +49,7 @@ class AnthropicAugmentedLLM(AugmentedLLM[MessageParam, Message]):
     Our current models can actively use these capabilities—generating their own search queries,
     selecting appropriate tools, and determining what information to retain.
     """
-    
+
     # Anthropic-specific parameter exclusions
     ANTHROPIC_EXCLUDE_FIELDS = {
         AugmentedLLM.PARAM_MESSAGES,
@@ -60,7 +60,7 @@ class AnthropicAugmentedLLM(AugmentedLLM[MessageParam, Message]):
         AugmentedLLM.PARAM_METADATA,
         AugmentedLLM.PARAM_USE_HISTORY,
         AugmentedLLM.PARAM_MAX_ITERATIONS,
-        AugmentedLLM.PARAM_PARALLEL_TOOL_CALLS
+        AugmentedLLM.PARAM_PARALLEL_TOOL_CALLS,
     }
 
     def __init__(self, *args, **kwargs) -> None:
@@ -113,7 +113,7 @@ class AnthropicAugmentedLLM(AugmentedLLM[MessageParam, Message]):
 
         # Always include prompt messages, but only include conversation history
         # if use_history is True
-        messages.extend(self.history.get(include_history=params.use_history))
+        messages.extend(self.history.get(include_completion_history=params.use_history))
 
         messages.append(message_param)
 
@@ -144,9 +144,11 @@ class AnthropicAugmentedLLM(AugmentedLLM[MessageParam, Message]):
 
             if params.maxTokens is not None:
                 base_args["max_tokens"] = params.maxTokens
-            
+
             # Use the base class method to prepare all arguments with Anthropic-specific exclusions
-            arguments = self.prepare_provider_arguments(base_args, params, self.ANTHROPIC_EXCLUDE_FIELDS)
+            arguments = self.prepare_provider_arguments(
+                base_args, params, self.ANTHROPIC_EXCLUDE_FIELDS
+            )
 
             self.logger.debug(f"{arguments}")
 
@@ -279,7 +281,7 @@ class AnthropicAugmentedLLM(AugmentedLLM[MessageParam, Message]):
         # Keep the prompt messages separate
         if params.use_history:
             # Get current prompt messages
-            prompt_messages = self.history.get(include_history=False)
+            prompt_messages = self.history.get(include_completion_history=False)
 
             # Calculate new conversation messages (excluding prompts)
             new_messages = messages[len(prompt_messages) :]

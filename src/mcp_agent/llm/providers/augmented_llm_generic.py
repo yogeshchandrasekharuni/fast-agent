@@ -3,7 +3,7 @@ import os
 from mcp_agent.core.request_params import RequestParams
 from mcp_agent.llm.providers.augmented_llm_openai import OpenAIAugmentedLLM
 
-DEFAULT_OLLAMA_BASE_URL = "http://localhost:11434/v1"
+DEFAULT_OLLAMA_BASE_URL = "http://127.0.0.1:11434/v1"
 DEFAULT_OLLAMA_MODEL = "llama3.2:latest"
 DEFAULT_OLLAMA_API_KEY = "ollama"
 

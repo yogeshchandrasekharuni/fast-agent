@@ -1,5 +1,5 @@
 import os
-from typing import List, Tuple, Type
+from typing import Dict, List, Tuple, Type
 
 from mcp.types import (
     CallToolRequest,
@@ -17,7 +17,6 @@ from openai.types.chat import (
     ChatCompletionMessageParam,
     ChatCompletionSystemMessageParam,
     ChatCompletionToolParam,
-    ChatCompletionUserMessageParam,
 )
 from pydantic_core import from_json
 from rich.text import Text
@@ -48,17 +47,17 @@ class OpenAIAugmentedLLM(AugmentedLLM[ChatCompletionMessageParam, ChatCompletion
     such as retrieval, tools, and memory provided from a collection of MCP servers.
     This implementation uses OpenAI's ChatCompletion as the LLM.
     """
-    
+
     # OpenAI-specific parameter exclusions
     OPENAI_EXCLUDE_FIELDS = {
         AugmentedLLM.PARAM_MESSAGES,
-        AugmentedLLM.PARAM_MODEL, 
+        AugmentedLLM.PARAM_MODEL,
         AugmentedLLM.PARAM_MAX_TOKENS,
         AugmentedLLM.PARAM_SYSTEM_PROMPT,
         AugmentedLLM.PARAM_PARALLEL_TOOL_CALLS,
         AugmentedLLM.PARAM_METADATA,
         AugmentedLLM.PARAM_USE_HISTORY,
-        AugmentedLLM.PARAM_MAX_ITERATIONS
+        AugmentedLLM.PARAM_MAX_ITERATIONS,
     }
 
     def __init__(self, provider_name: str = "OpenAI", *args, **kwargs) -> None:
@@ -126,6 +125,40 @@ class OpenAIAugmentedLLM(AugmentedLLM[ChatCompletionMessageParam, ChatCompletion
     def _base_url(self) -> str:
         return self.context.config.openai.base_url if self.context.config.openai else None
 
+    async def _apply_prompt_provider_specific(
+        self,
+        multipart_messages: List["PromptMessageMultipart"],
+        request_params: RequestParams | None = None,
+    ) -> PromptMessageMultipart:
+        last_message = multipart_messages[-1]
+
+        # Add all previous messages to history (or all messages if last is from assistant)
+        messages_to_add = (
+            multipart_messages[:-1] if last_message.role == "user" else multipart_messages
+        )
+        converted = []
+        for msg in messages_to_add:
+            converted.append(OpenAIConverter.convert_to_openai(msg))
+
+        # TODO -- this looks like a defect from previous apply_prompt implementation.
+        self.history.extend(converted, is_prompt=True)
+
+        if last_message.role == "user":
+            # For user messages run a completion
+            self.logger.debug("Last message in prompt is from user, generating assistant response")
+            message_param = OpenAIConverter.convert_to_openai(last_message)
+            responses: List[
+                TextContent | ImageContent | EmbeddedResource
+            ] = await self.generate_internal(
+                message_param,
+                request_params,
+            )
+            return Prompt.assistant(*responses)
+        else:
+            # For assistant messages: Return the last message (no completion needed)
+            self.logger.debug("Last message in prompt is from assistant, returning it directly")
+            return last_message
+
     async def generate_internal(
         self,
         message,
@@ -139,8 +172,6 @@ class OpenAIAugmentedLLM(AugmentedLLM[ChatCompletionMessageParam, ChatCompletion
 
         try:
             openai_client = OpenAI(api_key=self._api_key(), base_url=self._base_url())
-            messages: List[ChatCompletionMessageParam] = []
-            params = self.get_request_params(request_params)
         except AuthenticationError as e:
             raise ProviderKeyError(
                 "Invalid OpenAI API key",
@@ -148,20 +179,20 @@ class OpenAIAugmentedLLM(AugmentedLLM[ChatCompletionMessageParam, ChatCompletion
                 "Please check that your API key is valid and not expired.",
             ) from e
 
-        system_prompt = self.instruction or params.systemPrompt
+        request_params = self.get_request_params(
+            default=self.default_request_params, request_params=request_params
+        )
+
+        responses: List[TextContent | ImageContent | EmbeddedResource] = []
+
+        # TODO -- move this in to context management / agent group handling
+        messages: List[ChatCompletionMessageParam] = []
+        system_prompt = self.instruction or request_params.systemPrompt
         if system_prompt:
             messages.append(ChatCompletionSystemMessageParam(role="system", content=system_prompt))
 
-        # Always include prompt messages, but only include conversation history
-        # if use_history is True
-        messages.extend(self.history.get(include_history=params.use_history))
-
-        if isinstance(message, str):
-            messages.append(ChatCompletionUserMessageParam(role="user", content=message))
-        elif isinstance(message, list):
-            messages.extend(message)
-        else:
-            messages.append(message)
+        messages.extend(self.history.get(include_completion_history=request_params.use_history))
+        messages.append(message)
 
         response = await self.aggregator.list_tools()
         available_tools: List[ChatCompletionToolParam] | None = [
@@ -169,44 +200,22 @@ class OpenAIAugmentedLLM(AugmentedLLM[ChatCompletionMessageParam, ChatCompletion
                 type="function",
                 function={
                     "name": tool.name,
-                    "description": tool.description,
+                    "description": tool.description if tool.description else "",
                     "parameters": tool.inputSchema,
-                    # TODO: saqadri - determine if we should specify "strict" to True by default
                 },
             )
             for tool in response.tools
         ]
+
         if not available_tools:
             available_tools = None  # deepseek does not allow empty array
 
-        responses: List[TextContent | ImageContent | EmbeddedResource] = []
-        model = self.default_request_params.model
+        # we do NOT send "stop sequences" as this causes errors with mutlimodal processing
+        for i in range(request_params.max_iterations):
+            arguments = self._prepare_api_request(messages, available_tools, request_params)
+            self.logger.debug(f"OpenAI completion requested for: {arguments}")
 
-        # we do NOT send stop sequences as this causes errors with mutlimodal processing
-        for i in range(params.max_iterations):
-            # Create base arguments dictionary
-            base_args = {
-                "model": model or "gpt-4o",
-                "messages": messages,
-                "tools": available_tools,
-            }
-            
-            # Add model-specific parameters
-            if self._reasoning:
-                base_args.update({
-                    "max_completion_tokens": params.maxTokens,
-                    "reasoning_effort": self._reasoning_effort,
-                })
-            else:
-                base_args["max_tokens"] = params.maxTokens
-                if available_tools:
-                    base_args["parallel_tool_calls"] = params.parallel_tool_calls
-            
-            # Use the base class method to prepare all arguments with OpenAI-specific exclusions
-            arguments = self.prepare_provider_arguments(base_args, params, self.OPENAI_EXCLUDE_FIELDS)
-
-            self.logger.debug(f"{arguments}")
-            self._log_chat_progress(self.chat_turn(), model=model)
+            self._log_chat_progress(self.chat_turn(), model=self.default_request_params.model)
 
             executor_result = await self.executor.execute(
                 openai_client.chat.completions.create, **arguments
@@ -215,7 +224,7 @@ class OpenAIAugmentedLLM(AugmentedLLM[ChatCompletionMessageParam, ChatCompletion
             response = executor_result[0]
 
             self.logger.debug(
-                "OpenAI ChatCompletion response:",
+                "OpenAI completion response:",
                 data=response,
             )
 
@@ -239,8 +248,9 @@ class OpenAIAugmentedLLM(AugmentedLLM[ChatCompletionMessageParam, ChatCompletion
             if message.content:
                 responses.append(TextContent(type="text", text=message.content))
 
-            converted_message = self.convert_message_to_message_param(message, name=self.name)
+            converted_message = self.convert_message_to_message_param(message)
             messages.append(converted_message)
+
             message_text = converted_message.content
             if choice.finish_reason in ["tool_calls", "function_call"] and message.tool_calls:
                 if message_text:
@@ -298,14 +308,12 @@ class OpenAIAugmentedLLM(AugmentedLLM[ChatCompletionMessageParam, ChatCompletion
                     )
 
                 await self.show_assistant_message(message_text)
-                # TODO: saqadri - would be useful to return the reason for stopping to the caller
                 break
             elif choice.finish_reason == "content_filter":
                 # The response was filtered by the content filter
                 self.logger.debug(
                     f"Iteration {i}: Stopping because finish_reason is 'content_filter'"
                 )
-                # TODO: saqadri - would be useful to return the reason for stopping to the caller
                 break
             elif choice.finish_reason == "stop":
                 self.logger.debug(f"Iteration {i}: Stopping because finish_reason is 'stop'")
@@ -313,11 +321,9 @@ class OpenAIAugmentedLLM(AugmentedLLM[ChatCompletionMessageParam, ChatCompletion
                     await self.show_assistant_message(message_text, "")
                 break
 
-        # Only save the new conversation messages to history if use_history is true
-        # Keep the prompt messages separate
-        if params.use_history:
+        if request_params.use_history:
             # Get current prompt messages
-            prompt_messages = self.history.get(include_history=False)
+            prompt_messages = self.history.get(include_completion_history=False)
 
             # Calculate new conversation messages (excluding prompts)
             new_messages = messages[len(prompt_messages) :]
@@ -325,44 +331,9 @@ class OpenAIAugmentedLLM(AugmentedLLM[ChatCompletionMessageParam, ChatCompletion
             # Update conversation history
             self.history.set(new_messages)
 
-        self._log_chat_finished(model=model)
+        self._log_chat_finished(model=self.default_request_params.model)
 
         return responses
-
-    async def _apply_prompt_provider_specific(
-        self,
-        multipart_messages: List["PromptMessageMultipart"],
-        request_params: RequestParams | None = None,
-    ) -> PromptMessageMultipart:
-        # TODO -- this is very similar to Anthropic (just the converter class changes).
-        # TODO -- potential refactor to base class, standardize Converter interface
-        # Check the last message role
-        last_message = multipart_messages[-1]
-
-        # Add all previous messages to history (or all messages if last is from assistant)
-        messages_to_add = (
-            multipart_messages[:-1] if last_message.role == "user" else multipart_messages
-        )
-        converted = []
-        for msg in messages_to_add:
-            converted.append(OpenAIConverter.convert_to_openai(msg))
-        self.history.extend(converted, is_prompt=True)
-
-        if last_message.role == "user":
-            # For user messages: Generate response to the last one
-            self.logger.debug("Last message in prompt is from user, generating assistant response")
-            message_param = OpenAIConverter.convert_to_openai(last_message)
-            responses: List[
-                TextContent | ImageContent | EmbeddedResource
-            ] = await self.generate_internal(
-                message_param,
-                request_params,
-            )
-            return Prompt.assistant(*responses)
-        else:
-            # For assistant messages: Return the last message content as text
-            self.logger.debug("Last message in prompt is from assistant, returning it directly")
-            return last_message
 
     async def structured(
         self,
@@ -373,8 +344,8 @@ class OpenAIAugmentedLLM(AugmentedLLM[ChatCompletionMessageParam, ChatCompletion
         """
         Apply the prompt and return the result as a Pydantic model.
 
-        Uses OpenAI's beta parse feature when compatible, falling back to standard
-        JSON parsing if the beta feature fails or is unavailable.
+        For OpenAI models, use the OpenAI structured outputs feature, otherwise fall back to
+        generic model specification.
 
         Args:
             prompt: List of messages to process
@@ -388,55 +359,48 @@ class OpenAIAugmentedLLM(AugmentedLLM[ChatCompletionMessageParam, ChatCompletion
         if not "OpenAI" == self.provider:
             return await super().structured(prompt, model, request_params)
 
-        logger = get_logger(__name__)
-
-        # First try to use OpenAI's beta.chat.completions.parse feature
         try:
             # Convert the multipart messages to OpenAI format
             messages = []
             for msg in prompt:
                 messages.append(OpenAIConverter.convert_to_openai(msg))
 
+            provider_arguments = self.prepare_provider_arguments(
+                {}, params=request_params, exclude_fields=self.OPENAI_EXCLUDE_FIELDS
+            )
             # Add system prompt if available and not already present
-            if self.instruction and not any(m.get("role") == "system" for m in messages):
+            if self.instruction or request_params.systemPrompt:
                 system_msg = ChatCompletionSystemMessageParam(
                     role="system", content=self.instruction
                 )
                 messages.insert(0, system_msg)
             model_name = self.default_request_params.model
+
             self.show_user_message(prompt[-1].first_text(), model_name, self.chat_turn())
-            # Use the beta parse feature
-            try:
-                openai_client = OpenAI(api_key=self._api_key(), base_url=self._base_url())
-                model_name = self.default_request_params.model
+            openai_client = OpenAI(api_key=self._api_key(), base_url=self._base_url())
 
-                logger.debug(
-                    f"Using OpenAI beta parse with model {model_name} for structured output"
-                )
-                response = await self.executor.execute(
-                    openai_client.beta.chat.completions.parse,
-                    model=model_name,
-                    messages=messages,
-                    response_format=model,
-                )
+            self.logger.debug(
+                f"Using OpenAI beta parse with model {model_name} for structured output"
+            )
+            response = await self.executor.execute(
+                openai_client.beta.chat.completions.parse,
+                provider_arguments,
+                messages=messages,
+                response_format=model,
+            )
 
-                if response and isinstance(response[0], BaseException):
-                    raise response[0]
-                parsed_result = response[0].choices[0].message
-                await self.show_assistant_message(parsed_result.content)
-                logger.debug("Successfully used OpenAI beta parse feature for structured output")
-                return parsed_result.parsed, Prompt.assistant(parsed_result.content)
-
-            except (ImportError, AttributeError, NotImplementedError) as e:
-                # Beta feature not available, log and continue to fallback
-                logger.debug(f"OpenAI beta parse feature not available: {str(e)}")
-                # Continue to fallback
+            if response and isinstance(response[0], BaseException):
+                raise response[0]
+            parsed_result = response[0].choices[0].message
+            await self.show_assistant_message(parsed_result.content)
+            self.logger.debug("Successfully used OpenAI beta parse feature for structured output")
+            return parsed_result.parsed, Prompt.assistant(parsed_result.content)
 
         except Exception as e:
-            logger.debug(f"OpenAI beta parse failed: {str(e)}, falling back to standard method")
-            # Continue to standard method as fallback
+            self.logger.debug(
+                f"OpenAI beta parse failed: {str(e)}, falling back to standard method"
+            )
 
-        # Fallback to standard method (inheriting from base class)
         return await super().structured(prompt, model, request_params)
 
     async def pre_tool_call(self, tool_call_id: str | None, request: CallToolRequest):
@@ -446,3 +410,33 @@ class OpenAIAugmentedLLM(AugmentedLLM[ChatCompletionMessageParam, ChatCompletion
         self, tool_call_id: str | None, request: CallToolRequest, result: CallToolResult
     ):
         return result
+
+    def _prepare_api_request(
+        self, messages, tools, request_params: RequestParams
+    ) -> dict[str, str]:
+        # Create base arguments dictionary
+
+        # overriding model via request params not supported (intentional)
+        base_args = {
+            "model": self.default_request_params.model,
+            "messages": messages,
+            "tools": tools,
+        }
+
+        if self._reasoning:
+            base_args.update(
+                {
+                    "max_completion_tokens": request_params.maxTokens,
+                    "reasoning_effort": self._reasoning_effort,
+                }
+            )
+        else:
+            base_args["max_tokens"] = request_params.maxTokens
+
+        if tools:
+            base_args["parallel_tool_calls"] = request_params.parallel_tool_calls
+
+        arguments: Dict[str, str] = self.prepare_provider_arguments(
+            base_args, request_params, self.OPENAI_EXCLUDE_FIELDS
+        )
+        return arguments

@@ -71,12 +71,6 @@ class OpenAIConverter:
         if not multipart_msg.content:
             return {"role": role, "content": ""}
 
-        # Assistant and system messages in OpenAI only support string content, not array of content blocks
-        if role == "assistant" or role == "system":
-            # Use MessageContent helper to get all text
-            content_text = MessageContent.join_text(multipart_msg, separator="")
-            return {"role": role, "content": content_text}
-
         # For user messages, convert each content block
         content_blocks: List[ContentBlock] = []
 
@@ -194,7 +188,7 @@ class OpenAIConverter:
         """Convert ImageContent to OpenAI image_url content block."""
         # Get image data using helper
         image_data = get_image_data(content)
-        
+
         # OpenAI requires image URLs or data URIs for images
         image_url = {"url": f"data:{content.mimeType};base64,{image_data}"}
 
@@ -256,8 +250,8 @@ class OpenAIConverter:
         if OpenAIConverter._is_supported_image_type(mime_type):
             if is_url and uri_str:
                 return {"type": "image_url", "image_url": {"url": uri_str}}
-            
-            # Try to get image data 
+
+            # Try to get image data
             image_data = get_image_data(resource)
             if image_data:
                 return {
