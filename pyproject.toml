@@ -1,6 +1,6 @@
 [project]
 name = "fast-agent-mcp"
-version = "0.2.7"
+version = "0.2.10"
 description = "Define, Prompt and Test MCP enabled Agents and Workflows"
 readme = "README.md"
 license = { file = "LICENSE" }
@@ -64,6 +64,7 @@ include = [
     "src/mcp_agent/**/*.yaml",
     "src/mcp_agent/**/*.yml",
     "src/mcp_agent/**/*.csv",
+    "src/mcp_agent/**/*.txt",    
     "examples/**/*.py",
     "examples/**/*.yaml",
     "examples/**/*.yml",
@@ -72,6 +73,7 @@ include = [
     "examples/**/*.md",
     "examples/**/*.css",
     "examples/**/mount-point/*.csv",
+    "examples/workflows/short_story.txt",
 ]
 
 [tool.pytest.ini_options]

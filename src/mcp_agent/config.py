@@ -70,6 +70,9 @@ class MCPServerSettings(BaseModel):
     """The arguments for the server command."""
 
     read_timeout_seconds: int | None = None
+    """The timeout in seconds for the session."""
+
+    read_transport_sse_timeout_seconds: int = 300
     """The timeout in seconds for the server connection."""
 
     url: str | None = None
@@ -144,6 +147,17 @@ class GenericSettings(BaseModel):
     api_key: str | None = None
 
     base_url: str | None = None
+
+    model_config = ConfigDict(extra="allow", arbitrary_types_allowed=True)
+    
+
+class OpenRouterSettings(BaseModel):
+    """
+    Settings for using OpenRouter models via its OpenAI-compatible API.
+    """
+    api_key: str | None = None
+    
+    base_url: str | None = None # Optional override, defaults handled in provider
 
     model_config = ConfigDict(extra="allow", arbitrary_types_allowed=True)
 
@@ -261,6 +275,9 @@ class Settings(BaseSettings):
 
     deepseek: DeepSeekSettings | None = None
     """Settings for using DeepSeek models in the fast-agent application"""
+
+    openrouter: OpenRouterSettings | None = None
+    """Settings for using OpenRouter models in the fast-agent application"""
 
     generic: GenericSettings | None = None
     """Settings for using Generic models in the fast-agent application"""
