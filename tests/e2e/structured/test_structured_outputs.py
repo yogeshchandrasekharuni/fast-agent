@@ -6,6 +6,43 @@ from pydantic import BaseModel
 from mcp_agent.core.prompt import Prompt
 from mcp_agent.core.request_params import RequestParams
 
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+@pytest.mark.e2e
+@pytest.mark.parametrize(
+    "model_name",
+    [
+        "generic.qwen2.5:latest",
+        "generic.llama3.2:latest",
+        "haiku",
+        "sonnet",
+        "gpt-4o",
+        "gpt-4o-mini",
+        "o3-mini.low",
+        "openrouter.google/gemini-2.0-flash-001",
+    ],
+)
+async def test_structured_output_with_no_response_format(fast_agent, model_name):
+    """Test that the agent can generate structured response with response_format_specified."""
+    fast = fast_agent
+
+    @fast.agent(
+        "chat",
+        instruction="You are a helpful assistant.",
+        model=model_name,
+    )
+    async def create_structured():
+        async with fast.run() as agent:
+            thinking, response = await agent.chat.structured(
+                [Prompt.user("Let's talk about guitars.")],
+                model=FormattedResponse,
+            )
+            assert thinking is not None
+
+    await create_structured()
+
+
 response_format = {
     "type": "json_schema",
     "json_schema": {
@@ -43,6 +80,7 @@ response_format = {
         "gpt-4o",
         "gpt-4o-mini",
         "o3-mini.low",
+        "openrouter.google/gemini-2.0-flash-001",
     ],
 )
 async def test_structured_output_with_response_format_spec(fast_agent, model_name):
@@ -69,38 +107,3 @@ async def test_structured_output_with_response_format_spec(fast_agent, model_nam
 class FormattedResponse(BaseModel):
     thinking: str
     message: str
-
-
-@pytest.mark.integration
-@pytest.mark.asyncio
-@pytest.mark.e2e
-@pytest.mark.parametrize(
-    "model_name",
-    [
-        "generic.qwen2.5:latest",
-        "generic.llama3.2:latest",
-        "haiku",
-        "sonnet",
-        "gpt-4o",
-        "gpt-4o-mini",
-        "o3-mini.low",
-    ],
-)
-async def test_structured_output_with_no_response_format(fast_agent, model_name):
-    """Test that the agent can generate structured response with response_format_specified."""
-    fast = fast_agent
-
-    @fast.agent(
-        "chat",
-        instruction="You are a helpful assistant.",
-        model=model_name,
-    )
-    async def create_structured():
-        async with fast.run() as agent:
-            thinking, response = await agent.chat.structured(
-                [Prompt.user("Let's talk about guitars.")],
-                model=FormattedResponse,
-            )
-            assert thinking is not None
-
-    await create_structured()

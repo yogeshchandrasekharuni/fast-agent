@@ -149,7 +149,7 @@ class OpenAIAugmentedLLM(AugmentedLLM[ChatCompletionMessageParam, ChatCompletion
             message_param = OpenAIConverter.convert_to_openai(last_message)
             responses: List[
                 TextContent | ImageContent | EmbeddedResource
-            ] = await self.generate_internal(
+            ] = await self._openai_completion(
                 message_param,
                 request_params,
             )
@@ -159,7 +159,7 @@ class OpenAIAugmentedLLM(AugmentedLLM[ChatCompletionMessageParam, ChatCompletion
             self.logger.debug("Last message in prompt is from assistant, returning it directly")
             return last_message
 
-    async def generate_internal(
+    async def _openai_completion(
         self,
         message,
         request_params: RequestParams | None = None,
@@ -335,7 +335,7 @@ class OpenAIAugmentedLLM(AugmentedLLM[ChatCompletionMessageParam, ChatCompletion
 
         return responses
 
-    async def structured(
+    async def _apply_prompt_provider_specific_structured(
         self,
         prompt: List[PromptMessageMultipart],
         model: Type[ModelT],
@@ -344,7 +344,7 @@ class OpenAIAugmentedLLM(AugmentedLLM[ChatCompletionMessageParam, ChatCompletion
         """
         Apply the prompt and return the result as a Pydantic model.
 
-        For OpenAI models, use the OpenAI structured outputs feature, otherwise fall back to
+        For the OpenAI provider, use the OpenAI structured outputs feature, otherwise fall back to
         generic model specification.
 
         Args:
@@ -356,52 +356,52 @@ class OpenAIAugmentedLLM(AugmentedLLM[ChatCompletionMessageParam, ChatCompletion
             The parsed response as a Pydantic model, or None if parsing fails
         """
 
-        if not "OpenAI" == self.provider:
-            return await super().structured(prompt, model, request_params)
+        # return await super()._apply_prompt_provider_specific_structured(
+        #     prompt, model, request_params
+        # )
 
-        try:
-            # Convert the multipart messages to OpenAI format
-            messages = []
-            for msg in prompt:
-                messages.append(OpenAIConverter.convert_to_openai(msg))
+        # if not "OpenAI" == self.provider:
+        #     return await super()._apply_prompt_provider_specific_structured(
+        #         prompt, model, request_params
+        #     )
 
-            provider_arguments = self.prepare_provider_arguments(
-                {}, params=request_params, exclude_fields=self.OPENAI_EXCLUDE_FIELDS
-            )
-            # Add system prompt if available and not already present
-            if self.instruction or request_params.systemPrompt:
-                system_msg = ChatCompletionSystemMessageParam(
-                    role="system", content=self.instruction
-                )
-                messages.insert(0, system_msg)
-            model_name = self.default_request_params.model
+        # Convert the multipart messages to OpenAI format
 
-            self.show_user_message(prompt[-1].first_text(), model_name, self.chat_turn())
-            openai_client = OpenAI(api_key=self._api_key(), base_url=self._base_url())
+        # https://platform.openai.com/docs/guides/structured-outputs?api-mode=chat
+        messages = []
+        for msg in prompt:
+            messages.append(OpenAIConverter.convert_to_openai(msg))
 
-            self.logger.debug(
-                f"Using OpenAI beta parse with model {model_name} for structured output"
-            )
-            response = await self.executor.execute(
-                openai_client.beta.chat.completions.parse,
-                provider_arguments,
-                messages=messages,
-                response_format=model,
-            )
+        request_params = self.get_request_params(
+            default=self.default_request_params, request_params=request_params
+        )
 
-            if response and isinstance(response[0], BaseException):
-                raise response[0]
-            parsed_result = response[0].choices[0].message
-            await self.show_assistant_message(parsed_result.content)
-            self.logger.debug("Successfully used OpenAI beta parse feature for structured output")
-            return parsed_result.parsed, Prompt.assistant(parsed_result.content)
+        provider_arguments = self.prepare_provider_arguments(
+            {}, request_params=request_params, exclude_fields=self.OPENAI_EXCLUDE_FIELDS
+        )
+        # Add system prompt if available and not already present
+        if self.instruction or request_params.systemPrompt:
+            system_msg = ChatCompletionSystemMessageParam(role="system", content=self.instruction)
+            messages.insert(0, system_msg)
+        model_name = self.default_request_params.model
 
-        except Exception as e:
-            self.logger.debug(
-                f"OpenAI beta parse failed: {str(e)}, falling back to standard method"
-            )
+        openai_client = OpenAI(api_key=self._api_key(), base_url=self._base_url())
 
-        return await super().structured(prompt, model, request_params)
+        self.logger.debug(f"Using OpenAI beta parse with model {model_name} for structured output")
+        response = await self.executor.execute(
+            openai_client.beta.chat.completions.parse,
+            provider_arguments,
+            messages=messages,
+            model=model_name,
+            response_format=model,
+        )
+
+        if response and isinstance(response[0], BaseException):
+            raise response[0]
+        parsed_result = response[0].choices[0].message
+        await self.show_assistant_message(parsed_result.content)
+        self.logger.debug("Successfully used OpenAI beta parse feature for structured output")
+        return parsed_result.parsed, Prompt.assistant(parsed_result.content)
 
     async def pre_tool_call(self, tool_call_id: str | None, request: CallToolRequest):
         return request

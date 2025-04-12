@@ -249,7 +249,10 @@ class AugmentedLLM(ContextDependent, AugmentedLLMProtocol, Generic[MessageParamT
     BASE_EXCLUDE_FIELDS = {PARAM_METADATA}
 
     def prepare_provider_arguments(
-        self, base_args: dict, params: RequestParams, exclude_fields: set = None
+        self,
+        base_args: dict,
+        request_params: RequestParams,
+        exclude_fields: set | None = None,
     ) -> dict:
         """
         Prepare arguments for provider API calls by merging request parameters.
@@ -269,14 +272,14 @@ class AugmentedLLM(ContextDependent, AugmentedLLMProtocol, Generic[MessageParamT
         exclude_fields = exclude_fields or self.BASE_EXCLUDE_FIELDS.copy()
 
         # Add all fields from params that aren't explicitly excluded
-        params_dict = params.model_dump(exclude=exclude_fields)
+        params_dict = request_params.model_dump(exclude=exclude_fields)
         for key, value in params_dict.items():
             if value is not None and key not in arguments:
                 arguments[key] = value
 
         # Finally, add any metadata fields as a last layer of overrides
-        if params.metadata:
-            arguments.update(params.metadata)
+        if request_params.metadata:
+            arguments.update(request_params.metadata)
 
         return arguments
 
