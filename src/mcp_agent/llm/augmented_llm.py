@@ -142,14 +142,14 @@ class AugmentedLLM(ContextDependent, AugmentedLLMProtocol, Generic[MessageParamT
 
     async def _apply_prompt_provider_specific_structured(
         self,
-        prompt: List[PromptMessageMultipart],
+        multipart_messages: List[PromptMessageMultipart],
         model: Type[ModelT],
         request_params: RequestParams | None = None,
     ) -> Tuple[ModelT | None, PromptMessageMultipart]:
         """Apply the prompt and return the result as a Pydantic model, or None if coercion fails"""
         try:
             result: PromptMessageMultipart = await self._apply_prompt_provider_specific(
-                prompt, request_params
+                multipart_messages, request_params
             )
             final_generation = get_text(result.content[-1]) or ""
             await self.show_assistant_message(final_generation)
@@ -192,6 +192,7 @@ class AugmentedLLM(ContextDependent, AugmentedLLMProtocol, Generic[MessageParamT
             multipart_messages, request_params
         )
 
+        # add generic error and termination reason handling/rollback
         self._message_history.append(assistant_response)
         return assistant_response
 
