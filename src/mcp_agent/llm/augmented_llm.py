@@ -20,7 +20,6 @@ from mcp.types import (
 )
 from pydantic_core import from_json
 from rich.text import Text
-from sklearn.multioutput import MultiOutputClassifier
 
 from mcp_agent.context_dependent import ContextDependent
 from mcp_agent.core.exceptions import PromptExitError

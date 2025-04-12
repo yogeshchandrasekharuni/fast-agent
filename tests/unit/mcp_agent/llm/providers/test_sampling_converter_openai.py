@@ -7,6 +7,7 @@ from mcp.types import (
     TextContent,
 )
 
+from openai.types.chat import ChatCompletionMessageParam
 from mcp_agent.llm.providers import OpenAISamplingConverter
 
 
@@ -25,7 +26,7 @@ class TestOpenAIMCPTypeConverter:
         # Verify the conversion
         assert isinstance(openai_param, dict)  # ChatCompletionMessageParam is a TypedDict
         assert openai_param["role"] == "user"
-        assert "Please explain this concept." in openai_param["content"][0]["text"]
+        assert "Please explain this concept." == openai_param["content"]
 
     def test_from_mcp_prompt_message_assistant(self):
         """Test converting an assistant PromptMessage to OpenAI ChatCompletionMessageParam."""

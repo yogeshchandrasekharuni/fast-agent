@@ -38,7 +38,8 @@ async def test_structured_output_with_no_response_format(fast_agent, model_name)
                 [Prompt.user("Let's talk about guitars.")],
                 model=FormattedResponse,
             )
-            assert thinking is not None
+            assert isinstance(thinking, FormattedResponse)
+            assert FormattedResponse.model_validate_json(response.first_text())
 
     await create_structured()
 
@@ -68,6 +69,8 @@ async def test_structured_output_parses_assistant_message_if_last(fast_agent, mo
                 model=FormattedResponse,
             )
             assert thinking is not None
+            # TODO -- needs to parse JSON to the model (as does passthrough&playback)
+            assert False
 
     await create_structured()
 

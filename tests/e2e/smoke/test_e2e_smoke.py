@@ -8,6 +8,7 @@ from pydantic import BaseModel, Field
 
 from mcp_agent.core.prompt import Prompt
 from mcp_agent.core.request_params import RequestParams
+from mcp_agent.mcp.prompt_message_multipart import PromptMessageMultipart
 
 
 @pytest.mark.integration
@@ -38,6 +39,53 @@ async def test_basic_textual_prompting(fast_agent, model_name):
             words = response_text.split()
             word_count = len(words)
             assert 40 <= word_count <= 60, f"Expected between 40-60 words, got {word_count}"
+
+    await agent_function()
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+@pytest.mark.e2e
+@pytest.mark.parametrize(
+    "model_name",
+    [
+        "gpt-4o-mini",  # OpenAI model
+        "haiku35",  # Anthropic model
+        "deepseek",
+        "openrouter.google/gemini-2.0-flash-001",
+    ],
+)
+async def test_multiple_text_blocks_prompting(fast_agent, model_name):
+    """Test that the agent can process an image and respond appropriately."""
+    fast = fast_agent
+
+    # Define the agent
+    @fast.agent(
+        instruction="You are a helpful AI Agent",
+        model=model_name,
+    )
+    async def agent_function():
+        async with fast.run() as agent:
+            response: PromptMessageMultipart = await agent.default.generate(
+                [Prompt.user("write a 50 word story", "about cats - including the word 'cat'")]
+            )
+            response_text = response.all_text()
+            words = response_text.split()
+            word_count = len(words)
+            assert 40 <= word_count <= 60, f"Expected between 40-60 words, got {word_count}"
+            assert "cat" in response_text
+
+            response: PromptMessageMultipart = await agent.default.generate(
+                [
+                    Prompt.user("write a 50 word story"),
+                    Prompt.user("about cats - including the word 'cat'"),
+                ]
+            )
+            response_text = response.all_text()
+            words = response_text.split()
+            word_count = len(words)
+            assert 40 <= word_count <= 60, f"Expected between 40-60 words, got {word_count}"
+            assert "cat" in response_text
 
     await agent_function()
 
@@ -255,7 +303,7 @@ async def test_structured_weather_forecast_prompting_style(fast_agent, model_nam
     await weather_forecast()
 
 
-@pytest.mark.skip(reason="Generic OpenAI endpoint")
+# @pytest.mark.skip(reason="Local Hardware Required")
 @pytest.mark.integration
 @pytest.mark.asyncio
 @pytest.mark.e2e

@@ -347,12 +347,57 @@ class OpenAIAugmentedLLM(AugmentedLLM[ChatCompletionMessageParam, ChatCompletion
             # For user messages run a completion
             self.logger.debug("Last message in prompt is from user, generating assistant response")
             message_param: OpenAIMessage = OpenAIConverter.convert_to_openai(last_message)
-            responses: List[
-                TextContent | ImageContent | EmbeddedResource
-            ] = await self._openai_completion(
-                message_param,
-                request_params,
+
+            request_params = self.get_request_params(
+                default=self.default_request_params, request_params=request_params
             )
+
+            responses: List[TextContent | ImageContent | EmbeddedResource] = []
+
+            # TODO -- move this in to agent context management / agent group handling
+            messages: List[ChatCompletionMessageParam] = []
+            system_prompt = self.instruction or request_params.systemPrompt
+            if system_prompt:
+                messages.append(
+                    ChatCompletionSystemMessageParam(role="system", content=system_prompt)
+                )
+
+            messages.extend(self.history.get(include_completion_history=request_params.use_history))
+            messages.append(message_param)
+
+            arguments = self._prepare_api_request(messages, None, request_params)
+            self.logger.debug(f"OpenAI completion requested for: {arguments}")
+
+            self._log_chat_progress(self.chat_turn(), model=self.default_request_params.model)
+
+            executor_result = await self.executor.execute(
+                self._openai_client().chat.completions.create, **arguments
+            )
+
+            response = executor_result[0]
+
+            self.logger.debug(
+                "OpenAI completion response:",
+                data=response,
+            )
+
+            if isinstance(response, AuthenticationError):
+                raise ProviderKeyError(
+                    "Rejected OpenAI API key",
+                    "The configured OpenAI API key was rejected.\n"
+                    "Please check that your API key is valid and not expired.",
+                ) from response
+            elif isinstance(response, BaseException):
+                self.logger.error(f"Error: {response}")
+                break
+
+            # responses: List[
+            #     TextContent | ImageContent | EmbeddedResource
+            # ] = await self._openai_completion(
+            #     message_param,
+            #     request_params,
+            # )
+
             return Prompt.assistant(*responses)
         else:
             raise ValueError("This needs to parse the assistant content to a model")
