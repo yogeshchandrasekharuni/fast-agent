@@ -43,6 +43,35 @@ async def test_structured_output_with_no_response_format(fast_agent, model_name)
     await create_structured()
 
 
+@pytest.mark.integration
+@pytest.mark.asyncio
+@pytest.mark.e2e
+@pytest.mark.parametrize(
+    "model_name",
+    [
+        "gpt-4o-mini",
+    ],
+)
+async def test_structured_output_parses_assistant_message_if_last(fast_agent, model_name):
+    """Test that the agent can generate structured response with response_format_specified."""
+    fast = fast_agent
+
+    @fast.agent(
+        "chat",
+        instruction="You are a helpful assistant.",
+        model=model_name,
+    )
+    async def create_structured():
+        async with fast.run() as agent:
+            thinking, response = await agent.chat.structured(
+                [Prompt.user("Let's talk about guitars.")],
+                model=FormattedResponse,
+            )
+            assert thinking is not None
+
+    await create_structured()
+
+
 response_format = {
     "type": "json_schema",
     "json_schema": {
