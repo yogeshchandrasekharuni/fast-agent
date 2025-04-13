@@ -50,7 +50,6 @@ MessageT = TypeVar("MessageT")
 
 # Forward reference for type annotations
 if TYPE_CHECKING:
-    from openai.types.shared_params import ResponseFormat
 
     from mcp_agent.agents.agent import Agent
     from mcp_agent.context import Context

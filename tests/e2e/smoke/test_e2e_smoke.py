@@ -7,7 +7,6 @@ import pytest
 from pydantic import BaseModel, Field
 
 from mcp_agent.core.prompt import Prompt
-from mcp_agent.core.request_params import RequestParams
 
 if TYPE_CHECKING:
     from mcp_agent.mcp.prompt_message_multipart import PromptMessageMultipart
