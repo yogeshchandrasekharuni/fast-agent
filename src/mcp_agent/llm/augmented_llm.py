@@ -50,7 +50,6 @@ MessageT = TypeVar("MessageT")
 
 # Forward reference for type annotations
 if TYPE_CHECKING:
-
     from mcp_agent.agents.agent import Agent
     from mcp_agent.context import Context
 
@@ -196,6 +195,7 @@ class AugmentedLLM(ContextDependent, AugmentedLLMProtocol, Generic[MessageParamT
         self,
         multipart_messages: List["PromptMessageMultipart"],
         request_params: RequestParams | None = None,
+        is_template: bool = False,
     ) -> PromptMessageMultipart:
         """
         Provider-specific implementation of apply_prompt_template.
@@ -241,7 +241,7 @@ class AugmentedLLM(ContextDependent, AugmentedLLMProtocol, Generic[MessageParamT
             Provider-agnostic schema representation or NotGiven if conversion fails
         """
         return _type_to_response_format(model)
-        
+
     @staticmethod
     def model_to_schema_str(
         model: Type[Any],
@@ -250,15 +250,15 @@ class AugmentedLLM(ContextDependent, AugmentedLLMProtocol, Generic[MessageParamT
         Convert a pydantic model to a schema string representation.
         This provides a simpler interface for provider implementations
         that need a string representation.
-        
+
         Args:
             model: The pydantic model class to convert to a schema
-            
+
         Returns:
             Schema as a string, or empty string if conversion fails
         """
         import json
-        
+
         try:
             schema = model.model_json_schema()
             return json.dumps(schema)
@@ -578,7 +578,9 @@ class AugmentedLLM(ContextDependent, AugmentedLLMProtocol, Generic[MessageParamT
         multipart_messages = PromptMessageMultipart.parse_get_prompt_result(prompt_result)
 
         # Delegate to the provider-specific implementation
-        result = await self._apply_prompt_provider_specific(multipart_messages, None)
+        result = await self._apply_prompt_provider_specific(
+            multipart_messages, None, is_template=True
+        )
         return result.first_text()
 
     async def _save_history(self, filename: str) -> None:

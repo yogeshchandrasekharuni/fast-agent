@@ -195,3 +195,14 @@ class TestPromptMessageMultipart:
         # Test with valid GetPromptResult
         assert "<no text>" == Prompt.user().last_text()
         assert "last" == Prompt.user("first", "last").last_text()
+
+    def test_convenience_add_text(self):
+        """Test from_get_prompt_result method with error handling."""
+        # Test with valid GetPromptResult
+        multipart = Prompt.user("hello", "world")
+        assert 2 == len(multipart.content)
+
+        multipart.add_text("foo")
+        assert 3 == len(multipart.content)
+        assert "foo" == multipart.last_text()
+        assert isinstance(multipart.content[2], TextContent)

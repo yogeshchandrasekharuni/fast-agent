@@ -305,6 +305,7 @@ class OpenAIAugmentedLLM(AugmentedLLM[ChatCompletionMessageParam, ChatCompletion
         self,
         multipart_messages: List["PromptMessageMultipart"],
         request_params: RequestParams | None = None,
+        is_template: bool = False,
     ) -> PromptMessageMultipart:
         last_message = multipart_messages[-1]
 
@@ -318,7 +319,7 @@ class OpenAIAugmentedLLM(AugmentedLLM[ChatCompletionMessageParam, ChatCompletion
             converted.append(OpenAIConverter.convert_to_openai(msg))
 
         # TODO -- this looks like a defect from previous apply_prompt implementation.
-        self.history.extend(converted, is_prompt=True)
+        self.history.extend(converted, is_prompt=is_template)
 
         if "assistant" == last_message.role:
             return last_message

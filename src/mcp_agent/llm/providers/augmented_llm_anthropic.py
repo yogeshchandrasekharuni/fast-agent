@@ -336,6 +336,7 @@ class AnthropicAugmentedLLM(AugmentedLLM[MessageParam, Message]):
         self,
         multipart_messages: List["PromptMessageMultipart"],
         request_params: RequestParams | None = None,
+        is_template: bool = False,
     ) -> PromptMessageMultipart:
         # Check the last message role
         last_message = multipart_messages[-1]
@@ -348,7 +349,7 @@ class AnthropicAugmentedLLM(AugmentedLLM[MessageParam, Message]):
         for msg in messages_to_add:
             converted.append(AnthropicConverter.convert_to_anthropic(msg))
 
-        self.history.extend(converted, is_prompt=True)
+        self.history.extend(converted, is_prompt=is_template)
 
         if last_message.role == "user":
             self.logger.debug("Last message in prompt is from user, generating assistant response")

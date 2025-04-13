@@ -59,7 +59,7 @@ class RoutingResponse(BaseModel):
 
     agent: str
     confidence: str
-    reasoning: Optional[str] = None
+    reasoning: str | None = None
 
 
 class RouterResult(BaseModel):
@@ -116,9 +116,7 @@ class RouterAgent(BaseAgent):
         # Set up base router request parameters
         base_params = {"systemPrompt": ROUTING_SYSTEM_INSTRUCTION, "use_history": False}
 
-        # Merge with provided defaults if any
         if default_request_params:
-            # Start with defaults and override with router-specific settings
             merged_params = default_request_params.model_copy(update=base_params)
         else:
             merged_params = RequestParams(**base_params)
@@ -164,11 +162,8 @@ class RouterAgent(BaseAgent):
         if not self.initialized:
             await self.initialize()
 
-        # Extract the request text from the last message
-        request = messages[-1].all_text() if messages else ""
-
         # Determine which agent to route to
-        routing_result = await self._route_request(request)
+        routing_result = await self._route_request(messages[-1])
 
         if not routing_result:
             logger.warning("Could not determine appropriate agent for this request")
@@ -246,7 +241,7 @@ class RouterAgent(BaseAgent):
         # Dispatch the request to the selected agent
         return await selected_agent.structured(prompt, model, request_params)
 
-    async def _route_request(self, request: str) -> Optional[RouterResult]:
+    async def _route_request(self, message: PromptMessageMultipart) -> Optional[RouterResult]:
         """
         Determine which agent to route the request to.
 
@@ -276,12 +271,12 @@ class RouterAgent(BaseAgent):
 
         # Format the routing prompt
         routing_instruction = self.routing_instruction or DEFAULT_ROUTING_INSTRUCTION
-        prompt_text = routing_instruction.format(context=context, request=request)
+        prompt_text = routing_instruction.format(context=context, request=message.all_text())
 
-        # Get structured response from LLM
+        message.add_text(prompt_text)
         assert self._llm
         response, _ = await self._llm.structured(
-            [Prompt.user(prompt_text)], RoutingResponse, self._default_request_params
+            [message], RoutingResponse, self._default_request_params
         )
 
         if not response:

@@ -109,6 +109,11 @@ class PromptMessageMultipart(BaseModel):
 
         return "\n".join(result)
 
+    def add_text(self, to_add: str) -> TextContent:
+        text = TextContent(type="text", text=to_add)
+        self.content.append(text)
+        return text
+
     @classmethod
     def parse_get_prompt_result(cls, result: GetPromptResult) -> List["PromptMessageMultipart"]:
         """
