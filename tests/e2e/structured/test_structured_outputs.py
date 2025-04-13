@@ -50,6 +50,8 @@ async def test_structured_output_with_automatic_format_for_model(fast_agent, mod
             assert isinstance(thinking, FormattedResponse)
             assert FormattedResponse.model_validate_json(response.first_text())
 
+            assert "guitar" in thinking.message.lower()
+
     await create_structured()
 
 
