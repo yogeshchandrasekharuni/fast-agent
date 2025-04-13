@@ -1,5 +1,5 @@
 import os
-from typing import TYPE_CHECKING, List
+from typing import TYPE_CHECKING, List, Tuple, Type
 
 from mcp.types import EmbeddedResource, ImageContent, TextContent
 
@@ -10,6 +10,7 @@ from mcp_agent.llm.providers.multipart_converter_anthropic import (
 from mcp_agent.llm.providers.sampling_converter_anthropic import (
     AnthropicSamplingConverter,
 )
+from mcp_agent.mcp.interfaces import ModelT
 from mcp_agent.mcp.prompt_message_multipart import PromptMessageMultipart
 
 if TYPE_CHECKING:
@@ -357,6 +358,29 @@ class AnthropicAugmentedLLM(AugmentedLLM[MessageParam, Message]):
             # For assistant messages: Return the last message content as text
             self.logger.debug("Last message in prompt is from assistant, returning it directly")
             return last_message
+
+    async def _apply_prompt_provider_specific_structured(
+        self,
+        multipart_messages: List[PromptMessageMultipart],
+        model: Type[ModelT],
+        request_params: RequestParams | None = None,
+    ) -> Tuple[ModelT | None, PromptMessageMultipart]:  # noqa: F821
+        request_params = self.get_request_params(request_params)
+
+        multipart_messages.append(
+            Prompt.user(
+                """YOU MUST RESPOND IN THE FOLLOWING FORMAT:
+            {schema}
+            RESPOND ONLY WITH THE JSON, NO PREAMBLE OR CODE FENCES """.format(
+                    schema=model.model_json_schema()
+                )
+            )
+        )
+
+        result: PromptMessageMultipart = await self._apply_prompt_provider_specific(
+            multipart_messages, request_params
+        )
+        return self._structured_from_multipart(result, model)
 
     @classmethod
     def convert_message_to_message_param(cls, message: Message, **kwargs) -> MessageParam:

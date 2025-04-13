@@ -165,7 +165,7 @@ async def test_history_management_with_structured(fast_agent, model_name):
 
     @fast.agent(
         "chat",
-        instruction="You are a helpful assistant.",
+        instruction="You are a helpful assistant. The user may request structured outputs, follow their instructions",
         model=model_name,
     )
     async def create_structured():

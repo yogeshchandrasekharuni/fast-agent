@@ -227,6 +227,45 @@ class AugmentedLLM(ContextDependent, AugmentedLLMProtocol, Generic[MessageParamT
         self._message_history.append(assistant_response)
         return result, assistant_response
 
+    @staticmethod
+    def model_to_response_format(
+        model: Type[Any],
+    ) -> Any:
+        """
+        Convert a pydantic model to the appropriate response format schema.
+        This allows for reuse in multiple provider implementations.
+
+        Args:
+            model: The pydantic model class to convert to a schema
+
+        Returns:
+            Provider-agnostic schema representation or NotGiven if conversion fails
+        """
+        return _type_to_response_format(model)
+        
+    @staticmethod
+    def model_to_schema_str(
+        model: Type[Any],
+    ) -> str:
+        """
+        Convert a pydantic model to a schema string representation.
+        This provides a simpler interface for provider implementations
+        that need a string representation.
+        
+        Args:
+            model: The pydantic model class to convert to a schema
+            
+        Returns:
+            Schema as a string, or empty string if conversion fails
+        """
+        import json
+        
+        try:
+            schema = model.model_json_schema()
+            return json.dumps(schema)
+        except Exception:
+            return ""
+
     async def _apply_prompt_provider_specific_structured(
         self,
         multipart_messages: List[PromptMessageMultipart],
@@ -238,7 +277,7 @@ class AugmentedLLM(ContextDependent, AugmentedLLMProtocol, Generic[MessageParamT
         request_params = self.get_request_params(request_params)
 
         if not request_params.response_format:
-            schema: ResponseFormat | NotGiven = _type_to_response_format(model)
+            schema = self.model_to_response_format(model)
             if schema is not NotGiven:
                 request_params.response_format = schema
 
