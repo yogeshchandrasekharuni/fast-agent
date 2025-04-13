@@ -389,7 +389,6 @@ class OpenAIAugmentedLLM(AugmentedLLM[ChatCompletionMessageParam, ChatCompletion
                 ) from response
             elif isinstance(response, BaseException):
                 self.logger.error(f"Error: {response}")
-                break
 
             # responses: List[
             #     TextContent | ImageContent | EmbeddedResource

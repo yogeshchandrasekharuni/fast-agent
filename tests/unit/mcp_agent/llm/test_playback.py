@@ -1,15 +1,22 @@
 from typing import TYPE_CHECKING
 
 import pytest
+from pydantic import BaseModel
 
 from mcp_agent.agents.agent import Agent
 from mcp_agent.core.agent_types import AgentConfig
+from mcp_agent.core.exceptions import ModelConfigError
 from mcp_agent.core.prompt import Prompt
 from mcp_agent.llm.augmented_llm_playback import PlaybackLLM
 from mcp_agent.llm.model_factory import ModelFactory
 
 if TYPE_CHECKING:
     from mcp_agent.mcp.interfaces import AugmentedLLMProtocol
+
+
+class FormattedResponse(BaseModel):
+    thinking: str
+    message: str
 
 
 @pytest.mark.asyncio
@@ -29,12 +36,11 @@ async def test_model_factory_creates_playback():
         )
     )
 
-    # Verify the instance is a PlaybackLLM
     assert isinstance(instance, PlaybackLLM)
 
 
 @pytest.mark.asyncio
-async def test_basic_playback_no_mock():
+async def test_basic_playback_function():
     """Test that ModelFactory correctly creates a PlaybackLLM instance"""
 
     llm: AugmentedLLMProtocol = PlaybackLLM()
@@ -77,3 +83,39 @@ async def test_exhaustion_behaviour():
     for _ in range(3):
         overage = await llm.generate([Prompt.user("overage?")])
         assert f"({_ + 1} overage)" in overage.first_text()
+
+
+@pytest.mark.asyncio
+async def test_cannot_load_history_with_structured():
+    llm: AugmentedLLMProtocol = PlaybackLLM()
+
+    with pytest.raises(ModelConfigError):
+        await llm.structured(
+            [Prompt.user("use generate to load messages")], FormattedResponse, None
+        )
+
+
+sample_json = '{"thinking":"The user wants to have a conversation about guitars, which are a broad...","message":"Sure! I love talking about guitars."}'
+
+
+@pytest.mark.asyncio
+async def test_generates_structured():
+    llm: AugmentedLLMProtocol = PlaybackLLM()
+
+    await llm.generate([Prompt.user("jlyst guitars"), Prompt.assistant(sample_json)])
+
+    model, response = await llm.structured(
+        [Prompt.user("use generate to load messages")], FormattedResponse
+    )
+
+
+@pytest.mark.asyncio
+async def test_generates_structured_exhaustion_behaves():
+    llm: AugmentedLLMProtocol = PlaybackLLM()
+
+    await llm.generate([Prompt.user("jlyst guitars"), Prompt.assistant(sample_json)])
+    await llm.structured([Prompt.user("pop the stack")], FormattedResponse)
+
+    model, response = await llm.structured([Prompt.user("exhausted stack")], FormattedResponse)
+    assert model is None
+    assert "MESSAGES EXHAUSTED" in response.first_text()

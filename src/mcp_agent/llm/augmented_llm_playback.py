@@ -1,8 +1,12 @@
-from typing import Any, List
+from typing import Any, List, Type, cast
 
+from pydantic_core import from_json
+
+from mcp_agent.core.exceptions import ModelConfigError
 from mcp_agent.core.prompt import Prompt
 from mcp_agent.llm.augmented_llm import RequestParams
 from mcp_agent.llm.augmented_llm_passthrough import PassthroughLLM
+from mcp_agent.mcp.interfaces import ModelT
 from mcp_agent.mcp.prompt_message_multipart import PromptMessageMultipart
 from mcp_agent.mcp.prompts.prompt_helpers import MessageContent
 
@@ -81,3 +85,25 @@ class PlaybackLLM(PassthroughLLM):
         )
 
         return response
+
+    async def structured(
+        self,
+        multipart_messages: List[PromptMessageMultipart],
+        model: Type[ModelT],
+        request_params: RequestParams | None = None,
+    ) -> tuple[ModelT | None, PromptMessageMultipart]:
+        """
+        Handle structured requests by returning the next assistant message.
+        """
+
+        if -1 == self._current_index:
+            raise ModelConfigError("Use generate() to load playback history")
+
+        response = self._get_next_assistant_message()
+
+        try:
+            json_data = from_json(response.first_text(), allow_partial=True)
+            validated_model = model.model_validate(json_data)
+        except ValueError:
+            validated_model = None
+        return cast("ModelT", validated_model), response

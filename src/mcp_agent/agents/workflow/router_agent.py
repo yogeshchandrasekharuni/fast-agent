@@ -51,32 +51,6 @@ You are a highly accurate request router that directs incoming requests to the m
 </fastagent:data>
 
 Your task is to analyze the request and determine the most appropriate agent from the options above.
-
-<fastagent:instruction>
-Respond with JSON following the schema below:
-{{
-    "type": "object",
-    "required": ["agent", "confidence", "reasoning"],
-    "properties": {{
-        "agent": {{
-            "type": "string",
-            "description": "The exact name of the selected agent"
-        }},
-        "confidence": {{
-            "type": "string",
-            "enum": ["high", "medium", "low"],
-            "description": "Your confidence level in this selection"
-        }},
-        "reasoning": {{
-            "type": "string",
-            "description": "Brief explanation for your selection"
-        }}
-    }}
-}}
-
-Supply only the JSON with no preamble. Use "reasoning" field to describe actions. NEVER EMIT CODE FENCES. 
-
-</fastagent:instruction>
 """
 
 
@@ -304,15 +278,10 @@ class RouterAgent(BaseAgent):
         routing_instruction = self.routing_instruction or DEFAULT_ROUTING_INSTRUCTION
         prompt_text = routing_instruction.format(context=context, request=request)
 
-        # Create multipart message for the router
-        prompt = PromptMessageMultipart(
-            role="user", content=[TextContent(type="text", text=prompt_text)]
-        )
-
         # Get structured response from LLM
         assert self._llm
         response, _ = await self._llm.structured(
-            [prompt], RoutingResponse, self._default_request_params
+            [Prompt.user(prompt_text)], RoutingResponse, self._default_request_params
         )
 
         if not response:
