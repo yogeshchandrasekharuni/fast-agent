@@ -1,6 +1,4 @@
-from typing import Any, List, Type, cast
-
-from pydantic_core import from_json
+from typing import Any, List, Type
 
 from mcp_agent.core.exceptions import ModelConfigError
 from mcp_agent.core.prompt import Prompt
@@ -99,11 +97,7 @@ class PlaybackLLM(PassthroughLLM):
         if -1 == self._current_index:
             raise ModelConfigError("Use generate() to load playback history")
 
-        response = self._get_next_assistant_message()
-
-        try:
-            json_data = from_json(response.first_text(), allow_partial=True)
-            validated_model = model.model_validate(json_data)
-        except ValueError:
-            validated_model = None
-        return cast("ModelT", validated_model), response
+        return self._structured_from_multipart(
+            self._get_next_assistant_message(),
+            model,
+        )

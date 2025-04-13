@@ -1,14 +1,16 @@
 # integration_tests/mcp_agent/test_agent_with_image.py
 import os
 from enum import Enum
-from typing import List
+from typing import TYPE_CHECKING, List
 
 import pytest
 from pydantic import BaseModel, Field
 
 from mcp_agent.core.prompt import Prompt
 from mcp_agent.core.request_params import RequestParams
-from mcp_agent.mcp.prompt_message_multipart import PromptMessageMultipart
+
+if TYPE_CHECKING:
+    from mcp_agent.mcp.prompt_message_multipart import PromptMessageMultipart
 
 
 @pytest.mark.integration

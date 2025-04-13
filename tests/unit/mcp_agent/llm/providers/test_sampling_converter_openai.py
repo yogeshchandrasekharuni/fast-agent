@@ -7,7 +7,6 @@ from mcp.types import (
     TextContent,
 )
 
-from openai.types.chat import ChatCompletionMessageParam
 from mcp_agent.llm.providers import OpenAISamplingConverter
 
 

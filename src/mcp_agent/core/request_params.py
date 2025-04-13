@@ -2,7 +2,7 @@
 Request parameters definitions for LLM interactions.
 """
 
-from typing import List
+from typing import Any, List
 
 from mcp import SamplingMessage
 from mcp.types import CreateMessageRequestParams
@@ -44,9 +44,7 @@ class RequestParams(CreateMessageRequestParams):
     Whether to allow multiple tool calls per iteration.
     Also known as multi-step tool use.
     """
-    
-    response_format: dict | None = None
+    response_format: Any | None = None
     """
-    Format to return the response in.
-    Provider-specific parameter, primarily used with OpenAI models to request JSON or other structured outputs.
+    Override response format for structured calls. Prefer sending pydantic model - only use in exceptional circumstances
     """

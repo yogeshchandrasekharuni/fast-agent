@@ -1,5 +1,5 @@
 import os
-from typing import Dict, List, Tuple, Type
+from typing import Dict, List
 
 from mcp.types import (
     CallToolRequest,
@@ -25,7 +25,6 @@ from mcp_agent.core.exceptions import ModelConfigError, ProviderKeyError
 from mcp_agent.core.prompt import Prompt
 from mcp_agent.llm.augmented_llm import (
     AugmentedLLM,
-    ModelT,
     RequestParams,
 )
 from mcp_agent.llm.providers.multipart_converter_openai import OpenAIConverter, OpenAIMessage
@@ -148,9 +147,7 @@ class OpenAIAugmentedLLM(AugmentedLLM[ChatCompletionMessageParam, ChatCompletion
         Override this method to use a different LLM.
         """
 
-        request_params = self.get_request_params(
-            default=self.default_request_params, request_params=request_params
-        )
+        request_params = self.get_request_params(request_params=request_params)
 
         responses: List[TextContent | ImageContent | EmbeddedResource] = []
 
@@ -304,139 +301,6 @@ class OpenAIAugmentedLLM(AugmentedLLM[ChatCompletionMessageParam, ChatCompletion
 
         return responses
 
-    async def _apply_prompt_provider_specific_structured(
-        self,
-        multipart_messages: List[PromptMessageMultipart],
-        model: Type[ModelT],
-        request_params: RequestParams | None = None,
-    ) -> Tuple[ModelT | None, PromptMessageMultipart]:
-        """
-        Apply the prompt and return the result as a Pydantic model.
-
-        For the OpenAI provider, use the OpenAI structured outputs feature, otherwise fall back to
-        generic model specification.
-
-        Args:
-            prompt: List of messages to process
-            model: Pydantic model to parse the response into
-            request_params: Optional request parameters
-
-        Returns:
-            The parsed response as a Pydantic model, or None if parsing fails
-        """
-        # https://platform.openai.com/docs/guides/structured-outputs?api-mode=chat
-        # the 'beta' functionality has been tested with ollama qwen/llama3.2, openrouter and openai models
-
-        # Add all previous messages to history (or all messages if last is from assistant)
-        # if the last message is a "user" inference is required
-
-        # note, the duplication between this and _apply_prompt_provider_specific is tolerated
-        # to keep things simple wrapping the different completion call-- TODO is to improve the abstactions
-        last_message = multipart_messages[-1]
-        messages_to_add = (
-            multipart_messages[:-1] if last_message.role == "user" else multipart_messages
-        )
-        converted = []
-        for msg in messages_to_add:
-            converted.append(OpenAIConverter.convert_to_openai(msg))
-
-        # TODO -- this looks like a defect from previous apply_prompt implementation.
-        self.history.extend(converted, is_prompt=True)
-
-        if last_message.role == "user":
-            # For user messages run a completion
-            self.logger.debug("Last message in prompt is from user, generating assistant response")
-            message_param: OpenAIMessage = OpenAIConverter.convert_to_openai(last_message)
-
-            request_params = self.get_request_params(
-                default=self.default_request_params, request_params=request_params
-            )
-
-            responses: List[TextContent | ImageContent | EmbeddedResource] = []
-
-            # TODO -- move this in to agent context management / agent group handling
-            messages: List[ChatCompletionMessageParam] = []
-            system_prompt = self.instruction or request_params.systemPrompt
-            if system_prompt:
-                messages.append(
-                    ChatCompletionSystemMessageParam(role="system", content=system_prompt)
-                )
-
-            messages.extend(self.history.get(include_completion_history=request_params.use_history))
-            messages.append(message_param)
-
-            arguments = self._prepare_api_request(messages, None, request_params)
-            self.logger.debug(f"OpenAI completion requested for: {arguments}")
-
-            self._log_chat_progress(self.chat_turn(), model=self.default_request_params.model)
-
-            executor_result = await self.executor.execute(
-                self._openai_client().chat.completions.create, **arguments
-            )
-
-            response = executor_result[0]
-
-            self.logger.debug(
-                "OpenAI completion response:",
-                data=response,
-            )
-
-            if isinstance(response, AuthenticationError):
-                raise ProviderKeyError(
-                    "Rejected OpenAI API key",
-                    "The configured OpenAI API key was rejected.\n"
-                    "Please check that your API key is valid and not expired.",
-                ) from response
-            elif isinstance(response, BaseException):
-                self.logger.error(f"Error: {response}")
-
-            # responses: List[
-            #     TextContent | ImageContent | EmbeddedResource
-            # ] = await self._openai_completion(
-            #     message_param,
-            #     request_params,
-            # )
-
-            return Prompt.assistant(*responses)
-        else:
-            raise ValueError("This needs to parse the assistant content to a model")
-            # For assistant messages: Return the last message (no completion needed)
-        #            self.logger.debug("Last message in prompt is from assistant, returning it directly")
-        #           return last_message
-
-        messages = []
-        for msg in prompt:
-            messages.append(OpenAIConverter.convert_to_openai(msg))
-
-        request_params = self.get_request_params(
-            default=self.default_request_params, request_params=request_params
-        )
-
-        provider_arguments = self.prepare_provider_arguments(
-            {},
-            request_params=request_params,
-            exclude_fields=self.OPENAI_EXCLUDE_FIELDS.union(self.BASE_EXCLUDE_FIELDS),
-        )
-        # Add system prompt if available and not already present
-        if self.instruction or request_params.systemPrompt:
-            system_msg = ChatCompletionSystemMessageParam(role="system", content=self.instruction)
-            messages.insert(0, system_msg)
-        model_name = self.default_request_params.model
-
-        response = await self.executor.execute(
-            self._openai_client().beta.chat.completions.parse,
-            provider_arguments,
-            messages=messages,
-            model=model_name,
-            response_format=model,
-        )
-
-        if response and isinstance(response[0], BaseException):
-            raise response[0]
-        parsed_result = response[0].choices[0].message
-        await self.show_assistant_message(parsed_result.content)
-        return parsed_result.parsed, Prompt.assistant(parsed_result.content)
-
     async def _apply_prompt_provider_specific(
         self,
         multipart_messages: List["PromptMessageMultipart"],
@@ -456,21 +320,18 @@ class OpenAIAugmentedLLM(AugmentedLLM[ChatCompletionMessageParam, ChatCompletion
         # TODO -- this looks like a defect from previous apply_prompt implementation.
         self.history.extend(converted, is_prompt=True)
 
-        if last_message.role == "user":
-            # For user messages run a completion
-            self.logger.debug("Last message in prompt is from user, generating assistant response")
-            message_param: OpenAIMessage = OpenAIConverter.convert_to_openai(last_message)
-            responses: List[
-                TextContent | ImageContent | EmbeddedResource
-            ] = await self._openai_completion(
-                message_param,
-                request_params,
-            )
-            return Prompt.assistant(*responses)
-        else:
-            # For assistant messages: Return the last message (no completion needed)
-            self.logger.debug("Last message in prompt is from assistant, returning it directly")
+        if "assistant" == last_message.role:
             return last_message
+
+        # For assistant messages: Return the last message (no completion needed)
+        message_param: OpenAIMessage = OpenAIConverter.convert_to_openai(last_message)
+        responses: List[
+            TextContent | ImageContent | EmbeddedResource
+        ] = await self._openai_completion(
+            message_param,
+            request_params,
+        )
+        return Prompt.assistant(*responses)
 
     async def pre_tool_call(self, tool_call_id: str | None, request: CallToolRequest):
         return request

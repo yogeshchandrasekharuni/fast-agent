@@ -7,7 +7,7 @@ from mcp.types import (
     PromptMessage,
     TextContent,
 )
-from openai.types.chat import ChatCompletionMessageParam, ChatCompletionUserMessageParam
+from openai.types.chat import ChatCompletionMessageParam
 
 from mcp_agent.logging.logger import get_logger
 from mcp_agent.mcp.helpers.content_helpers import (
@@ -24,7 +24,6 @@ from mcp_agent.mcp.mime_utils import (
     is_text_mime_type,
 )
 from mcp_agent.mcp.prompt_message_multipart import PromptMessageMultipart
-from mcp_agent.mcp.prompts.prompt_helpers import MessageContent
 from mcp_agent.mcp.resource_utils import extract_title_from_uri
 
 _logger = get_logger("multipart_converter_openai")

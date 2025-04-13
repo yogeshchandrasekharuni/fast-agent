@@ -18,6 +18,8 @@ from mcp.types import (
     PromptMessage,
     TextContent,
 )
+from openai import NotGiven
+from openai.lib._parsing import type_to_response_format_param as _type_to_response_format
 from pydantic_core import from_json
 from rich.text import Text
 
@@ -48,6 +50,8 @@ MessageT = TypeVar("MessageT")
 
 # Forward reference for type annotations
 if TYPE_CHECKING:
+    from openai.types.shared_params import ResponseFormat
+
     from mcp_agent.agents.agent import Agent
     from mcp_agent.context import Context
 
@@ -57,6 +61,20 @@ HUMAN_INPUT_TOOL_NAME = "__human_input__"
 
 
 class AugmentedLLM(ContextDependent, AugmentedLLMProtocol, Generic[MessageParamT, MessageT]):
+    # Common parameter names used across providers
+    PARAM_MESSAGES = "messages"
+    PARAM_MODEL = "model"
+    PARAM_MAX_TOKENS = "maxTokens"
+    PARAM_SYSTEM_PROMPT = "systemPrompt"
+    PARAM_STOP_SEQUENCES = "stopSequences"
+    PARAM_PARALLEL_TOOL_CALLS = "parallel_tool_calls"
+    PARAM_METADATA = "metadata"
+    PARAM_USE_HISTORY = "use_history"
+    PARAM_MAX_ITERATIONS = "max_iterations"
+
+    # Base set of fields that should always be excluded
+    BASE_EXCLUDE_FIELDS = {PARAM_METADATA}
+
     """
     The basic building block of agentic systems is an LLM enhanced with augmentations
     such as retrieval, tools, and memory provided from a collection of MCP servers.
@@ -139,28 +157,6 @@ class AugmentedLLM(ContextDependent, AugmentedLLMProtocol, Generic[MessageParamT
             use_history=True,
         )
 
-    async def _apply_prompt_provider_specific_structured(
-        self,
-        multipart_messages: List[PromptMessageMultipart],
-        model: Type[ModelT],
-        request_params: RequestParams | None = None,
-    ) -> Tuple[ModelT | None, PromptMessageMultipart]:
-        """Apply the prompt and return the result as a Pydantic model, or None if coercion fails"""
-        try:
-            result: PromptMessageMultipart = await self._apply_prompt_provider_specific(
-                multipart_messages, request_params
-            )
-            final_generation = get_text(result.content[-1]) or ""
-            await self.show_assistant_message(final_generation)
-            json_data = from_json(final_generation, allow_partial=True)
-            validated_model = model.model_validate(json_data)
-
-            return cast("ModelT", validated_model), Prompt.assistant(json_data)
-        except Exception as e:
-            logger = get_logger(__name__)
-            logger.error(f"Failed to parse structured response: {str(e)}")
-            return None, Prompt.assistant(f"Failed to parse structured response: {str(e)}")
-
     async def generate(
         self,
         multipart_messages: List[PromptMessageMultipart],
@@ -170,10 +166,11 @@ class AugmentedLLM(ContextDependent, AugmentedLLMProtocol, Generic[MessageParamT
         Create a completion with the LLM using the provided messages.
         """
         # note - check changes here are mirrored in structured(). i've thought hard about
-        # a strategy to reduce duplication etc, but aiming for simple if imperfect for the moment
+        # a strategy to reduce duplication etc, but aiming for simple but imperfect for the moment
 
         # We never expect this for structured() calls - this is for interactive use - developers
         # can do this programatically
+        # TODO -- create a "fast-agent" control role rather than magic strings
         if multipart_messages[-1].first_text().startswith("***SAVE_HISTORY"):
             parts: list[str] = multipart_messages[-1].first_text().split(" ", 1)
             filename: str = (
@@ -195,19 +192,75 @@ class AugmentedLLM(ContextDependent, AugmentedLLMProtocol, Generic[MessageParamT
         self._message_history.append(assistant_response)
         return assistant_response
 
+    @abstractmethod
+    async def _apply_prompt_provider_specific(
+        self,
+        multipart_messages: List["PromptMessageMultipart"],
+        request_params: RequestParams | None = None,
+    ) -> PromptMessageMultipart:
+        """
+        Provider-specific implementation of apply_prompt_template.
+        This default implementation handles basic text content for any LLM type.
+        Provider-specific subclasses should override this method to handle
+        multimodal content appropriately.
+
+        Args:
+            multipart_messages: List of PromptMessageMultipart objects parsed from the prompt template
+
+        Returns:
+            String representation of the assistant's response if generated,
+            or the last assistant message in the prompt
+        """
+
     async def structured(
         self,
         multipart_messages: List[PromptMessageMultipart],
         model: Type[ModelT],
         request_params: RequestParams | None = None,
     ) -> Tuple[ModelT | None, PromptMessageMultipart]:
+        """Return a structured response from the LLM using the provided messages."""
         self._precall(multipart_messages)
-        result, multipart = await self._apply_prompt_provider_specific_structured(
+        result, assistant_response = await self._apply_prompt_provider_specific_structured(
             multipart_messages, model, request_params
         )
 
-        self._message_history.append(multipart)
-        return result, multipart
+        self._message_history.append(assistant_response)
+        return result, assistant_response
+
+    async def _apply_prompt_provider_specific_structured(
+        self,
+        multipart_messages: List[PromptMessageMultipart],
+        model: Type[ModelT],
+        request_params: RequestParams | None = None,
+    ) -> Tuple[ModelT | None, PromptMessageMultipart]:
+        """Base class attempts to parse JSON - subclasses can use provider specific functionality"""
+
+        request_params = self.get_request_params(request_params)
+
+        if not request_params.response_format:
+            schema: ResponseFormat | NotGiven = _type_to_response_format(model)
+            if schema is not NotGiven:
+                request_params.response_format = schema
+
+        result: PromptMessageMultipart = await self._apply_prompt_provider_specific(
+            multipart_messages, request_params
+        )
+        await self.show_assistant_message(result.last_text())
+        return self._structured_from_multipart(result, model)
+
+    def _structured_from_multipart(
+        self, message: PromptMessageMultipart, model: Type[ModelT]
+    ) -> Tuple[ModelT | None, PromptMessageMultipart]:
+        """Parse the content of a PromptMessage and return the structured model and message itself"""
+        try:
+            text = get_text(message.content[-1]) or ""
+            json_data = from_json(text, allow_partial=True)
+            validated_model = model.model_validate(json_data)
+            return cast("ModelT", validated_model), message
+        except ValueError as e:
+            logger = get_logger(__name__)
+            logger.warning(f"Failed to parse structured response: {str(e)}")
+            return None, message
 
     def _precall(self, multipart_messages: List[PromptMessageMultipart]) -> None:
         """Pre-call hook to modify the message before sending it to the provider."""
@@ -222,31 +275,6 @@ class AugmentedLLM(ContextDependent, AugmentedLLMProtocol, Generic[MessageParamT
     def chat_turn(self) -> int:
         """Return the current chat turn number"""
         return 1 + sum(1 for message in self._message_history if message.role == "assistant")
-
-    def _merge_request_params(
-        self, default_params: RequestParams, provided_params: RequestParams
-    ) -> RequestParams:
-        """Merge default and provided request parameters"""
-
-        merged = default_params.model_dump()
-        merged.update(provided_params.model_dump(exclude_unset=True))
-        final_params = RequestParams(**merged)
-
-        return final_params
-
-    # Common parameter names used across providers
-    PARAM_MESSAGES = "messages"
-    PARAM_MODEL = "model"
-    PARAM_MAX_TOKENS = "maxTokens"
-    PARAM_SYSTEM_PROMPT = "systemPrompt"
-    PARAM_STOP_SEQUENCES = "stopSequences"
-    PARAM_PARALLEL_TOOL_CALLS = "parallel_tool_calls"
-    PARAM_METADATA = "metadata"
-    PARAM_USE_HISTORY = "use_history"
-    PARAM_MAX_ITERATIONS = "max_iterations"
-
-    # Base set of fields that should always be excluded
-    BASE_EXCLUDE_FIELDS = {PARAM_METADATA}
 
     def prepare_provider_arguments(
         self,
@@ -283,10 +311,20 @@ class AugmentedLLM(ContextDependent, AugmentedLLMProtocol, Generic[MessageParamT
 
         return arguments
 
+    def _merge_request_params(
+        self, default_params: RequestParams, provided_params: RequestParams
+    ) -> RequestParams:
+        """Merge default and provided request parameters"""
+
+        merged = default_params.model_dump()
+        merged.update(provided_params.model_dump(exclude_unset=True))
+        final_params = RequestParams(**merged)
+
+        return final_params
+
     def get_request_params(
         self,
         request_params: RequestParams | None = None,
-        default: RequestParams | None = None,
     ) -> RequestParams:
         """
         Get request parameters with merged-in defaults and overrides.
@@ -295,17 +333,12 @@ class AugmentedLLM(ContextDependent, AugmentedLLMProtocol, Generic[MessageParamT
             default: The default request parameters to use as the base.
                 If unspecified, self.default_request_params will be used.
         """
-        # Start with the defaults
-        default_request_params = default or self.default_request_params
-
-        if not default_request_params:
-            default_request_params = self._initialize_default_params({})
 
         # If user provides overrides, merge them with defaults
         if request_params:
-            return self._merge_request_params(default_request_params, request_params)
+            return self._merge_request_params(self.default_request_params, request_params)
 
-        return default_request_params
+        return self.default_request_params.model_copy()
 
     @classmethod
     def convert_message_to_message_param(
@@ -521,26 +554,6 @@ class AugmentedLLM(ContextDependent, AugmentedLLMProtocol, Generic[MessageParamT
 
         # Save messages using the unified save function that auto-detects format
         save_messages_to_file(self._message_history, filename)
-
-    @abstractmethod
-    async def _apply_prompt_provider_specific(
-        self,
-        multipart_messages: List["PromptMessageMultipart"],
-        request_params: RequestParams | None = None,
-    ) -> PromptMessageMultipart:
-        """
-        Provider-specific implementation of apply_prompt_template.
-        This default implementation handles basic text content for any LLM type.
-        Provider-specific subclasses should override this method to handle
-        multimodal content appropriately.
-
-        Args:
-            multipart_messages: List of PromptMessageMultipart objects parsed from the prompt template
-
-        Returns:
-            String representation of the assistant's response if generated,
-            or the last assistant message in the prompt
-        """
 
     @property
     def message_history(self) -> List[PromptMessageMultipart]:
