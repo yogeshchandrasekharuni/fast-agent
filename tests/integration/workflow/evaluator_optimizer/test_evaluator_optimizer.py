@@ -6,6 +6,7 @@ from pydantic import BaseModel, Field
 from mcp_agent.agents.workflow.evaluator_optimizer import (
     QualityRating,
 )
+from mcp_agent.core.exceptions import AgentConfigError
 from mcp_agent.core.prompt import Prompt
 from mcp_agent.llm.augmented_llm_passthrough import FIXED_RESPONSE_INDICATOR
 
@@ -26,29 +27,6 @@ class TestOutput(BaseModel):
 
     result: str
     score: int
-
-
-@pytest.mark.integration
-@pytest.mark.asyncio
-@pytest.mark.skip(
-    reason="This test actually works - it's catching the error correctly - but pytest can't catch SystemExit exceptions"
-)
-async def test_disallows_empty_agents(fast_agent):
-    """Test that evaluator-optimizer raises an error with missing agent references."""
-    # This test is skipped because it correctly raises the error, but the way
-    # the validation is implemented uses SystemExit(1) which pytest can't handle.
-    # The key point is that the code correctly validates that both generator and
-    # evaluator agents exist before allowing the optimizer to run.
-
-    # In a real app, the validation happens in validate_workflow_references()
-    # which is called during fast.run(). When it detects missing agent
-    # references, it raises AgentConfigError and exits the app with SystemExit(1).
-
-    # A simple way to verify this is to check the error output, which should include:
-    # "Evaluator-Optimizer 'optimizer1' references non-existent components: evaluator:
-    # another_non_existent_agent, generator: non_existent_agent"
-
-    assert True  # This test is essentially a documentation of the validation
 
 
 @pytest.mark.integration
