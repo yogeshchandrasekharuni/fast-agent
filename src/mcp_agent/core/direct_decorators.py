@@ -206,15 +206,22 @@ def agent(
     )
 
 
+DEFAULT_INSTRUCTION_ORCHESTRATOR = """
+You are an expert planner. Given an objective task and a list of Agents 
+(which are collections of capabilities), your job is to break down the objective 
+into a series of steps, which can be performed by these agents.
+"""
+
+
 def orchestrator(
     self,
     name: str,
     *,
     agents: List[str],
-    instruction: Optional[str] = None,
+    instruction: Optional[str] = DEFAULT_INSTRUCTION_ORCHESTRATOR,
     model: Optional[str] = None,
-    use_history: bool = False,
     request_params: RequestParams | None = None,
+    use_history: bool = False,
     human_input: bool = False,
     plan_type: Literal["full", "iterative"] = "full",
     max_iterations: int = 30,
@@ -235,11 +242,6 @@ def orchestrator(
 
     Returns:
         A decorator that registers the orchestrator with proper type annotations
-    """
-    default_instruction = """
-    You are an expert planner. Given an objective task and a list of Agents 
-    (which are collections of capabilities), your job is to break down the objective 
-    into a series of steps, which can be performed by these agents.
     """
 
     # Create final request params with max_iterations

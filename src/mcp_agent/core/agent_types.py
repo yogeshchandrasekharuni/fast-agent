@@ -33,7 +33,7 @@ class AgentConfig:
     use_history: bool = True
     default_request_params: RequestParams | None = None
     human_input: bool = False
-    agent_type: str = AgentType.BASIC.value
+    agent_type: AgentType = AgentType.BASIC
 
     def __post_init__(self) -> None:
         """Ensure default_request_params exists with proper history setting"""
