@@ -5,9 +5,8 @@ Enhanced AgentMCPServer with robust shutdown handling for SSE transport.
 import asyncio
 import os
 import signal
-import sys
-from contextlib import AsyncExitStack
-from typing import Dict, Optional, Set
+from contextlib import AsyncExitStack, asynccontextmanager
+from typing import Set
 
 from mcp.server.fastmcp import Context as MCPContext
 from mcp.server.fastmcp import FastMCP
@@ -121,7 +120,7 @@ class AgentMCPServer:
 
         # If force shutdown already requested, exit immediately
         if self._force_shutdown_event.is_set():
-            logger.info(f"Force shutdown already in progress, exiting immediately...")
+            logger.info("Force shutdown already in progress, exiting immediately...")
             os._exit(1)
 
         # If graceful shutdown already in progress, escalate to forced
