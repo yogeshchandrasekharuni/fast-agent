@@ -1,13 +1,13 @@
 from dataclasses import dataclass
-from enum import Enum, auto
+from enum import Enum
 from typing import Callable, Dict, Optional, Type, Union
 
 from mcp_agent.agents.agent import Agent
-from mcp_agent.llm.provider_types import Provider
 from mcp_agent.core.exceptions import ModelConfigError
 from mcp_agent.core.request_params import RequestParams
 from mcp_agent.llm.augmented_llm_passthrough import PassthroughLLM
 from mcp_agent.llm.augmented_llm_playback import PlaybackLLM
+from mcp_agent.llm.provider_types import Provider
 from mcp_agent.llm.providers.augmented_llm_anthropic import AnthropicAugmentedLLM
 from mcp_agent.llm.providers.augmented_llm_deepseek import DeepSeekAugmentedLLM
 from mcp_agent.llm.providers.augmented_llm_generic import GenericAugmentedLLM

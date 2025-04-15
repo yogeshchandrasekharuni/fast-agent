@@ -8,7 +8,6 @@ from typing import Any, Dict
 
 from pydantic import BaseModel
 
-from mcp_agent.config import Settings
 from mcp_agent.core.exceptions import ProviderKeyError
 
 PROVIDER_ENVIRONMENT_MAP: Dict[str, str] = {

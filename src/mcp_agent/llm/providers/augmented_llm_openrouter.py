@@ -1,6 +1,5 @@
 import os
 
-from mcp_agent.core.exceptions import ProviderKeyError
 from mcp_agent.core.request_params import RequestParams
 from mcp_agent.llm.provider_types import Provider
 from mcp_agent.llm.providers.augmented_llm_openai import OpenAIAugmentedLLM

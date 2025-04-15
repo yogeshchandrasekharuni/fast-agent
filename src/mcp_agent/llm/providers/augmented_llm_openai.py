@@ -1,4 +1,3 @@
-import os
 from typing import List, Tuple, Type
 
 from mcp.types import (

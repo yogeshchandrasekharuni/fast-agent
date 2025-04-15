@@ -3,7 +3,6 @@ import os
 import pytest
 
 from mcp_agent.core.exceptions import ProviderKeyError
-from mcp_agent.core.prompt import Prompt
 from mcp_agent.llm.provider_key_manager import ProviderKeyManager
 
 

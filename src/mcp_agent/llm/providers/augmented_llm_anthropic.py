@@ -1,4 +1,3 @@
-import os
 from typing import TYPE_CHECKING, List
 
 from mcp.types import EmbeddedResource, ImageContent, TextContent

@@ -6,7 +6,6 @@ from pydantic import BaseModel, Field
 from mcp_agent.agents.workflow.evaluator_optimizer import (
     QualityRating,
 )
-from mcp_agent.core.exceptions import AgentConfigError
 from mcp_agent.core.prompt import Prompt
 from mcp_agent.llm.augmented_llm_passthrough import FIXED_RESPONSE_INDICATOR
 
