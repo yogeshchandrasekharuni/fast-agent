@@ -5,6 +5,7 @@ from mcp_agent.core.prompt import Prompt
 from mcp_agent.llm.augmented_llm import RequestParams
 from mcp_agent.llm.augmented_llm_passthrough import PassthroughLLM
 from mcp_agent.mcp.interfaces import ModelT
+from mcp_agent.llm.provider_types import Provider
 from mcp_agent.mcp.prompt_message_multipart import PromptMessageMultipart
 from mcp_agent.mcp.prompts.prompt_helpers import MessageContent
 
@@ -23,7 +24,7 @@ class PlaybackLLM(PassthroughLLM):
     """
 
     def __init__(self, name: str = "Playback", **kwargs: dict[str, Any]) -> None:
-        super().__init__(name=name, **kwargs)
+        super().__init__(name=name, provider=Provider.FAST_AGENT, **kwargs)
         self._messages: List[PromptMessageMultipart] = []
         self._current_index = -1
         self._overage = -1
