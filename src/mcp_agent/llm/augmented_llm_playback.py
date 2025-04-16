@@ -4,8 +4,8 @@ from mcp_agent.core.exceptions import ModelConfigError
 from mcp_agent.core.prompt import Prompt
 from mcp_agent.llm.augmented_llm import RequestParams
 from mcp_agent.llm.augmented_llm_passthrough import PassthroughLLM
-from mcp_agent.mcp.interfaces import ModelT
 from mcp_agent.llm.provider_types import Provider
+from mcp_agent.mcp.interfaces import ModelT
 from mcp_agent.mcp.prompt_message_multipart import PromptMessageMultipart
 from mcp_agent.mcp.prompts.prompt_helpers import MessageContent
 

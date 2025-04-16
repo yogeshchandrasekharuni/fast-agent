@@ -1,4 +1,3 @@
-import os
 from typing import Dict, List
 
 from mcp.types import (
@@ -21,12 +20,13 @@ from openai.types.chat import (
 from pydantic_core import from_json
 from rich.text import Text
 
-from mcp_agent.core.exceptions import ModelConfigError, ProviderKeyError
+from mcp_agent.core.exceptions import ProviderKeyError
 from mcp_agent.core.prompt import Prompt
 from mcp_agent.llm.augmented_llm import (
     AugmentedLLM,
     RequestParams,
 )
+from mcp_agent.llm.provider_types import Provider
 from mcp_agent.llm.providers.multipart_converter_openai import OpenAIConverter, OpenAIMessage
 from mcp_agent.llm.providers.sampling_converter_openai import (
     OpenAISamplingConverter,
