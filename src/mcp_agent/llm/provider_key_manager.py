@@ -37,9 +37,6 @@ class ProviderKeyManager:
 
     @staticmethod
     def get_config_file_key(provider_name: str, config: Any) -> str | None:
-        if provider_name == "generic":
-            return "ollama"  # Default for generic provider
-
         api_key = None
         if isinstance(config, BaseModel):
             config = config.model_dump()
@@ -48,6 +45,7 @@ class ProviderKeyManager:
             api_key = provider_settings.get("api_key", API_KEY_HINT_TEXT)
             if api_key == API_KEY_HINT_TEXT:
                 api_key = None
+
         return api_key
 
     @staticmethod
@@ -70,6 +68,9 @@ class ProviderKeyManager:
         api_key = ProviderKeyManager.get_config_file_key(provider_name, config)
         if not api_key:
             api_key = ProviderKeyManager.get_env_var(provider_name)
+
+        if not api_key and provider_name == "generic":
+            api_key = "ollama"  # Default for generic provider
 
         if not api_key:
             raise ProviderKeyError(

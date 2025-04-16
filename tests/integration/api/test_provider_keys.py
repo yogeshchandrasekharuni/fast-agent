@@ -81,4 +81,12 @@ async def test_ollama_generic_api_key(fast_agent):
 
             assert "ollama" == ProviderKeyManager.get_api_key("generic", fast.config)
 
+            generic_key = os.getenv("GENERIC_API_KEY")
+            try:
+                os.environ["GENERIC_API_KEY"] = "test-key"
+                assert "test-key" == ProviderKeyManager.get_api_key("generic", fast.config)
+            finally:
+                if generic_key:
+                    os.environ["GENERIC_API_KEY"] = generic_key
+
     await agent_function()
