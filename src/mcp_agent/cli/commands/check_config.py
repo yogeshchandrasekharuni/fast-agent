@@ -11,8 +11,9 @@ import yaml
 from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
+
+from mcp_agent.llm.provider_key_manager import API_KEY_HINT_TEXT, ProviderKeyManager
 from mcp_agent.llm.provider_types import Provider
-from mcp_agent.llm.provider_key_manager import ProviderKeyManager, API_KEY_HINT_TEXT
 
 app = typer.Typer(
     help="Check and diagnose FastAgent configuration",
@@ -427,7 +428,7 @@ def show(
         parsed = yaml.safe_load(content)
 
         # Show parsing success status
-        console.print(f"[green]YAML syntax is valid[/green]")
+        console.print("[green]YAML syntax is valid[/green]")
         if parsed is None:
             console.print("[yellow]Warning: File is empty or contains only comments[/yellow]\n")
         else:
