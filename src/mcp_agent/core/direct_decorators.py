@@ -218,7 +218,7 @@ def orchestrator(
     name: str,
     *,
     agents: List[str],
-    instruction: Optional[str] = DEFAULT_INSTRUCTION_ORCHESTRATOR,
+    instruction: str = DEFAULT_INSTRUCTION_ORCHESTRATOR,
     model: Optional[str] = None,
     request_params: RequestParams | None = None,
     use_history: bool = False,
@@ -252,7 +252,7 @@ def orchestrator(
             self,
             AgentType.ORCHESTRATOR,
             name=name,
-            instruction=instruction or default_instruction,
+            instruction=instruction,
             servers=[],  # Orchestrators don't connect to servers directly
             model=model,
             use_history=use_history,
