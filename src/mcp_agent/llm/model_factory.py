@@ -1,6 +1,7 @@
-from dataclasses import dataclass
 from enum import Enum
 from typing import Callable, Dict, Optional, Type, Union
+
+from pydantic import BaseModel
 
 from mcp_agent.agents.agent import Agent
 from mcp_agent.core.exceptions import ModelConfigError
@@ -37,8 +38,7 @@ class ReasoningEffort(Enum):
     HIGH = "high"
 
 
-@dataclass
-class ModelConfig:
+class ModelConfig(BaseModel):
     """Configuration for a specific model"""
 
     provider: Provider
