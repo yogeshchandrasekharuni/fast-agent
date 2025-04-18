@@ -5,6 +5,7 @@ Type definitions for agents and agent configurations.
 from enum import Enum
 from typing import List
 
+from a2a_types.types import AgentCapabilities, AgentCard
 from pydantic import BaseModel, Field, model_validator
 
 # Forward imports to avoid circular dependencies
@@ -34,8 +35,8 @@ class AgentConfig(BaseModel):
     human_input: bool = False
     agent_type: AgentType = AgentType.BASIC
 
-    @model_validator(mode='after')
-    def ensure_default_request_params(self) -> 'AgentConfig':
+    @model_validator(mode="after")
+    def ensure_default_request_params(self) -> "AgentConfig":
         """Ensure default_request_params exists with proper history setting"""
         if self.default_request_params is None:
             self.default_request_params = RequestParams(

@@ -87,7 +87,7 @@ class AnthropicAugmentedLLM(AugmentedLLM[MessageParam, Message]):
         assert self.context.config
         return self.context.config.anthropic.base_url if self.context.config.anthropic else None
 
-    async def generate_internal(
+    async def _anthropic_completion(
         self,
         message_param,
         request_params: RequestParams | None = None,
@@ -305,7 +305,7 @@ class AnthropicAugmentedLLM(AugmentedLLM[MessageParam, Message]):
         Override this method to use a different LLM.
 
         """
-        res = await self.generate_internal(
+        res = await self._anthropic_completion(
             message_param=message_param,
             request_params=request_params,
         )
@@ -347,13 +347,11 @@ class AnthropicAugmentedLLM(AugmentedLLM[MessageParam, Message]):
     ) -> Tuple[ModelT | None, PromptMessageMultipart]:  # noqa: F821
         request_params = self.get_request_params(request_params)
 
-        multipart_messages.append(
-            Prompt.user(
-                """YOU MUST RESPOND IN THE FOLLOWING FORMAT:
+        multipart_messages[-1].add_text(
+            """YOU MUST RESPOND IN THE FOLLOWING FORMAT:
             {schema}
             RESPOND ONLY WITH THE JSON, NO PREAMBLE OR CODE FENCES """.format(
-                    schema=model.model_json_schema()
-                )
+                schema=model.model_json_schema()
             )
         )
 

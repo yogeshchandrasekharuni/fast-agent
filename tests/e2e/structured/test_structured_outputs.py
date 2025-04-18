@@ -123,7 +123,7 @@ response_format = {
     [
         "generic.llama3.2:latest",
         # "haiku", -- anthropic do not support structured outputs this way
-        "gpt-4o-mini",
+        "gpt-4.1-mini",
         "openrouter.google/gemini-2.0-flash-001",
     ],
 )

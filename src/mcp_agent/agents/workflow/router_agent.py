@@ -21,6 +21,8 @@ from mcp_agent.mcp.interfaces import ModelT
 from mcp_agent.mcp.prompt_message_multipart import PromptMessageMultipart
 
 if TYPE_CHECKING:
+    from a2a_types.types import AgentCard
+
     from mcp_agent.context import Context
 
 logger = get_logger(__name__)
@@ -38,19 +40,13 @@ Follow these guidelines:
 
 # Default routing instruction with placeholders for context and request
 DEFAULT_ROUTING_INSTRUCTION = """
-You are a highly accurate request router that directs incoming requests to the most appropriate agent.
-
-<fastagent:data>
+Select from the following agents to handle the request:
 <fastagent:agents>
 {context}
 </fastagent:agents>
 
-<fastagent:request>
-{request}
-</fastagent:request>
-</fastagent:data>
+You must respond with the 'name' of one of the agents listed above.
 
-Your task is to analyze the request and determine the most appropriate agent from the options above.
 """
 
 
@@ -210,7 +206,7 @@ class RouterAgent(BaseAgent):
 
     async def structured(
         self,
-        prompt: List[PromptMessageMultipart],
+        multipart_messages: List[PromptMessageMultipart],
         model: Type[ModelT],
         request_params: Optional[RequestParams] = None,
     ) -> Tuple[ModelT | None, PromptMessageMultipart]:
@@ -225,7 +221,7 @@ class RouterAgent(BaseAgent):
         Returns:
             The parsed response from the selected agent, or None if parsing fails
         """
-        routing_result = await self._get_routing_result(prompt)
+        routing_result = await self._get_routing_result(multipart_messages)
 
         if not routing_result:
             return None, Prompt.assistant("No routing result")
@@ -239,7 +235,7 @@ class RouterAgent(BaseAgent):
         )
 
         # Dispatch the request to the selected agent
-        return await selected_agent.structured(prompt, model, request_params)
+        return await selected_agent.structured(multipart_messages, model, request_params)
 
     async def _route_request(self, message: PromptMessageMultipart) -> Optional[RouterResult]:
         """
@@ -263,17 +259,18 @@ class RouterAgent(BaseAgent):
 
         # Generate agent descriptions for the context
         agent_descriptions = []
-        for i, agent in enumerate(self.agents, 1):
-            description = agent.instruction if isinstance(agent.instruction, str) else ""
-            agent_descriptions.append(f"{i}. Name: {agent.name} - {description}")
+        for agent in self.agents:
+            agent_card: AgentCard = await agent.agent_card()
+            agent_descriptions.append(
+                agent_card.model_dump_json(include={"name", "description", "skills"})
+            )
 
         context = "\n\n".join(agent_descriptions)
 
         # Format the routing prompt
         routing_instruction = self.routing_instruction or DEFAULT_ROUTING_INSTRUCTION
-        prompt_text = routing_instruction.format(context=context, request=message.all_text())
-
-        message.add_text(prompt_text)
+        routing_instruction = routing_instruction.format(context=context)
+        message.add_text(routing_instruction)
         assert self._llm
         response, _ = await self._llm.structured(
             [message], RoutingResponse, self._default_request_params

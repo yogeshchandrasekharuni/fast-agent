@@ -36,7 +36,7 @@ from mcp_agent.mcp.prompt_message_multipart import PromptMessageMultipart
 
 _logger = get_logger(__name__)
 
-DEFAULT_OPENAI_MODEL = "gpt-4o"
+DEFAULT_OPENAI_MODEL = "gpt-4.1-mini"
 DEFAULT_REASONING_EFFORT = "medium"
 
 
