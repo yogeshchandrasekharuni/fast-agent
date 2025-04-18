@@ -57,6 +57,7 @@ class OrchestratorAgent(BaseAgent):
         config: AgentConfig,
         agents: List[Agent],
         plan_type: Literal["full", "iterative"] = "full",
+        plan_iterations: int = 3,
         context: Optional[Any] = None,
         **kwargs,
     ) -> None:
@@ -536,9 +537,7 @@ class OrchestratorAgent(BaseAgent):
             return ""
 
         # Get agent instruction or default description
-        instruction = (
-            agent.instruction if hasattr(agent, "instruction") else f"Agent '{agent_name}'"
-        )
+        instruction = agent.instruction if agent.instruction else f"Agent '{agent_name}'"
 
         # Format with XML tags
         return f'<fastagent:agent name="{agent_name}">{instruction}</fastagent:agent>'

@@ -60,17 +60,6 @@ class RoutingResponse(BaseModel):
     reasoning: str | None = None
 
 
-class RouterResult(BaseModel):
-    """Router result with agent reference and confidence rating."""
-
-    result: BaseAgent
-    confidence: str
-    reasoning: Optional[str] = None
-
-    # Allow Agent objects to be stored without serialization
-    model_config = {"arbitrary_types_allowed": True}
-
-
 class RouterAgent(BaseAgent):
     """
     A simplified router that uses an LLM to determine the best agent for a request,
@@ -155,30 +144,6 @@ class RouterAgent(BaseAgent):
             llm_factory, model, request_params, verb="Routing", **additional_kwargs
         )
 
-    async def _get_routing_result(
-        self,
-        messages: List[PromptMessageMultipart],
-    ) -> Optional[RouterResult]:
-        """
-        Common method to extract request and get routing result.
-
-        Args:
-            messages: The messages to extract request from
-
-        Returns:
-            RouterResult containing the selected agent, or None if no suitable agent found
-        """
-        if not self.initialized:
-            await self.initialize()
-
-        # Determine which agent to route to
-        routing_result = await self._route_request(messages[-1])
-
-        if not routing_result:
-            logger.warning("Could not determine appropriate agent for this request")
-
-        return routing_result
-
     async def generate(
         self,
         multipart_messages: List[PromptMessageMultipart],
@@ -194,28 +159,17 @@ class RouterAgent(BaseAgent):
         Returns:
             The response from the selected agent
         """
-        routing_result = await self._get_routing_result(multipart_messages)
 
-        if not routing_result:
-            return PromptMessageMultipart(
-                role="assistant",
-                content=[
-                    TextContent(
-                        type="text", text="Could not determine appropriate agent for this request."
-                    )
-                ],
-            )
+        route, warn = await self._route_request(multipart_messages[-1])
+
+        if not route:
+            return Prompt.assistant(warn or "No routing result or warning received")
 
         # Get the selected agent
-        selected_agent = routing_result.result
-
-        # Log the routing decision
-        logger.info(
-            f"Routing request to agent: {selected_agent.name} (confidence: {routing_result.confidence})"
-        )
+        agent: Agent = self.agent_map[route.agent]
 
         # Dispatch the request to the selected agent
-        return await selected_agent.generate(multipart_messages, request_params)
+        return await agent.generate(multipart_messages, request_params)
 
     async def structured(
         self,
@@ -234,23 +188,22 @@ class RouterAgent(BaseAgent):
         Returns:
             The parsed response from the selected agent, or None if parsing fails
         """
-        routing_result = await self._get_routing_result(multipart_messages)
+        route, warn = await self._route_request(multipart_messages[-1])
 
-        if not routing_result:
-            return None, Prompt.assistant("No routing result")
+        if not route:
+            return None, Prompt.assistant(
+                warn or "No routing result or warning received (structured)"
+            )
 
         # Get the selected agent
-        selected_agent = routing_result.result
-
-        # Log the routing decision
-        logger.info(
-            f"Routing structured request to agent: {selected_agent.name} (confidence: {routing_result.confidence})"
-        )
+        agent: Agent = self.agent_map[route.agent]
 
         # Dispatch the request to the selected agent
-        return await selected_agent.structured(multipart_messages, model, request_params)
+        return await agent.structured(multipart_messages, model, request_params)
 
-    async def _route_request(self, message: PromptMessageMultipart) -> RouterResult | None:
+    async def _route_request(
+        self, message: PromptMessageMultipart
+    ) -> Tuple[RoutingResponse | None, str | None]:
         """
         Determine which agent to route the request to.
 
@@ -261,14 +214,14 @@ class RouterAgent(BaseAgent):
             RouterResult containing the selected agent, or None if no suitable agent was found
         """
         if not self.agents:
-            logger.warning("No agents available for routing")
-            return None
+            logger.error("No agents available for routing")
+            raise AgentConfigError("No agents available for routing - fatal error")
 
         # If only one agent is available, use it directly
         if len(self.agents) == 1:
-            return RouterResult(
-                result=self.agents[0], confidence="high", reasoning="Only one agent available"
-            )
+            return RoutingResponse(
+                agent=self.agents[0].name, confidence="high", reasoning="Only one agent available"
+            ), None
 
         # Generate agent descriptions for the context
         agent_descriptions = []
@@ -280,12 +233,12 @@ class RouterAgent(BaseAgent):
                 )
             )
 
-        context = "\n\n".join(agent_descriptions)
+        context = ",\n".join(agent_descriptions)
 
         # Format the routing prompt
         routing_instruction = self.routing_instruction or DEFAULT_ROUTING_INSTRUCTION
         routing_instruction = routing_instruction.format(context=context)
-        #        message.add_text(routing_instruction)
+
         assert self._llm
         mutated = message.model_copy(deep=True)
         mutated.add_text(routing_instruction)
@@ -295,17 +248,19 @@ class RouterAgent(BaseAgent):
             self._default_request_params,
         )
 
+        warn: str | None = None
         if not response:
-            logger.warning("No routing response received from LLM")
-            return None
+            warn = "No routing response received from LLM"
+        elif response.agent not in self.agent_map:
+            warn = f"A response was received, but the agent {response.agent} was not known to the Router"
 
-        # Look up the agent by name
-        selected_agent = self.agent_map.get(response.agent)
+        if warn:
+            logger.warning(warn)
+            return None, warn
+        else:
+            assert response
+            logger.info(
+                f"Routing structured request to agent: {response.agent or 'error'} (confidence: {response.confidence or ''})"
+            )
 
-        if not selected_agent:
-            logger.warning(f"Agent '{response.agent}' not found in available agents")
-            return None
-
-        return RouterResult(
-            result=selected_agent, confidence=response.confidence, reasoning=response.reasoning
-        )
+            return response, None
