@@ -5,7 +5,7 @@ This provides a simplified implementation that routes messages to agents
 by determining the best agent for a request and dispatching to it.
 """
 
-from typing import TYPE_CHECKING, List, Optional, Tuple, Type
+from typing import TYPE_CHECKING, Callable, List, Optional, Tuple, Type
 
 from mcp.types import TextContent
 from pydantic import BaseModel
@@ -17,7 +17,7 @@ from mcp_agent.core.exceptions import AgentConfigError
 from mcp_agent.core.prompt import Prompt
 from mcp_agent.core.request_params import RequestParams
 from mcp_agent.logging.logger import get_logger
-from mcp_agent.mcp.interfaces import ModelT
+from mcp_agent.mcp.interfaces import AugmentedLLMProtocol, ModelT
 from mcp_agent.mcp.prompt_message_multipart import PromptMessageMultipart
 
 if TYPE_CHECKING:
@@ -38,11 +38,13 @@ Follow these guidelines:
 - Provide your confidence level (high, medium, low) and brief reasoning for your selection
 """
 
-# Default routing instruction with placeholders for context and request
+# Default routing instruction with placeholders for context (AgentCard JSON)
 DEFAULT_ROUTING_INSTRUCTION = """
 Select from the following agents to handle the request:
 <fastagent:agents>
+[
 {context}
+]
 </fastagent:agents>
 
 You must respond with the 'name' of one of the agents listed above.
@@ -142,6 +144,17 @@ class RouterAgent(BaseAgent):
             except Exception as e:
                 logger.warning(f"Error shutting down agent: {str(e)}")
 
+    async def attach_llm(
+        self,
+        llm_factory: type[AugmentedLLMProtocol] | Callable[..., AugmentedLLMProtocol],
+        model: str | None = None,
+        request_params: RequestParams | None = None,
+        **additional_kwargs,
+    ) -> AugmentedLLMProtocol:
+        return await super().attach_llm(
+            llm_factory, model, request_params, verb="Routing", **additional_kwargs
+        )
+
     async def _get_routing_result(
         self,
         messages: List[PromptMessageMultipart],
@@ -237,7 +250,7 @@ class RouterAgent(BaseAgent):
         # Dispatch the request to the selected agent
         return await selected_agent.structured(multipart_messages, model, request_params)
 
-    async def _route_request(self, message: PromptMessageMultipart) -> Optional[RouterResult]:
+    async def _route_request(self, message: PromptMessageMultipart) -> RouterResult | None:
         """
         Determine which agent to route the request to.
 
@@ -262,7 +275,9 @@ class RouterAgent(BaseAgent):
         for agent in self.agents:
             agent_card: AgentCard = await agent.agent_card()
             agent_descriptions.append(
-                agent_card.model_dump_json(include={"name", "description", "skills"})
+                agent_card.model_dump_json(
+                    include={"name", "description", "skills"}, exclude_none=True
+                )
             )
 
         context = "\n\n".join(agent_descriptions)
@@ -270,10 +285,14 @@ class RouterAgent(BaseAgent):
         # Format the routing prompt
         routing_instruction = self.routing_instruction or DEFAULT_ROUTING_INSTRUCTION
         routing_instruction = routing_instruction.format(context=context)
-        message.add_text(routing_instruction)
+        #        message.add_text(routing_instruction)
         assert self._llm
+        mutated = message.model_copy(deep=True)
+        mutated.add_text(routing_instruction)
         response, _ = await self._llm.structured(
-            [message], RoutingResponse, self._default_request_params
+            [mutated],
+            RoutingResponse,
+            self._default_request_params,
         )
 
         if not response:

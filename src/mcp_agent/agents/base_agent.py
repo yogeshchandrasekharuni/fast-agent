@@ -671,11 +671,11 @@ class BaseAgent(MCPAggregator, AgentProtocol):
             description=tool.description,
             tags=["tool"],
             examples=None,
-            inputModes=["text/plain"],
+            inputModes=None,  # ["text/plain"],
             # cover TextContent | ImageContent ->
             # https://github.com/modelcontextprotocol/modelcontextprotocol/pull/223
             # https://github.com/modelcontextprotocol/modelcontextprotocol/pull/93
-            outputModes=["text/plain", "image/*"],
+            outputModes=None,  # ,["text/plain", "image/*"],
         )
 
     @property
