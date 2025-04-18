@@ -26,8 +26,8 @@ class FormattedResponse(BaseModel):
         "generic.llama3.2:latest",
         "haiku",
         "sonnet",
-        "gpt-4o",
-        "gpt-4o-mini",
+        "gpt-4.1",
+        "gpt-4.1-mini",
         "o3-mini.low",
         "openrouter.google/gemini-2.0-flash-001",
     ],
@@ -61,7 +61,7 @@ async def test_structured_output_with_automatic_format_for_model(fast_agent, mod
 @pytest.mark.parametrize(
     "model_name",
     [
-        "gpt-4o-mini",
+        "gpt-4.1-mini",
     ],
 )
 async def test_structured_output_parses_assistant_message_if_last(fast_agent, model_name):
@@ -157,7 +157,7 @@ async def test_structured_output_with_response_format_overriden(fast_agent, mode
 @pytest.mark.parametrize(
     "model_name",
     [
-        "gpt-4o",
+        "gpt-4.1-mini",
         "haiku",
     ],
 )
