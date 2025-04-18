@@ -57,7 +57,7 @@ class OrchestratorAgent(BaseAgent):
         config: AgentConfig,
         agents: List[Agent],
         plan_type: Literal["full", "iterative"] = "full",
-        plan_iterations: int = 3,
+        plan_iterations: int = 5,
         context: Optional[Any] = None,
         **kwargs,
     ) -> None:
@@ -84,7 +84,7 @@ class OrchestratorAgent(BaseAgent):
             agent_name = agent.name
             self.logger.info(f"Adding agent '{agent_name}' to orchestrator")
             self.agents[agent_name] = agent
-
+        self.plan_iterations = plan_iterations
         # For tracking state during execution
         self.plan_result: Optional[PlanResult] = None
 
@@ -187,8 +187,8 @@ class OrchestratorAgent(BaseAgent):
         """
         iterations = 0
         total_steps_executed = 0
-        max_iterations = request_params.max_iterations
-        max_steps = getattr(request_params, "max_steps", max_iterations * 5)
+        max_iterations = self.plan_iterations
+        max_steps = getattr(request_params, "max_steps", max_iterations * 3)
 
         # Initialize plan result
         plan_result = PlanResult(objective=objective, step_results=[])
@@ -415,7 +415,7 @@ class OrchestratorAgent(BaseAgent):
             plan_status = "Plan Status: Not Started"
 
         # Calculate iteration information
-        max_iterations = request_params.max_iterations
+        max_iterations = self.plan_iterations
         current_iteration = len(plan_result.step_results)
         current_iteration = min(current_iteration, max_iterations - 1)
         iterations_remaining = max(0, max_iterations - current_iteration - 1)

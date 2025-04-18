@@ -13,7 +13,7 @@ fast = FastAgent("Orchestrator-Workers")
 @fast.agent(
     "author",
     instruction="""You are to role play a poorly skilled writer, 
-    who makes frequent grammar, punctuations and spelling errors. You enjoy
+    who makes frequent grammar, punctuation and spelling errors. You enjoy
     writing short stories, but the narrative doesn't always make sense""",
     servers=["filesystem"],
 )
@@ -50,9 +50,9 @@ fast = FastAgent("Orchestrator-Workers")
 )
 async def main() -> None:
     async with fast.run() as agent:
-        await agent.author(
-            "write a 250 word short story about kittens discovering a castle, and save it to short_story.md"
-        )
+        # await agent.author(
+        #     "write a 250 word short story about kittens discovering a castle, and save it to short_story.md"
+        # )
 
         # The orchestrator can be used just like any other agent
         task = """Load the student's short story from short_story.md, 
