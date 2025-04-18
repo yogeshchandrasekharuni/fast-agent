@@ -5,7 +5,6 @@ Type definitions for agents and agent configurations.
 from enum import Enum
 from typing import List
 
-from a2a_types.types import AgentCapabilities, AgentCard
 from pydantic import BaseModel, Field, model_validator
 
 # Forward imports to avoid circular dependencies
