@@ -102,11 +102,11 @@ class TestRequestParamsInLLM:
         llm = OpenAIAugmentedLLM()
 
         # Basic setup
-        base_args = {"model": "gpt-4o", "messages": [], "max_tokens": 1000}
+        base_args = {"model": "gpt-4.1", "messages": [], "max_tokens": 1000}
 
         # Create params with regular fields, metadata, and response_format
         params = RequestParams(
-            model="gpt-4o",
+            model="gpt-4.1",
             temperature=0.7,
             maxTokens=2000,  # This should be excluded and not conflict with max_tokens
             systemPrompt="You are a helpful assistant",  # This should be excluded
@@ -121,7 +121,7 @@ class TestRequestParamsInLLM:
         result = llm.prepare_provider_arguments(base_args, params, llm.OPENAI_EXCLUDE_FIELDS)
 
         # Verify results
-        assert result["model"] == "gpt-4o"  # From base_args
+        assert result["model"] == "gpt-4.1"  # From base_args
         assert result["max_tokens"] == 1000  # From base_args
         assert result["temperature"] == 0.7  # From params
         assert result["response_format"] == {"type": "json_object"}  # From params
