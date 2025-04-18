@@ -163,17 +163,6 @@ class OpenRouterSettings(BaseModel):
     model_config = ConfigDict(extra="allow", arbitrary_types_allowed=True)
 
 
-class TemporalSettings(BaseModel):
-    """
-    Temporal settings for the fast-agent application.
-    """
-
-    host: str
-    namespace: str = "default"
-    task_queue: str
-    api_key: str | None = None
-
-
 class OpenTelemetrySettings(BaseModel):
     """
     OTEL settings for the fast-agent application.
@@ -254,16 +243,14 @@ class Settings(BaseSettings):
     mcp: MCPSettings | None = MCPSettings()
     """MCP config, such as MCP servers"""
 
-    execution_engine: Literal["asyncio", "temporal"] = "asyncio"
+    execution_engine: Literal["asyncio"] = "asyncio"
     """Execution engine for the fast-agent application"""
 
     default_model: str | None = "haiku"
     """
     Default model for agents. Format is provider.model_name.<reasoning_effort>, for example openai.o3-mini.low
-    Aliases are provided for common models e.g. sonnet, haiku, gpt-4o, o3-mini etc.
+    Aliases are provided for common models e.g. sonnet, haiku, gpt-4.1, o3-mini etc.
     """
-    temporal: TemporalSettings | None = None
-    """Settings for Temporal workflow orchestration"""
 
     anthropic: AnthropicSettings | None = None
     """Settings for using Anthropic models in the fast-agent application"""

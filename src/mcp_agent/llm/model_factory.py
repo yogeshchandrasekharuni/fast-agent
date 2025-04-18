@@ -161,7 +161,7 @@ class ModelFactory:
         Creates a factory function that follows the attach_llm protocol.
 
         Args:
-            model_string: The model specification string (e.g. "gpt-4o.high")
+            model_string: The model specification string (e.g. "gpt-4.1")
             request_params: Optional parameters to configure LLM behavior
 
         Returns:

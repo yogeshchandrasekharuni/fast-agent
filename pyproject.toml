@@ -34,9 +34,6 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-temporal = [
-    "temporalio>=1.8.0",
-]
 openai = [
     "openai>=1.58.1",
 ]
