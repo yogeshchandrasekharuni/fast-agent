@@ -7,7 +7,6 @@ by determining the best agent for a request and dispatching to it.
 
 from typing import TYPE_CHECKING, Callable, List, Optional, Tuple, Type
 
-from mcp.types import TextContent
 from pydantic import BaseModel
 
 from mcp_agent.agents.agent import Agent
