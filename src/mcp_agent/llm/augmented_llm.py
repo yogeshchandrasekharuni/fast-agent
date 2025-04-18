@@ -285,7 +285,6 @@ class AugmentedLLM(ContextDependent, AugmentedLLMProtocol, Generic[MessageParamT
         result: PromptMessageMultipart = await self._apply_prompt_provider_specific(
             multipart_messages, request_params
         )
-        await self.show_assistant_message(result.last_text())
         return self._structured_from_multipart(result, model)
 
     def _structured_from_multipart(
