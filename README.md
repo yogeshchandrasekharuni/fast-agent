@@ -12,13 +12,14 @@
 > [!TIP]
 > Documentation site is in production here : https://fast-agent.ai. Feel free to feed back what's helpful and what's not. llms.txt link is here: https://fast-agent.ai/llms.txt
 
-**`fast-agent`** enables you to create and interact with sophisticated Agents and Workflows in minutes. It is the first framework with complete, end-to-end tested MCP Feature support including Sampling. Both Anthropic (Haiku, Sonnet, Opus) and OpenAI models (gpt-4o family, o1/o3 family) are supported.
+**`fast-agent`** enables you to create and interact with sophisticated Agents and Workflows in minutes. It is the first framework with complete, end-to-end tested MCP Feature support including Sampling. Both Anthropic (Haiku, Sonnet, Opus) and OpenAI models (gpt-4o/gpt-4.1 family, o1/o3 family) are supported.
 
 The simple declarative syntax lets you concentrate on composing your Prompts and MCP Servers to [build effective agents](https://www.anthropic.com/research/building-effective-agents).
 
 `fast-agent` is multi-modal, supporting Images and PDFs for both Anthropic and OpenAI endpoints via Prompts, Resources and MCP Tool Call results. The inclusion of passthrough and playback LLMs enable rapid development and test of Python glue-code for your applications.
 
-> [!TIP] > `fast-agent` is now MCP Native! Coming Soon - Full Documentation Site and Further MCP Examples.
+> [!TIP]
+> `fast-agent` is now MCP Native! Coming Soon - Full Documentation Site and Further MCP Examples.
 
 ### Agent Application Development
 
@@ -70,7 +71,7 @@ Or start an interactive chat with the Agent:
 
 ```python
 async with fast.run() as agent:
-  await agent()
+  await agent.interactive()
 ```
 
 Here is the complete `sizer.py` Agent application, with boilerplate code:
@@ -87,7 +88,7 @@ fast = FastAgent("Agent Example")
 )
 async def main():
   async with fast.run() as agent:
-    await agent()
+    await agent.interactive()
 
 if __name__ == "__main__":
     asyncio.run(main())

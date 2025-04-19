@@ -12,6 +12,7 @@ from mcp_agent.llm.provider_types import Provider
 from mcp_agent.llm.providers.augmented_llm_anthropic import AnthropicAugmentedLLM
 from mcp_agent.llm.providers.augmented_llm_deepseek import DeepSeekAugmentedLLM
 from mcp_agent.llm.providers.augmented_llm_generic import GenericAugmentedLLM
+from mcp_agent.llm.providers.augmented_llm_google import GoogleAugmentedLLM
 from mcp_agent.llm.providers.augmented_llm_openai import OpenAIAugmentedLLM
 from mcp_agent.llm.providers.augmented_llm_openrouter import OpenRouterAugmentedLLM
 from mcp_agent.mcp.interfaces import AugmentedLLMProtocol
@@ -107,6 +108,7 @@ class ModelFactory:
         Provider.FAST_AGENT: PassthroughLLM,
         Provider.DEEPSEEK: DeepSeekAugmentedLLM,
         Provider.GENERIC: GenericAugmentedLLM,
+        Provider.GOOGLE: GoogleAugmentedLLM,  # type: ignore
         Provider.OPENROUTER: OpenRouterAugmentedLLM,
     }
 
@@ -161,7 +163,7 @@ class ModelFactory:
         Creates a factory function that follows the attach_llm protocol.
 
         Args:
-            model_string: The model specification string (e.g. "gpt-4o.high")
+            model_string: The model specification string (e.g. "gpt-4.1")
             request_params: Optional parameters to configure LLM behavior
 
         Returns:

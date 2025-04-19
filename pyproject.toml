@@ -1,6 +1,6 @@
 [project]
 name = "fast-agent-mcp"
-version = "0.2.16"
+version = "0.2.17"
 description = "Define, Prompt and Test MCP enabled Agents and Workflows"
 readme = "README.md"
 license = { file = "LICENSE" }
@@ -34,9 +34,6 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-temporal = [
-    "temporalio>=1.8.0",
-]
 openai = [
     "openai>=1.58.1",
 ]
