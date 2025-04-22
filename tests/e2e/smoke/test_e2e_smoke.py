@@ -262,6 +262,7 @@ async def test_generic_model_textual_prompting(fast_agent, model_name):
         "gpt-4.1-nano",
         "gpt-4.1-mini",
         "google.gemini-2.0-flash",
+        "openrouter.google/gemini-2.0-flash-001",
     ],
 )
 async def test_basic_tool_calling(fast_agent, model_name):
