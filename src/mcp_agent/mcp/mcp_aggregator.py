@@ -36,7 +36,7 @@ if TYPE_CHECKING:
 
 logger = get_logger(__name__)  # This will be replaced per-instance when agent_name is available
 
-SEP = "-"
+SEP = "."
 
 # Define type variables for the generalized method
 T = TypeVar("T")
@@ -937,68 +937,3 @@ class MCPAggregator(ContextDependent):
                 logger.error(f"Error fetching resources from {s_name}: {e}")
 
         return results
-
-
-class MCPCompoundServer(Server):
-    """
-    A compound server (server-of-servers) that aggregates multiple MCP servers and is itself an MCP server
-    """
-
-    def __init__(self, server_names: List[str], name: str = "MCPCompoundServer") -> None:
-        super().__init__(name)
-        self.aggregator = MCPAggregator(server_names)
-
-        # Register handlers for tools, prompts, and resources
-        self.list_tools()(self._list_tools)
-        self.call_tool()(self._call_tool)
-        self.get_prompt()(self._get_prompt)
-        self.list_prompts()(self._list_prompts)
-
-    async def _list_tools(self) -> List[Tool]:
-        """List all tools aggregated from connected MCP servers."""
-        tools_result = await self.aggregator.list_tools()
-        return tools_result.tools
-
-    async def _call_tool(self, name: str, arguments: dict | None = None) -> CallToolResult:
-        """Call a specific tool from the aggregated servers."""
-        try:
-            result = await self.aggregator.call_tool(name=name, arguments=arguments)
-            return result.content
-        except Exception as e:
-            return CallToolResult(
-                isError=True,
-                content=[TextContent(type="text", text=f"Error calling tool: {e}")],
-            )
-
-    async def _get_prompt(
-        self, name: str = None, arguments: dict[str, str] = None
-    ) -> GetPromptResult:
-        """
-        Get a prompt from the aggregated servers.
-
-        Args:
-            name: Name of the prompt to get (optionally namespaced)
-            arguments: Optional dictionary of string arguments for prompt templating
-        """
-        try:
-            result = await self.aggregator.get_prompt(prompt_name=name, arguments=arguments)
-            return result
-        except Exception as e:
-            return GetPromptResult(description=f"Error getting prompt: {e}", messages=[])
-
-    async def _list_prompts(self, server_name: str = None) -> Dict[str, List[Prompt]]:
-        """List available prompts from the aggregated servers."""
-        try:
-            return await self.aggregator.list_prompts(server_name=server_name)
-        except Exception as e:
-            logger.error(f"Error listing prompts: {e}")
-            return {}
-
-    async def run_stdio_async(self) -> None:
-        """Run the server using stdio transport."""
-        async with stdio_server() as (read_stream, write_stream):
-            await self.run(
-                read_stream=read_stream,
-                write_stream=write_stream,
-                initialization_options=self.create_initialization_options(),
-            )
