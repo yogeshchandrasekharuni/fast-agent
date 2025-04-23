@@ -36,7 +36,7 @@ if TYPE_CHECKING:
 
 logger = get_logger(__name__)  # This will be replaced per-instance when agent_name is available
 
-SEP = "."
+SEP = "-"
 
 # Define type variables for the generalized method
 T = TypeVar("T")
