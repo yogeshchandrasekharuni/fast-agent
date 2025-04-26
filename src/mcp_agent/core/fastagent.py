@@ -76,10 +76,10 @@ class FastAgent:
         name: str,
         config_path: str | None = None,
         ignore_unknown_args: bool = False,
-        parse_cli_args: bool = True, # Add new parameter with default True
+        parse_cli_args: bool = True,  # Add new parameter with default True
     ) -> None:
         """
-        Initialize the DirectFastAgent application.
+        Initialize the fast-agent application.
 
         Args:
             name: Name of the application
@@ -90,7 +90,7 @@ class FastAgent:
                             Set to False when embedding FastAgent in another framework
                             (like FastAPI/Uvicorn) that handles its own arguments.
         """
-        self.args = argparse.Namespace() # Initialize args always
+        self.args = argparse.Namespace()  # Initialize args always
 
         # --- Wrap argument parsing logic ---
         if parse_cli_args:
@@ -157,7 +157,6 @@ class FastAgent:
                 # Optionally, warn about unknown args if not ignoring?
                 # if unknown and not ignore_unknown_args:
                 #     logger.warning(f"Ignoring unknown command line arguments: {unknown}")
-
 
             # Handle version flag
             if self.args.version:
@@ -240,7 +239,9 @@ class FastAgent:
         # Handle quiet mode and CLI model override safely
         # Define these *before* they are used, checking if self.args exists and has the attributes
         quiet_mode = hasattr(self.args, "quiet") and self.args.quiet
-        cli_model_override = self.args.model if hasattr(self.args, "model") and self.args.model else None # Define cli_model_override here
+        cli_model_override = (
+            self.args.model if hasattr(self.args, "model") and self.args.model else None
+        )  # Define cli_model_override here
 
         try:
             async with self.app.run():
@@ -273,7 +274,7 @@ class FastAgent:
                         self.context,
                         model=model,
                         request_params=request_params,
-                        cli_model=cli_model_override, # Use the variable defined above
+                        cli_model=cli_model_override,  # Use the variable defined above
                     )
 
                 # Create all agents in dependency order
