@@ -76,81 +76,97 @@ class FastAgent:
         name: str,
         config_path: str | None = None,
         ignore_unknown_args: bool = False,
+        parse_cli_args: bool = True,  # Add new parameter with default True
     ) -> None:
         """
-        Initialize the DirectFastAgent application.
+        Initialize the fast-agent application.
 
         Args:
             name: Name of the application
             config_path: Optional path to config file
             ignore_unknown_args: Whether to ignore unknown command line arguments
+                                 when parse_cli_args is True.
+            parse_cli_args: If True, parse command line arguments using argparse.
+                            Set to False when embedding FastAgent in another framework
+                            (like FastAPI/Uvicorn) that handles its own arguments.
         """
-        # Setup command line argument parsing
-        parser = argparse.ArgumentParser(description="DirectFastAgent Application")
-        parser.add_argument(
-            "--model",
-            help="Override the default model for all agents",
-        )
-        parser.add_argument(
-            "--agent",
-            default="default",
-            help="Specify the agent to send a message to (used with --message)",
-        )
-        parser.add_argument(
-            "-m",
-            "--message",
-            help="Message to send to the specified agent",
-        )
-        parser.add_argument(
-            "-p", "--prompt-file", help="Path to a prompt file to use (either text or JSON)"
-        )
-        parser.add_argument(
-            "--quiet",
-            action="store_true",
-            help="Disable progress display, tool and message logging for cleaner output",
-        )
-        parser.add_argument(
-            "--version",
-            action="store_true",
-            help="Show version and exit",
-        )
-        parser.add_argument(
-            "--server",
-            action="store_true",
-            help="Run as an MCP server",
-        )
-        parser.add_argument(
-            "--transport",
-            choices=["sse", "stdio"],
-            default="sse",
-            help="Transport protocol to use when running as a server (sse or stdio)",
-        )
-        parser.add_argument(
-            "--port",
-            type=int,
-            default=8000,
-            help="Port to use when running as a server with SSE transport",
-        )
-        parser.add_argument(
-            "--host",
-            default="0.0.0.0",
-            help="Host address to bind to when running as a server with SSE transport",
-        )
+        self.args = argparse.Namespace()  # Initialize args always
 
-        if ignore_unknown_args:
-            known_args, _ = parser.parse_known_args()
-            self.args = known_args
-        else:
-            self.args = parser.parse_args()
+        # --- Wrap argument parsing logic ---
+        if parse_cli_args:
+            # Setup command line argument parsing
+            parser = argparse.ArgumentParser(description="DirectFastAgent Application")
+            parser.add_argument(
+                "--model",
+                help="Override the default model for all agents",
+            )
+            parser.add_argument(
+                "--agent",
+                default="default",
+                help="Specify the agent to send a message to (used with --message)",
+            )
+            parser.add_argument(
+                "-m",
+                "--message",
+                help="Message to send to the specified agent",
+            )
+            parser.add_argument(
+                "-p", "--prompt-file", help="Path to a prompt file to use (either text or JSON)"
+            )
+            parser.add_argument(
+                "--quiet",
+                action="store_true",
+                help="Disable progress display, tool and message logging for cleaner output",
+            )
+            parser.add_argument(
+                "--version",
+                action="store_true",
+                help="Show version and exit",
+            )
+            parser.add_argument(
+                "--server",
+                action="store_true",
+                help="Run as an MCP server",
+            )
+            parser.add_argument(
+                "--transport",
+                choices=["sse", "stdio"],
+                default="sse",
+                help="Transport protocol to use when running as a server (sse or stdio)",
+            )
+            parser.add_argument(
+                "--port",
+                type=int,
+                default=8000,
+                help="Port to use when running as a server with SSE transport",
+            )
+            parser.add_argument(
+                "--host",
+                default="0.0.0.0",
+                help="Host address to bind to when running as a server with SSE transport",
+            )
 
-        # Handle version flag
-        if self.args.version:
-            try:
-                app_version = get_version("fast-agent-mcp")
-            except:  # noqa: E722
-                app_version = "unknown"
-            print(f"fast-agent-mcp v{app_version}")
-            sys.exit(0)
+            if ignore_unknown_args:
+                known_args, _ = parser.parse_known_args()
+                self.args = known_args
+            else:
+                # Use parse_known_args here too, to avoid crashing on uvicorn args etc.
+                # even if ignore_unknown_args is False, we only care about *our* args.
+                known_args, unknown = parser.parse_known_args()
+                self.args = known_args
+                # Optionally, warn about unknown args if not ignoring?
+                # if unknown and not ignore_unknown_args:
+                #     logger.warning(f"Ignoring unknown command line arguments: {unknown}")
+
+            # Handle version flag
+            if self.args.version:
+                try:
+                    app_version = get_version("fast-agent-mcp")
+                except:  # noqa: E722
+                    app_version = "unknown"
+                print(f"fast-agent-mcp v{app_version}")
+                sys.exit(0)
+        # --- End of wrapped logic ---
 
         self.name = name
         self.config_path = config_path
@@ -220,8 +236,12 @@ class FastAgent:
         had_error = False
         await self.app.initialize()
 
-        # Handle quiet mode
-        quiet_mode = hasattr(self, "args") and self.args.quiet
+        # Handle quiet mode and CLI model override safely
+        # Define these *before* they are used, checking if self.args exists and has the attributes
+        quiet_mode = hasattr(self.args, "quiet") and self.args.quiet
+        cli_model_override = (
+            self.args.model if hasattr(self.args, "model") and self.args.model else None
+        )  # Define cli_model_override here
 
         try:
             async with self.app.run():
@@ -248,12 +268,13 @@ class FastAgent:
                 validate_workflow_references(self.agents)
 
                 # Get a model factory function
+                # Now cli_model_override is guaranteed to be defined
                 def model_factory_func(model=None, request_params=None):
                     return get_model_factory(
                         self.context,
                         model=model,
                         request_params=request_params,
-                        cli_model=self.args.model if hasattr(self, "args") else None,
+                        cli_model=cli_model_override,  # Use the variable defined above
                     )
 
                 # Create all agents in dependency order
@@ -269,7 +290,8 @@ class FastAgent:
                 # Handle command line options that should be processed after agent initialization
 
                 # Handle --server option
-                if hasattr(self, "args") and self.args.server:
+                # Check if parse_cli_args was True before checking self.args.server
+                if hasattr(self.args, "server") and self.args.server:
                     try:
                         # Print info message if not in quiet mode
                         if not quiet_mode:
