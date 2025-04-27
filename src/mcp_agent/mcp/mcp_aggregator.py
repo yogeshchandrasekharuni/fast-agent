@@ -471,7 +471,7 @@ class MCPAggregator(ContextDependent):
         )
 
         tracer = trace.get_tracer(__name__)
-        with tracer.start_as_current_span("MCP Tool Call"):
+        with tracer.start_as_current_span(f"MCP Tool: {server_name}/{local_tool_name}"):
             trace.get_current_span().set_attribute("tool_name", local_tool_name)
             trace.get_current_span().set_attribute("server_name", server_name)
             return await self._execute_on_server(
