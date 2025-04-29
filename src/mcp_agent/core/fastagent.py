@@ -324,6 +324,9 @@ class FastAgent:
                                 print("\nServer stopped by user (Ctrl+C)")
                         except Exception as e:
                             if not quiet_mode:
+                                import traceback
+
+                                traceback.print_exc()
                                 print(f"\nServer stopped with error: {e}")
 
                         # Exit after server shutdown
