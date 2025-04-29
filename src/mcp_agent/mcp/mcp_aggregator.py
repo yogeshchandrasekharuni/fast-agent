@@ -446,14 +446,33 @@ class MCPAggregator(ContextDependent):
 
     async def call_tool(self, name: str, arguments: dict | None = None) -> CallToolResult:
         """
-        Call a namespaced tool, e.g., 'server_name.tool_name'.
+        Call a namespaced tool, e.g., 'server_name-tool_name'.
         """
         if not self.initialized:
             await self.load_servers()
 
-        server_name, local_tool_name = await self._parse_resource_name(name, "tool")
+        # First, check if the exact namespaced tool name exists in our map
+        namespaced_tool = self._namespaced_tool_map.get(name)
+        
+        if namespaced_tool:
+            # If found directly, use the server name and local tool name from the mapped object
+            server_name = namespaced_tool.server_name
+            local_tool_name = namespaced_tool.tool.name
+        else:
+            # Handle non-namespaced tool name - search all servers for the tool
+            server_name = None
+            local_tool_name = name
+            
+            # Search all servers for a matching tool by name
+            for s_name, tools in self._server_to_tool_map.items():
+                for namespaced_tool in tools:
+                    if namespaced_tool.tool.name == name:
+                        server_name = s_name
+                        break
+                if server_name:
+                    break
 
-        if server_name is None or local_tool_name is None:
+        if server_name is None:
             logger.error(f"Error: Tool '{name}' not found")
             return CallToolResult(
                 isError=True,
