@@ -4,6 +4,7 @@ A central context object to store global state that is shared across the applica
 
 import asyncio
 import concurrent.futures
+import uuid
 from typing import TYPE_CHECKING, Any, Optional, Union
 
 from mcp import ServerSession
@@ -25,7 +26,6 @@ from mcp_agent.logging.events import EventFilter
 from mcp_agent.logging.logger import LoggingConfig, get_logger
 from mcp_agent.logging.transport import create_transport
 from mcp_agent.mcp_server_registry import ServerRegistry
-import uuid
 
 if TYPE_CHECKING:
     from mcp_agent.executor.workflow_signal import SignalWaitCallback
