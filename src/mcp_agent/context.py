@@ -25,6 +25,7 @@ from mcp_agent.logging.events import EventFilter
 from mcp_agent.logging.logger import LoggingConfig, get_logger
 from mcp_agent.logging.transport import create_transport
 from mcp_agent.mcp_server_registry import ServerRegistry
+import uuid
 
 if TYPE_CHECKING:
     from mcp_agent.executor.workflow_signal import SignalWaitCallback
@@ -79,12 +80,12 @@ async def configure_otel(config: "Settings") -> None:
     except:  # noqa: E722
         app_version = "unknown"
 
-    # Create resource identifying this service
     resource = Resource.create(
         attributes={
             key: value
             for key, value in {
                 "service.name": service_name,
+                "service.instance.id": str(uuid.uuid4())[:6],
                 "service.version": app_version,
             }.items()
             if value is not None
