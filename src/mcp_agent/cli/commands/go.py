@@ -23,6 +23,7 @@ async def _run_agent(
 ) -> None:
     """Async implementation to run an interactive agent."""
     from pathlib import Path
+
     from mcp_agent.mcp.prompts.prompt_load import load_prompt_multipart
 
     # Create the FastAgent instance with CLI arg parsing enabled
