@@ -56,6 +56,7 @@ class OpenAIAugmentedLLM(AugmentedLLM[ChatCompletionMessageParam, ChatCompletion
         AugmentedLLM.PARAM_PARALLEL_TOOL_CALLS,
         AugmentedLLM.PARAM_USE_HISTORY,
         AugmentedLLM.PARAM_MAX_ITERATIONS,
+        AugmentedLLM.PARAM_TEMPLATE_VARS,
     }
 
     def __init__(self, provider: Provider = Provider.OPENAI, *args, **kwargs) -> None:

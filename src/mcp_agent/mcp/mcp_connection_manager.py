@@ -3,7 +3,6 @@ Manages the lifecycle of multiple MCP server connections.
 """
 
 import asyncio
-import sys
 import traceback
 from datetime import timedelta
 from typing import (
@@ -11,9 +10,7 @@ from typing import (
     AsyncGenerator,
     Callable,
     Dict,
-    List,
     Optional,
-    Union,
 )
 
 from anyio import Event, Lock, create_task_group
