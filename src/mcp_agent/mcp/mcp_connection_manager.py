@@ -3,6 +3,7 @@ Manages the lifecycle of multiple MCP server connections.
 """
 
 import asyncio
+import sys
 import traceback
 from datetime import timedelta
 from typing import (
@@ -10,11 +11,14 @@ from typing import (
     AsyncGenerator,
     Callable,
     Dict,
+    List,
     Optional,
+    Union,
 )
 
 from anyio import Event, Lock, create_task_group
 from anyio.streams.memory import MemoryObjectReceiveStream, MemoryObjectSendStream
+from httpx import HTTPStatusError
 from mcp import ClientSession
 from mcp.client.sse import sse_client
 from mcp.client.stdio import (
@@ -162,13 +166,25 @@ async def _server_lifecycle_task(server_conn: ServerConnection) -> None:
         transport_context = server_conn._transport_context_factory()
 
         async with transport_context as (read_stream, write_stream):
-            #      try:
             server_conn.create_session(read_stream, write_stream)
 
             async with server_conn.session:
                 await server_conn.initialize_session()
-
                 await server_conn.wait_for_shutdown_request()
+
+    except HTTPStatusError as http_exc:
+        logger.error(
+            f"{server_name}: Lifecycle task encountered HTTP error: {http_exc}",
+            exc_info=True,
+            data={
+                "progress_action": ProgressAction.FATAL_ERROR,
+                "server_name": server_name,
+            },
+        )
+        server_conn._error_occurred = True
+        server_conn._error_message = f"HTTP Error: {http_exc.response.status_code} {http_exc.response.reason_phrase} for URL: {http_exc.request.url}"
+        server_conn._initialized_event.set()
+        # No raise - let get_server handle it with a friendly message
 
     except Exception as exc:
         logger.error(
@@ -180,7 +196,27 @@ async def _server_lifecycle_task(server_conn: ServerConnection) -> None:
             },
         )
         server_conn._error_occurred = True
-        server_conn._error_message = traceback.format_exception(exc)
+
+        if "ExceptionGroup" in type(exc).__name__ and hasattr(exc, "exceptions"):
+            # Handle ExceptionGroup better by extracting the actual errors
+            error_messages = []
+            for subexc in exc.exceptions:
+                if isinstance(subexc, HTTPStatusError):
+                    # Special handling for HTTP errors to make them more user-friendly
+                    error_messages.append(
+                        f"HTTP Error: {subexc.response.status_code} {subexc.response.reason_phrase} for URL: {subexc.request.url}"
+                    )
+                else:
+                    error_messages.append(f"Error: {type(subexc).__name__}: {subexc}")
+                if hasattr(subexc, "__cause__") and subexc.__cause__:
+                    error_messages.append(
+                        f"Caused by: {type(subexc.__cause__).__name__}: {subexc.__cause__}"
+                    )
+            server_conn._error_message = error_messages
+        else:
+            # For regular exceptions, keep the traceback but format it more cleanly
+            server_conn._error_message = traceback.format_exception(exc)
+
         # If there's an error, we should also set the event so that
         # 'get_server' won't hang
         server_conn._initialized_event.set()
@@ -277,6 +313,7 @@ class MCPConnectionManager(ContextDependent):
                     config.headers,
                     sse_read_timeout=config.read_transport_sse_timeout_seconds,
                 )
+
             else:
                 raise ValueError(f"Unsupported transport: {config.transport}")
 
@@ -333,9 +370,17 @@ class MCPConnectionManager(ContextDependent):
         # Check if the server is healthy after initialization
         if not server_conn.is_healthy():
             error_msg = server_conn._error_message or "Unknown error"
+
+            # Format the error message for better display
+            if isinstance(error_msg, list):
+                # Join the list with newlines for better readability
+                formatted_error = "\n".join(error_msg)
+            else:
+                formatted_error = str(error_msg)
+
             raise ServerInitializationError(
                 f"MCP Server: '{server_name}': Failed to initialize - see details. Check fastagent.config.yaml?",
-                error_msg,
+                formatted_error,
             )
 
         return server_conn
