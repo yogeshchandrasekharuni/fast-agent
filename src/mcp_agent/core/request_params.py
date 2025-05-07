@@ -2,7 +2,7 @@
 Request parameters definitions for LLM interactions.
 """
 
-from typing import Any, List
+from typing import Any, Dict, List
 
 from mcp import SamplingMessage
 from mcp.types import CreateMessageRequestParams
@@ -47,4 +47,9 @@ class RequestParams(CreateMessageRequestParams):
     response_format: Any | None = None
     """
     Override response format for structured calls. Prefer sending pydantic model - only use in exceptional circumstances
+    """
+
+    template_vars: Dict[str, Any] = Field(default_factory=dict)
+    """
+    Optional dictionary of template variables for dynamic templates. Currently only works for TensorZero inference backend
     """
