@@ -198,6 +198,16 @@ class OpenTelemetrySettings(BaseModel):
     """Sample rate for tracing (1.0 = sample everything)"""
 
 
+class TensorZeroSettings(BaseModel):
+    """
+    Settings for using TensorZero via its OpenAI-compatible API.
+    """
+
+    base_url: Optional[str] = None
+    api_key: Optional[str] = None
+    model_config = ConfigDict(extra="allow", arbitrary_types_allowed=True)
+
+
 class LoggerSettings(BaseModel):
     """
     Logger settings for the fast-agent application.
@@ -286,6 +296,9 @@ class Settings(BaseSettings):
 
     generic: GenericSettings | None = None
     """Settings for using Generic models in the fast-agent application"""
+
+    tensorzero: Optional[TensorZeroSettings] = None
+    """Settings for using TensorZero inference gateway"""
 
     logger: LoggerSettings | None = LoggerSettings()
     """Logger settings for the fast-agent application"""

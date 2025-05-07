@@ -18,8 +18,13 @@ async def _run_agent(
     config_path: Optional[str] = None,
     server_list: Optional[List[str]] = None,
     model: Optional[str] = None,
+    message: Optional[str] = None,
+    prompt_file: Optional[str] = None
 ) -> None:
     """Async implementation to run an interactive agent."""
+    from pathlib import Path
+
+    from mcp_agent.mcp.prompts.prompt_load import load_prompt_multipart
 
     # Create the FastAgent instance with CLI arg parsing enabled
     # It will automatically parse args like --model, --quiet, etc.
@@ -27,6 +32,7 @@ async def _run_agent(
         "name": name,
         "config_path": config_path,
         "ignore_unknown_args": True,
+        "parse_cli_args": False,  # Don't parse CLI args, we're handling it ourselves
     }
     
     fast = FastAgent(**fast_kwargs)
@@ -38,10 +44,26 @@ async def _run_agent(
     if model:
         agent_kwargs["model"] = model
     
-    @fast.agent(**agent_kwargs)
-    async def cli_agent():
-        async with fast.run() as agent:
-            await agent.interactive()
+    # Handle prompt file and message options
+    if message or prompt_file:
+        @fast.agent(**agent_kwargs)
+        async def cli_agent():
+            async with fast.run() as agent:
+                if message:
+                    response = await agent.send(message)
+                    # Print the response and exit
+                    print(response)
+                elif prompt_file:
+                    prompt = load_prompt_multipart(Path(prompt_file))
+                    response = await agent.generate(prompt)
+                    # Print the response text and exit
+                    print(response.last_text())
+    else:
+        # Standard interactive mode
+        @fast.agent(**agent_kwargs)
+        async def cli_agent():
+            async with fast.run() as agent:
+                await agent.interactive()
 
     # Run the agent
     await cli_agent()
@@ -51,7 +73,9 @@ def run_async_agent(
     instruction: str, 
     config_path: Optional[str] = None, 
     servers: Optional[str] = None,
-    model: Optional[str] = None
+    model: Optional[str] = None,
+    message: Optional[str] = None,
+    prompt_file: Optional[str] = None
 ):
     """Run the async agent function with proper loop handling."""
     server_list = servers.split(',') if servers else None
@@ -75,7 +99,9 @@ def run_async_agent(
             instruction=instruction, 
             config_path=config_path, 
             server_list=server_list,
-            model=model
+            model=model,
+            message=message,
+            prompt_file=prompt_file
         ))
     finally:
         try:
@@ -108,26 +134,38 @@ def go(
     model: Optional[str] = typer.Option(
         None, "--model", help="Override the default model (e.g., haiku, sonnet, gpt-4)"
     ),
+    message: Optional[str] = typer.Option(
+        None, "--message", "-m", help="Message to send to the agent (skips interactive mode)"
+    ),
+    prompt_file: Optional[str] = typer.Option(
+        None, "--prompt-file", "-p", help="Path to a prompt file to use (either text or JSON)"
+    ),
 ) -> None:
     """
     Run an interactive agent directly from the command line.
 
-    Example:
+    Examples:
         fast-agent go --model=haiku --instruction="You are a coding assistant" --servers=fetch,filesystem
+        fast-agent go --message="What is the weather today?" --model=haiku
+        fast-agent go --prompt-file=my-prompt.txt --model=haiku
 
     This will start an interactive session with the agent, using the specified model
     and instruction. It will use the default configuration from fastagent.config.yaml
     unless --config-path is specified.
 
     Common options:
-        --model: Override the default model (e.g., --model=haiku)
-        --quiet: Disable progress display and logging
-        --servers: Comma-separated list of server names to enable from config
+        --model               Override the default model (e.g., --model=haiku)
+        --quiet               Disable progress display and logging
+        --servers             Comma-separated list of server names to enable from config
+        --message, -m         Send a single message and exit
+        --prompt-file, -p     Use a prompt file instead of interactive mode
     """
     run_async_agent(
         name=name, 
         instruction=instruction, 
         config_path=config_path, 
         servers=servers,
-        model=model
+        model=model,
+        message=message,
+        prompt_file=prompt_file
     )
