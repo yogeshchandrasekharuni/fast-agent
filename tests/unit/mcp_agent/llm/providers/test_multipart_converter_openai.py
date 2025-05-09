@@ -11,6 +11,7 @@ from mcp.types import (
     TextResourceContents,
 )
 
+from mcp_agent.llm.provider_types import Provider
 from mcp_agent.llm.providers import augmented_llm_openai
 from mcp_agent.llm.providers.multipart_converter_openai import (
     OpenAIConverter,
@@ -435,8 +436,8 @@ class TestOpenAIToolConverter(unittest.TestCase):
         inputSchema = {
             "type": "object",
         }
-
-        adjusted = augmented_llm_openai.adjust_schema(inputSchema)
+        an_llm = augmented_llm_openai.OpenAIAugmentedLLM(Provider.OPENAI)
+        adjusted = an_llm.adjust_schema(inputSchema)
         assert adjusted["properties"] == {}
 
 
