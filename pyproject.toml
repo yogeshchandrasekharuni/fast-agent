@@ -1,12 +1,11 @@
 [project]
 name = "fast-agent-mcp"
-version = "0.2.22"
+version = "0.2.23"
 description = "Define, Prompt and Test MCP enabled Agents and Workflows"
 readme = "README.md"
 license = { file = "LICENSE" }
 authors = [
     { name = "Shaun Smith", email = "fastagent@llmindset.co.uk"},
-    { name = "Sarmad Qadri", email = "sarmad@lastmileai.dev" }
 ]
 classifiers = [
     "Programming Language :: Python :: 3",
