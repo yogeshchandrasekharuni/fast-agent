@@ -201,3 +201,4 @@ fastagent.jsonl
 .idea/
 tests/e2e/smoke/base/weather_location.txt
 tests/integration/roots/fastagent.jsonl
+tests/integration/roots/fastagent.jsonl
