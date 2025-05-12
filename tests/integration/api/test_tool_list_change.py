@@ -1,8 +1,11 @@
-from mcp import ListToolsResult
-import pytest
 import asyncio
 import logging
-import time
+from typing import TYPE_CHECKING
+
+import pytest
+
+if TYPE_CHECKING:
+    from mcp import ListToolsResult
 
 # Enable debug logging for the test
 logging.basicConfig(level=logging.DEBUG)
