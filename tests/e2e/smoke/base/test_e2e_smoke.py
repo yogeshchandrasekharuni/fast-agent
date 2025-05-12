@@ -7,9 +7,9 @@ import pytest
 from pydantic import BaseModel, Field
 
 from mcp_agent.core.prompt import Prompt
-from mcp_agent.llm.memory import Memory
 
 if TYPE_CHECKING:
+    from mcp_agent.llm.memory import Memory
     from mcp_agent.mcp.prompt_message_multipart import PromptMessageMultipart
 
 
@@ -74,7 +74,7 @@ async def test_open_ai_history(fast_agent, model_name):
     async def agent_function():
         async with fast.run() as agent:
             await agent.send("MESSAGE ONE")
-            await agent.send("MEESAGE TWO")
+            await agent.send("MESSAGE TWO")
 
             provider_history: Memory = agent.agent._llm.history
             multipart_history = agent.agent.message_history
