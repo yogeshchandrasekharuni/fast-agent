@@ -11,6 +11,7 @@ from mcp import ServerSession
 from opentelemetry import trace
 from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
 from opentelemetry.instrumentation.anthropic import AnthropicInstrumentor
+from opentelemetry.instrumentation.mcp import McpInstrumentor
 from opentelemetry.instrumentation.openai import OpenAIInstrumentor
 from opentelemetry.propagate import set_global_textmap
 from opentelemetry.sdk.resources import Resource
@@ -19,12 +20,13 @@ from opentelemetry.sdk.trace.export import BatchSpanProcessor, ConsoleSpanExport
 from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
 from pydantic import BaseModel, ConfigDict
 
-from mcp_agent.config import Settings, get_settings
+from mcp_agent.config import MCPSamplingSettings, Settings, get_settings
 from mcp_agent.executor.executor import AsyncioExecutor, Executor
 from mcp_agent.executor.task_registry import ActivityRegistry
 from mcp_agent.logging.events import EventFilter
 from mcp_agent.logging.logger import LoggingConfig, get_logger
 from mcp_agent.logging.transport import create_transport
+from mcp_agent.mcp.mcp_agent_client_session import MCPAgentClientSession
 from mcp_agent.mcp_server_registry import ServerRegistry
 
 if TYPE_CHECKING:
@@ -111,6 +113,7 @@ async def configure_otel(config: "Settings") -> None:
     trace.set_tracer_provider(tracer_provider)
     AnthropicInstrumentor().instrument()
     OpenAIInstrumentor().instrument()
+    McpInstrumentor().instrument()
 
 
 async def configure_logger(config: "Settings") -> None:
