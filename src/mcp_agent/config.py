@@ -60,7 +60,7 @@ class MCPServerSettings(BaseModel):
     description: str | None = None
     """The description of the server."""
 
-    transport: Literal["stdio", "sse"] = "stdio"
+    transport: Literal["stdio", "sse", "http"] = "stdio"
     """The transport mechanism."""
 
     command: str | None = None
@@ -179,6 +179,20 @@ class OpenRouterSettings(BaseModel):
     model_config = ConfigDict(extra="allow", arbitrary_types_allowed=True)
 
 
+class AzureSettings(BaseModel):
+    """
+    Settings for using Azure OpenAI Service in the fast-agent application.
+    """
+
+    api_key: str | None = None
+    resource_name: str | None = None
+    azure_deployment: str | None = None
+    api_version: str | None = None
+    base_url: str | None = None  # Optional, can be constructed from resource_name
+
+    model_config = ConfigDict(extra="allow", arbitrary_types_allowed=True)
+
+
 class OpenTelemetrySettings(BaseModel):
     """
     OTEL settings for the fast-agent application.
@@ -196,6 +210,16 @@ class OpenTelemetrySettings(BaseModel):
 
     sample_rate: float = 1.0
     """Sample rate for tracing (1.0 = sample everything)"""
+
+
+class TensorZeroSettings(BaseModel):
+    """
+    Settings for using TensorZero via its OpenAI-compatible API.
+    """
+
+    base_url: Optional[str] = None
+    api_key: Optional[str] = None
+    model_config = ConfigDict(extra="allow", arbitrary_types_allowed=True)
 
 
 class LoggerSettings(BaseModel):
@@ -239,6 +263,8 @@ class LoggerSettings(BaseModel):
     """Show MCP Sever tool calls on the console"""
     truncate_tools: bool = True
     """Truncate display of long tool calls"""
+    enable_markup: bool = True
+    """Enable markup in console output. Disable for outputs that may conflict with rich console formatting"""
 
 
 class Settings(BaseSettings):
@@ -286,6 +312,12 @@ class Settings(BaseSettings):
 
     generic: GenericSettings | None = None
     """Settings for using Generic models in the fast-agent application"""
+
+    tensorzero: Optional[TensorZeroSettings] = None
+    """Settings for using TensorZero inference gateway"""
+
+    azure: AzureSettings | None = None
+    """Settings for using Azure OpenAI Service in the fast-agent application"""
 
     logger: LoggerSettings | None = LoggerSettings()
     """Logger settings for the fast-agent application"""

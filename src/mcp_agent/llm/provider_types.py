@@ -15,3 +15,5 @@ class Provider(Enum):
     DEEPSEEK = "deepseek"
     GENERIC = "generic"
     OPENROUTER = "openrouter"
+    TENSORZERO = "tensorzero"  # For TensorZero Gateway
+    AZURE = "azure"  # Azure OpenAI Service
