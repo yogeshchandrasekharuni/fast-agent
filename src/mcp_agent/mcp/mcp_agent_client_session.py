@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING, Optional
 
 from mcp import ClientSession, ServerNotification
 from mcp.shared.session import (
+    ProgressFnT,
     ReceiveResultT,
     RequestId,
     SendNotificationT,
@@ -85,11 +86,15 @@ class MCPAgentClientSession(ClientSession, ContextDependent):
         request: SendRequestT,
         result_type: type[ReceiveResultT],
         request_read_timeout_seconds: timedelta | None = None,
+        progress_callback: ProgressFnT | None = None,
     ) -> ReceiveResultT:
         logger.debug("send_request: request=", data=request.model_dump())
         try:
             result = await super().send_request(
-                request, result_type, request_read_timeout_seconds=request_read_timeout_seconds
+                request,
+                result_type,
+                request_read_timeout_seconds=request_read_timeout_seconds,
+                progress_callback=progress_callback,
             )
             logger.debug("send_request: response=", data=result.model_dump())
             return result
