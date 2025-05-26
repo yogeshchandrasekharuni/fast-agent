@@ -14,7 +14,7 @@ from mcp.shared.session import (
     SendRequestT,
     SendResultT,
 )
-from mcp.types import ErrorData, ListRootsResult, Root, ToolListChangedNotification
+from mcp.types import ErrorData, Implementation, ListRootsResult, Root, ToolListChangedNotification
 from pydantic import FileUrl
 
 from mcp_agent.context_dependent import ContextDependent
@@ -63,11 +63,21 @@ class MCPAgentClientSession(ClientSession, ContextDependent):
 
     def __init__(self, *args, **kwargs) -> None:
         # Extract server_name if provided in kwargs
+        from importlib.metadata import version
+
+        version = version("fast-agent-mcp") or "dev"
+        fast_agent: Implementation = Implementation(name="fast-agent-mcp", version=version)
+
         self.session_server_name = kwargs.pop("server_name", None)
         # Extract the notification callbacks if provided
         self._tool_list_changed_callback = kwargs.pop("tool_list_changed_callback", None)
-
-        super().__init__(*args, **kwargs, list_roots_callback=list_roots, sampling_callback=sample)
+        super().__init__(
+            *args,
+            **kwargs,
+            list_roots_callback=list_roots,
+            sampling_callback=sample,
+            client_info=fast_agent,
+        )
         self.server_config: Optional[MCPServerSettings] = None
 
     async def send_request(
@@ -127,7 +137,10 @@ class MCPAgentClientSession(ClientSession, ContextDependent):
                     )
                     # Use asyncio.create_task to prevent blocking the notification handler
                     import asyncio
-                    asyncio.create_task(self._handle_tool_list_change_callback(self.session_server_name))
+
+                    asyncio.create_task(
+                        self._handle_tool_list_change_callback(self.session_server_name)
+                    )
                 else:
                     logger.debug(
                         f"Tool list changed for server '{self.session_server_name}' but no callback registered"
