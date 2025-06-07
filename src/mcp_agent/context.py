@@ -114,7 +114,9 @@ async def configure_otel(config: "Settings") -> None:
     AnthropicInstrumentor().instrument()
     OpenAIInstrumentor().instrument()
     GoogleGenAiSdkInstrumentor().instrument()
-    McpInstrumentor().instrument()
+
+
+#    McpInstrumentor().instrument()
 
 
 async def configure_logger(config: "Settings") -> None:
