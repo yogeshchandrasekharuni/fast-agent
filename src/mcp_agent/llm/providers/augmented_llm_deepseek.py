@@ -24,9 +24,6 @@ class DeepSeekAugmentedLLM(OpenAIAugmentedLLM):
             parallel_tool_calls=True,
             max_iterations=10,
             use_history=True,
-            response_format={
-                                "type": "json_object"
-                            }
         )
 
     def _base_url(self) -> str:
@@ -35,7 +32,7 @@ class DeepSeekAugmentedLLM(OpenAIAugmentedLLM):
             base_url = self.context.config.deepseek.base_url
 
         return base_url if base_url else DEEPSEEK_BASE_URL
-    
+
     async def _apply_prompt_provider_specific_structured(
         self,
         multipart_messages: List[PromptMessageMultipart],
@@ -44,11 +41,13 @@ class DeepSeekAugmentedLLM(OpenAIAugmentedLLM):
     ) -> Tuple[ModelT | None, PromptMessageMultipart]:  # noqa: F821
         request_params = self.get_request_params(request_params)
 
+        request_params.response_format = {"type": "json_object"}
+
         # Get the full schema and extract just the properties
         full_schema = model.model_json_schema()
         properties = full_schema.get("properties", {})
         required_fields = full_schema.get("required", [])
-        
+
         # Create a cleaner format description
         format_description = "{\n"
         for field_name, field_info in properties.items():
@@ -56,10 +55,10 @@ class DeepSeekAugmentedLLM(OpenAIAugmentedLLM):
             description = field_info.get("description", "")
             format_description += f'  "{field_name}": "{field_type}"'
             if description:
-                format_description += f'  // {description}'
+                format_description += f"  // {description}"
             if field_name in required_fields:
-                format_description += '  // REQUIRED'
-            format_description += '\n'
+                format_description += "  // REQUIRED"
+            format_description += "\n"
         format_description += "}"
 
         multipart_messages[-1].add_text(
