@@ -90,6 +90,7 @@ def _decorator_impl(
     use_history: bool = True,
     request_params: RequestParams | None = None,
     human_input: bool = False,
+    default: bool = False,
     **extra_kwargs,
 ) -> Callable[[AgentCallable[P, R]], DecoratedAgentProtocol[P, R]]:
     """
@@ -104,6 +105,7 @@ def _decorator_impl(
         use_history: Whether to maintain conversation history
         request_params: Additional request parameters for the LLM
         human_input: Whether to enable human input capabilities
+        default: Whether to mark this as the default agent
         **extra_kwargs: Additional agent/workflow-specific parameters
     """
 
@@ -132,6 +134,7 @@ def _decorator_impl(
             model=model,
             use_history=use_history,
             human_input=human_input,
+            default=default,
         )
 
         # Update request params if provided
@@ -174,6 +177,7 @@ def agent(
     use_history: bool = True,
     request_params: RequestParams | None = None,
     human_input: bool = False,
+    default: bool = False,
 ) -> Callable[[AgentCallable[P, R]], DecoratedAgentProtocol[P, R]]:
     """
     Decorator to create and register a standard agent with type-safe signature.
@@ -187,6 +191,7 @@ def agent(
         use_history: Whether to maintain conversation history
         request_params: Additional request parameters for the LLM
         human_input: Whether to enable human input capabilities
+        default: Whether to mark this as the default agent
 
     Returns:
         A decorator that registers the agent with proper type annotations
@@ -203,7 +208,9 @@ def agent(
         use_history=use_history,
         request_params=request_params,
         human_input=human_input,
+        default=default,
     )
+
 
 def custom(
     self,
@@ -217,6 +224,7 @@ def custom(
     use_history: bool = True,
     request_params: RequestParams | None = None,
     human_input: bool = False,
+    default: bool = False,
 ) -> Callable[[AgentCallable[P, R]], DecoratedAgentProtocol[P, R]]:
     """
     Decorator to create and register a standard agent with type-safe signature.
@@ -247,7 +255,9 @@ def custom(
         request_params=request_params,
         human_input=human_input,
         agent_class=cls,
+        default=default,
     )
+
 
 DEFAULT_INSTRUCTION_ORCHESTRATOR = """
 You are an expert planner. Given an objective task and a list of Agents
@@ -268,6 +278,7 @@ def orchestrator(
     human_input: bool = False,
     plan_type: Literal["full", "iterative"] = "full",
     plan_iterations: int = 5,
+    default: bool = False,
 ) -> Callable[[AgentCallable[P, R]], DecoratedOrchestratorProtocol[P, R]]:
     """
     Decorator to create and register an orchestrator agent with type-safe signature.
@@ -282,6 +293,7 @@ def orchestrator(
         human_input: Whether to enable human input capabilities
         plan_type: Planning approach - "full" or "iterative"
         max_iterations: Maximum number of planning iterations
+        default: Whether to mark this as the default agent
 
     Returns:
         A decorator that registers the orchestrator with proper type annotations
@@ -304,6 +316,7 @@ def orchestrator(
             child_agents=agents,
             plan_type=plan_type,
             plan_iterations=plan_iterations,
+            default=default,
         ),
     )
 
@@ -319,6 +332,7 @@ def router(
     use_history: bool = False,
     request_params: RequestParams | None = None,
     human_input: bool = False,
+    default: bool = False,
 ) -> Callable[[AgentCallable[P, R]], DecoratedRouterProtocol[P, R]]:
     """
     Decorator to create and register a router agent with type-safe signature.
@@ -331,6 +345,7 @@ def router(
         use_history: Whether to maintain conversation history
         request_params: Additional request parameters for the LLM
         human_input: Whether to enable human input capabilities
+        default: Whether to mark this as the default agent
 
     Returns:
         A decorator that registers the router with proper type annotations
@@ -352,6 +367,7 @@ def router(
             use_history=use_history,
             request_params=request_params,
             human_input=human_input,
+            default=default,
             router_agents=agents,
         ),
     )
@@ -364,6 +380,7 @@ def chain(
     sequence: List[str],
     instruction: Optional[str] = None,
     cumulative: bool = False,
+    default: bool = False,
 ) -> Callable[[AgentCallable[P, R]], DecoratedChainProtocol[P, R]]:
     """
     Decorator to create and register a chain agent with type-safe signature.
@@ -373,6 +390,7 @@ def chain(
         sequence: List of agent names in the chain, executed in sequence
         instruction: Base instruction for the chain
         cumulative: Whether to use cumulative mode (each agent sees all previous responses)
+        default: Whether to mark this as the default agent
 
     Returns:
         A decorator that registers the chain with proper type annotations
@@ -397,6 +415,7 @@ def chain(
             instruction=instruction or default_instruction,
             sequence=sequence,
             cumulative=cumulative,
+            default=default,
         ),
     )
 
@@ -409,6 +428,7 @@ def parallel(
     fan_in: str | None = None,
     instruction: Optional[str] = None,
     include_request: bool = True,
+    default: bool = False,
 ) -> Callable[[AgentCallable[P, R]], DecoratedParallelProtocol[P, R]]:
     """
     Decorator to create and register a parallel agent with type-safe signature.
@@ -419,6 +439,7 @@ def parallel(
         fan_in: Agent to aggregate results
         instruction: Base instruction for the parallel agent
         include_request: Whether to include the original request when aggregating
+        default: Whether to mark this as the default agent
 
     Returns:
         A decorator that registers the parallel agent with proper type annotations
@@ -439,6 +460,7 @@ def parallel(
             fan_in=fan_in,
             fan_out=fan_out,
             include_request=include_request,
+            default=default,
         ),
     )
 
@@ -452,6 +474,7 @@ def evaluator_optimizer(
     instruction: Optional[str] = None,
     min_rating: str = "GOOD",
     max_refinements: int = 3,
+    default: bool = False,
 ) -> Callable[[AgentCallable[P, R]], DecoratedEvaluatorOptimizerProtocol[P, R]]:
     """
     Decorator to create and register an evaluator-optimizer agent with type-safe signature.
@@ -463,6 +486,7 @@ def evaluator_optimizer(
         instruction: Base instruction for the evaluator-optimizer
         min_rating: Minimum acceptable quality rating (EXCELLENT, GOOD, FAIR, POOR)
         max_refinements: Maximum number of refinement iterations
+        default: Whether to mark this as the default agent
 
     Returns:
         A decorator that registers the evaluator-optimizer with proper type annotations
@@ -485,5 +509,6 @@ def evaluator_optimizer(
             evaluator=evaluator,
             min_rating=min_rating,
             max_refinements=max_refinements,
+            default=default,
         ),
     )
