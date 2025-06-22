@@ -24,6 +24,7 @@ from mcp_agent.llm.provider_types import Provider
 
 # Import the new converter class
 from mcp_agent.llm.providers.google_converter import GoogleConverter
+from mcp_agent.llm.usage_tracking import TurnUsage
 from mcp_agent.mcp.prompt_message_multipart import PromptMessageMultipart
 
 # Define default model and potentially other Google-specific defaults
@@ -220,6 +221,7 @@ class GoogleNativeAugmentedLLM(AugmentedLLM[types.Content, types.Content]):
             parallel_tool_calls=True,  # Assume parallel tool calls are supported by default with native API
             max_iterations=20,
             use_history=True,
+            maxTokens=65536,  # Default max tokens for Google models
             # Include other relevant default parameters
         )
 
@@ -281,10 +283,25 @@ class GoogleNativeAugmentedLLM(AugmentedLLM[types.Content, types.Content]):
                 )
                 self.logger.debug("Google generate_content response:", data=api_response)
 
+                # Track usage if response is valid and has usage data
+                if (
+                    hasattr(api_response, "usage_metadata")
+                    and api_response.usage_metadata
+                    and not isinstance(api_response, BaseException)
+                ):
+                    try:
+                        turn_usage = TurnUsage.from_google(
+                            api_response.usage_metadata, request_params.model
+                        )
+                        self.usage_accumulator.add_turn(turn_usage)
+
+                    except Exception as e:
+                        self.logger.warning(f"Failed to track usage: {e}")
+
             except errors.APIError as e:
                 # Handle specific Google API errors
                 self.logger.error(f"Google API Error: {e.code} - {e.message}")
-                raise ProviderKeyError(f"Google API Error: {e.code}", e.message) from e
+                raise ProviderKeyError(f"Google API Error: {e.code}", e.message or "") from e
             except Exception as e:
                 self.logger.error(f"Error during Google generate_content call: {e}")
                 # Decide how to handle other exceptions - potentially re-raise or return an error message
