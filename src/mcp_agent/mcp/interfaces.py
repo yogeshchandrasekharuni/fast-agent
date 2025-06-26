@@ -21,7 +21,7 @@ from typing import (
     runtime_checkable,
 )
 
-from a2a_types.types import AgentCard
+from a2a.types import AgentCard
 from anyio.streams.memory import MemoryObjectReceiveStream, MemoryObjectSendStream
 from deprecated import deprecated
 from mcp import ClientSession

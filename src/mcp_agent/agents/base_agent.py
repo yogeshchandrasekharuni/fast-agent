@@ -20,7 +20,7 @@ from typing import (
     Union,
 )
 
-from a2a_types.types import AgentCapabilities, AgentCard, AgentSkill
+from a2a.types import AgentCapabilities, AgentCard, AgentSkill
 from mcp.types import (
     CallToolResult,
     EmbeddedResource,
@@ -704,7 +704,7 @@ class BaseAgent(MCPAggregator, AgentProtocol):
     def usage_accumulator(self) -> Optional["UsageAccumulator"]:
         """
         Return the usage accumulator for tracking token usage across turns.
-        
+
         Returns:
             UsageAccumulator object if LLM is attached, None otherwise
         """

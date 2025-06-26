@@ -37,6 +37,7 @@ dependencies = [
     "tensorzero>=2025.4.7",
     "opentelemetry-instrumentation-google-genai>=0.2b0",
     "deprecated>=1.2.18",
+    "a2a-sdk>=0.2.9",
 ]
 
 [project.optional-dependencies]
