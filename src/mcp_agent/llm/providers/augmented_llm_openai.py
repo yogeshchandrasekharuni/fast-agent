@@ -8,7 +8,8 @@ from mcp.types import (
     ImageContent,
     TextContent,
 )
-from openai import AuthenticationError, AsyncOpenAI
+from openai import AsyncOpenAI, AuthenticationError
+from openai.lib.streaming.chat import ChatCompletionStreamState
 
 # from openai.types.beta.chat import
 from openai.types.chat import (
@@ -22,6 +23,7 @@ from rich.text import Text
 
 from mcp_agent.core.exceptions import ProviderKeyError
 from mcp_agent.core.prompt import Prompt
+from mcp_agent.event_progress import ProgressAction
 from mcp_agent.llm.augmented_llm import (
     AugmentedLLM,
     RequestParams,
@@ -113,6 +115,48 @@ class OpenAIAugmentedLLM(AugmentedLLM[ChatCompletionMessageParam, ChatCompletion
                 "Please check that your API key is valid and not expired.",
             ) from e
 
+    async def _process_stream(self, stream, model: str):
+        """Process the streaming response and display real-time token usage."""
+        # Track estimated output tokens by counting text chunks
+        estimated_tokens = 0
+
+        # Use ChatCompletionStreamState helper for accumulation
+        state = ChatCompletionStreamState()
+
+        # Process the stream chunks
+        async for chunk in stream:
+            # Handle chunk accumulation
+            state.handle_chunk(chunk)
+
+            # Count tokens in real-time from content deltas
+            if chunk.choices and chunk.choices[0].delta.content:
+                content = chunk.choices[0].delta.content
+                # Use base class method for token estimation and progress emission
+                estimated_tokens = self._update_streaming_progress(content, model, estimated_tokens)
+
+        # Get the final completion with usage data
+        final_completion = state.get_final_completion()
+
+        # Log final usage information
+        if hasattr(final_completion, "usage") and final_completion.usage:
+            actual_tokens = final_completion.usage.completion_tokens
+            # Emit final progress with actual token count
+            token_str = str(actual_tokens).rjust(5)
+            data = {
+                "progress_action": ProgressAction.STREAMING,
+                "model": model,
+                "agent_name": self.name,
+                "chat_turn": self.chat_turn(),
+                "details": token_str.strip(),
+            }
+            self.logger.info("Streaming progress", data=data)
+
+            self.logger.info(
+                f"Streaming complete - Model: {model}, Input tokens: {final_completion.usage.prompt_tokens}, Output tokens: {final_completion.usage.completion_tokens}"
+            )
+
+        return final_completion
+
     async def _openai_completion(
         self,
         message: OpenAIMessage,
@@ -151,7 +195,10 @@ class OpenAIAugmentedLLM(AugmentedLLM[ChatCompletionMessageParam, ChatCompletion
         ]
 
         if not available_tools:
-            available_tools = None  # deepseek does not allow empty array
+            if self.provider == Provider.DEEPSEEK:
+                available_tools = None  # deepseek does not allow empty array
+            else:
+                available_tools = []
 
         # we do NOT send "stop sequences" as this causes errors with mutlimodal processing
         for i in range(request_params.max_iterations):
@@ -160,11 +207,10 @@ class OpenAIAugmentedLLM(AugmentedLLM[ChatCompletionMessageParam, ChatCompletion
 
             self._log_chat_progress(self.chat_turn(), model=self.default_request_params.model)
 
-            executor_result = await self.executor.execute(
-                self._openai_client().chat.completions.create, **arguments
-            )
-
-            response = executor_result[0]
+            # Use basic streaming API
+            stream = await self._openai_client().chat.completions.create(**arguments)
+            # Process the stream
+            response = await self._process_stream(stream, self.default_request_params.model)
 
             # Track usage if response is valid and has usage data
             if (
@@ -347,6 +393,8 @@ class OpenAIAugmentedLLM(AugmentedLLM[ChatCompletionMessageParam, ChatCompletion
             "model": self.default_request_params.model,
             "messages": messages,
             "tools": tools,
+            "stream": True,  # Enable basic streaming
+            "stream_options": {"include_usage": True},  # Required for usage data in streaming
         }
 
         if self._reasoning:

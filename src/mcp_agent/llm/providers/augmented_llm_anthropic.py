@@ -111,14 +111,8 @@ class AnthropicAugmentedLLM(AugmentedLLM[MessageParam, Message]):
                 and hasattr(event, "delta")
                 and event.delta.type == "text_delta"
             ):
-                # Rough estimate: 1 token per 4 characters (OpenAI's typical ratio)
-                text_length = len(event.delta.text)
-                estimated_tokens += max(1, text_length // 4)
-
-                # Update progress on every token for real-time display
-                token_str = str(estimated_tokens).rjust(5)
-                #                print(f"DEBUG: Streaming tokens: {token_str}")
-                self._emit_streaming_progress(model, token_str)
+                # Use base class method for token estimation and progress emission
+                estimated_tokens = self._update_streaming_progress(event.delta.text, model, estimated_tokens)
 
             # Also check for final message_delta events with actual usage info
             elif (
@@ -127,9 +121,16 @@ class AnthropicAugmentedLLM(AugmentedLLM[MessageParam, Message]):
                 and event.usage.output_tokens
             ):
                 actual_tokens = event.usage.output_tokens
+                # Emit final progress with actual token count
                 token_str = str(actual_tokens).rjust(5)
-                #               print(f"DEBUG: Final actual tokens: {token_str}")
-                self._emit_streaming_progress(model, token_str)
+                data = {
+                    "progress_action": ProgressAction.STREAMING,
+                    "model": model,
+                    "agent_name": self.name,
+                    "chat_turn": self.chat_turn(),
+                    "details": token_str.strip(),
+                }
+                self.logger.info("Streaming progress", data=data)
 
         # Get the final message with complete usage data
         message = await stream.get_final_message()
@@ -141,19 +142,6 @@ class AnthropicAugmentedLLM(AugmentedLLM[MessageParam, Message]):
             )
 
         return message
-
-    def _emit_streaming_progress(self, model: str, token_str: str) -> None:
-        """Emit a streaming progress event that goes directly to progress display."""
-        data = {
-            "progress_action": ProgressAction.STREAMING,
-            "model": model,
-            "agent_name": self.name,
-            "chat_turn": self.chat_turn(),
-            "details": token_str.strip(),  # Token count goes in details for STREAMING action
-        }
-        #        print(f"DEBUG: Emitting streaming progress event with data: {data}")
-        # Use a special logger level or namespace to avoid polluting regular logs
-        self.logger.info("Streaming progress", data=data)
 
     async def _anthropic_completion(
         self,
