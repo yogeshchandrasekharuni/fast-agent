@@ -23,6 +23,7 @@ from rich.table import Table
 
 from mcp_agent.core.agent_types import AgentType
 from mcp_agent.core.enhanced_prompt import (
+    _display_agent_info_helper,
     get_argument_input,
     get_enhanced_input,
     get_selection_input,
@@ -121,6 +122,7 @@ class InteractivePrompt:
                     multiline=False,  # Default to single-line mode
                     available_agent_names=available_agents,
                     agent_types=self.agent_types,  # Pass agent types for display
+                    agent_provider=prompt_provider,  # Pass agent provider for info display
                 )
 
                 # Handle special commands - pass "True" to enable agent switching
@@ -132,6 +134,9 @@ class InteractivePrompt:
                         new_agent = command_result["switch_agent"]
                         if new_agent in available_agents_set:
                             agent = new_agent
+                            # Display new agent info immediately when switching
+                            rich_print()  # Add spacing
+                            await _display_agent_info_helper(agent, prompt_provider)
                             continue
                         else:
                             rich_print(f"[red]Agent '{new_agent}' not found[/red]")
@@ -593,13 +598,13 @@ class InteractivePrompt:
         try:
             # Collect all agents from the prompt provider
             agents_to_show = collect_agents_from_provider(prompt_provider, agent_name)
-            
+
             if not agents_to_show:
                 rich_print("[yellow]No usage data available[/yellow]")
                 return
-                
+
             # Use the shared display utility
             display_usage_report(agents_to_show, show_if_progress_disabled=True)
-            
+
         except Exception as e:
             rich_print(f"[red]Error showing usage: {e}[/red]")
