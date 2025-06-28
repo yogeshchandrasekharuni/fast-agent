@@ -107,11 +107,11 @@ class AgentCompleter(Completer):
         self.agents = agents
         # Map commands to their descriptions for better completion hints
         self.commands = {
-            "help": "Show available commands",
-            "prompts": "List and select MCP prompts",  # Changed description
-            "prompt": "Apply a specific prompt by name (/prompt <name>)",  # New command
+            "tools": "List and call MCP tools",
+            "prompt": "List and select MCP prompts, or apply specific prompt (/prompt <name>)",
             "agents": "List available agents",
             "usage": "Show current usage statistics",
+            "help": "Show available commands",
             "clear": "Clear the screen",
             "STOP": "Stop this prompting session and move to next workflow step",
             "EXIT": "Exit fast-agent, terminating any running workflows",
@@ -119,8 +119,8 @@ class AgentCompleter(Completer):
         }
         if is_human_input:
             self.commands.pop("agents")
-            self.commands.pop("prompts")  # Remove prompts command in human input mode
             self.commands.pop("prompt", None)  # Remove prompt command in human input mode
+            self.commands.pop("tools", None)  # Remove tools command in human input mode
             self.commands.pop("usage", None)  # Remove usage command in human input mode
         self.agent_types = agent_types or {}
 
@@ -455,12 +455,8 @@ async def get_enhanced_input(
                 return "LIST_AGENTS"
             elif cmd == "usage":
                 return "SHOW_USAGE"
-            elif cmd == "prompts":
-                # Return a dictionary with select_prompt action instead of a string
-                # This way it will match what the command handler expects
-                return {"select_prompt": True, "prompt_name": None}
             elif cmd == "prompt":
-                # Handle /prompt with no arguments the same way as /prompts
+                # Handle /prompt with no arguments as interactive mode
                 if len(cmd_parts) > 1:
                     # Direct prompt selection with name or number
                     prompt_arg = cmd_parts[1].strip()
@@ -470,8 +466,11 @@ async def get_enhanced_input(
                     else:
                         return f"SELECT_PROMPT:{prompt_arg}"
                 else:
-                    # If /prompt is used without arguments, treat it the same as /prompts
+                    # If /prompt is used without arguments, show interactive selection
                     return {"select_prompt": True, "prompt_name": None}
+            elif cmd == "tools":
+                # Return a dictionary with list_tools action
+                return {"list_tools": True}
             elif cmd == "exit":
                 return "EXIT"
             elif cmd.lower() == "stop":

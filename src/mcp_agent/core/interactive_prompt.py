@@ -179,6 +179,10 @@ class InteractivePrompt:
                             # Use the name-based selection
                             await self._select_prompt(prompt_provider, agent, prompt_name)
                         continue
+                    elif "list_tools" in command_result and prompt_provider:
+                        # Handle tools list display
+                        await self._list_tools(prompt_provider, agent)
+                        continue
                     elif "show_usage" in command_result:
                         # Handle usage display
                         await self._show_usage(prompt_provider, agent)
@@ -585,6 +589,61 @@ class InteractivePrompt:
             import traceback
 
             rich_print(f"[red]Error selecting or applying prompt: {e}[/red]")
+            rich_print(f"[dim]{traceback.format_exc()}[/dim]")
+
+    async def _list_tools(self, prompt_provider: PromptProvider, agent_name: str) -> None:
+        """
+        List available tools for an agent.
+
+        Args:
+            prompt_provider: Provider that implements list_tools
+            agent_name: Name of the agent
+        """
+        console = Console()
+
+        try:
+            # Get agent to list tools from
+            if hasattr(prompt_provider, "_agent"):
+                # This is an AgentApp - get the specific agent
+                agent = prompt_provider._agent(agent_name)
+            else:
+                # This is a single agent
+                agent = prompt_provider
+
+            rich_print(f"\n[bold]Fetching tools for agent [cyan]{agent_name}[/cyan]...[/bold]")
+
+            # Get tools using list_tools
+            tools_result = await agent.list_tools()
+
+            if not tools_result or not hasattr(tools_result, "tools") or not tools_result.tools:
+                rich_print("[yellow]No tools available for this agent[/yellow]")
+                return
+
+            # Create a table for better display
+            table = Table(title="Available MCP Tools")
+            table.add_column("#", justify="right", style="cyan")
+            table.add_column("Tool Name", style="bright_blue")
+            table.add_column("Description")
+
+            # Add tools to table
+            for i, tool in enumerate(tools_result.tools):
+                table.add_row(
+                    str(i + 1),
+                    tool.name,
+                    getattr(tool, "description", "No description") or "No description",
+                )
+
+            console.print(table)
+
+            # Add usage instructions
+            rich_print("\n[bold]Usage:[/bold]")
+            rich_print("  • Tools are automatically available in your conversation")
+            rich_print("  • Just ask the agent to use a tool by name or description")
+
+        except Exception as e:
+            import traceback
+
+            rich_print(f"[red]Error listing tools: {e}[/red]")
             rich_print(f"[dim]{traceback.format_exc()}[/dim]")
 
     async def _show_usage(self, prompt_provider: PromptProvider, agent_name: str) -> None:
