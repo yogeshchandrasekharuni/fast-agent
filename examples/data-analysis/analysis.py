@@ -21,8 +21,8 @@ Data files are accessible from the /mnt/data/ directory (this is the current wor
 Visualisations should be saved as .png files in the current working directory.
 """,
     servers=["interpreter"],
-    request_params=RequestParams(maxTokens=8192),
 )
+@fast.agent(name="another_test", instruction="", servers=["filesystem"])
 async def main() -> None:
     # Use the app's context manager
     async with fast.run() as agent:
