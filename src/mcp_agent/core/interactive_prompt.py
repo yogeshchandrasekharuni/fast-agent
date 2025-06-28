@@ -23,6 +23,7 @@ from rich.table import Table
 
 from mcp_agent.core.agent_types import AgentType
 from mcp_agent.core.enhanced_prompt import (
+    _display_agent_info_helper,
     get_argument_input,
     get_enhanced_input,
     get_selection_input,
@@ -121,6 +122,7 @@ class InteractivePrompt:
                     multiline=False,  # Default to single-line mode
                     available_agent_names=available_agents,
                     agent_types=self.agent_types,  # Pass agent types for display
+                    agent_provider=prompt_provider,  # Pass agent provider for info display
                 )
 
                 # Handle special commands - pass "True" to enable agent switching
@@ -132,6 +134,9 @@ class InteractivePrompt:
                         new_agent = command_result["switch_agent"]
                         if new_agent in available_agents_set:
                             agent = new_agent
+                            # Display new agent info immediately when switching
+                            rich_print()  # Add spacing
+                            await _display_agent_info_helper(agent, prompt_provider)
                             continue
                         else:
                             rich_print(f"[red]Agent '{new_agent}' not found[/red]")
@@ -173,6 +178,10 @@ class InteractivePrompt:
                         else:
                             # Use the name-based selection
                             await self._select_prompt(prompt_provider, agent, prompt_name)
+                        continue
+                    elif "list_tools" in command_result and prompt_provider:
+                        # Handle tools list display
+                        await self._list_tools(prompt_provider, agent)
                         continue
                     elif "show_usage" in command_result:
                         # Handle usage display
@@ -333,13 +342,17 @@ class InteractivePrompt:
             rich_print(f"[dim]{traceback.format_exc()}[/dim]")
 
     async def _select_prompt(
-        self, prompt_provider: PromptProvider, agent_name: str, requested_name: Optional[str] = None
+        self,
+        prompt_provider: PromptProvider,
+        agent_name: str,
+        requested_name: Optional[str] = None,
+        send_func: Optional[SendFunc] = None,
     ) -> None:
         """
         Select and apply a prompt.
 
         Args:
-            prompt_provider: Provider that implements list_prompts and apply_prompt
+            prompt_provider: Provider that implements list_prompts and get_prompt
             agent_name: Name of the agent
             requested_name: Optional name of the prompt to apply
         """
@@ -569,17 +582,114 @@ class InteractivePrompt:
                         if arg_value:
                             arg_values[arg_name] = arg_value
 
-            # Apply the prompt
+            # Apply the prompt using generate() for proper progress display
             namespaced_name = selected_prompt["namespaced_name"]
             rich_print(f"\n[bold]Applying prompt [cyan]{namespaced_name}[/cyan]...[/bold]")
 
-            # Call apply_prompt on the provider with the prompt name and arguments
-            await prompt_provider.apply_prompt(namespaced_name, arg_values, agent_name)
+            # Get the agent directly for generate() call
+            if hasattr(prompt_provider, "_agent"):
+                # This is an AgentApp - get the specific agent
+                agent = prompt_provider._agent(agent_name)
+            else:
+                # This is a single agent
+                agent = prompt_provider
+
+            try:
+                # Use agent.apply_prompt() which handles everything properly:
+                # - get_prompt() to fetch template
+                # - convert to multipart
+                # - call generate() for progress display
+                # - return response text
+                # Response display is handled by the agent's show_ methods, don't print it here
+
+                # Fetch the prompt first (without progress display)
+                prompt_result = await agent.get_prompt(namespaced_name, arg_values)
+
+                if not prompt_result or not prompt_result.messages:
+                    rich_print(
+                        f"[red]Prompt '{namespaced_name}' could not be found or contains no messages[/red]"
+                    )
+                    return
+
+                # Convert to multipart format
+                from mcp_agent.mcp.prompt_message_multipart import PromptMessageMultipart
+
+                multipart_messages = PromptMessageMultipart.from_get_prompt_result(prompt_result)
+
+                # Now start progress display for the actual generation
+                progress_display.resume()
+                try:
+                    await agent.generate(multipart_messages, None)
+                finally:
+                    # Pause again for the next UI interaction
+                    progress_display.pause()
+
+                # Show usage info after the turn (same as send_wrapper does)
+                if hasattr(prompt_provider, "_show_turn_usage"):
+                    prompt_provider._show_turn_usage(agent_name)
+
+            except Exception as e:
+                rich_print(f"[red]Error applying prompt: {e}[/red]")
 
         except Exception as e:
             import traceback
 
             rich_print(f"[red]Error selecting or applying prompt: {e}[/red]")
+            rich_print(f"[dim]{traceback.format_exc()}[/dim]")
+
+    async def _list_tools(self, prompt_provider: PromptProvider, agent_name: str) -> None:
+        """
+        List available tools for an agent.
+
+        Args:
+            prompt_provider: Provider that implements list_tools
+            agent_name: Name of the agent
+        """
+        console = Console()
+
+        try:
+            # Get agent to list tools from
+            if hasattr(prompt_provider, "_agent"):
+                # This is an AgentApp - get the specific agent
+                agent = prompt_provider._agent(agent_name)
+            else:
+                # This is a single agent
+                agent = prompt_provider
+
+            rich_print(f"\n[bold]Fetching tools for agent [cyan]{agent_name}[/cyan]...[/bold]")
+
+            # Get tools using list_tools
+            tools_result = await agent.list_tools()
+
+            if not tools_result or not hasattr(tools_result, "tools") or not tools_result.tools:
+                rich_print("[yellow]No tools available for this agent[/yellow]")
+                return
+
+            # Create a table for better display
+            table = Table(title="Available MCP Tools")
+            table.add_column("#", justify="right", style="cyan")
+            table.add_column("Tool Name", style="bright_blue")
+            table.add_column("Description")
+
+            # Add tools to table
+            for i, tool in enumerate(tools_result.tools):
+                table.add_row(
+                    str(i + 1),
+                    tool.name,
+                    getattr(tool, "description", "No description") or "No description",
+                )
+
+            console.print(table)
+
+            # Add usage instructions
+            rich_print("\n[bold]Usage:[/bold]")
+            rich_print("  • Tools are automatically available in your conversation")
+            rich_print("  • Just ask the agent to use a tool by name or description")
+
+        except Exception as e:
+            import traceback
+
+            rich_print(f"[red]Error listing tools: {e}[/red]")
             rich_print(f"[dim]{traceback.format_exc()}[/dim]")
 
     async def _show_usage(self, prompt_provider: PromptProvider, agent_name: str) -> None:
@@ -593,13 +703,13 @@ class InteractivePrompt:
         try:
             # Collect all agents from the prompt provider
             agents_to_show = collect_agents_from_provider(prompt_provider, agent_name)
-            
+
             if not agents_to_show:
                 rich_print("[yellow]No usage data available[/yellow]")
                 return
-                
+
             # Use the shared display utility
             display_usage_report(agents_to_show, show_if_progress_disabled=True)
-            
+
         except Exception as e:
             rich_print(f"[red]Error showing usage: {e}[/red]")

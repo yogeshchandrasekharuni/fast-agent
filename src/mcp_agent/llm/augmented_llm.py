@@ -554,6 +554,37 @@ class AugmentedLLM(ContextDependent, AugmentedLLMProtocol, Generic[MessageParamT
         }
         self.logger.debug("Chat in progress", data=data)
 
+    def _update_streaming_progress(self, content: str, model: str, estimated_tokens: int) -> int:
+        """Update streaming progress with token estimation and formatting.
+        
+        Args:
+            content: The text content from the streaming event
+            model: The model name
+            estimated_tokens: Current token count to update
+            
+        Returns:
+            Updated estimated token count
+        """
+        # Rough estimate: 1 token per 4 characters (OpenAI's typical ratio)
+        text_length = len(content)
+        additional_tokens = max(1, text_length // 4)
+        new_total = estimated_tokens + additional_tokens
+        
+        # Format token count for display
+        token_str = str(new_total).rjust(5)
+        
+        # Emit progress event
+        data = {
+            "progress_action": ProgressAction.STREAMING,
+            "model": model,
+            "agent_name": self.name,
+            "chat_turn": self.chat_turn(),
+            "details": token_str.strip(),  # Token count goes in details for STREAMING action
+        }
+        self.logger.info("Streaming progress", data=data)
+        
+        return new_total
+
     def _log_chat_finished(self, model: Optional[str] = None) -> None:
         """Log a chat finished event"""
         data = {

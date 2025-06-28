@@ -40,6 +40,59 @@ in_multiline_mode = False
 # Track whether help text has been shown globally
 help_message_shown = False
 
+# Track which agents have shown their info
+_agent_info_shown = set()
+
+
+async def _display_agent_info_helper(agent_name: str, agent_provider: object) -> None:
+    """Helper function to display agent information."""
+    # Only show once per agent
+    if agent_name in _agent_info_shown:
+        return
+
+    try:
+        # Get agent info
+        if hasattr(agent_provider, "_agent"):
+            # This is an AgentApp - get the specific agent
+            agent = agent_provider._agent(agent_name)
+        else:
+            # This is a single agent
+            agent = agent_provider
+
+        # Get counts
+        servers = await agent.list_servers()
+        server_count = len(servers) if servers else 0
+
+        tools_result = await agent.list_tools()
+        tool_count = (
+            len(tools_result.tools) if tools_result and hasattr(tools_result, "tools") else 0
+        )
+
+        prompts_dict = await agent.list_prompts()
+        prompt_count = sum(len(prompts) for prompts in prompts_dict.values()) if prompts_dict else 0
+
+        # Display with proper pluralization and subdued formatting
+        if server_count == 0:
+            rich_print(
+                f"[dim]Agent [/dim][blue]{agent_name}[/blue][dim]: No MCP Servers attached[/dim]"
+            )
+        else:
+            # Pluralization helpers
+            server_word = "Server" if server_count == 1 else "Servers"
+            tool_word = "tool" if tool_count == 1 else "tools"
+            prompt_word = "prompt" if prompt_count == 1 else "prompts"
+
+            rich_print(
+                f"[dim]Agent [/dim][blue]{agent_name}[/blue][dim]:[/dim] {server_count:,}[dim] MCP {server_word}, [/dim]{tool_count:,}[dim] {tool_word}, [/dim]{prompt_count:,}[dim] {prompt_word} available[/dim]"
+            )
+
+        # Mark as shown
+        _agent_info_shown.add(agent_name)
+
+    except Exception:
+        # Silently ignore errors to not disrupt the user experience
+        pass
+
 
 class AgentCompleter(Completer):
     """Provide completion for agent names and common commands."""
@@ -54,11 +107,11 @@ class AgentCompleter(Completer):
         self.agents = agents
         # Map commands to their descriptions for better completion hints
         self.commands = {
-            "help": "Show available commands",
-            "prompts": "List and select MCP prompts",  # Changed description
-            "prompt": "Apply a specific prompt by name (/prompt <name>)",  # New command
+            "tools": "List and call MCP tools",
+            "prompt": "List and select MCP prompts, or apply specific prompt (/prompt <name>)",
             "agents": "List available agents",
             "usage": "Show current usage statistics",
+            "help": "Show available commands",
             "clear": "Clear the screen",
             "STOP": "Stop this prompting session and move to next workflow step",
             "EXIT": "Exit fast-agent, terminating any running workflows",
@@ -66,8 +119,8 @@ class AgentCompleter(Completer):
         }
         if is_human_input:
             self.commands.pop("agents")
-            self.commands.pop("prompts")  # Remove prompts command in human input mode
             self.commands.pop("prompt", None)  # Remove prompt command in human input mode
+            self.commands.pop("tools", None)  # Remove tools command in human input mode
             self.commands.pop("usage", None)  # Remove usage command in human input mode
         self.agent_types = agent_types or {}
 
@@ -260,6 +313,7 @@ async def get_enhanced_input(
     agent_types: dict[str, AgentType] = None,
     is_human_input: bool = False,
     toolbar_color: str = "ansiblue",
+    agent_provider: object = None,
 ) -> str:
     """
     Enhanced input with advanced prompt_toolkit features.
@@ -274,6 +328,7 @@ async def get_enhanced_input(
         agent_types: Dictionary mapping agent names to their types for display
         is_human_input: Whether this is a human input request (disables agent selection features)
         toolbar_color: Color to use for the agent name in the toolbar (default: "ansiblue")
+        agent_provider: Optional agent provider for displaying agent info
 
     Returns:
         User input string
@@ -300,14 +355,15 @@ async def get_enhanced_input(
         if in_multiline_mode:
             mode_style = "ansired"  # More noticeable for multiline mode
             mode_text = "MULTILINE"
-            toggle_text = "Normal Editing"
+            toggle_text = "Normal"
         else:
             mode_style = "ansigreen"
             mode_text = "NORMAL"
-            toggle_text = "Multiline Editing"
+            toggle_text = "Multiline"
 
         shortcuts = [
             ("Ctrl+T", toggle_text),
+            ("Ctrl+E", "External"),
             ("Ctrl+L", "Clear"),
             ("↑/↓", "History"),
         ]
@@ -373,8 +429,13 @@ async def get_enhanced_input(
             rich_print("[dim]Type /help for commands. Ctrl+T toggles multiline mode.[/dim]")
         else:
             rich_print(
-                "[dim]Type /help for commands, @agent to switch agent. Ctrl+T toggles multiline mode.[/dim]"
+                "[dim]Type /help for commands, @agent to switch agent. Ctrl+T toggles multiline mode.[/dim]\n"
             )
+
+            # Display agent info right after help text if agent_provider is available
+            if agent_provider and not is_human_input:
+                await _display_agent_info_helper(agent_name, agent_provider)
+
         rich_print()
         help_message_shown = True
 
@@ -394,12 +455,8 @@ async def get_enhanced_input(
                 return "LIST_AGENTS"
             elif cmd == "usage":
                 return "SHOW_USAGE"
-            elif cmd == "prompts":
-                # Return a dictionary with select_prompt action instead of a string
-                # This way it will match what the command handler expects
-                return {"select_prompt": True, "prompt_name": None}
             elif cmd == "prompt":
-                # Handle /prompt with no arguments the same way as /prompts
+                # Handle /prompt with no arguments as interactive mode
                 if len(cmd_parts) > 1:
                     # Direct prompt selection with name or number
                     prompt_arg = cmd_parts[1].strip()
@@ -409,8 +466,11 @@ async def get_enhanced_input(
                     else:
                         return f"SELECT_PROMPT:{prompt_arg}"
                 else:
-                    # If /prompt is used without arguments, treat it the same as /prompts
+                    # If /prompt is used without arguments, show interactive selection
                     return {"select_prompt": True, "prompt_name": None}
+            elif cmd == "tools":
+                # Return a dictionary with list_tools action
+                return {"list_tools": True}
             elif cmd == "exit":
                 return "EXIT"
             elif cmd.lower() == "stop":
