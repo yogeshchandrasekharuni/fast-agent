@@ -17,7 +17,6 @@ from openai.types.chat import (
     ChatCompletionMessageParam,
     ChatCompletionSystemMessageParam,
     ChatCompletionToolParam,
-    ParsedChatCompletionMessage,
 )
 from pydantic_core import from_json
 from rich.text import Text
@@ -44,7 +43,7 @@ DEFAULT_OPENAI_MODEL = "gpt-4.1-mini"
 DEFAULT_REASONING_EFFORT = "medium"
 
 
-class OpenAIAugmentedLLM(AugmentedLLM[ChatCompletionMessageParam, ChatCompletionMessageParam]):
+class OpenAIAugmentedLLM(AugmentedLLM[ChatCompletionMessageParam, ChatCompletionMessage]):
     """
     The basic building block of agentic systems is an LLM enhanced with augmentations
     such as retrieval, tools, and memory provided from a collection of MCP servers.
@@ -121,7 +120,12 @@ class OpenAIAugmentedLLM(AugmentedLLM[ChatCompletionMessageParam, ChatCompletion
         # Track estimated output tokens by counting text chunks
         estimated_tokens = 0
 
-        # Use ChatCompletionStreamState helper for accumulation
+        # For non-OpenAI providers (like Ollama), ChatCompletionStreamState might not work correctly
+        # Fall back to manual accumulation if needed
+        if self.provider in [Provider.GENERIC, Provider.OPENROUTER]:
+            return await self._process_stream_manual(stream, model)
+
+        # Use ChatCompletionStreamState helper for accumulation (OpenAI only)
         state = ChatCompletionStreamState()
 
         # Process the stream chunks
@@ -154,6 +158,82 @@ class OpenAIAugmentedLLM(AugmentedLLM[ChatCompletionMessageParam, ChatCompletion
 
             self.logger.info(
                 f"Streaming complete - Model: {model}, Input tokens: {final_completion.usage.prompt_tokens}, Output tokens: {final_completion.usage.completion_tokens}"
+            )
+
+        return final_completion
+
+    async def _process_stream_manual(self, stream, model: str):
+        """Manual stream processing for providers like Ollama that may not work with ChatCompletionStreamState."""
+        # Track estimated output tokens by counting text chunks
+        estimated_tokens = 0
+
+        # Manual accumulation of response data
+        accumulated_content = ""
+        role = "assistant"
+        tool_calls = []
+        function_call = None
+        finish_reason = None
+        usage_data = None
+
+        # Process the stream chunks manually
+        async for chunk in stream:
+            # Count tokens in real-time from content deltas
+            if chunk.choices and chunk.choices[0].delta.content:
+                content = chunk.choices[0].delta.content
+                accumulated_content += content
+                # Use base class method for token estimation and progress emission
+                estimated_tokens = self._update_streaming_progress(content, model, estimated_tokens)
+
+            # Extract other fields from the chunk
+            if chunk.choices:
+                choice = chunk.choices[0]
+                if choice.delta.role:
+                    role = choice.delta.role
+                if choice.delta.tool_calls:
+                    tool_calls.extend(choice.delta.tool_calls)
+                if choice.delta.function_call:
+                    function_call = choice.delta.function_call
+                if choice.finish_reason:
+                    finish_reason = choice.finish_reason
+
+            # Extract usage data if available
+            if hasattr(chunk, "usage") and chunk.usage:
+                usage_data = chunk.usage
+
+        # Create a ChatCompletionMessage manually
+        message = ChatCompletionMessage(
+            content=accumulated_content,
+            role=role,
+            tool_calls=tool_calls if tool_calls else None,
+            function_call=function_call,
+            refusal=None,
+            annotations=None,
+            audio=None,
+        )
+
+        from types import SimpleNamespace
+
+        final_completion = SimpleNamespace()
+        final_completion.choices = [SimpleNamespace()]
+        final_completion.choices[0].message = message
+        final_completion.choices[0].finish_reason = finish_reason
+        final_completion.usage = usage_data
+
+        # Log final usage information
+        if usage_data:
+            actual_tokens = getattr(usage_data, "completion_tokens", estimated_tokens)
+            token_str = str(actual_tokens).rjust(5)
+            data = {
+                "progress_action": ProgressAction.STREAMING,
+                "model": model,
+                "agent_name": self.name,
+                "chat_turn": self.chat_turn(),
+                "details": token_str.strip(),
+            }
+            self.logger.info("Streaming progress", data=data)
+
+            self.logger.info(
+                f"Streaming complete - Model: {model}, Input tokens: {getattr(usage_data, 'prompt_tokens', 0)}, Output tokens: {actual_tokens}"
             )
 
         return final_completion
@@ -251,6 +331,8 @@ class OpenAIAugmentedLLM(AugmentedLLM[ChatCompletionMessageParam, ChatCompletion
             if message.content:
                 responses.append(TextContent(type="text", text=message.content))
 
+            # ParsedChatCompletionMessage is compatible with ChatCompletionMessage
+            # since it inherits from it, so we can use it directly
             messages.append(message)
 
             message_text = message.content
