@@ -17,6 +17,7 @@ from openai.types.chat import (
     ChatCompletionMessageParam,
     ChatCompletionSystemMessageParam,
     ChatCompletionToolParam,
+    ParsedChatCompletionMessage,
 )
 from pydantic_core import from_json
 from rich.text import Text
@@ -43,7 +44,7 @@ DEFAULT_OPENAI_MODEL = "gpt-4.1-mini"
 DEFAULT_REASONING_EFFORT = "medium"
 
 
-class OpenAIAugmentedLLM(AugmentedLLM[ChatCompletionMessageParam, ChatCompletionMessage]):
+class OpenAIAugmentedLLM(AugmentedLLM[ChatCompletionMessageParam, ChatCompletionMessageParam]):
     """
     The basic building block of agentic systems is an LLM enhanced with augmentations
     such as retrieval, tools, and memory provided from a collection of MCP servers.
@@ -250,10 +251,9 @@ class OpenAIAugmentedLLM(AugmentedLLM[ChatCompletionMessageParam, ChatCompletion
             if message.content:
                 responses.append(TextContent(type="text", text=message.content))
 
-            converted_message = self.convert_message_to_message_param(message)
-            messages.append(converted_message)
+            messages.append(message)
 
-            message_text = converted_message.content
+            message_text = message.content
             if choice.finish_reason in ["tool_calls", "function_call"] and message.tool_calls:
                 if message_text:
                     await self.show_assistant_message(

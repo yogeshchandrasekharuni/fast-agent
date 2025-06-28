@@ -59,9 +59,7 @@ async def test_basic_textual_prompting(fast_agent, model_name):
 @pytest.mark.e2e
 @pytest.mark.parametrize(
     "model_name",
-    [
-        "gpt-4.1-nano",
-    ],
+    ["gpt-4.1-nano", "generic.qwen2.5:latest", "haiku"],
 )
 async def test_open_ai_history(fast_agent, model_name):
     """Test that the agent can process an image and respond appropriately."""
