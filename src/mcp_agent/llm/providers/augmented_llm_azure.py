@@ -1,4 +1,4 @@
-from openai import AuthenticationError, AsyncAzureOpenAI, AsyncOpenAI
+from openai import AsyncAzureOpenAI, AsyncOpenAI, AuthenticationError
 
 from mcp_agent.core.exceptions import ProviderKeyError
 from mcp_agent.llm.provider_types import Provider

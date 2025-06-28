@@ -342,13 +342,17 @@ class InteractivePrompt:
             rich_print(f"[dim]{traceback.format_exc()}[/dim]")
 
     async def _select_prompt(
-        self, prompt_provider: PromptProvider, agent_name: str, requested_name: Optional[str] = None
+        self,
+        prompt_provider: PromptProvider,
+        agent_name: str,
+        requested_name: Optional[str] = None,
+        send_func: Optional[SendFunc] = None,
     ) -> None:
         """
         Select and apply a prompt.
 
         Args:
-            prompt_provider: Provider that implements list_prompts and apply_prompt
+            prompt_provider: Provider that implements list_prompts and get_prompt
             agent_name: Name of the agent
             requested_name: Optional name of the prompt to apply
         """
@@ -578,12 +582,54 @@ class InteractivePrompt:
                         if arg_value:
                             arg_values[arg_name] = arg_value
 
-            # Apply the prompt
+            # Apply the prompt using generate() for proper progress display
             namespaced_name = selected_prompt["namespaced_name"]
             rich_print(f"\n[bold]Applying prompt [cyan]{namespaced_name}[/cyan]...[/bold]")
 
-            # Call apply_prompt on the provider with the prompt name and arguments
-            await prompt_provider.apply_prompt(namespaced_name, arg_values, agent_name)
+            # Get the agent directly for generate() call
+            if hasattr(prompt_provider, "_agent"):
+                # This is an AgentApp - get the specific agent
+                agent = prompt_provider._agent(agent_name)
+            else:
+                # This is a single agent
+                agent = prompt_provider
+
+            try:
+                # Use agent.apply_prompt() which handles everything properly:
+                # - get_prompt() to fetch template
+                # - convert to multipart
+                # - call generate() for progress display
+                # - return response text
+                # Response display is handled by the agent's show_ methods, don't print it here
+
+                # Fetch the prompt first (without progress display)
+                prompt_result = await agent.get_prompt(namespaced_name, arg_values)
+
+                if not prompt_result or not prompt_result.messages:
+                    rich_print(
+                        f"[red]Prompt '{namespaced_name}' could not be found or contains no messages[/red]"
+                    )
+                    return
+
+                # Convert to multipart format
+                from mcp_agent.mcp.prompt_message_multipart import PromptMessageMultipart
+
+                multipart_messages = PromptMessageMultipart.from_get_prompt_result(prompt_result)
+
+                # Now start progress display for the actual generation
+                progress_display.resume()
+                try:
+                    await agent.generate(multipart_messages, None)
+                finally:
+                    # Pause again for the next UI interaction
+                    progress_display.pause()
+
+                # Show usage info after the turn (same as send_wrapper does)
+                if hasattr(prompt_provider, "_show_turn_usage"):
+                    prompt_provider._show_turn_usage(agent_name)
+
+            except Exception as e:
+                rich_print(f"[red]Error applying prompt: {e}[/red]")
 
         except Exception as e:
             import traceback

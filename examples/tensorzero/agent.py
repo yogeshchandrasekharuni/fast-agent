@@ -27,7 +27,6 @@ my_t0_system_vars = {
 )
 async def main():
     async with fast.run() as agent_app:  # Get the AgentApp wrapper
-        agent_name = "default"
         print("\nStarting interactive session with template_vars set via decorator...")
         await agent_app.interactive()
 
