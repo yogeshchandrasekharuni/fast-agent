@@ -8,7 +8,7 @@ from mcp.types import (
     ImageContent,
     TextContent,
 )
-from openai import AuthenticationError, OpenAI
+from openai import AuthenticationError, AsyncOpenAI
 
 # from openai.types.beta.chat import
 from openai.types.chat import (
@@ -103,9 +103,9 @@ class OpenAIAugmentedLLM(AugmentedLLM[ChatCompletionMessageParam, ChatCompletion
     def _base_url(self) -> str:
         return self.context.config.openai.base_url if self.context.config.openai else None
 
-    def _openai_client(self) -> OpenAI:
+    def _openai_client(self) -> AsyncOpenAI:
         try:
-            return OpenAI(api_key=self._api_key(), base_url=self._base_url())
+            return AsyncOpenAI(api_key=self._api_key(), base_url=self._base_url())
         except AuthenticationError as e:
             raise ProviderKeyError(
                 "Invalid OpenAI API key",
