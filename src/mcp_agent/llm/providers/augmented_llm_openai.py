@@ -163,6 +163,8 @@ class OpenAIAugmentedLLM(AugmentedLLM[ChatCompletionMessageParam, ChatCompletion
 
         return final_completion
 
+    # TODO - as per other comment this needs to go in another class. There are a number of "special" cases dealt with
+    # here to deal with OpenRouter idiosyncrasies between e.g. Anthropic and Gemini models.
     async def _process_stream_manual(self, stream, model: str):
         """Manual stream processing for providers like Ollama that may not work with ChatCompletionStreamState."""
         from openai.types.chat import ChatCompletionMessageToolCall
