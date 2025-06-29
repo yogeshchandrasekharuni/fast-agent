@@ -10,8 +10,6 @@ from mcp.types import (
 )
 from openai import AsyncOpenAI, AuthenticationError
 from openai.lib.streaming.chat import ChatCompletionStreamState
-from openai import AsyncOpenAI, AuthenticationError
-from openai.lib.streaming.chat import ChatCompletionStreamState
 
 # from openai.types.beta.chat import
 from openai.types.chat import (
@@ -25,7 +23,6 @@ from rich.text import Text
 
 from mcp_agent.core.exceptions import ProviderKeyError
 from mcp_agent.core.prompt import Prompt
-from mcp_agent.event_progress import ProgressAction
 from mcp_agent.event_progress import ProgressAction
 from mcp_agent.llm.augmented_llm import (
     AugmentedLLM,
