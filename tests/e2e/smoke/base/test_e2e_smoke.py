@@ -302,6 +302,8 @@ async def test_generic_model_textual_prompting(fast_agent, model_name):
         "openrouter.google/gemini-2.5-flash",
         "openrouter.anthropic/claude-sonnet-4",
         "gemini25",
+        "generic.qwen2.5:latest",
+        "generic.llama3.2:latest",
         "o3-mini.low",
         "azure.gpt-4.1",
     ],
