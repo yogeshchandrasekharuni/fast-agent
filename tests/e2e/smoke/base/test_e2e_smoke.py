@@ -299,7 +299,7 @@ async def test_generic_model_textual_prompting(fast_agent, model_name):
         "gpt-4.1-nano",
         "gpt-4.1-mini",
         "gemini2",
-        "openrouter.google/gemini-2.5-flash",
+        "openrouter.google/gemini-25-flash",
         "openrouter.anthropic/claude-sonnet-4",
         "gemini25",
         "o3-mini.low",
@@ -349,6 +349,7 @@ async def test_basic_tool_calling(fast_agent, model_name):
         "gemini2",
         "gemini25",  # Works -> DONE.
         "openrouter.anthropic/claude-3.7-sonnet",
+        "openrouter.google/gemini-2.5-flash",
         "azure.gpt-4.1",
     ],
 )
