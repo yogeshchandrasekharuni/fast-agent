@@ -299,7 +299,7 @@ async def test_generic_model_textual_prompting(fast_agent, model_name):
         "gpt-4.1-nano",
         "gpt-4.1-mini",
         "gemini2",
-        "openrouter.google/gemini-25-flash",
+        "openrouter.google/gemini-2.5-flash",
         "openrouter.anthropic/claude-sonnet-4",
         "gemini25",
         "generic.qwen2.5:latest",
