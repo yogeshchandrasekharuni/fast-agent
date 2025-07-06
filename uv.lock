@@ -456,7 +456,7 @@ wheels = [
 
 [[package]]
 name = "fast-agent-mcp"
-version = "0.2.36"
+version = "0.2.37"
 source = { editable = "." }
 dependencies = [
     { name = "a2a-sdk" },
