@@ -64,14 +64,15 @@ EXAMPLE_TYPES = {
         "Demonstrates collecting structured data with forms, AI-guided workflows,\n"
         "and custom handlers. Creates examples in an 'elicitations' subdirectory.",
         "files": [
-            "forms_demo.py",
-            "account_creation.py",
-            "game_character.py",
-            "game_character_handler.py",
-            "elicitation_server.py",
+            "elicitation_account_server.py",
+            "elicitation_forms_server.py",
+            "elicitation_game_server.py",
             "fastagent.config.yaml",
             "fastagent.secrets.yaml.example",
-            "README.md",
+            "forms_demo.py",
+            "game_character.py",
+            "game_character_handler.py",
+            "tool_call.py",
         ],
         "create_subdir": True,
     },
@@ -252,7 +253,7 @@ def show_overview() -> None:
         "  fastagent quickstart researcher DIR     Create researcher example in 'researcher' subdirectory\n"
         "  fastagent quickstart data-analysis DIR  Create data analysis examples in 'data-analysis' subdirectory\n"
         "  fastagent quickstart state-transfer DIR Create state transfer examples in 'state-transfer' subdirectory\n"
-        "  fastagent quickstart elicitations DIR   Create elicitation form examples in 'elicitations' subdirectory\n\n"
+        "  fastagent quickstart elicitations DIR   Create elicitation examples in 'elicitations' subdirectory\n\n"
         "[bold]Options:[/bold]\n"
         "  --force            Overwrite existing files\n\n"
         "[bold]Examples:[/bold]\n"
@@ -260,7 +261,7 @@ def show_overview() -> None:
         "  fastagent quickstart researcher .            Create in researcher subdirectory\n"
         "  fastagent quickstart data-analysis . --force Force overwrite files in data-analysis subdirectory\n"
         "  fastagent quickstart state-transfer .        Create state transfer examples\n"
-        "  fastagent quickstart elicitations .          Create interactive form examples"
+        "  fastagent quickstart elicitations .          Create elicitation form examples"
     )
     console.print(Panel(usage_text, title="Usage", border_style="blue"))
 
