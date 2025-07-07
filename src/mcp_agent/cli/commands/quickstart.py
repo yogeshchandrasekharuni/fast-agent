@@ -385,10 +385,10 @@ def _show_completion_message(example_type: str, created: list[str]) -> None:
         elif example_type == "state-transfer":
             console.print("Check https://fast-agent.ai for quick start walkthroughs")
         elif example_type == "elicitations":
-            console.print("1. Try the forms demo: uv run forms_demo.py")
-            console.print("2. For the AI assistant example, configure your API keys first")
+            console.print("1. Go to the `elicitations` subdirectory (cd elicitations)")
+            console.print("2. Try the forms demo: uv run forms_demo.py")
             console.print("3. Run the game character creator: uv run game_character.py")
-            console.print("4. Check the README.md for detailed information about elicitations")
+            console.print("Check https://fast-agent.ai/mcp/elicitations/ for more details")
     else:
         console.print("\n[yellow]No files were created.[/yellow]")
 
