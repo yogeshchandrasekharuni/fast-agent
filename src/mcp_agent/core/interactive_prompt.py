@@ -30,7 +30,7 @@ from mcp_agent.core.enhanced_prompt import (
     handle_special_commands,
 )
 from mcp_agent.core.usage_display import collect_agents_from_provider, display_usage_report
-from mcp_agent.mcp.mcp_aggregator import SEP  # Import SEP once at the top
+from mcp_agent.mcp.mcp_aggregator import SEP
 from mcp_agent.mcp.prompt_message_multipart import PromptMessageMultipart
 from mcp_agent.progress_display import progress_display
 
