@@ -106,15 +106,35 @@ async def _display_agent_info_helper(agent_name: str, agent_provider: object) ->
         else:
             # For regular agents, only display if they have MCP servers attached
             if server_count > 0:
-                # Pluralization helpers
-                server_word = "Server" if server_count == 1 else "Servers"
-                tool_word = "tool" if tool_count == 1 else "tools"
-                resource_word = "resource" if resource_count == 1 else "resources"
-                prompt_word = "prompt" if prompt_count == 1 else "prompts"
+                # Build display parts in order: tools, prompts, resources (omit if count is 0)
+                display_parts = []
 
-                rich_print(
-                    f"[dim]Agent [/dim][blue]{agent_name}[/blue][dim]:[/dim] {server_count:,}[dim] MCP {server_word}, [/dim]{tool_count:,}[dim] {tool_word}, [/dim]{resource_count:,}[dim] {resource_word}, [/dim]{prompt_count:,}[dim] {prompt_word} available[/dim]"
-                )
+                if tool_count > 0:
+                    tool_word = "tool" if tool_count == 1 else "tools"
+                    display_parts.append(f"{tool_count:,}[dim] {tool_word}[/dim]")
+
+                if prompt_count > 0:
+                    prompt_word = "prompt" if prompt_count == 1 else "prompts"
+                    display_parts.append(f"{prompt_count:,}[dim] {prompt_word}[/dim]")
+
+                if resource_count > 0:
+                    resource_word = "resource" if resource_count == 1 else "resources"
+                    display_parts.append(f"{resource_count:,}[dim] {resource_word}[/dim]")
+
+                # Always show server count
+                server_word = "Server" if server_count == 1 else "Servers"
+                server_text = f"{server_count:,}[dim] MCP {server_word}[/dim]"
+
+                if display_parts:
+                    content = (
+                        f"{server_text}[dim], [/dim]"
+                        + "[dim], [/dim]".join(display_parts)
+                        + "[dim] available[/dim]"
+                    )
+                else:
+                    content = f"{server_text}[dim] available[/dim]"
+
+                rich_print(f"[dim]Agent [/dim][blue]{agent_name}[/blue][dim]:[/dim] {content}")
 
         # Mark as shown
         _agent_info_shown.add(agent_name)

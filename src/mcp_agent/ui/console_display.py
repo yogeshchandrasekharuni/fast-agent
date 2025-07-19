@@ -60,23 +60,10 @@ class ConsoleDisplay:
                 else:
                     status = f"{len(content)} Content Blocks"
 
-        # Two column header: block triangle + name (left) + status (right)
-        left = f"[{block_color}]▎[/{block_color}][{text_color}]▶[/{text_color}]{f' [{block_color}]{name}[/{block_color}] [dim magenta]tool result[/dim magenta]' if name else ''}"
-        right = f"[dim]{status}[/dim]"
-
-        # Calculate padding to right-align status
-        width = console.console.size.width
-        left_text = Text.from_markup(left)
-        right_text = Text.from_markup(right)
-        padding = max(1, width - left_text.cell_len - right_text.cell_len)
-
-        # Top separator
-        console.console.print()
-        console.console.print("─" * console.console.size.width, style="dim")
-        console.console.print()
-
-        console.console.print(left + " " * padding + right, markup=self._markup)
-        console.console.print()
+        # Combined separator and status line
+        left = f"[{block_color}]▎[/{block_color}][{text_color}]▶[/{text_color}]{f' [{block_color}]{name}[/{block_color}]' if name else ''}"
+        right = f"[dim]tool result - {status}[/dim]"
+        self._create_combined_separator_status(left, right)
 
         # Display tool result content
         content = result.content
@@ -134,23 +121,10 @@ class ConsoleDisplay:
 
         display_tool_list = self._format_tool_list(available_tools, tool_name)
 
-        # Two column header: block triangle + name (left) + tool name (right)
-        left = f"[magenta]▎[/magenta][dim magenta]◀[/dim magenta]{f' [magenta]{name}[/magenta] [dim magenta]tool request[/dim magenta]' if name else ''}"
-        right = f"[dim]{tool_name}[/dim]"
-
-        # Calculate padding to right-align tool name
-        width = console.console.size.width
-        left_text = Text.from_markup(left)
-        right_text = Text.from_markup(right)
-        padding = max(1, width - left_text.cell_len - right_text.cell_len)
-
-        # Top separator
-        console.console.print()
-        console.console.print("─" * console.console.size.width, style="dim")
-        console.console.print()
-
-        console.console.print(left + " " * padding + right, markup=self._markup)
-        console.console.print()
+        # Combined separator and status line
+        left = f"[magenta]▎[/magenta][dim magenta]◀[/dim magenta]{f' [magenta]{name}[/magenta]' if name else ''}"
+        right = f"[dim]tool request - {tool_name}[/dim]"
+        self._create_combined_separator_status(left, right)
 
         # Display tool arguments using Rich JSON pretty printing (dimmed)
         try:
@@ -215,28 +189,16 @@ class ConsoleDisplay:
         if aggregator and hasattr(aggregator, "name") and aggregator.name:
             agent_name = aggregator.name
 
-        # Two column header: block triangle + agent name (left) + server name (right)
+        # Combined separator and status line
         if agent_name:
             left = (
                 f"[magenta]▎[/magenta][dim magenta]▶[/dim magenta] [magenta]{agent_name}[/magenta]"
             )
         else:
             left = "[magenta]▎[/magenta][dim magenta]▶[/dim magenta]"
+
         right = f"[dim]{updated_server}[/dim]"
-
-        # Calculate padding to right-align server name
-        width = console.console.size.width
-        left_text = Text.from_markup(left)
-        right_text = Text.from_markup(right)
-        padding = max(1, width - left_text.cell_len - right_text.cell_len)
-
-        # Top separator
-        console.console.print()
-        console.console.print("─" * console.console.size.width, style="dim")
-        console.console.print()
-
-        console.console.print(left + " " * padding + right, markup=self._markup)
-        console.console.print()
+        self._create_combined_separator_status(left, right)
 
         # Display update message
         message = f"Updating tools for server {updated_server}"
@@ -312,6 +274,46 @@ class ConsoleDisplay:
 
         return truncated
 
+    def _create_combined_separator_status(self, left_content: str, right_info: str = "") -> None:
+        """
+        Create a combined separator and status line.
+
+        Args:
+            left_content: The main content (block, arrow, name) - left justified with color
+            right_info: Supplementary information to show in brackets - right aligned
+        """
+        width = console.console.size.width
+
+        # Create left text
+        left_text = Text.from_markup(left_content)
+
+        # Create right text if we have info
+        if right_info and right_info.strip():
+            # Add dim brackets around the right info
+            right_text = Text()
+            right_text.append("[", style="dim")
+            right_text.append_text(Text.from_markup(right_info))
+            right_text.append("]", style="dim")
+            # Calculate separator count
+            separator_count = width - left_text.cell_len - right_text.cell_len
+            if separator_count < 1:
+                separator_count = 1  # Always at least 1 separator
+        else:
+            right_text = Text("")
+            separator_count = width - left_text.cell_len
+
+        # Build the combined line
+        combined = Text()
+        combined.append_text(left_text)
+        combined.append(" ", style="default")
+        combined.append("─" * (separator_count - 1), style="dim")
+        combined.append_text(right_text)
+
+        # Print with empty line before
+        console.console.print()
+        console.console.print(combined, markup=self._markup)
+        console.console.print()
+
     async def show_assistant_message(
         self,
         message_text: Union[str, Text],
@@ -350,23 +352,10 @@ class ConsoleDisplay:
                 style = "green" if server_name == mcp_server_name else "dim white"
                 display_server_list.append(f"[{server_name}] ", style)
 
-        # Two column header: block triangle + name (left) + model (right)
+        # Combined separator and status line
         left = f"[green]▎[/green][dim green]◀[/dim green]{f' [bold green]{name}[/bold green]' if name else ''}"
         right = f"[dim]{model}[/dim]" if model else ""
-
-        # Calculate padding to right-align turn info
-        width = console.console.size.width
-        left_text = Text.from_markup(left)
-        right_text = Text.from_markup(right) if right else Text("")
-        padding = max(1, width - left_text.cell_len - right_text.cell_len)
-
-        # Top separator
-        console.console.print()
-        console.console.print("─" * console.console.size.width, style="dim")
-        console.console.print()
-
-        console.console.print(left + " " * padding + right, markup=self._markup)
-        console.console.print()
+        self._create_combined_separator_status(left, right)
 
         # Display content as markdown if it looks like markdown, otherwise as text
         if isinstance(message_text, str):
@@ -416,7 +405,7 @@ class ConsoleDisplay:
         if not self.config or not self.config.logger.show_chat:
             return
 
-        # Two column header: block triangle + name (left) + model + turn (right)
+        # Combined separator and status line
         left = f"[blue]▎[/blue][dim blue]▶[/dim blue]{f' [bold blue]{name}[/bold blue]' if name else ''}"
 
         # Build right side with model and turn
@@ -427,20 +416,7 @@ class ConsoleDisplay:
             right_parts.append(f"turn {chat_turn}")
 
         right = f"[dim]{' '.join(right_parts)}[/dim]" if right_parts else ""
-
-        # Calculate padding to right-align model info
-        width = console.console.size.width
-        left_text = Text.from_markup(left)
-        right_text = Text.from_markup(right) if right else Text("")
-        padding = max(1, width - left_text.cell_len - right_text.cell_len)
-
-        # Top separator
-        console.console.print()
-        console.console.print("─" * console.console.size.width, style="dim")
-        console.console.print()
-
-        console.console.print(left + " " * padding + right, markup=self._markup)
-        console.console.print()
+        self._create_combined_separator_status(left, right)
 
         # Display content as markdown if it looks like markdown, otherwise as text
         if isinstance(message, str):
