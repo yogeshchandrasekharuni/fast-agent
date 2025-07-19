@@ -1,8 +1,9 @@
 import json
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional
 
 from mcp.types import (
     CallToolResult,
+    ContentBlock,
     EmbeddedResource,
     ImageContent,
     TextContent,
@@ -22,7 +23,7 @@ class TensorZeroConverter:
 
     @staticmethod
     def _convert_content_part(
-        part: Union[TextContent, ImageContent, EmbeddedResource],
+        part: ContentBlock,
     ) -> Optional[Dict[str, Any]]:
         """Converts a single MCP content part to a T0 content block dictionary."""
         if isinstance(part, TextContent):

@@ -1,9 +1,8 @@
 from typing import List, Optional, Union
 
 from mcp.types import (
-    EmbeddedResource,
+    ContentBlock,
     GetPromptResult,
-    ImageContent,
     PromptMessage,
     Role,
     TextContent,
@@ -20,7 +19,7 @@ class PromptMessageMultipart(BaseModel):
     """
 
     role: Role
-    content: List[Union[TextContent, ImageContent, EmbeddedResource]]
+    content: List[Union[ContentBlock]]
 
     @classmethod
     def to_multipart(cls, messages: List[PromptMessage]) -> List["PromptMessageMultipart"]:

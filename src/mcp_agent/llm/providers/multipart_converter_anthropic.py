@@ -16,6 +16,7 @@ from anthropic.types import (
 from mcp.types import (
     BlobResourceContents,
     CallToolResult,
+    ContentBlock,
     EmbeddedResource,
     ImageContent,
     PromptMessage,
@@ -117,7 +118,7 @@ class AnthropicConverter:
 
     @staticmethod
     def _convert_content_items(
-        content_items: Sequence[Union[TextContent, ImageContent, EmbeddedResource]],
+        content_items: Sequence[ContentBlock],
         document_mode: bool = True,
     ) -> List[ContentBlockParam]:
         """
@@ -210,7 +211,7 @@ class AnthropicConverter:
                 return ImageBlockParam(
                     type="image", source=URLImageSourceParam(type="url", url=uri_str)
                 )
-            
+
             # Try to get image data
             image_data = get_image_data(resource)
             if image_data:
@@ -220,7 +221,7 @@ class AnthropicConverter:
                         type="base64", media_type=mime_type, data=image_data
                     ),
                 )
-            
+
             return AnthropicConverter._create_fallback_text("Image missing data", resource)
 
         elif mime_type == "application/pdf":
