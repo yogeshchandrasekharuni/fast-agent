@@ -345,7 +345,7 @@ class AsyncEventBus:
         self._queue = None
 
         # Cancel and wait for task with timeout
-        if not self._task.done():
+        if self._task and not self._task.done():
             self._task.cancel()
             try:
                 # Wait for task to complete with timeout
