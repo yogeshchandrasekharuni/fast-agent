@@ -10,8 +10,7 @@ from mcp.types import (
     CallToolRequest,
     CallToolRequestParams,
     CallToolResult,
-    EmbeddedResource,
-    ImageContent,
+    ContentBlock,
     TextContent,
 )
 from rich.text import Text
@@ -228,12 +227,12 @@ class GoogleNativeAugmentedLLM(AugmentedLLM[types.Content, types.Content]):
     async def _google_completion(
         self,
         request_params: RequestParams | None = None,
-    ) -> List[TextContent | ImageContent | EmbeddedResource]:
+    ) -> List[ContentBlock]:
         """
         Process a query using Google's generate_content API and available tools.
         """
         request_params = self.get_request_params(request_params=request_params)
-        responses: List[TextContent | ImageContent | EmbeddedResource] = []
+        responses: List[ContentBlock] = []
 
         # Load full conversation history if use_history is true
         if request_params.use_history:

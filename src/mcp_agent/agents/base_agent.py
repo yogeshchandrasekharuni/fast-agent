@@ -330,12 +330,12 @@ class BaseAgent(MCPAggregator, AgentProtocol):
     def _matches_pattern(self, name: str, pattern: str, server_name: str) -> bool:
         """
         Check if a name matches a pattern for a specific server.
-        
+
         Args:
             name: The name to match (could be tool name, resource URI, or prompt name)
             pattern: The pattern to match against (e.g., "add", "math*", "resource://math/*")
             server_name: The server name (used for tool name prefixing)
-            
+
         Returns:
             True if the name matches the pattern
         """
@@ -343,7 +343,7 @@ class BaseAgent(MCPAggregator, AgentProtocol):
         if name.startswith(f"{server_name}-"):
             full_pattern = f"{server_name}-{pattern}"
             return fnmatch.fnmatch(name, full_pattern)
-        
+
         # For resources and prompts, match directly against the pattern
         return fnmatch.fnmatch(name, pattern)
 
@@ -365,9 +365,9 @@ class BaseAgent(MCPAggregator, AgentProtocol):
             filtered_tools = []
             for tool in result.tools:
                 # Extract server name from tool name (e.g., "mathematics-add" -> "mathematics")
-                if '-' in tool.name:
-                    server_name = tool.name.split('-', 1)[0]
-                    
+                if "-" in tool.name:
+                    server_name = tool.name.split("-", 1)[0]
+
                     # Check if this server has tool filters
                     if server_name in self.config.tools:
                         # Check if tool matches any pattern for this server
@@ -495,48 +495,70 @@ class BaseAgent(MCPAggregator, AgentProtocol):
 
     async def apply_prompt(
         self,
-        prompt_name: str,
+        prompt: Union[str, GetPromptResult],
         arguments: Dict[str, str] | None = None,
         agent_name: str | None = None,
         server_name: str | None = None,
+        as_template: bool = False,
     ) -> str:
         """
-        Apply an MCP Server Prompt by name and return the assistant's response.
+        Apply an MCP Server Prompt by name or GetPromptResult and return the assistant's response.
         Will search all available servers for the prompt if not namespaced and no server_name provided.
 
         If the last message in the prompt is from a user, this will automatically
         generate an assistant response to ensure we always end with an assistant message.
 
         Args:
-            prompt_name: The name of the prompt to apply
+            prompt: The name of the prompt to apply OR a GetPromptResult object
             arguments: Optional dictionary of string arguments to pass to the prompt template
             agent_name: Optional agent name (ignored at this level, used by multi-agent apps)
             server_name: Optional name of the server to get the prompt from
+            as_template: If True, store as persistent template (always included in context)
 
         Returns:
             The assistant's response or error message
         """
 
-        # Get the prompt - this will search all servers if needed
-        self.logger.debug(f"Loading prompt '{prompt_name}'")
-        prompt_result: GetPromptResult = await self.get_prompt(prompt_name, arguments, server_name)
+        # Handle both string and GetPromptResult inputs
+        if isinstance(prompt, str):
+            prompt_name = prompt
+            # Get the prompt - this will search all servers if needed
+            self.logger.debug(f"Loading prompt '{prompt_name}'")
+            prompt_result: GetPromptResult = await self.get_prompt(
+                prompt_name, arguments, server_name
+            )
 
-        if not prompt_result or not prompt_result.messages:
-            error_msg = f"Prompt '{prompt_name}' could not be found or contains no messages"
-            self.logger.warning(error_msg)
-            return error_msg
+            if not prompt_result or not prompt_result.messages:
+                error_msg = f"Prompt '{prompt_name}' could not be found or contains no messages"
+                self.logger.warning(error_msg)
+                return error_msg
 
-        # Get the display name (namespaced version)
-        namespaced_name = getattr(prompt_result, "namespaced_name", prompt_name)
+            # Get the display name (namespaced version)
+            namespaced_name = getattr(prompt_result, "namespaced_name", prompt_name)
+        else:
+            # prompt is a GetPromptResult object
+            prompt_result = prompt
+            if not prompt_result or not prompt_result.messages:
+                error_msg = "Provided GetPromptResult contains no messages"
+                self.logger.warning(error_msg)
+                return error_msg
+
+            # Use a reasonable display name
+            namespaced_name = getattr(prompt_result, "namespaced_name", "provided_prompt")
+
         self.logger.debug(f"Using prompt '{namespaced_name}'")
 
         # Convert prompt messages to multipart format using the safer method
         multipart_messages = PromptMessageMultipart.from_get_prompt_result(prompt_result)
 
-        # Always call generate to ensure LLM implementations can handle prompt templates
-        # This is critical for stateful LLMs like PlaybackLLM
-        response = await self.generate(multipart_messages, None)
-        return response.first_text()
+        if as_template:
+            # Use apply_prompt_template to store as persistent prompt messages
+            return await self.apply_prompt_template(prompt_result, namespaced_name)
+        else:
+            # Always call generate to ensure LLM implementations can handle prompt templates
+            # This is critical for stateful LLMs like PlaybackLLM
+            response = await self.generate(multipart_messages, None)
+            return response.first_text()
 
     async def get_embedded_resources(
         self, resource_uri: str, server_name: str | None = None
@@ -635,6 +657,22 @@ class BaseAgent(MCPAggregator, AgentProtocol):
         assert self._llm
         with self.tracer.start_as_current_span(f"Agent: '{self.name}' generate"):
             return await self._llm.generate(multipart_messages, request_params)
+
+    async def apply_prompt_template(self, prompt_result: GetPromptResult, prompt_name: str) -> str:
+        """
+        Apply a prompt template as persistent context that will be included in all future conversations.
+        Delegates to the attached LLM.
+
+        Args:
+            prompt_result: The GetPromptResult containing prompt messages
+            prompt_name: The name of the prompt being applied
+
+        Returns:
+            String representation of the assistant's response if generated
+        """
+        assert self._llm
+        with self.tracer.start_as_current_span(f"Agent: '{self.name}' apply_prompt_template"):
+            return await self._llm.apply_prompt_template(prompt_result, prompt_name)
 
     async def structured(
         self,

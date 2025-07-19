@@ -4,8 +4,7 @@ from mcp.types import (
     CallToolRequest,
     CallToolRequestParams,
     CallToolResult,
-    EmbeddedResource,
-    ImageContent,
+    ContentBlock,
     TextContent,
 )
 from openai import AsyncOpenAI, AuthenticationError
@@ -298,7 +297,7 @@ class OpenAIAugmentedLLM(AugmentedLLM[ChatCompletionMessageParam, ChatCompletion
         self,
         message: OpenAIMessage,
         request_params: RequestParams | None = None,
-    ) -> List[TextContent | ImageContent | EmbeddedResource]:
+    ) -> List[ContentBlock]:
         """
         Process a query using an LLM and available tools.
         The default implementation uses OpenAI's ChatCompletion as the LLM.
@@ -307,7 +306,7 @@ class OpenAIAugmentedLLM(AugmentedLLM[ChatCompletionMessageParam, ChatCompletion
 
         request_params = self.get_request_params(request_params=request_params)
 
-        responses: List[TextContent | ImageContent | EmbeddedResource] = []
+        responses: List[ContentBlock] = []
 
         # TODO -- move this in to agent context management / agent group handling
         messages: List[ChatCompletionMessageParam] = []
@@ -511,9 +510,7 @@ class OpenAIAugmentedLLM(AugmentedLLM[ChatCompletionMessageParam, ChatCompletion
 
         # For assistant messages: Return the last message (no completion needed)
         message_param: OpenAIMessage = OpenAIConverter.convert_to_openai(last_message)
-        responses: List[
-            TextContent | ImageContent | EmbeddedResource
-        ] = await self._openai_completion(
+        responses: List[ContentBlock] = await self._openai_completion(
             message_param,
             request_params,
         )

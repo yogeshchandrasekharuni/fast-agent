@@ -1,6 +1,6 @@
 from typing import TYPE_CHECKING, List, Tuple, Type
 
-from mcp.types import EmbeddedResource, ImageContent, TextContent
+from mcp.types import TextContent
 
 from mcp_agent.core.prompt import Prompt
 from mcp_agent.event_progress import ProgressAction
@@ -33,6 +33,7 @@ from anthropic.types import (
 from mcp.types import (
     CallToolRequest,
     CallToolRequestParams,
+    ContentBlock,
 )
 from rich.text import Text
 
@@ -149,7 +150,7 @@ class AnthropicAugmentedLLM(AugmentedLLM[MessageParam, Message]):
         self,
         message_param,
         request_params: RequestParams | None = None,
-    ) -> list[TextContent | ImageContent | EmbeddedResource]:
+    ) -> list[ContentBlock]:
         """
         Process a query using an LLM and available tools.
         Override this method to use a different LLM.
@@ -190,7 +191,7 @@ class AnthropicAugmentedLLM(AugmentedLLM[MessageParam, Message]):
             for tool in tool_list.tools
         ]
 
-        responses: List[TextContent | ImageContent | EmbeddedResource] = []
+        responses: List[ContentBlock] = []
 
         model = self.default_request_params.model
 

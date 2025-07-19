@@ -8,6 +8,7 @@ from mcp_agent.llm.providers.augmented_llm_azure import AzureOpenAIAugmentedLLM
 
 class DummyLogger:
     enable_markup = True
+    use_legacy_display = False
 
 
 class DummyAzureConfig:

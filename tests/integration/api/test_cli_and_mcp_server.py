@@ -44,7 +44,7 @@ def test_agent_message_cli():
     # With the passthrough model, the output should contain the input message
     assert test_message in command_output, "Test message not found in agent response"
     # this is from show_user_output
-    assert "[USER]" in command_output, "show chat messages included in output"
+    assert "▎▶ test" in command_output, "show chat messages included in output"
 
 
 @pytest.mark.integration
@@ -71,7 +71,7 @@ def test_agent_message_prompt_file():
         "Test message not found in agent response"
     )
     # this is from show_user_output
-    assert "[USER]" in command_output, "show chat messages included in output"
+    assert "▎▶ test" in command_output, "show chat messages included in output"
 
 
 @pytest.mark.integration

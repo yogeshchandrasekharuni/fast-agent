@@ -274,6 +274,7 @@ class AgentCompleter(Completer):
             "prompt": "List and select MCP prompts, or apply specific prompt (/prompt <name>)",
             "agents": "List available agents",
             "usage": "Show current usage statistics",
+            "markdown": "Show last assistant message without markdown formatting",
             "help": "Show available commands",
             "clear": "Clear the screen",
             "STOP": "Stop this prompting session and move to next workflow step",
@@ -398,7 +399,7 @@ def get_text_from_editor(initial_text: str = "") -> str:
     return edited_text.strip()  # Added strip() to remove trailing newlines often added by editors
 
 
-def create_keybindings(on_toggle_multiline=None, app=None):
+def create_keybindings(on_toggle_multiline=None, app=None, agent_provider=None, agent_name=None):
     """Create custom key bindings."""
     kb = KeyBindings()
 
@@ -462,6 +463,41 @@ def create_keybindings(on_toggle_multiline=None, app=None):
             # Ensure the UI is updated
             if event.app:
                 event.app.invalidate()
+
+    # Store reference to agent provider and agent name for clipboard functionality
+    kb.agent_provider = agent_provider
+    kb.current_agent_name = agent_name
+
+    @kb.add("c-y")
+    async def _(event) -> None:
+        """Ctrl+Y: Copy last assistant response to clipboard."""
+        if kb.agent_provider and kb.current_agent_name:
+            try:
+                # Get the agent
+                if hasattr(kb.agent_provider, "_agent"):
+                    agent = kb.agent_provider._agent(kb.current_agent_name)
+                else:
+                    agent = kb.agent_provider
+
+                # Get message history
+                if hasattr(agent, "_llm") and agent._llm and agent._llm.message_history:
+                    # Find last assistant message
+                    for msg in reversed(agent._llm.message_history):
+                        if msg.role == "assistant":
+                            content = msg.last_text()
+                            import pyperclip
+
+                            pyperclip.copy(content)
+                            rich_print("\n[green]✓ Copied to clipboard[/green]")
+                            return
+
+                    rich_print("\n[yellow]No assistant messages found[/yellow]")
+                else:
+                    rich_print("\n[yellow]No message history available[/yellow]")
+            except Exception as e:
+                rich_print(f"\n[red]Error copying: {e}[/red]")
+        else:
+            rich_print("[yellow]Clipboard copy not available in this context[/yellow]")
 
     return kb
 
@@ -527,6 +563,7 @@ async def get_enhanced_input(
         shortcuts = [
             ("Ctrl+T", toggle_text),
             ("Ctrl+E", "External"),
+            ("Ctrl+Y", "Copy"),
             ("Ctrl+L", "Clear"),
             ("↑/↓", "History"),
         ]
@@ -569,7 +606,12 @@ async def get_enhanced_input(
     )
 
     # Create key bindings with a reference to the app
-    bindings = create_keybindings(on_toggle_multiline=on_multiline_toggle, app=session.app)
+    bindings = create_keybindings(
+        on_toggle_multiline=on_multiline_toggle,
+        app=session.app,
+        agent_provider=agent_provider,
+        agent_name=agent_name,
+    )
     session.app.key_bindings = bindings
 
     # Create formatted prompt text
@@ -619,6 +661,8 @@ async def get_enhanced_input(
                 return "LIST_AGENTS"
             elif cmd == "usage":
                 return "SHOW_USAGE"
+            elif cmd == "markdown":
+                return "MARKDOWN"
             elif cmd == "prompt":
                 # Handle /prompt with no arguments as interactive mode
                 if len(cmd_parts) > 1:
@@ -792,16 +836,18 @@ async def handle_special_commands(command, agent_app=None):
         rich_print("  /help          - Show this help")
         rich_print("  /clear         - Clear screen")
         rich_print("  /agents        - List available agents")
-        rich_print("  /prompts       - List and select MCP prompts")
         rich_print("  /prompt <name> - Apply a specific prompt by name")
         rich_print("  /usage         - Show current usage statistics")
+        rich_print("  /markdown      - Show last assistant message without markdown formatting")
         rich_print("  @agent_name    - Switch to agent")
         rich_print("  STOP           - Return control back to the workflow")
         rich_print("  EXIT           - Exit fast-agent, terminating any running workflows")
         rich_print("\n[bold]Keyboard Shortcuts:[/bold]")
         rich_print("  Enter          - Submit (normal mode) / New line (multiline mode)")
-        rich_print("  Ctrl+Enter      - Always submit (in any mode)")
+        rich_print("  Ctrl+Enter     - Always submit (in any mode)")
         rich_print("  Ctrl+T         - Toggle multiline mode")
+        rich_print("  Ctrl+E         - Edit in external editor")
+        rich_print("  Ctrl+Y         - Copy last assistant response to clipboard")
         rich_print("  Ctrl+L         - Clear input")
         rich_print("  Up/Down        - Navigate history")
         return True
@@ -826,6 +872,10 @@ async def handle_special_commands(command, agent_app=None):
     elif command == "SHOW_USAGE":
         # Return a dictionary to signal that usage should be shown
         return {"show_usage": True}
+
+    elif command == "MARKDOWN":
+        # Return a dictionary to signal that markdown display should be shown
+        return {"show_markdown": True}
 
     elif command == "SELECT_PROMPT" or (
         isinstance(command, str) and command.startswith("SELECT_PROMPT:")

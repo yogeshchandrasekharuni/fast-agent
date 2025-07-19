@@ -61,7 +61,7 @@ class ConsoleDisplay:
                     status = f"{len(content)} Content Blocks"
 
         # Two column header: block triangle + name (left) + status (right)
-        left = f"[{block_color}]▎[/{block_color}][{text_color}]▶[/{text_color}]{f' [{block_color}]{name}[/{block_color}]' if name else ''}"
+        left = f"[{block_color}]▎[/{block_color}][{text_color}]▶[/{text_color}]{f' [{block_color}]{name}[/{block_color}] [dim magenta]tool result[/dim magenta]' if name else ''}"
         right = f"[dim]{status}[/dim]"
 
         # Calculate padding to right-align status
@@ -135,7 +135,7 @@ class ConsoleDisplay:
         display_tool_list = self._format_tool_list(available_tools, tool_name)
 
         # Two column header: block triangle + name (left) + tool name (right)
-        left = f"[magenta]▎[/magenta][dim magenta]◀[/dim magenta]{f' [magenta]{name}[/magenta]' if name else ''}"
+        left = f"[magenta]▎[/magenta][dim magenta]◀[/dim magenta]{f' [magenta]{name}[/magenta] [dim magenta]tool request[/dim magenta]' if name else ''}"
         right = f"[dim]{tool_name}[/dim]"
 
         # Calculate padding to right-align tool name
