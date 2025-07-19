@@ -16,6 +16,6 @@ async def test_resource_links_from_tools(fast_agent):
         async with fast.run() as agent:
             result: str = await agent.test.send("***CALL_TOOL getlink")
             # Test get_resource with explicit server parameter
-            assert "test 1" == result
+            assert "A description, perhaps for the LLM" in result
 
     await agent_function()
