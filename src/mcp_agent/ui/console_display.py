@@ -52,13 +52,15 @@ class ConsoleDisplay:
             elif len(content) == 1 and is_text_content(content[0]):
                 text_content = get_text(content[0])
                 char_count = len(text_content) if text_content else 0
-                status = f"Text Only ({char_count} chars)"
+                status = f"Text Only {char_count} chars"
             else:
                 text_count = sum(1 for item in content if is_text_content(item))
                 if text_count == len(content):
                     status = f"{len(content)} Text Blocks" if len(content) > 1 else "1 Text Block"
                 else:
-                    status = f"{len(content)} Content Blocks"
+                    status = (
+                        f"{len(content)} Content Blocks" if len(content) > 1 else "1 Content Block"
+                    )
 
         # Combined separator and status line
         left = f"[{block_color}]▎[/{block_color}][{text_color}]▶[/{text_color}]{f' [{block_color}]{name}[/{block_color}]' if name else ''}"
