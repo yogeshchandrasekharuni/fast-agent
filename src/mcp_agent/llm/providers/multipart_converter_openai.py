@@ -5,6 +5,7 @@ from mcp.types import (
     EmbeddedResource,
     ImageContent,
     PromptMessage,
+    ResourceLink,
     TextContent,
 )
 from openai.types.chat import ChatCompletionMessageParam
@@ -16,6 +17,7 @@ from mcp_agent.mcp.helpers.content_helpers import (
     get_text,
     is_image_content,
     is_resource_content,
+    is_resource_link,
     is_text_content,
 )
 from mcp_agent.mcp.mime_utils import (
@@ -89,6 +91,11 @@ class OpenAIConverter:
 
                 elif is_resource_content(item):
                     block = OpenAIConverter._convert_embedded_resource(item)
+                    if block:
+                        content_blocks.append(block)
+
+                elif is_resource_link(item):
+                    block = OpenAIConverter._convert_resource_link(item)
                     if block:
                         content_blocks.append(block)
 
@@ -212,6 +219,32 @@ class OpenAIConverter:
             return "application/octet-stream"
 
         return "text/plain"
+
+    @staticmethod
+    def _convert_resource_link(
+        resource: ResourceLink,
+    ) -> Optional[ContentBlock]:
+        """
+        Convert ResourceLink to OpenAI content block.
+
+        Args:
+            resource: The resource link to convert
+
+        Returns:
+            An OpenAI content block or None if conversion failed
+        """
+        name = resource.name or "unknown"
+        uri_str = str(resource.uri)
+        mime_type = resource.mimeType or "unknown"
+        description = resource.description or "No description"
+
+        # Create a text block with the resource link information
+        return {
+            "type": "text",
+            "text": f"Linked Resource ${name} MIME type {mime_type}>\n"
+            f"Resource Link: {uri_str}\n"
+            f"${description}\n",
+        }
 
     @staticmethod
     def _convert_embedded_resource(

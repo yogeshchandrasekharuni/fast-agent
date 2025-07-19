@@ -126,6 +126,21 @@ class AugmentedLLMProtocol(Protocol):
         """
         ...
 
+    async def apply_prompt_template(
+        self, prompt_result: "GetPromptResult", prompt_name: str
+    ) -> str:
+        """
+        Apply a prompt template as persistent context that will be included in all future conversations.
+
+        Args:
+            prompt_result: The GetPromptResult containing prompt messages
+            prompt_name: The name of the prompt being applied
+
+        Returns:
+            String representation of the assistant's response if generated
+        """
+        ...
+
     @property
     def message_history(self) -> List[PromptMessageMultipart]:
         """
@@ -157,8 +172,13 @@ class AgentProtocol(AugmentedLLMProtocol, Protocol):
         """Send a message to the agent and get a response"""
         ...
 
-    async def apply_prompt(self, prompt_name: str, arguments: Dict[str, str] | None = None) -> str:
-        """Apply an MCP prompt template by name"""
+    async def apply_prompt(
+        self,
+        prompt: Union[str, "GetPromptResult"],
+        arguments: Dict[str, str] | None = None,
+        as_template: bool = False,
+    ) -> str:
+        """Apply an MCP prompt template by name or GetPromptResult object"""
         ...
 
     async def get_prompt(

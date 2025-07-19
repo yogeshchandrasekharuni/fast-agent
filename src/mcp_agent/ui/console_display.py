@@ -10,6 +10,7 @@ from mcp_agent.mcp.mcp_aggregator import MCPAggregator
 
 # Constants
 HUMAN_INPUT_TOOL_NAME = "__human_input__"
+CODE_STYLE = "native"
 
 
 class ConsoleDisplay:
@@ -28,102 +29,193 @@ class ConsoleDisplay:
         self.config = config
         self._markup = config.logger.enable_markup if config else True
 
-    def show_tool_result(self, result: CallToolResult, name: Optional[str] = None) -> None:
-        """Display a tool result in a formatted panel."""
+    def show_tool_result(self, result: CallToolResult, name: str | None = None) -> None:
+        """Display a tool result in the new visual style."""
         if not self.config or not self.config.logger.show_tools:
             return
 
-        style = "red" if result.isError else "magenta"
+        # Import content helpers
+        from mcp_agent.mcp.helpers.content_helpers import get_text, is_text_content
 
-        panel = Panel(
-            Text(str(result.content), overflow="..."),
-            title=f"[TOOL RESULT]{f' ({name})' if name else ''}",
-            title_align="right",
-            style=style,
-            border_style="white",
-            padding=(1, 2),
-        )
+        # Use red for errors, magenta for success (keep block bright)
+        block_color = "red" if result.isError else "magenta"
+        text_color = "dim red" if result.isError else "dim magenta"
 
-        if self.config and self.config.logger.truncate_tools:
-            if len(str(result.content)) > 360:
-                panel.height = 8
+        # Analyze content to determine display format and status
+        content = result.content
+        if result.isError:
+            status = "ERROR"
+        else:
+            # Check if it's a list with content blocks
+            if len(content) == 0:
+                status = "No Content"
+            elif len(content) == 1 and is_text_content(content[0]):
+                text_content = get_text(content[0])
+                char_count = len(text_content) if text_content else 0
+                status = f"Text Only ({char_count} chars)"
+            else:
+                text_count = sum(1 for item in content if is_text_content(item))
+                if text_count == len(content):
+                    status = f"{len(content)} Text Blocks" if len(content) > 1 else "1 Text Block"
+                else:
+                    status = f"{len(content)} Content Blocks"
 
-        console.console.print(panel, markup=self._markup)
-        console.console.print("\n")
+        # Combined separator and status line
+        left = f"[{block_color}]▎[/{block_color}][{text_color}]▶[/{text_color}]{f' [{block_color}]{name}[/{block_color}]' if name else ''}"
+        right = f"[dim]tool result - {status}[/dim]"
+        self._create_combined_separator_status(left, right)
 
-    def show_oai_tool_result(self, result, name: Optional[str] = None) -> None:
-        """Display an OpenAI tool result in a formatted panel."""
-        if not self.config or not self.config.logger.show_tools:
-            return
+        # Display tool result content
+        content = result.content
 
-        panel = Panel(
-            Text(str(result), overflow="..."),
-            title=f"[TOOL RESULT]{f' ({name})' if name else ''}",
-            title_align="right",
-            style="magenta",
-            border_style="white",
-            padding=(1, 2),
-        )
+        # Handle special case: single text content block
+        if isinstance(content, list) and len(content) == 1 and is_text_content(content[0]):
+            # Display just the text content directly
+            text_content = get_text(content[0])
+            if text_content:
+                if self.config and self.config.logger.truncate_tools and len(text_content) > 360:
+                    text_content = text_content[:360] + "..."
+                console.console.print(text_content, style="dim", markup=self._markup)
+            else:
+                console.console.print("(empty text)", style="dim", markup=self._markup)
+        else:
+            # Use Rich pretty printing for everything else
+            try:
+                import json
 
-        if self.config and self.config.logger.truncate_tools:
-            if len(str(result)) > 360:
-                panel.height = 8
+                from rich.pretty import Pretty
 
-        console.console.print(panel, markup=self._markup)
-        console.console.print("\n")
+                # Try to parse as JSON for pretty printing
+                if isinstance(content, str):
+                    json_obj = json.loads(content)
+                else:
+                    json_obj = content
+
+                # Use Rich's built-in truncation with dimmed styling
+                if self.config and self.config.logger.truncate_tools:
+                    pretty_obj = Pretty(json_obj, max_length=10, max_string=50)
+                else:
+                    pretty_obj = Pretty(json_obj)
+
+                # Print with dim styling
+                console.console.print(pretty_obj, style="dim", markup=self._markup)
+
+            except (json.JSONDecodeError, TypeError, ValueError, AttributeError):
+                # Fall back to string representation if not valid JSON
+                content_str = str(content)
+                if self.config and self.config.logger.truncate_tools and len(content_str) > 360:
+                    content_str = content_str[:360] + "..."
+                console.console.print(content_str, style="dim", markup=self._markup)
+
+        # Bottom separator (no additional info for tool results)
+        console.console.print()
+        console.console.print("─" * console.console.size.width, style="dim")
+        console.console.print()
 
     def show_tool_call(
-        self, available_tools, tool_name, tool_args, name: Optional[str] = None
+        self, available_tools, tool_name, tool_args, name: str | None = None
     ) -> None:
-        """Display a tool call in a formatted panel."""
+        """Display a tool call in the new visual style."""
         if not self.config or not self.config.logger.show_tools:
             return
 
         display_tool_list = self._format_tool_list(available_tools, tool_name)
 
-        panel = Panel(
-            Text(str(tool_args), overflow="ellipsis"),
-            title=f"[TOOL CALL]{f' ({name})' if name else ''}",
-            title_align="left",
-            style="magenta",
-            border_style="white",
-            subtitle=display_tool_list,
-            subtitle_align="left",
-            padding=(1, 2),
-        )
+        # Combined separator and status line
+        left = f"[magenta]▎[/magenta][dim magenta]◀[/dim magenta]{f' [magenta]{name}[/magenta]' if name else ''}"
+        right = f"[dim]tool request - {tool_name}[/dim]"
+        self._create_combined_separator_status(left, right)
 
-        if self.config and self.config.logger.truncate_tools:
-            if len(str(tool_args)) > 360:
-                panel.height = 8
+        # Display tool arguments using Rich JSON pretty printing (dimmed)
+        try:
+            import json
 
-        console.console.print(panel, markup=self._markup)
-        console.console.print("\n")
+            from rich.pretty import Pretty
+
+            # Try to parse as JSON for pretty printing
+            if isinstance(tool_args, str):
+                json_obj = json.loads(tool_args)
+            else:
+                json_obj = tool_args
+
+            # Use Rich's built-in truncation with dimmed styling
+            if self.config and self.config.logger.truncate_tools:
+                pretty_obj = Pretty(json_obj, max_length=10, max_string=50)
+            else:
+                pretty_obj = Pretty(json_obj)
+
+            # Print with dim styling
+            console.console.print(pretty_obj, style="dim", markup=self._markup)
+
+        except (json.JSONDecodeError, TypeError, ValueError):
+            # Fall back to string representation if not valid JSON
+            content = str(tool_args)
+            if self.config and self.config.logger.truncate_tools and len(content) > 360:
+                content = content[:360] + "..."
+            console.console.print(content, style="dim", markup=self._markup)
+
+        # Bottom separator with tool list: ─ [tool1] [tool2] ────────
+        console.console.print()
+        if display_tool_list and len(display_tool_list) > 0:
+            # Truncate tool list if needed (leave space for "─ " prefix and some separator)
+            max_tool_width = console.console.size.width - 10  # Reserve space for separators
+            truncated_tool_list = self._truncate_list_if_needed(display_tool_list, max_tool_width)
+            tool_width = truncated_tool_list.cell_len
+
+            # Calculate how much space is left for separator line on the right
+            total_width = console.console.size.width
+            remaining_width = max(0, total_width - tool_width - 2)  # -2 for "─ " prefix
+            right_sep = "─" * remaining_width if remaining_width > 0 else ""
+
+            # Create the separator line: ─ [tools] ────────
+            combined = Text()
+            combined.append("─ ", style="dim")
+            combined.append_text(truncated_tool_list)
+            combined.append(right_sep, style="dim")
+
+            console.console.print(combined, markup=self._markup)
+        else:
+            # Full separator if no tools
+            console.console.print("─" * console.console.size.width, style="dim")
+        console.console.print()
 
     async def show_tool_update(self, aggregator: MCPAggregator | None, updated_server: str) -> None:
-        """Show a tool update for a server"""
+        """Show a tool update for a server in the new visual style."""
         if not self.config or not self.config.logger.show_tools:
             return
 
-        display_server_list = Text()
+        # Check if aggregator is actually an agent (has name attribute)
+        agent_name = None
+        if aggregator and hasattr(aggregator, "name") and aggregator.name:
+            agent_name = aggregator.name
 
-        if aggregator:
-            for server_name in await aggregator.list_servers():
-                style = "green" if updated_server == server_name else "dim white"
-                display_server_list.append(f"[{server_name}] ", style)
+        # Combined separator and status line
+        if agent_name:
+            left = (
+                f"[magenta]▎[/magenta][dim magenta]▶[/dim magenta] [magenta]{agent_name}[/magenta]"
+            )
+        else:
+            left = "[magenta]▎[/magenta][dim magenta]▶[/dim magenta]"
 
-        panel = Panel(
-            f"[dim green]Updating tools for server {updated_server}[/]",
-            title="[TOOL UPDATE]",
-            title_align="left",
-            style="green",
-            border_style="white",
-            padding=(1, 2),
-            subtitle=display_server_list,
-            subtitle_align="left",
-        )
-        console.console.print("\n")
-        console.console.print(panel, markup=self._markup)
-        console.console.print("\n")
+        right = f"[dim]{updated_server}[/dim]"
+        self._create_combined_separator_status(left, right)
+
+        # Display update message
+        message = f"Updating tools for server {updated_server}"
+        console.console.print(message, style="dim", markup=self._markup)
+
+        # Bottom separator
+        console.console.print()
+        console.console.print("─" * console.console.size.width, style="dim")
+        console.console.print()
+
+        # Force prompt_toolkit redraw if active
+        try:
+            from prompt_toolkit.application.current import get_app
+
+            get_app().invalidate()  # Forces prompt_toolkit to redraw
+        except:  # noqa: E722
+            pass  # No active prompt_toolkit session
 
     def _format_tool_list(self, available_tools, selected_tool_name):
         """Format the list of available tools, highlighting the selected one."""
@@ -158,18 +250,86 @@ class ConsoleDisplay:
 
         return display_tool_list
 
+    def _truncate_list_if_needed(self, text_list: Text, max_width: int) -> Text:
+        """Truncate a Text list if it exceeds the maximum width."""
+        if text_list.cell_len <= max_width:
+            return text_list
+
+        # Create a new truncated version
+        truncated = Text()
+        current_width = 0
+
+        for span in text_list._spans:
+            text_part = text_list.plain[span.start : span.end]
+            if current_width + len(text_part) <= max_width - 1:  # -1 for ellipsis
+                truncated.append(text_part, style=span.style)
+                current_width += len(text_part)
+            else:
+                # Add what we can fit and ellipsis
+                remaining = max_width - current_width - 1
+                if remaining > 0:
+                    truncated.append(text_part[:remaining], style=span.style)
+                truncated.append("…", style="dim")
+                break
+
+        return truncated
+
+    def _create_combined_separator_status(self, left_content: str, right_info: str = "") -> None:
+        """
+        Create a combined separator and status line.
+
+        Args:
+            left_content: The main content (block, arrow, name) - left justified with color
+            right_info: Supplementary information to show in brackets - right aligned
+        """
+        width = console.console.size.width
+
+        # Create left text
+        left_text = Text.from_markup(left_content)
+
+        # Create right text if we have info
+        if right_info and right_info.strip():
+            # Add dim brackets around the right info
+            right_text = Text()
+            right_text.append("[", style="dim")
+            right_text.append_text(Text.from_markup(right_info))
+            right_text.append("]", style="dim")
+            # Calculate separator count
+            separator_count = width - left_text.cell_len - right_text.cell_len
+            if separator_count < 1:
+                separator_count = 1  # Always at least 1 separator
+        else:
+            right_text = Text("")
+            separator_count = width - left_text.cell_len
+
+        # Build the combined line
+        combined = Text()
+        combined.append_text(left_text)
+        combined.append(" ", style="default")
+        combined.append("─" * (separator_count - 1), style="dim")
+        combined.append_text(right_text)
+
+        # Print with empty line before
+        console.console.print()
+        console.console.print(combined, markup=self._markup)
+        console.console.print()
+
     async def show_assistant_message(
         self,
         message_text: Union[str, Text],
         aggregator=None,
         highlight_namespaced_tool: str = "",
         title: str = "ASSISTANT",
-        name: Optional[str] = None,
+        name: str | None = None,
+        model: str | None = None,
     ) -> None:
         """Display an assistant message in a formatted panel."""
+        from rich.markdown import Markdown
+
         if not self.config or not self.config.logger.show_chat:
             return
 
+        # Build server list for bottom separator (using same logic as legacy)
         display_server_list = Text()
 
         if aggregator:
@@ -192,42 +352,85 @@ class ConsoleDisplay:
                 style = "green" if server_name == mcp_server_name else "dim white"
                 display_server_list.append(f"[{server_name}] ", style)
 
-        panel = Panel(
-            message_text,
-            title=f"[{title}]{f' ({name})' if name else ''}",
-            title_align="left",
-            style="green",
-            border_style="white",
-            padding=(1, 2),
-            subtitle=display_server_list,
-            subtitle_align="left",
-        )
-        console.console.print(panel, markup=self._markup)
-        console.console.print("\n")
+        # Combined separator and status line
+        left = f"[green]▎[/green][dim green]◀[/dim green]{f' [bold green]{name}[/bold green]' if name else ''}"
+        right = f"[dim]{model}[/dim]" if model else ""
+        self._create_combined_separator_status(left, right)
+
+        # Display content as markdown if it looks like markdown, otherwise as text
+        if isinstance(message_text, str):
+            content = message_text
+            #         if any(marker in content for marker in ["##", "**", "*", "`", "---", "###"]):
+            md = Markdown(content, code_theme=CODE_STYLE)
+            console.console.print(md, markup=self._markup)
+        #        else:
+        #           console.console.print(content, markup=self._markup)
+        else:
+            # Handle Text objects directly
+            console.console.print(message_text, markup=self._markup)
+
+        # Bottom separator with server list: ─ [server1] [server2] ────────
+        console.console.print()
+        if display_server_list and len(display_server_list) > 0:
+            # Truncate server list if needed (leave space for "─ " prefix and some separator)
+            max_server_width = console.console.size.width - 10  # Reserve space for separators
+            truncated_server_list = self._truncate_list_if_needed(
+                display_server_list, max_server_width
+            )
+            server_width = truncated_server_list.cell_len
+
+            # Calculate how much space is left for separator line on the right
+            total_width = console.console.size.width
+            remaining_width = max(0, total_width - server_width - 2)  # -2 for "─ " prefix
+            right_sep = "─" * remaining_width if remaining_width > 0 else ""
+
+            # Create the separator line: ─ [servers] ────────
+            combined = Text()
+            combined.append("─ ", style="dim")
+            combined.append_text(truncated_server_list)
+            combined.append(right_sep, style="dim")
+
+            console.console.print(combined, markup=self._markup)
+        else:
+            # Full separator if no servers
+            console.console.print("─" * console.console.size.width, style="dim")
+        console.console.print()
 
     def show_user_message(
-        self, message, model: Optional[str], chat_turn: int, name: Optional[str] = None
+        self, message, model: str | None = None, chat_turn: int = 0, name: str | None = None
     ) -> None:
-        """Display a user message in a formatted panel."""
+        """Display a user message in the new visual style."""
+        from rich.markdown import Markdown
+
         if not self.config or not self.config.logger.show_chat:
             return
 
-        subtitle_text = Text(f"{model or 'unknown'}", style="dim white")
-        if chat_turn > 0:
-            subtitle_text.append(f" turn {chat_turn}", style="dim white")
+        # Combined separator and status line
+        left = f"[blue]▎[/blue][dim blue]▶[/dim blue]{f' [bold blue]{name}[/bold blue]' if name else ''}"
 
-        panel = Panel(
-            message,
-            title=f"{f'({name}) [USER]' if name else '[USER]'}",
-            title_align="right",
-            style="blue",
-            border_style="white",
-            padding=(1, 2),
-            subtitle=subtitle_text,
-            subtitle_align="left",
-        )
-        console.console.print(panel, markup=self._markup)
-        console.console.print("\n")
+        # Build right side with model and turn
+        right_parts = []
+        if model:
+            right_parts.append(model)
+        if chat_turn > 0:
+            right_parts.append(f"turn {chat_turn}")
+
+        right = f"[dim]{' '.join(right_parts)}[/dim]" if right_parts else ""
+        self._create_combined_separator_status(left, right)
+
+        # Display content as markdown if it looks like markdown, otherwise as text
+        if isinstance(message, str):
+            content = message
+            md = Markdown(content, code_theme=CODE_STYLE)
+            console.console.print(md, markup=self._markup)
+        else:
+            # Handle Text objects directly
+            console.console.print(message, markup=self._markup)
+
+        # Bottom separator (no server list for user messages)
+        console.console.print()
+        console.console.print("─" * console.console.size.width, style="dim")
+        console.console.print()
 
     async def show_prompt_loaded(
         self,
@@ -305,60 +508,68 @@ class ConsoleDisplay:
 
     def show_parallel_results(self, parallel_agent) -> None:
         """Display parallel agent results in a clean, organized format.
-        
+
         Args:
             parallel_agent: The parallel agent containing fan_out_agents with results
         """
         from rich.markdown import Markdown
         from rich.text import Text
-        
+
         if self.config and not self.config.logger.show_chat:
             return
-            
-        if not parallel_agent or not hasattr(parallel_agent, 'fan_out_agents'):
+
+        if not parallel_agent or not hasattr(parallel_agent, "fan_out_agents"):
             return
-        
+
         # Collect results and agent information
         agent_results = []
-        
+
         for agent in parallel_agent.fan_out_agents:
             # Get the last response text from this agent
             message_history = agent.message_history
             if not message_history:
                 continue
-                
+
             last_message = message_history[-1]
             content = last_message.last_text()
-            
+
             # Get model name
-            model = 'unknown'
-            if hasattr(agent, '_llm') and agent._llm and hasattr(agent._llm, 'default_request_params'):
-                model = getattr(agent._llm.default_request_params, 'model', 'unknown')
-            
+            model = "unknown"
+            if (
+                hasattr(agent, "_llm")
+                and agent._llm
+                and hasattr(agent._llm, "default_request_params")
+            ):
+                model = getattr(agent._llm.default_request_params, "model", "unknown")
+
             # Get usage information
             tokens = 0
             tool_calls = 0
-            if hasattr(agent, 'usage_accumulator') and agent.usage_accumulator:
+            if hasattr(agent, "usage_accumulator") and agent.usage_accumulator:
                 summary = agent.usage_accumulator.get_summary()
-                tokens = summary.get('cumulative_input_tokens', 0) + summary.get('cumulative_output_tokens', 0)
-                tool_calls = summary.get('cumulative_tool_calls', 0)
-            
-            agent_results.append({
-                'name': agent.name,
-                'model': model,
-                'content': content,
-                'tokens': tokens,
-                'tool_calls': tool_calls
-            })
-        
+                tokens = summary.get("cumulative_input_tokens", 0) + summary.get(
+                    "cumulative_output_tokens", 0
+                )
+                tool_calls = summary.get("cumulative_tool_calls", 0)
+
+            agent_results.append(
+                {
+                    "name": agent.name,
+                    "model": model,
+                    "content": content,
+                    "tokens": tokens,
+                    "tool_calls": tool_calls,
+                }
+            )
+
         if not agent_results:
             return
-        
+
         # Display header
         console.console.print()
         console.console.print("[dim]Parallel execution complete[/dim]")
         console.console.print()
-        
+
         # Display results for each agent
         for i, result in enumerate(agent_results):
             if i > 0:
@@ -366,49 +577,49 @@ class ConsoleDisplay:
                 console.console.print()
                 console.console.print("─" * console.console.size.width, style="dim")
                 console.console.print()
-            
+
             # Two column header: model name (green) + usage info (dim)
             left = f"[green]▎[/green] [bold green]{result['model']}[/bold green]"
-            
+
             # Build right side with tokens and tool calls if available
             right_parts = []
-            if result['tokens'] > 0:
+            if result["tokens"] > 0:
                 right_parts.append(f"{result['tokens']:,} tokens")
-            if result['tool_calls'] > 0:
+            if result["tool_calls"] > 0:
                 right_parts.append(f"{result['tool_calls']} tools")
-            
+
             right = f"[dim]{' • '.join(right_parts) if right_parts else 'no usage data'}[/dim]"
-            
+
             # Calculate padding to right-align usage info
             width = console.console.size.width
             left_text = Text.from_markup(left)
             right_text = Text.from_markup(right)
             padding = max(1, width - left_text.cell_len - right_text.cell_len)
-            
+
             console.console.print(left + " " * padding + right, markup=self._markup)
             console.console.print()
-            
+
             # Display content as markdown if it looks like markdown, otherwise as text
-            content = result['content']
-            if any(marker in content for marker in ['##', '**', '*', '`', '---', '###']):
-                md = Markdown(content)
+            content = result["content"]
+            if any(marker in content for marker in ["##", "**", "*", "`", "---", "###"]):
+                md = Markdown(content, code_theme=CODE_STYLE)
                 console.console.print(md, markup=self._markup)
             else:
                 console.console.print(content, markup=self._markup)
-        
+
         # Summary
         console.console.print()
         console.console.print("─" * console.console.size.width, style="dim")
-        
-        total_tokens = sum(result['tokens'] for result in agent_results)
-        total_tools = sum(result['tool_calls'] for result in agent_results)
-        
+
+        total_tokens = sum(result["tokens"] for result in agent_results)
+        total_tools = sum(result["tool_calls"] for result in agent_results)
+
         summary_parts = [f"{len(agent_results)} models"]
         if total_tokens > 0:
             summary_parts.append(f"{total_tokens:,} tokens")
         if total_tools > 0:
             summary_parts.append(f"{total_tools} tools")
-        
+
         summary_text = " • ".join(summary_parts)
         console.console.print(f"[dim]{summary_text}[/dim]")
         console.console.print()

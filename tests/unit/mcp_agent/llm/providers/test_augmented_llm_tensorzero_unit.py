@@ -38,7 +38,7 @@ def mock_agent():
 
     agent.display = MagicMock(name="agent_display_mock")
     agent.display.show_tool_call = MagicMock()
-    agent.display.show_oai_tool_result = MagicMock()
+    agent.display.show_tool_result = MagicMock()
     agent.display.show_assistant_message = AsyncMock()
 
     agent.logger = MagicMock(name="agent_logger_mock")
@@ -59,7 +59,7 @@ def t0_llm(mock_agent):
     llm.logger = mock_agent.logger
     llm.display = mock_agent.display
     llm.show_tool_call = MagicMock()
-    llm.show_oai_tool_result = MagicMock()
+    llm.show_tool_result = MagicMock()
     llm.show_assistant_message = AsyncMock()
 
     return llm

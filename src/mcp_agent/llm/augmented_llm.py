@@ -46,7 +46,6 @@ from mcp_agent.mcp.interfaces import (
 from mcp_agent.mcp.mcp_aggregator import MCPAggregator
 from mcp_agent.mcp.prompt_message_multipart import PromptMessageMultipart
 from mcp_agent.mcp.prompt_render import render_multipart_message
-from mcp_agent.ui.console_display import ConsoleDisplay
 
 # Define type variables locally
 MessageParamT = TypeVar("MessageParamT")
@@ -157,6 +156,10 @@ class AugmentedLLM(ContextDependent, AugmentedLLMProtocol, Generic[MessageParamT
         self._message_history: List[PromptMessageMultipart] = []
 
         # Initialize the display component
+        if self.context.config and self.context.config.logger.use_legacy_display:
+            from mcp_agent.ui.console_display_legacy import ConsoleDisplay
+        else:
+            from mcp_agent.ui.console_display import ConsoleDisplay
         self.display = ConsoleDisplay(config=self.context.config)
 
         # Tool call counter for current turn
@@ -447,10 +450,6 @@ class AugmentedLLM(ContextDependent, AugmentedLLMProtocol, Generic[MessageParamT
     def show_tool_result(self, result: CallToolResult) -> None:
         """Display a tool result in a formatted panel."""
         self.display.show_tool_result(result, name=self.name)
-
-    def show_oai_tool_result(self, result: str) -> None:
-        """Display a tool result in a formatted panel."""
-        self.display.show_oai_tool_result(result, name=self.name)
 
     def show_tool_call(self, available_tools, tool_name, tool_args) -> None:
         """Display a tool call in a formatted panel."""

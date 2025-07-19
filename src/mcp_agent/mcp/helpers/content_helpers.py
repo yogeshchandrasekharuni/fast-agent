@@ -9,20 +9,22 @@ from typing import Optional, Union
 
 from mcp.types import (
     BlobResourceContents,
+    ContentBlock,
     EmbeddedResource,
     ImageContent,
     ReadResourceResult,
+    ResourceLink,
     TextContent,
     TextResourceContents,
 )
 
 
-def get_text(content: Union[TextContent, ImageContent, EmbeddedResource]) -> Optional[str]:
+def get_text(content: ContentBlock) -> Optional[str]:
     """
     Extract text content from a content object if available.
 
     Args:
-        content: A content object (TextContent, ImageContent, or EmbeddedResource)
+        content: A content object ContentBlock
 
     Returns:
         The text content as a string or None if not a text content
@@ -40,12 +42,12 @@ def get_text(content: Union[TextContent, ImageContent, EmbeddedResource]) -> Opt
     return None
 
 
-def get_image_data(content: Union[TextContent, ImageContent, EmbeddedResource]) -> Optional[str]:
+def get_image_data(content: ContentBlock) -> Optional[str]:
     """
     Extract image data from a content object if available.
 
     Args:
-        content: A content object (TextContent, ImageContent, or EmbeddedResource)
+        content: A content object ContentBlock
 
     Returns:
         The image data as a base64 string or None if not an image content
@@ -62,12 +64,12 @@ def get_image_data(content: Union[TextContent, ImageContent, EmbeddedResource]) 
     return None
 
 
-def get_resource_uri(content: Union[TextContent, ImageContent, EmbeddedResource]) -> Optional[str]:
+def get_resource_uri(content: ContentBlock) -> Optional[str]:
     """
     Extract resource URI from an EmbeddedResource if available.
 
     Args:
-        content: A content object (TextContent, ImageContent, or EmbeddedResource)
+        content: A content object ContentBlock
 
     Returns:
         The resource URI as a string or None if not an embedded resource
@@ -78,12 +80,12 @@ def get_resource_uri(content: Union[TextContent, ImageContent, EmbeddedResource]
     return None
 
 
-def is_text_content(content: Union[TextContent, ImageContent, EmbeddedResource]) -> bool:
+def is_text_content(content: ContentBlock) -> bool:
     """
     Check if the content is text content.
 
     Args:
-        content: A content object (TextContent, ImageContent, or EmbeddedResource)
+        content: A content object ContentBlock
 
     Returns:
         True if the content is TextContent, False otherwise
@@ -96,7 +98,7 @@ def is_image_content(content: Union[TextContent, ImageContent, EmbeddedResource]
     Check if the content is image content.
 
     Args:
-        content: A content object (TextContent, ImageContent, or EmbeddedResource)
+        content: A content object ContentBlock
 
     Returns:
         True if the content is ImageContent, False otherwise
@@ -104,17 +106,30 @@ def is_image_content(content: Union[TextContent, ImageContent, EmbeddedResource]
     return isinstance(content, ImageContent)
 
 
-def is_resource_content(content: Union[TextContent, ImageContent, EmbeddedResource]) -> bool:
+def is_resource_content(content: ContentBlock) -> bool:
     """
     Check if the content is an embedded resource.
 
     Args:
-        content: A content object (TextContent, ImageContent, or EmbeddedResource)
+        content: A content object ContentBlock
 
     Returns:
         True if the content is EmbeddedResource, False otherwise
     """
     return isinstance(content, EmbeddedResource)
+
+
+def is_resource_link(content: ContentBlock) -> bool:
+    """
+    Check if the content is an embedded resource.
+
+    Args:
+        content: A ContentBlock object
+
+    Returns:
+        True if the content is ResourceLink, False otherwise
+    """
+    return isinstance(content, ResourceLink)
 
 
 def get_resource_text(result: ReadResourceResult, index: int = 0) -> Optional[str]:

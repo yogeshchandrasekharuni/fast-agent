@@ -4,7 +4,7 @@ import re
 from enum import Enum
 from typing import TYPE_CHECKING, Any, Dict, List, Tuple, Type, Union
 
-from mcp.types import EmbeddedResource, ImageContent, TextContent
+from mcp.types import ContentBlock, TextContent
 from rich.text import Text
 
 from mcp_agent.core.exceptions import ProviderKeyError
@@ -1066,7 +1066,7 @@ class BedrockAugmentedLLM(AugmentedLLM[BedrockMessageParam, BedrockMessage]):
         self,
         message_param: BedrockMessageParam,
         request_params: RequestParams | None = None,
-    ) -> List[TextContent | ImageContent | EmbeddedResource]:
+    ) -> List[ContentBlock | CallToolRequestParams]:
         """
         Process a query using Bedrock and available tools.
         """
@@ -1120,7 +1120,7 @@ class BedrockAugmentedLLM(AugmentedLLM[BedrockMessageParam, BedrockMessage]):
                 f"Model {model_to_check} does not support tool use - skipping tool preparation"
             )
 
-        responses: List[TextContent | ImageContent | EmbeddedResource] = []
+        responses: List[ContentBlock] = []
         model = self.default_request_params.model
 
         for i in range(params.max_iterations):

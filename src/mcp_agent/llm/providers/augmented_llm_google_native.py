@@ -10,8 +10,7 @@ from mcp.types import (
     CallToolRequest,
     CallToolRequestParams,
     CallToolResult,
-    EmbeddedResource,
-    ImageContent,
+    ContentBlock,
     TextContent,
 )
 from rich.text import Text
@@ -228,12 +227,12 @@ class GoogleNativeAugmentedLLM(AugmentedLLM[types.Content, types.Content]):
     async def _google_completion(
         self,
         request_params: RequestParams | None = None,
-    ) -> List[TextContent | ImageContent | EmbeddedResource]:
+    ) -> List[ContentBlock]:
         """
         Process a query using Google's generate_content API and available tools.
         """
         request_params = self.get_request_params(request_params=request_params)
-        responses: List[TextContent | ImageContent | EmbeddedResource] = []
+        responses: List[ContentBlock] = []
 
         # Load full conversation history if use_history is true
         if request_params.use_history:
@@ -376,9 +375,7 @@ class GoogleNativeAugmentedLLM(AugmentedLLM[types.Content, types.Content]):
 
                     # Execute the tool call. google.genai does not provide a tool_call_id, pass None.
                     result = await self.call_tool(tool_call_request, None)
-                    self.show_oai_tool_result(
-                        str(result.content)
-                    )  # Use show_oai_tool_result for consistency
+                    self.show_tool_result(result)
 
                     tool_results.append((tool_call_params.name, result))  # Store name and result
 

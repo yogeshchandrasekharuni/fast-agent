@@ -30,7 +30,7 @@ from mcp_agent.core.enhanced_prompt import (
     handle_special_commands,
 )
 from mcp_agent.core.usage_display import collect_agents_from_provider, display_usage_report
-from mcp_agent.mcp.mcp_aggregator import SEP  # Import SEP once at the top
+from mcp_agent.mcp.mcp_aggregator import SEP
 from mcp_agent.mcp.prompt_message_multipart import PromptMessageMultipart
 from mcp_agent.progress_display import progress_display
 
@@ -56,6 +56,7 @@ class PromptProvider(Protocol):
         prompt_title: Optional[str] = None,
         arguments: Optional[Dict[str, str]] = None,
         agent_name: Optional[str] = None,
+        as_template: bool = False,
         **kwargs,
     ) -> str:
         """Apply a prompt."""
@@ -187,6 +188,10 @@ class InteractivePrompt:
                     elif "show_usage" in command_result:
                         # Handle usage display
                         await self._show_usage(prompt_provider, agent)
+                        continue
+                    elif "show_markdown" in command_result:
+                        # Handle markdown display
+                        await self._show_markdown(prompt_provider, agent)
                         continue
 
                 # Skip further processing if:
@@ -713,3 +718,57 @@ class InteractivePrompt:
 
         except Exception as e:
             rich_print(f"[red]Error showing usage: {e}[/red]")
+
+    async def _show_markdown(self, prompt_provider: PromptProvider, agent_name: str) -> None:
+        """
+        Show the last assistant message without markdown formatting.
+
+        Args:
+            prompt_provider: Provider that has access to agents
+            agent_name: Name of the current agent
+        """
+        try:
+            # Get agent to display from
+            if hasattr(prompt_provider, "_agent"):
+                # This is an AgentApp - get the specific agent
+                agent = prompt_provider._agent(agent_name)
+            else:
+                # This is a single agent
+                agent = prompt_provider
+
+            # Check if agent has message history
+            if not hasattr(agent, "_llm") or not agent._llm:
+                rich_print("[yellow]No message history available[/yellow]")
+                return
+
+            message_history = agent._llm.message_history
+            if not message_history:
+                rich_print("[yellow]No messages in history[/yellow]")
+                return
+
+            # Find the last assistant message
+            last_assistant_msg = None
+            for msg in reversed(message_history):
+                if msg.role == "assistant":
+                    last_assistant_msg = msg
+                    break
+
+            if not last_assistant_msg:
+                rich_print("[yellow]No assistant messages found[/yellow]")
+                return
+
+            # Get the text content and display without markdown
+            content = last_assistant_msg.last_text()
+
+            # Display with a simple header
+            rich_print("\n[bold blue]Last Assistant Response (Plain Text):[/bold blue]")
+            rich_print("─" * 60)
+            # Use console.print with markup=False to display raw text
+            from mcp_agent import console
+
+            console.console.print(content, markup=False)
+            rich_print("─" * 60)
+            rich_print()
+
+        except Exception as e:
+            rich_print(f"[red]Error showing markdown: {e}[/red]")

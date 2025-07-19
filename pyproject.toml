@@ -38,6 +38,7 @@ dependencies = [
     "deprecated>=1.2.18",
     "a2a-sdk>=0.2.9",
     "email-validator>=2.2.0",
+    "pyperclip>=1.9.0",
 ]
 
 [project.optional-dependencies]

@@ -5,7 +5,7 @@ Direct AgentApp implementation for interacting with agents without proxies.
 from typing import Dict, List, Optional, Union
 
 from deprecated import deprecated
-from mcp.types import PromptMessage
+from mcp.types import GetPromptResult, PromptMessage
 from rich import print as rich_print
 
 from mcp_agent.agents.agent import Agent
@@ -108,22 +108,26 @@ class AgentApp:
 
     async def apply_prompt(
         self,
-        prompt_name: str,
+        prompt: Union[str, GetPromptResult],
         arguments: Dict[str, str] | None = None,
         agent_name: str | None = None,
+        as_template: bool = False,
     ) -> str:
         """
         Apply a prompt template to an agent (default agent if not specified).
 
         Args:
-            prompt_name: Name of the prompt template to apply
+            prompt: Name of the prompt template to apply OR a GetPromptResult object
             arguments: Optional arguments for the prompt template
             agent_name: Name of the agent to send to
+            as_template: If True, store as persistent template (always included in context)
 
         Returns:
             The agent's response as a string
         """
-        return await self._agent(agent_name).apply_prompt(prompt_name, arguments)
+        return await self._agent(agent_name).apply_prompt(
+            prompt, arguments, as_template=as_template
+        )
 
     async def list_prompts(self, server_name: str | None = None, agent_name: str | None = None):
         """
@@ -235,7 +239,12 @@ class AgentApp:
         """
         return await self.interactive(agent_name=agent_name, default_prompt=default_prompt)
 
-    async def interactive(self, agent_name: str | None = None, default_prompt: str = "", pretty_print_parallel: bool = False) -> str:
+    async def interactive(
+        self,
+        agent_name: str | None = None,
+        default_prompt: str = "",
+        pretty_print_parallel: bool = False,
+    ) -> str:
         """
         Interactive prompt for sending messages with advanced features.
 
@@ -283,6 +292,7 @@ class AgentApp:
                 agent = self._agents.get(agent_name)
                 if agent and agent.agent_type == AgentType.PARALLEL:
                     from mcp_agent.ui.console_display import ConsoleDisplay
+
                     display = ConsoleDisplay(config=None)
                     display.show_parallel_results(agent)
 

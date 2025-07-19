@@ -37,8 +37,12 @@ class RichProgressDisplay:
         self._progress.start()
 
     def stop(self) -> None:
-        """stop"""
+        """Stop and clear the progress display."""
+        # Hide all tasks before stopping (like pause does)
+        for task in self._progress.tasks:
+            task.visible = False
         self._progress.stop()
+        self._paused = True
 
     def pause(self) -> None:
         """Pause the progress display."""
@@ -107,7 +111,7 @@ class RichProgressDisplay:
             description = f"[{self._get_action_style(event.action)}]{formatted_tokens}"
         else:
             description = f"[{self._get_action_style(event.action)}]{event.action.value:<15}"
-            
+
         self._progress.update(
             task_id,
             description=description,

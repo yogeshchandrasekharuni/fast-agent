@@ -7,9 +7,11 @@ from mcp.types import (
     EmbeddedResource,
     ImageContent,
     PromptMessage,
+    ResourceLink,
     TextContent,
     TextResourceContents,
 )
+from pydantic import AnyUrl
 
 from mcp_agent.llm.provider_types import Provider
 from mcp_agent.llm.providers import augmented_llm_openai
@@ -131,6 +133,30 @@ class TestOpenAIUserConverter(unittest.TestCase):
             openai_msg["content"][0]["image_url"]["url"],
             "https://example.com/image.jpg",
         )
+
+    def test_linked_resource_conversion(self):
+        """Test conversion of text-based EmbeddedResource to OpenAI text content with fastagent:file tags."""
+        # Create a text resource
+        resource_link = ResourceLink(
+            uri=AnyUrl("test://example.com/document.txt"),
+            type="resource_link",
+            mimeType="text/plain",
+            description="Some description",
+            name="some name",
+        )
+        multipart = PromptMessageMultipart(role="user", content=[resource_link])
+
+        # Convert to OpenAI format
+        openai_msg = OpenAIConverter.convert_to_openai(multipart)
+
+        # Assertions
+        self.assertEqual(openai_msg["role"], "user")
+        self.assertEqual(len(openai_msg["content"]), 1)
+        self.assertEqual(openai_msg["content"][0]["type"], "text")
+        self.assertIn("Some description", openai_msg["content"][0]["text"])
+        self.assertIn("some name", openai_msg["content"][0]["text"])
+        self.assertIn("text/plain", openai_msg["content"][0]["text"])
+        self.assertIn("test://example.com/document.txt", openai_msg["content"][0]["text"])
 
     def test_multiple_content_blocks(self):
         """Test conversion of messages with multiple content blocks."""

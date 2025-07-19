@@ -5,8 +5,7 @@ from mcp.types import (
     CallToolRequest,
     CallToolRequestParams,
     CallToolResult,
-    EmbeddedResource,
-    ImageContent,
+    ContentBlock,
     TextContent,
 )
 from tensorzero import AsyncTensorZeroGateway
@@ -169,7 +168,7 @@ class TensorZeroAugmentedLLM(AugmentedLLM[Dict[str, Any], Any]):
         available_tools: Optional[List[Dict[str, Any]]] = await self._prepare_t0_tools()
 
         # [3] Initialize storage arrays for the text content of the assistant message reply and, optionally, tool calls and results, and begin inference loop
-        final_assistant_message: List[Union[TextContent, ImageContent, EmbeddedResource]] = []
+        final_assistant_message: List[ContentBlock] = []
         last_executed_results: Optional[List[CallToolResult]] = None
 
         for i in range(merged_params.max_iterations):
@@ -353,11 +352,11 @@ class TensorZeroAugmentedLLM(AugmentedLLM[Dict[str, Any], Any]):
         completion: Union[ChatInferenceResponse, JsonInferenceResponse],
         available_tools_for_display: Optional[List[Dict[str, Any]]] = None,
     ) -> Tuple[
-        List[Union[TextContent, ImageContent, EmbeddedResource]],  # Text/Image content ONLY
+        List[Union[ContentBlock]],  # Text/Image content ONLY
         List[CallToolResult],  # Executed results
         List[Any],  # Raw tool_call blocks
     ]:
-        content_parts_this_turn: List[Union[TextContent, ImageContent, EmbeddedResource]] = []
+        content_parts_this_turn: List[ContentBlock] = []
         executed_tool_results: List[CallToolResult] = []
         raw_tool_call_blocks_from_t0: List[Any] = []
 
@@ -402,7 +401,7 @@ class TensorZeroAugmentedLLM(AugmentedLLM[Dict[str, Any], Any]):
                             setattr(result, "_t0_tool_name_temp", tool_name)
                             setattr(result, "_t0_is_error_temp", False)
                             executed_tool_results.append(result)
-                            self.show_oai_tool_result(str(result))
+                            self.show_tool_result(result)
                         except Exception as e:
                             self.logger.error(
                                 f"Error executing tool {tool_name} (id: {tool_use_id}): {e}"
@@ -415,7 +414,7 @@ class TensorZeroAugmentedLLM(AugmentedLLM[Dict[str, Any], Any]):
                             setattr(error_result, "_t0_tool_name_temp", tool_name)
                             setattr(error_result, "_t0_is_error_temp", True)
                             executed_tool_results.append(error_result)
-                            self.show_oai_tool_result(f"ERROR: {error_text}")
+                            self.show_tool_result(error_result)
 
                 elif block_type == "thought":
                     thought_text = getattr(block, "text", None)

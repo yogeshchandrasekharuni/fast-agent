@@ -314,7 +314,7 @@ class FastAgent:
                         self.agents,
                         model_factory_func,
                     )
-                    
+
                     # Validate API keys after agent creation
                     validate_provider_keys_post_creation(active_agents)
 
@@ -435,6 +435,14 @@ class FastAgent:
                 raise SystemExit(1)
 
             finally:
+                # Ensure progress display is stopped before showing usage summary
+                try:
+                    from mcp_agent.progress_display import progress_display
+
+                    progress_display.stop()
+                except:  # noqa: E722
+                    pass
+
                 # Print usage report before cleanup (show for user exits too)
                 if active_agents and not had_error:
                     self._print_usage_report(active_agents)
