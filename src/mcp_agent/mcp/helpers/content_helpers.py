@@ -9,6 +9,7 @@ from typing import Optional, Union
 
 from mcp.types import (
     BlobResourceContents,
+    ContentBlock,
     EmbeddedResource,
     ImageContent,
     ReadResourceResult,
@@ -17,7 +18,7 @@ from mcp.types import (
 )
 
 
-def get_text(content: Union[TextContent, ImageContent, EmbeddedResource]) -> Optional[str]:
+def get_text(content: ContentBlock) -> Optional[str]:
     """
     Extract text content from a content object if available.
 
@@ -40,7 +41,7 @@ def get_text(content: Union[TextContent, ImageContent, EmbeddedResource]) -> Opt
     return None
 
 
-def get_image_data(content: Union[TextContent, ImageContent, EmbeddedResource]) -> Optional[str]:
+def get_image_data(content: ContentBlock) -> Optional[str]:
     """
     Extract image data from a content object if available.
 
@@ -62,7 +63,7 @@ def get_image_data(content: Union[TextContent, ImageContent, EmbeddedResource]) 
     return None
 
 
-def get_resource_uri(content: Union[TextContent, ImageContent, EmbeddedResource]) -> Optional[str]:
+def get_resource_uri(content: ContentBlock) -> Optional[str]:
     """
     Extract resource URI from an EmbeddedResource if available.
 
@@ -78,7 +79,7 @@ def get_resource_uri(content: Union[TextContent, ImageContent, EmbeddedResource]
     return None
 
 
-def is_text_content(content: Union[TextContent, ImageContent, EmbeddedResource]) -> bool:
+def is_text_content(content: ContentBlock) -> bool:
     """
     Check if the content is text content.
 
@@ -104,7 +105,7 @@ def is_image_content(content: Union[TextContent, ImageContent, EmbeddedResource]
     return isinstance(content, ImageContent)
 
 
-def is_resource_content(content: Union[TextContent, ImageContent, EmbeddedResource]) -> bool:
+def is_resource_content(content: ContentBlock) -> bool:
     """
     Check if the content is an embedded resource.
 

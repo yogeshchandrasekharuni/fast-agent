@@ -376,9 +376,7 @@ class GoogleNativeAugmentedLLM(AugmentedLLM[types.Content, types.Content]):
 
                     # Execute the tool call. google.genai does not provide a tool_call_id, pass None.
                     result = await self.call_tool(tool_call_request, None)
-                    self.show_oai_tool_result(
-                        str(result.content)
-                    )  # Use show_oai_tool_result for consistency
+                    self.show_tool_result(result)
 
                     tool_results.append((tool_call_params.name, result))  # Store name and result
 

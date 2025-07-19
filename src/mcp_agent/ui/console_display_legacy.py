@@ -51,27 +51,6 @@ class ConsoleDisplay:
         console.console.print(panel, markup=self._markup)
         console.console.print("\n")
 
-    def show_oai_tool_result(self, result, name: Optional[str] = None) -> None:
-        """Display an OpenAI tool result in a formatted panel."""
-        if not self.config or not self.config.logger.show_tools:
-            return
-
-        panel = Panel(
-            Text(str(result), overflow="..."),
-            title=f"[TOOL RESULT]{f' ({name})' if name else ''}",
-            title_align="right",
-            style="magenta",
-            border_style="white",
-            padding=(1, 2),
-        )
-
-        if self.config and self.config.logger.truncate_tools:
-            if len(str(result)) > 360:
-                panel.height = 8
-
-        console.console.print(panel, markup=self._markup)
-        console.console.print("\n")
-
     def show_tool_call(
         self, available_tools, tool_name, tool_args, name: Optional[str] = None
     ) -> None:

@@ -451,10 +451,6 @@ class AugmentedLLM(ContextDependent, AugmentedLLMProtocol, Generic[MessageParamT
         """Display a tool result in a formatted panel."""
         self.display.show_tool_result(result, name=self.name)
 
-    def show_oai_tool_result(self, result: str) -> None:
-        """Display a tool result in a formatted panel."""
-        self.display.show_oai_tool_result(result, name=self.name)
-
     def show_tool_call(self, available_tools, tool_name, tool_args) -> None:
         """Display a tool call in a formatted panel."""
         self._current_turn_tool_calls += 1

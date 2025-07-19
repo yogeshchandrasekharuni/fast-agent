@@ -91,12 +91,19 @@ def display_usage_report(
     max_agent_width = min(15, max(len(data["name"]) for data in usage_data) if usage_data else 8)
     agent_width = max(max_agent_width, 5)  # Minimum of 5 for "Agent" header
 
-    # Display the table
+    # Display the table with new visual style
     console = Console()
-    console.print()
-    console.print("[dim]Usage Summary (Cumulative)[/dim]")
 
-    # Print header with proper spacing
+    # Top separator
+    console.print()
+    console.print("─" * console.size.width, style="dim")
+    console.print()
+
+    # Header with block character
+    console.print("[dim]▎[/dim] [bold dim]Usage Summary[/bold dim]")
+    console.print()
+
+    # Table header with proper spacing
     console.print(
         f"[dim]{'Agent':<{agent_width}} {'Input':>9} {'Output':>9} {'Total':>9} {'Turns':>6} {'Tools':>6} {'Context%':>9}  {'Model':<25}[/dim]"
     )

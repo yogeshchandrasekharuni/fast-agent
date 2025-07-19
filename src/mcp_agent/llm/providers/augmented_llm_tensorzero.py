@@ -402,7 +402,7 @@ class TensorZeroAugmentedLLM(AugmentedLLM[Dict[str, Any], Any]):
                             setattr(result, "_t0_tool_name_temp", tool_name)
                             setattr(result, "_t0_is_error_temp", False)
                             executed_tool_results.append(result)
-                            self.show_oai_tool_result(str(result))
+                            self.show_tool_result(result)
                         except Exception as e:
                             self.logger.error(
                                 f"Error executing tool {tool_name} (id: {tool_use_id}): {e}"
@@ -415,7 +415,7 @@ class TensorZeroAugmentedLLM(AugmentedLLM[Dict[str, Any], Any]):
                             setattr(error_result, "_t0_tool_name_temp", tool_name)
                             setattr(error_result, "_t0_is_error_temp", True)
                             executed_tool_results.append(error_result)
-                            self.show_oai_tool_result(f"ERROR: {error_text}")
+                            self.show_tool_result(error_result)
 
                 elif block_type == "thought":
                     thought_text = getattr(block, "text", None)
