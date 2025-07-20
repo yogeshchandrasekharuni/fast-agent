@@ -5,6 +5,7 @@ from typing import Any, Dict, Optional
 
 from mcp.types import ElicitRequestedSchema
 from prompt_toolkit import Application
+from prompt_toolkit.application.current import get_app
 from prompt_toolkit.buffer import Buffer
 from prompt_toolkit.filters import Condition
 from prompt_toolkit.formatted_text import FormattedText
@@ -272,27 +273,30 @@ class ElicitationForm:
             keep_focused_window_visible=True,
         )
 
-        # Create title bar manually
-        title_bar = Window(
-            FormattedTextControl(FormattedText([("class:title", "Elicitation Request")])),
-            height=1,
-            style="class:dialog.title",
-        )
-
-        # Combine title, sticky headers, and scrollable content
+        # Combine sticky headers and scrollable content (no separate title bar needed)
         full_content = HSplit(
             [
-                title_bar,
-                Window(height=1),  # Spacing after title
+                Window(height=1),  # Top spacing
                 sticky_headers,  # Headers stay fixed at top
                 scrollable_content,  # Form fields can scroll
             ]
         )
 
-        # Create dialog frame manually to avoid Dialog's internal scrolling
+        # Create dialog frame with title
         dialog = Frame(
             body=full_content,
+            title="Elicitation Request",
             style="class:dialog",
+        )
+
+        # Apply width constraints by putting Frame in VSplit with flexible spacers
+        # This prevents console display interference and constrains the Frame border
+        constrained_dialog = VSplit(
+            [
+                Window(width=10),  # Smaller left spacer
+                dialog,
+                Window(width=10),  # Smaller right spacer
+            ]
         )
 
         # Key bindings
@@ -370,7 +374,7 @@ class ElicitationForm:
         # Add toolbar to the layout
         root_layout = HSplit(
             [
-                dialog,  # The main dialog
+                constrained_dialog,  # The width-constrained dialog
                 self._toolbar_window,
             ]
         )
@@ -588,7 +592,6 @@ class ElicitationForm:
 
     def _is_in_multiline_field(self) -> bool:
         """Check if currently focused field is a multiline field."""
-        from prompt_toolkit.application.current import get_app
 
         focused = get_app().layout.current_control
 

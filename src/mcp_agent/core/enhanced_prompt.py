@@ -511,13 +511,12 @@ def create_keybindings(on_toggle_multiline=None, app=None, agent_provider=None, 
                             rich_print("\n[green]✓ Copied to clipboard[/green]")
                             return
 
-                    rich_print("\n[yellow]No assistant messages found[/yellow]")
                 else:
-                    rich_print("\n[yellow]No message history available[/yellow]")
-            except Exception as e:
-                rich_print(f"\n[red]Error copying: {e}[/red]")
+                    pass
+            except Exception:
+                pass
         else:
-            rich_print("[yellow]Clipboard copy not available in this context[/yellow]")
+            pass
 
     return kb
 

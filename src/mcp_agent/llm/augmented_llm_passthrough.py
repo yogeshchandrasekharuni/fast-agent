@@ -164,15 +164,10 @@ class PassthroughLLM(AugmentedLLM):
         request_params: RequestParams | None = None,
         is_template: bool = False,
     ) -> PromptMessageMultipart:
-        print(
-            f"DEBUG: PassthroughLLM _apply_prompt_provider_specific called with {len(multipart_messages)} messages, is_template={is_template}"
-        )
-
         # Add messages to history with proper is_prompt flag
         self.history.extend(multipart_messages, is_prompt=is_template)
 
         last_message = multipart_messages[-1]
-        print(f"DEBUG: Last message role: {last_message.role}, text: '{last_message.first_text()}'")
 
         if self.is_tool_call(last_message):
             result = Prompt.assistant(await self.generate_str(last_message.first_text()))
@@ -209,14 +204,8 @@ class PassthroughLLM(AugmentedLLM):
         else:
             # TODO -- improve when we support Audio/Multimodal gen models e.g. gemini . This should really just return the input as "assistant"...
             concatenated: str = "\n".join(message.all_text() for message in multipart_messages)
-            print(
-                f"DEBUG: PassthroughLLM generating response: '{concatenated}' (is_template={is_template})"
-            )
             await self.show_assistant_message(concatenated)
             result = Prompt.assistant(concatenated)
-            print(f"DEBUG: PassthroughLLM created result: {result}")
-            print(f"DEBUG: Result first_text(): {result.first_text()}")
-            print(f"DEBUG: Result content: {result.content}")
 
         # Track usage for this passthrough "turn"
         try:
