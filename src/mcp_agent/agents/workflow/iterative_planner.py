@@ -1,12 +1,9 @@
 """
-OrchestratorAgent implementation using the BaseAgent adapter pattern.
-
-This workflow provides an implementation that manages complex tasks by
-dynamically planning, delegating to specialized agents, and synthesizing results.
+Iterative Planner Agent - works towards an objective using sub-agents
 """
 
 import asyncio
-from typing import Any, Dict, List, Literal, Optional, Tuple, Type
+from typing import Any, Dict, List, Optional, Tuple, Type
 
 from mcp.types import TextContent
 
@@ -171,7 +168,6 @@ class IterativePlanner(BaseAgent):
         self,
         config: AgentConfig,
         agents: List[Agent],
-        plan_type: Literal["full", "iterative"] = "full",
         plan_iterations: int = -1,
         context: Optional[Any] = None,
         **kwargs,
@@ -197,7 +193,6 @@ class IterativePlanner(BaseAgent):
 
         super().__init__(config, context=context, **kwargs)
 
-        self.plan_type = plan_type
         self.plan_iterations = plan_iterations
 
     async def initialize(self) -> None:
