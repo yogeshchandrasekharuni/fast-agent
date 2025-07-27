@@ -148,7 +148,8 @@ If the plan was marked as incomplete but the maximum number of iterations was re
 make sure to state clearly what was accomplished and what remains to be done.
 
 
-Complete the plan by providing an appropriate answer for the original objective.
+Complete the plan by providing an appropriate answer for the original objective. Provide a Mermaid diagram
+(in code fences) showing the plan steps and their relationships, if applicable.
 """
 
 
