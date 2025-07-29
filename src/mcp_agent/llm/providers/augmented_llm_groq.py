@@ -1,16 +1,6 @@
-from copy import copy
-from typing import List, Tuple, Type, cast
-
-from openai.types.chat import (
-    ChatCompletionAssistantMessageParam,
-    ChatCompletionMessage,
-)
-
 from mcp_agent.core.request_params import RequestParams
 from mcp_agent.llm.provider_types import Provider
 from mcp_agent.llm.providers.augmented_llm_openai import OpenAIAugmentedLLM
-from mcp_agent.mcp.interfaces import ModelT
-from mcp_agent.mcp.prompt_message_multipart import PromptMessageMultipart
 
 GROQ_BASE_URL = "https://api.groq.com/openai/v1"
 DEFAULT_GROQ_MODEL = ""
@@ -27,7 +17,7 @@ class GroqAugmentedLLM(OpenAIAugmentedLLM):
         return RequestParams(
             model=chosen_model,
             systemPrompt=self.instruction,
-            parallel_tool_calls=True,
+            parallel_tool_calls=False,
             max_iterations=20,
             use_history=True,
         )
