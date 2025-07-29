@@ -43,7 +43,6 @@ async def _run_agent(
         "ignore_unknown_args": True,
         "parse_cli_args": False,  # Don't parse CLI args, we're handling it ourselves
     }
-    print("KWARGS", fast_kwargs)
 
     fast = FastAgent(**fast_kwargs)
 
