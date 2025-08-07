@@ -321,14 +321,14 @@ class OpenAIAugmentedLLM(AugmentedLLM[ChatCompletionMessageParam, ChatCompletion
 
         response = await self.aggregator.list_tools()
         available_tools: List[ChatCompletionToolParam] | None = [
-            ChatCompletionToolParam(
-                type="function",
-                function={
+            {
+                "type": "function",
+                "function": {
                     "name": tool.name,
                     "description": tool.description if tool.description else "",
                     "parameters": self.adjust_schema(tool.inputSchema),
                 },
-            )
+            }
             for tool in response.tools
         ]
 
