@@ -19,7 +19,7 @@ class PromptMessageMultipart(BaseModel):
     """
 
     role: Role
-    content: List[Union[ContentBlock]]
+    content: List[ContentBlock]
 
     @classmethod
     def to_multipart(cls, messages: List[PromptMessage]) -> List["PromptMessageMultipart"]:
