@@ -80,12 +80,13 @@ class OpenAIAugmentedLLM(AugmentedLLM[ChatCompletionMessageParam, ChatCompletion
                 self._reasoning_effort = self.context.config.openai.reasoning_effort
 
         # Determine if we're using a reasoning model
-        # TODO -- move this to model capabilities, add o4.
+        # TODO -- move this to model capabilities database.
         chosen_model = self.default_request_params.model if self.default_request_params else None
         self._reasoning = chosen_model and (
             chosen_model.startswith("o3")
             or chosen_model.startswith("o1")
             or chosen_model.startswith("o4")
+            or chosen_model.startswith("gpt-5")
         )
         if self._reasoning:
             self.logger.info(
