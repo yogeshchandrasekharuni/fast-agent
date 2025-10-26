@@ -189,6 +189,7 @@ class AugmentedLLM(ContextDependent, AugmentedLLMProtocol, Generic[MessageParamT
 
         # Initialize usage tracking
         self.usage_accumulator = UsageAccumulator()
+        self.tool_calls: list[CallToolRequest] = []
 
     def _initialize_default_params(self, kwargs: dict) -> RequestParams:
         """Initialize default parameters for the LLM.

@@ -440,6 +440,7 @@ class OpenAIAugmentedLLM(AugmentedLLM[ChatCompletionMessageParam, ChatCompletion
 
                     try:
                         result = await self.call_tool(tool_call_request, tool_call.id)
+                        self.tool_calls.append(tool_call_request)
                         self.show_tool_result(result)
                         tool_results.append((tool_call.id, result))
                         responses.extend(result.content)
